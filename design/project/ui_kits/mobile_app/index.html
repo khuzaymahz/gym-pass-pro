@@ -1,0 +1,195 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>GYMPASS — Mobile UI Kit</title>
+  <link rel="stylesheet" href="../../colors_and_type.css"/>
+  <style>
+    html, body {
+      margin: 0; padding: 0; min-height: 100%;
+      background:
+        radial-gradient(ellipse 1400px 700px at 20% -5%, rgba(187,251,70,0.05), transparent 50%),
+        #080907;
+      color: #F4F4F0;
+      font-family: 'Inter', system-ui, sans-serif;
+    }
+    .page {
+      max-width: 1560px;
+      margin: 0 auto;
+      padding: 40px 48px 80px;
+    }
+    .head {
+      display: flex; justify-content: space-between; align-items: flex-end;
+      gap: 32px;
+      padding-bottom: 28px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      margin-bottom: 40px;
+    }
+    .mark {
+      font-family: 'Archivo', system-ui, sans-serif;
+      font-weight: 900; font-style: italic;
+      font-size: 56px; letter-spacing: -0.045em; line-height: 0.9;
+    }
+    .mark .gym { color: #F4F4F0; }
+    .mark .pass { color: #BBFB46; }
+    .kit {
+      font-family: 'Archivo', system-ui, sans-serif;
+      font-weight: 900; font-style: italic;
+      font-size: 22px; letter-spacing: -0.03em;
+      color: #F4F4F0; text-transform: uppercase;
+      margin-top: 10px;
+    }
+    .kit em {
+      font-family: 'Instrument Serif', serif;
+      font-style: italic; font-weight: 400;
+      color: #BBFB46; text-transform: lowercase;
+      letter-spacing: -0.01em;
+    }
+    .meta {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; color: #8E8F86; letter-spacing: 0.18em;
+      text-transform: uppercase;
+      text-align: right;
+      line-height: 1.7;
+    }
+    .meta b { color: #BBFB46; font-weight: 500; }
+    .section-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; color: #BBFB46; letter-spacing: 0.2em;
+      text-transform: uppercase; font-weight: 500;
+      margin-bottom: 6px;
+    }
+    .section-sub {
+      font-family: 'Archivo', system-ui, sans-serif;
+      font-weight: 900; font-style: italic;
+      font-size: 28px; letter-spacing: -0.035em;
+      color: #F4F4F0; text-transform: uppercase;
+      margin-bottom: 28px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 40px 32px;
+      margin-bottom: 60px;
+    }
+    .frame {
+      display: flex; flex-direction: column; align-items: center; gap: 14px;
+    }
+    .label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; color: #8E8F86; letter-spacing: 0.22em;
+      text-transform: uppercase; font-weight: 500;
+      display: flex; gap: 10px; align-items: center;
+      align-self: stretch;
+      padding: 0 4px;
+    }
+    .label .num { color: #BBFB46; }
+    .label .name { color: #F4F4F0; font-weight: 600; }
+    .label .rule { flex: 1; height: 1px; background: rgba(255,255,255,0.1); }
+    .artboard {
+      width: 100%; max-width: 390px;
+      aspect-ratio: 390 / 844;
+      border-radius: 44px;
+      overflow: hidden;
+      box-shadow:
+        0 30px 60px -20px rgba(0,0,0,0.7),
+        0 0 0 1px rgba(255,255,255,0.06),
+        inset 0 0 0 4px #000;
+      background: #0A0B0A;
+      position: relative;
+    }
+    .artboard > div {
+      position: absolute; inset: 0;
+      width: 390px !important; height: 844px !important;
+      transform-origin: top left;
+      transform: scale(var(--s, 1));
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="head">
+      <div>
+        <div class="mark"><span class="gym">GYM</span><span class="pass">PASS</span></div>
+        <div class="kit">MOBILE UI KIT · <em>v1.0</em></div>
+      </div>
+      <div class="meta">
+        ● 6 SCREENS · DARK · 390 × 844<br/>
+        ◆ <b>MEMBER APP</b> · FLUTTER · EN/ع
+      </div>
+    </div>
+
+    <div class="section-title">● ONBOARDING</div>
+    <div class="section-sub">Login → Pick a pass → Welcome</div>
+    <div class="grid">
+      <div class="frame">
+        <div class="label"><span class="num">01</span><span class="name">LOGIN</span><span class="rule"></span></div>
+        <div class="artboard" id="ab-login"></div>
+      </div>
+      <div class="frame">
+        <div class="label"><span class="num">02</span><span class="name">PICK A PASS</span><span class="rule"></span></div>
+        <div class="artboard" id="ab-plans"></div>
+      </div>
+      <div class="frame">
+        <div class="label"><span class="num">03</span><span class="name">WELCOME</span><span class="rule"></span></div>
+        <div class="artboard" id="ab-success"></div>
+      </div>
+    </div>
+
+    <div class="section-title">● CORE LOOP</div>
+    <div class="section-sub">Home → Scan to check in → Profile</div>
+    <div class="grid">
+      <div class="frame">
+        <div class="label"><span class="num">04</span><span class="name">HOME</span><span class="rule"></span></div>
+        <div class="artboard" id="ab-home"></div>
+      </div>
+      <div class="frame">
+        <div class="label"><span class="num">05</span><span class="name">SCAN</span><span class="rule"></span></div>
+        <div class="artboard" id="ab-qr"></div>
+      </div>
+      <div class="frame">
+        <div class="label"><span class="num">06</span><span class="name">PROFILE</span><span class="rule"></span></div>
+        <div class="artboard" id="ab-profile"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script type="text/babel" src="common.jsx"></script>
+  <script type="text/babel" src="screens.jsx"></script>
+
+  <script type="text/babel">
+    const mounts = [
+      ['ab-login', LoginScreen],
+      ['ab-plans', PlansScreen],
+      ['ab-success', SuccessScreen],
+      ['ab-home', HomeScreen],
+      ['ab-qr', QRScreen],
+      ['ab-profile', ProfileScreen],
+    ];
+    mounts.forEach(([id, Comp]) => {
+      const host = document.getElementById(id);
+      if (!host) return;
+      const inner = document.createElement('div');
+      host.appendChild(inner);
+      ReactDOM.createRoot(inner).render(<Comp/>);
+    });
+
+    // Scale each artboard-inner to fit its outer box
+    function rescale() {
+      document.querySelectorAll('.artboard').forEach(ab => {
+        const inner = ab.firstElementChild;
+        if (!inner) return;
+        const w = ab.clientWidth;
+        inner.style.setProperty('--s', w / 390);
+      });
+    }
+    window.addEventListener('resize', rescale);
+    setTimeout(rescale, 50);
+    setTimeout(rescale, 400);
+  </script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:api.anthropic.com)",
+      "Read(//c/Users/NSOUR/.claude/projects/c--gym-pass-pro/8b69916e-6ddd-4c23-bd71-3143f2c77891/tool-results/**)",
+      "Bash(mkdir -p /tmp/gympass-design)",
+      "Bash(gunzip -c /c/Users/NSOUR/.claude/projects/c--gym-pass-pro/8b69916e-6ddd-4c23-bd71-3143f2c77891/tool-results/webfetch-1776783188063-gq0asr.bin)",
+      "Read(//tmp/gympass-design/**)",
+      "Read(//tmp/**)",
+      "Bash(tar -xf decompressed.bin)",
+      "Bash(mkdir -p \"c:/gym-pass-pro/design\" \"c:/gym-pass-pro/docs\")",
+      "Bash(cp -r \"/tmp/gympass-design/gym-pass-design-system/.\" \"c:/gym-pass-pro/design/\")",
+      "PowerShell($env:Path += ';C:\\\\Program Files\\\\nodejs'; cd c:/gym-pass-pro/admin; Test-Path node_modules\\\\typescript; Test-Path node_modules\\\\.bin\\\\tsc; Test-Path node_modules\\\\.bin\\\\tsc.cmd)",
+      "PowerShell($env:Path += ';C:\\\\Program Files\\\\nodejs'; cd c:/gym-pass-pro/admin; npm install 2>&1 | Select-Object -Last 30)",
+      "PowerShell($env:Path += ';C:\\\\Program Files\\\\nodejs'; cd c:/gym-pass-pro/admin; npm install --include=dev 2>&1 | Select-Object -Last 20)",
+      "PowerShell($env:Path += ';C:\\\\Program Files\\\\nodejs'; cd c:/gym-pass-pro/admin; npm install --include=dev 2>&1 | Select-Object -Last 10)"
+    ]
+  }
+}

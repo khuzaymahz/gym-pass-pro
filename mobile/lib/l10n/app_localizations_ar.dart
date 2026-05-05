@@ -1,0 +1,1499 @@
+// ignore: unused_import
+import 'package:intl/intl.dart' as intl;
+import 'app_localizations.dart';
+
+// ignore_for_file: type=lint
+
+class AppLocalizationsAr extends AppLocalizations {
+  AppLocalizationsAr([String locale = 'ar']) : super(locale);
+
+  @override
+  String get signInStep => 'أهلاً بك — الخطوة 1 من 3';
+  @override
+  String get signInHeadline1 => 'اشتراك واحد،';
+  @override
+  String get signInHeadline2 => 'كل';
+  @override
+  String get signInHeadlineAccent => 'النوادي.';
+  @override
+  String get signInBlurb =>
+      'تدرّب في أيّ نادٍ ضمن الشبكة. اشتراك واحد. تُفتح الأبواب بمسح رمز QR.';
+  @override
+  String get signInOtpNote => 'سنرسل لك رمزاً مكوّناً من 4 أرقام. بدون رسائل مزعجة.';
+  @override
+  String get signInContinueWithGoogle => 'المتابعة بواسطة Google';
+  @override
+  String get signInPasswordLabel => 'كلمة المرور';
+  @override
+  String get signInPasswordHint => 'أدخل كلمة المرور';
+  @override
+  String get signInPasswordNote => 'مرحباً بعودتك. أدخل كلمة المرور التي اخترتها عند التسجيل.';
+  @override
+  String get signInWithPasswordCta => 'تسجيل الدخول';
+  @override
+  String get signInRememberMe => 'تذكّرني';
+  @override
+  String get signInForgotPassword => 'نسيت كلمة المرور؟';
+  @override
+  String get signInCheckingNumber => 'جارٍ التحقق من رقمك…';
+  @override
+  String get errorPasswordInvalid => 'كلمة مرور خاطئة. حاول مجدداً.';
+  @override
+  String get errorRequiredFields => 'يرجى تعبئة جميع الحقول المطلوبة.';
+  @override
+  String get errorInvalidInput =>
+      'بعض الحقول غير صحيحة. تحقق وحاول مجدداً.';
+  @override
+  String get errorPasswordSignInRequired => 'أدخل كلمة المرور';
+  @override
+  String get errorOtpLocked =>
+      'محاولات كثيرة. حاول بعد دقيقة.';
+  @override
+  String get errorNetwork => 'خطأ في الشبكة. تحقق من اتصالك وحاول مجدداً.';
+  @override
+  String get orDivider => 'أو';
+  @override
+  String get phoneCountryPrefix => '+962';
+  @override
+  String get phoneHint => '7X XXX XXXX';
+  @override
+  String get errorPhoneRequired => 'يرجى إدخال رقم الهاتف';
+  @override
+  String get errorPhoneInvalid => 'رقم غير صالح';
+
+  @override
+  String get otpSentTo => 'أرسلنا رمزاً إلى';
+  @override
+  String get otpResend => 'إعادة إرسال الرمز';
+  @override
+  String otpResendIn(int seconds) => 'إعادة الإرسال خلال $seconds ث';
+  @override
+  String get otpDevHint => 'في وضع التطوير استخدم 1234';
+  @override
+  String get errorOtpIncomplete => 'الرجاء إدخال الرمز المكوّن من 4 أرقام';
+  @override
+  String get otpStep => 'الخطوة 2 من 3 — التحقّق';
+  @override
+  String get otpAlmostTitle => 'اقتربت';
+  @override
+  String get otpAlmostAccent => 'من الوصول.';
+  @override
+  String otpSentToPhone(String phone) =>
+      'أدخل الرمز المكوّن من 4 أرقام الذي أرسلناه إلى $phone.';
+  @override
+  String get otpPhoneFallback => '+962 7X XXX XXXX';
+  @override
+  String get otpResendNow => 'يمكنك إعادة الإرسال الآن';
+  @override
+  String get otpResendBtn => 'إعادة الإرسال';
+
+  @override
+  String get registerStep => 'الخطوة 3 من 3 — الملف الشخصي';
+  @override
+  String get registerTitle => 'مستخدم';
+  @override
+  String get registerTitleAccent => 'جديد.';
+  @override
+  String get registerBlurb => 'أخبرنا باسمك وبريدك لنخصّص بطاقتك.';
+  @override
+  String get labelFirstName => 'الاسم الأول';
+  @override
+  String get labelLastName => 'اسم العائلة';
+  @override
+  String get labelEmail => 'البريد الإلكتروني';
+  @override
+  String get labelPassword => 'كلمة المرور';
+  @override
+  String get labelPasswordConfirm => 'تأكيد كلمة المرور';
+  @override
+  String get labelBirthdate => 'تاريخ الميلاد';
+  @override
+  String get hintFirstName => 'مثال: ليلى';
+  @override
+  String get hintLastName => 'مثال: حدّاد';
+  @override
+  String get hintEmail => 'username@domain.com';
+  @override
+  String get hintBirthdate => 'اليوم / الشهر / السنة';
+  @override
+  String get birthdateHelpText => 'اختر تاريخ ميلادك';
+  @override
+  String get hintPassword => '٨ أحرف على الأقل';
+  @override
+  String get hintPasswordConfirm => 'أعد إدخال كلمة المرور';
+  @override
+  String get agreementText => 'أوافق على';
+  @override
+  String get terms => 'الشروط';
+  @override
+  String get and => 'و';
+  @override
+  String get privacyPolicy => 'سياسة الخصوصية';
+  @override
+  String get createMyPass => 'أنشئ حسابي';
+  @override
+  String get errorFirstNameRequired => 'الاسم الأول مطلوب';
+  @override
+  String get errorLastNameRequired => 'اسم العائلة مطلوب';
+  @override
+  String errorNameTooShort(int min) => 'يجب ألا يقل عن $min أحرف';
+  @override
+  String get errorEmailRequired => 'البريد الإلكتروني مطلوب';
+  @override
+  String get errorEmailInvalid => 'صيغة البريد الإلكتروني غير صحيحة';
+  @override
+  String get errorPasswordRequired => 'كلمة المرور مطلوبة';
+  @override
+  String get errorPasswordTooShort => 'يجب أن تكون كلمة المرور ٨ أحرف على الأقل';
+  @override
+  String get errorPasswordWeak => 'يجب أن تحتوي على حرف ورقم على الأقل';
+  @override
+  String get errorPasswordMismatch => 'كلمتا المرور غير متطابقتين';
+  @override
+  String get errorAgreementRequired => 'عليك الموافقة للمتابعة';
+  @override
+  String get errorBirthdateRequired => 'يرجى اختيار تاريخ الميلاد';
+  @override
+  String get labelGender => 'الجنس';
+  @override
+  String get genderMale => 'ذكر';
+  @override
+  String get genderFemale => 'أنثى';
+  @override
+  String get errorGenderRequired => 'يرجى اختيار الجنس';
+
+  @override
+  String get continueLabel => 'متابعة';
+  @override
+  String get confirm => 'تأكيد';
+  @override
+  String get cancel => 'إلغاء';
+  @override
+  String get save => 'حفظ';
+  @override
+  String get close => 'إغلاق';
+  @override
+  String get back => 'رجوع';
+  @override
+  String get retry => 'إعادة المحاولة';
+  @override
+  String get seeAll => 'عرض الكل';
+
+  @override
+  String homeGreetingName(String name) => '$name،';
+  @override
+  String get homeGreetingFallback => 'مرحبًا،';
+  @override
+  String get homeHeadlineLine1 => 'هيا';
+  @override
+  String get homeHeadlineAccent => 'الآن.';
+  @override
+  String get homeActive => 'نشط';
+  @override
+  String get homeVisits => 'زيارات';
+  @override
+  String homeLeftThisCycle(int n) => 'ضل لك $n زيارة';
+  @override
+  String homeCycleProgress(int cycle, int total, int days) =>
+      'الشهر $cycle من $total · تجديد الدورة بعد $days يوم';
+  @override
+  String homeTermEndsIn(int days) => 'تجديد الاشتراك بعد $days يوم';
+  @override
+  String get homeManage => 'تعديل';
+  @override
+  String get homeNoPlanOverline => 'لسا ما اشتركت';
+  @override
+  String get homeNoPlanTitle => 'اختر اشتراكك';
+  @override
+  String get homeNoPlanBlurb =>
+      'اختار باقة وافتح أبواب صالات المدينة. الاشتراك يبدأ لحظة الدفع.';
+  @override
+  String get homeNoPlanCta => 'شوف الباقات';
+  @override
+  String get homeNearYou => 'قريبة منك';
+  @override
+  String get homeCategories => 'الأنواع';
+  @override
+  String get categoryGym => 'جيم';
+  @override
+  String get categoryCross => 'كروس';
+  @override
+  String get categoryMartial => 'قتال';
+  @override
+  String get categoryYoga => 'يوغا';
+  @override
+  String clubsCount(int n) {
+    final s = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      zero: 'لا أندية',
+      one: 'نادٍ واحد',
+      two: 'ناديان',
+      few: '$n أندية',
+      many: '$n نادياً',
+      other: '$n نادٍ',
+    );
+    return s;
+  }
+
+  @override
+  String get tabHome => 'الرئيسية';
+  @override
+  String get tabGyms => 'الأندية';
+  @override
+  String get tabExplore => 'استكشف';
+  @override
+  String get exploreOverline => 'استكشف';
+  @override
+  String get exploreViewProfile => 'الملف الشخصي';
+  @override
+  String get exploreSearchHint => 'ابحث عن نادٍ أو منطقة';
+  @override
+  String exploreSearchEmpty(String query) =>
+      'لا نتائج لـ "$query".';
+  @override
+  String exploreCountStrip(int shown, int total) =>
+      '$shown من $total نادٍ مطابق';
+  @override
+  String exploreDistanceKm(String km) => '$km كم';
+  @override
+  String exploreGymCount(int n) => '$n نادٍ';
+  @override
+  String get exploreOneGymCount => 'نادٍ واحد';
+  @override
+  String get exploreSelectedGymHeader => 'تم التحديد';
+  @override
+  String get exploreSelectedViewProfile => 'عرض الملف';
+  @override
+  String exploreShowAllGyms(int n) => 'عرض الكل ($n)';
+  @override
+  String get exploreNoMatches => 'لا توجد نوادٍ مطابقة للفلاتر الحالية.';
+  @override
+  String get exploreFiltersTitle => 'الفلاتر';
+  @override
+  String get exploreFiltersReset => 'إعادة تعيين';
+  @override
+  String get exploreFiltersDone => 'تم';
+  @override
+  String get exploreFiltersCategorySection => 'الفئة';
+  @override
+  String get exploreFiltersTierSection => 'الباقة';
+  @override
+  String get exploreFiltersFavoritesLabel => 'عرض المفضلة فقط';
+  @override
+  String get gymsCategoryAll => 'الكل';
+  @override
+  String get gymsCategoryGym => 'صالة';
+  @override
+  String get gymsCategoryCrossfit => 'كروسفت';
+  @override
+  String get gymsCategoryMartial => 'فنون قتالية';
+  @override
+  String get gymsCategoryYoga => 'يوغا';
+  @override
+  String get tabScan => 'مسح';
+  @override
+  String get tabProfile => 'الملف';
+
+  @override
+  String get gymsTitle => 'تصفّح الأندية';
+  @override
+  String get gymsHeadline => 'كل';
+  @override
+  String get gymsHeadlineAccent => 'نادٍ.';
+  @override
+  String get gymsSearchHint => 'ابحث باسم النادي أو المنطقة';
+  @override
+  String get gymsFilterAll => 'الكل';
+  @override
+  String get gymsFilterGym => 'جيم';
+  @override
+  String get gymsFilterCrossfit => 'كروس فت';
+  @override
+  String get gymsFilterMartial => 'فنون قتالية';
+  @override
+  String get gymsFilterYoga => 'يوغا';
+  @override
+  String get gymsEmpty => 'لا توجد نتائج مطابقة';
+  @override
+  String get gymsEmptyFavorites =>
+      'لم تحفظ أي نادٍ بعد — اضغط القلب على بطاقة النادي ليظهر هنا.';
+  @override
+  String get gymOpen247 => 'مفتوح 24/7';
+  @override
+  String gymKmAway(String km) => '$km كم';
+  @override
+  String get gymAbout => 'نبذة';
+  @override
+  String get gymAmenityWifi => 'واي فاي';
+  @override
+  String get gymAmenityParking => 'موقف';
+  @override
+  String get gymAmenityShowers => 'حمّامات';
+  @override
+  String get gymAmenityLockers => 'خزائن';
+  @override
+  String get gymCheckInHere => 'سجّل حضورك هنا';
+  @override
+  String get gymCheckedInRecently => 'تم تسجيل الحضور · الباس فعّال';
+  @override
+  String gymUpgradeTo(String tier) => 'ترقية إلى $tier';
+  @override
+  String get gymAccessIncluded => 'متضمّن في اشتراكك';
+  @override
+  String gymAccessRequiresTier(String tier) => 'يتطلّب اشتراك $tier';
+  @override
+  String gymDescriptionFallback(String area) =>
+      'مساحة تدريب متكاملة في $area. معدّات حديثة، أجواء منظمة، ودخول 24/7 لأعضاء جيم باس.';
+
+  @override
+  String get checkinSuccess => 'تم تسجيل الحضور';
+  @override
+  String get checkinDemoButton => 'تجربة المسح';
+  @override
+  String get checkinLockedBannerTitle => 'وضع المعاينة';
+  @override
+  String get checkinLockedBannerBody =>
+      'لا توجد لديك باقة مفعّلة بعد. مسح رمز أي صالة يفتح ملفها لمعاينة الوصول؛ يُفعَّل تسجيل الحضور بعد الاشتراك.';
+  @override
+  String get checkinSeePlansCta => 'عرض الباقات';
+  @override
+  String get checkinBackHome => 'العودة للرئيسية';
+  @override
+  String get checkinVisitGym => 'عرض النادي';
+  @override
+  String get checkinSuccessTitle => 'أنت';
+  @override
+  String get checkinSuccessTitleAccent => 'داخل.';
+
+  @override
+  String visitsRemaining(int count) {
+    final s = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      zero: 'لا زيارات متبقية',
+      one: 'زيارة واحدة متبقية',
+      two: 'زيارتان متبقيتان',
+      few: '$count زيارات متبقية',
+      many: '$count زيارة متبقية',
+      other: '$count زيارة متبقية',
+    );
+    return s;
+  }
+
+  @override
+  String get tierSilver => 'فضي';
+  @override
+  String get tierGold => 'ذهبي';
+  @override
+  String get tierPlatinum => 'بلاتيني';
+  @override
+  String get tierDiamond => 'ماسي';
+  @override
+  List<String> tierFeatures(String tierKey) {
+    switch (tierKey) {
+      case 'silver':
+        return const [
+          '٣٠ زيارة شهريًا',
+          'دخول النوادي الأساسية',
+          'تسجيل دخول QR في كل النوادي الشريكة',
+        ];
+      case 'gold':
+        return const [
+          '٣٠ زيارة شهريًا',
+          'دخول نوادي الفضي + الذهبي',
+          'تجميد حتى ١٢ يومًا على خطط ٦ أشهر',
+        ];
+      case 'platinum':
+        return const [
+          '٣٠ زيارة شهريًا',
+          'دخول النوادي المميّزة',
+          'تجميد حتى ١٤ يومًا على خطط ٦ أشهر',
+          'دعم عملاء أولوية',
+        ];
+      case 'diamond':
+        return const [
+          '٣٠ زيارة شهريًا',
+          'دخول كل النوادي الشريكة',
+          'تجميد حتى ١٦ يومًا على خطط ٦ أشهر',
+          'حجز شخصي مميّز',
+        ];
+      default:
+        return const [];
+    }
+  }
+
+  @override
+  String get plansTitle => 'اختر';
+  @override
+  String get plansTitleAccent => 'باقتك.';
+  @override
+  String get plansOverline => 'اختر باقتك';
+  @override
+  String plansContinueWith(String tier) => 'كمّل بـ$tier';
+  @override
+  String plansSubscribeTo(String tier) => 'اشترك بـ$tier';
+  @override
+  String get plansSkipForNow => 'تخطَّ هلق';
+  @override
+  String get plansVisitsPerMonth => 'زيارة/شهر';
+  @override
+  String get plansUnlimited => 'غير محدود';
+  @override
+  String get plansPerMonth => 'د.أ/شهر';
+  @override
+  String get plansDurationHeading => 'مدة الاشتراك';
+  @override
+  String get plansDurationSwipeHint => 'اسحب لتشوف السنة كاملة';
+  @override
+  String get plansDuration1Month => 'شهر';
+  @override
+  String get plansDuration3Months => '3 شهور';
+  @override
+  String get plansDuration6Months => '6 شهور';
+  @override
+  String get plansDuration12Months => 'سنة';
+  @override
+  String plansDurationSave(int percent) => 'وفّر $percent٪';
+  @override
+  String plansDurationTotal(int amount) => 'الإجمالي $amount د.أ';
+  @override
+  String plansVisitsIncluded(int count) => '$count زيارة مشمولة';
+  @override
+  String plansFeaturePauseSingle(int days) =>
+      'جمّد اشتراكك $days يوم وكمّل عادي';
+  @override
+  String plansFeaturePauseSplit(int days, int count) =>
+      'جمّد اشتراكك $count مرات وكمّل عادي بعدها';
+  @override
+  String get plansTapToExpand => 'اضغط لتشوف التفاصيل';
+  @override
+  String plansNetworkCount(int count) => '+$count نادٍ';
+  @override
+  String plansStartsFrom(int amount) => 'ابتداءً من $amount د.أ/شهر';
+  @override
+  String plansDurationCardPerMonth(int amount) => '$amount/شهر';
+  @override
+  String plansNetworkSheetTitle(String tier) => 'شبكة باقة $tier';
+  @override
+  String get plansNetworkSheetBody =>
+      'مسح QR واحد لكل نادٍ يومياً. زياراتك الـ30 الشهرية تعمل عبر كامل الشبكة.';
+  @override
+  String get plansNetworkVisitsBadge => '30/شهر';
+  @override
+  String get plansNetworkClose => 'تم';
+  @override
+  String get plansNetworkEmpty => 'سيتم إطلاق شركاء الشبكة قريباً.';
+  @override
+  String get plansCurrentPlan => 'الباقة الحالية';
+  @override
+  String get plansPickUpgrade => 'اختر باقة أعلى';
+  @override
+  String plansScheduleDowngradeTo(String tier) => 'التبديل إلى $tier عند التجديد';
+  @override
+  String get plansCurrentPlanCta => 'هذه باقتك الحالية';
+  @override
+  String get plansCancelScheduledChange => 'إلغاء التبديل المجدول';
+  @override
+  String get plansScheduledBadge => 'مجدول';
+  @override
+  String plansScheduledFor(String date) => 'يبدأ $date';
+  @override
+  String get plansDowngradeConfirmTitle => 'جدولة خفض الباقة؟';
+  @override
+  String plansDowngradeConfirmBody(String tier, String date) =>
+      'ستحتفظ بمزاياك الحالية حتى $date. عند التجديد، ستتحول باقتك إلى $tier وتتعدل الفوترة وفقاً لذلك.';
+  @override
+  String plansScheduledSnack(String tier, String date) =>
+      'تم جدولة التبديل إلى $tier في $date.';
+  @override
+  String get plansScheduledCancelledSnack => 'تم إلغاء التبديل المجدول.';
+  @override
+  String plansUpgradeTo(String tier) => 'الترقية إلى $tier';
+  @override
+  String get plansUpgradeConfirmTitle => 'تأكيد الترقية؟';
+  @override
+  String plansUpgradeConfirmBody(String tier, String duration) =>
+      'ستتم ترقيتك إلى $tier لمدة $duration. ستُفعَّل الباقة الجديدة من الزيارة القادمة وتبدأ دورة فوترة جديدة من اليوم.';
+  @override
+  String plansSwitchPeriodTo(String duration) =>
+      'التبديل إلى $duration عند التجديد';
+  @override
+  String get plansPeriodChangeConfirmTitle => 'جدولة تغيير المدة؟';
+  @override
+  String plansPeriodChangeConfirmBody(String duration, String date) =>
+      'ستستمر باقتك الحالية حتى $date. عند التجديد، سيتغير الالتزام إلى $duration وتتعدل الفوترة وفقاً لذلك.';
+  @override
+  String plansPeriodScheduledSnack(String duration, String date) =>
+      'سيتم التبديل إلى $duration في $date.';
+  @override
+  String plansExtendTo(String duration) => 'التمديد إلى $duration';
+  @override
+  String get plansExtendConfirmTitle => 'تمديد باقتك؟';
+  @override
+  String plansExtendConfirmBody(String duration, String renewDate) =>
+      'ثبّت $duration الآن — ستدفع الفارق فقط. سيتحول موعد التجديد إلى $renewDate وتنتقل الزيارات المستخدمة في هذه الدورة معك.';
+  @override
+  String plansExtendedSnack(String renewDate) =>
+      'تم تمديد الباقة — تجديد في $renewDate.';
+  @override
+  String plansSwitchToCta(String tier, String duration) =>
+      'التبديل إلى $tier · $duration';
+  @override
+  String get plansSwitchConfirmTitle => 'تبديل باقتك؟';
+  @override
+  String plansSwitchConfirmBody(String tier, String duration) =>
+      'ستنتقل إلى $tier على باقة $duration الآن. سيتم إلغاء اشتراكك الحالي ويبدأ الجديد فوراً.';
+
+  @override
+  String get checkoutTitle => 'تأكيد';
+  @override
+  String get checkoutTitleAccent => 'والدفع.';
+  @override
+  String get checkoutOverline => 'دفع آمن';
+  @override
+  String checkoutPayAmount(int amount) => 'ادفع $amount د.أ';
+  @override
+  String get checkoutOneMonth => 'شهر واحد';
+  @override
+  String checkoutDurationSummary(int months) => '$months شهور';
+  @override
+  String get checkoutDurationYear => 'سنة';
+  @override
+  String checkoutDiscount(int percent) => 'خصم ($percent%)';
+  @override
+  String get checkoutSubtotal => 'المجموع الفرعي';
+  @override
+  String get checkoutTax => 'الضريبة (16%)';
+  @override
+  String get checkoutTotal => 'الإجمالي';
+  @override
+  String get checkoutPaymentMethod => 'طريقة الدفع';
+  @override
+  String get checkoutNoMethodsHint => 'لا توجد طريقة دفع مسجّلة. أضف واحدة للمتابعة.';
+  @override
+  String get checkoutAddPaymentMethod => 'إضافة طريقة دفع';
+  @override
+  String get checkoutAddAnother => 'إضافة أخرى';
+  @override
+  String get checkoutExtensionBadge => 'تمديد';
+  @override
+  String get checkoutCurrentPlanCredit => 'رصيد الباقة الحالية';
+  @override
+  String get checkoutExtensionRenewsOn => 'التجديد الجديد';
+  @override
+  String get errorPaymentMethod => 'اختر طريقة دفع صالحة';
+
+  @override
+  String get subscriptionTitle => 'اشتراكك';
+  @override
+  String get subscriptionOverline => 'بطاقتك';
+  @override
+  String get subscriptionTitleAccent => 'الحالية.';
+  @override
+  String subscriptionRenewsOn(String date) => 'نشط · يتجدّد في $date';
+  @override
+  String subscriptionUpgradeTo(String tier) => 'ترقية إلى $tier';
+  @override
+  String get subscriptionPerks => 'ما الذي تحصل عليه';
+  @override
+  String get subscriptionEmptyOverline => 'لا توجد خطة بعد';
+  @override
+  String get subscriptionEmptyTitle => 'ابدأ اشتراكك';
+  @override
+  String get subscriptionEmptyBlurb =>
+      'لم تختر فئة حتى الآن. تصفّح الخطط واشترك لفتح جميع الصالات الشريكة في المدينة.';
+  @override
+  String get subscriptionEmptyCta => 'تصفّح الخطط';
+
+  @override
+  String get subscriptionPausedBadge => 'مجمّد';
+  @override
+  String get subscriptionPausedOverline => 'قيد التجميد';
+  @override
+  String get subscriptionPauseScheduledOverline => 'تجميد مجدول';
+  @override
+  String subscriptionPausedBody(String untilIso) =>
+      'اشتراكك مجمّد حتى $untilIso. يمكنك إلغاء التجميد مبكراً، وستعود الأيام غير المستخدمة إلى رصيدك، ويُؤجل موعد التجديد بعدد الأيام التي استخدمتها فقط.';
+  @override
+  String subscriptionPauseScheduledBody(String fromIso, String untilIso) =>
+      'سيبدأ التجميد في $fromIso ويستمر حتى $untilIso. يمكنك تسجيل الحضور حتى ذلك الوقت، ويمكنك إلغاء التجميد قبل بدايته.';
+  @override
+  String get subscriptionPauseCta => 'تجميد الاشتراك';
+  @override
+  String get subscriptionResumeCta => 'إلغاء التجميد';
+  @override
+  String get subscriptionPauseCancelCta => 'إلغاء التجميد';
+  @override
+  String get subscriptionResumeConfirmTitle => 'إلغاء التجميد الآن؟';
+  @override
+  String get subscriptionResumeConfirmBody =>
+      'سينتهي تجميدك اليوم. تعود الأيام غير المستخدمة إلى رصيدك، ويبقى تاريخ التجديد مؤجلاً بعدد الأيام التي استخدمتها.';
+  @override
+  String get subscriptionPauseCancelTitle => 'إلغاء التجميد المجدول؟';
+  @override
+  String get subscriptionPauseCancelBody =>
+      'ستتم إزالة فترة التجميد ويستمر اشتراكك كالمعتاد. ستحتفظ بالأيام التي لم تستخدمها بعد.';
+  @override
+  String get subscriptionResumedSnack => 'تم إلغاء تجميد الاشتراك.';
+  @override
+  String subscriptionPausedNowSnack(String untilIso) =>
+      'تم تجميد الاشتراك حتى $untilIso.';
+  @override
+  String subscriptionPauseScheduledSnack(String fromIso) =>
+      'تمت جدولة التجميد ليبدأ في $fromIso.';
+  @override
+  String get subscriptionPauseSheetTitle => 'تجميد الاشتراك';
+  @override
+  String subscriptionPauseSheetBlurb(int days) =>
+      'خطتك تسمح بتجميد حتى $days يوماً في هذه الفترة. التجميد كتلة واحدة لا تُقسَّم. تتوقف التسلسلات، ومسح رمز الدخول يطلب منك إلغاء التجميد، ويُؤجَّل التجديد بعدد الأيام التي تستخدمها فعلياً.';
+  @override
+  String get subscriptionPauseRemainingLabel => 'الأيام المتبقية';
+  @override
+  String subscriptionPauseRemainingValue(int days) => '$days يوم';
+  @override
+  String get subscriptionPauseStartDateLabel => 'تاريخ البدء';
+  @override
+  String get subscriptionPauseStartNow => 'بدءاً من اليوم';
+  @override
+  String get subscriptionPauseDaysLabel => 'الأيام';
+  @override
+  String subscriptionPauseSummary(String fromIso, String untilIso) =>
+      'تجميد من $fromIso حتى $untilIso. يُؤجَّل التجديد بنفس عدد الأيام.';
+  @override
+  String get subscriptionPauseStartSubmit => 'تأكيد التجميد';
+  @override
+  String get subscriptionVisitsExhaustedTitle => 'انتهت زياراتك';
+  @override
+  String get subscriptionVisitsExhaustedBody =>
+      'لقد استخدمت جميع الزيارات المتاحة في هذه الفترة. جدِّد الآن لبدء فترة جديدة — ستفقد الأيام غير المستخدمة وسيُصفَّر رصيد زياراتك.';
+  @override
+  String get subscriptionRenewNowCta => 'تجديد الآن';
+  @override
+  String get subscriptionRenewConfirmTitle => 'بدء فترة جديدة الآن؟';
+  @override
+  String get subscriptionRenewConfirmBody =>
+      'ستفقد الأيام المتبقية من الفترة الحالية وتبدأ فترة جديدة اليوم برصيد زيارات كامل.';
+  @override
+  String get subscriptionRenewedSnack => 'تم تجديد الاشتراك.';
+
+  @override
+  String get checkinPausedDialogTitle => 'اشتراكك مجمّد';
+  @override
+  String checkinPausedDialogBody(String gym, String untilIso) =>
+      'اشتراكك مجمّد حتى $untilIso. هل تريد إلغاء التجميد الآن لتسجيل الحضور في $gym؟ تعود أيام التجميد غير المستخدمة إلى رصيدك.';
+  @override
+  String get checkinPausedDialogResume => 'إلغاء التجميد';
+  @override
+  String get checkinPausedDialogKeep => 'إبقاء التجميد';
+  @override
+  String get checkinVisitsExhaustedBody =>
+      'لقد استخدمت جميع زيارات هذه الفترة. جدِّد الآن لتصفير الرصيد.';
+
+  @override
+  String get profileOverline => 'الملف';
+  @override
+  String get profileMemberSince => 'عضو منذ مارس';
+  @override
+  String get profileVisitsThisMo => 'زيارات الشهر';
+  @override
+  String get profileStreak => 'التسلسل';
+  @override
+  String get profileThisMonth => 'هذا الشهر';
+  @override
+  String get profileNextTier => 'المستوى التالي';
+  @override
+  String get profileNextTierMaxed => 'أعلى مستوى';
+  @override
+  String get profileNextTierEmpty => 'لا توجد خطة';
+  @override
+  String get profileNoPlanChip => 'لا توجد خطة نشطة';
+  @override
+  String profileStreakDays(int days) => days == 1 ? 'يوم واحد' : '$days أيام';
+  @override
+  String get profileMenuSubscription => 'اشتراكي';
+  @override
+  String get profileMenuFavorites => 'النوادي المفضلة';
+  @override
+  String get profileMenuNotifications => 'الإشعارات';
+  @override
+  String get favoritesOverline => 'المفضلة';
+  @override
+  String get favoritesHeadline => 'نواديك';
+  @override
+  String get favoritesHeadlineAccent => 'المحفوظة.';
+  @override
+  String get favoritesEmptyTitle => 'لا توجد نوادٍ مفضلة بعد';
+  @override
+  String get favoritesEmptyBody =>
+      'اضغط على القلب في صفحة أي نادٍ لحفظه هنا للوصول السريع.';
+  @override
+  String get favoritesEmptyCta => 'تصفح النوادي';
+  @override
+  String get profileMenuBilling => 'سجل الفواتير';
+  @override
+  String get profileMenuHelp => 'المساعدة والدعم';
+  @override
+  String get profileMenuSettings => 'الإعدادات';
+  @override
+  String get profileMenuInvite => 'دعوة صديق';
+  @override
+  String get profileLogout => 'تسجيل الخروج';
+
+  @override
+  String get inviteOverline => 'دعوة صديق';
+  @override
+  String get inviteHeadline => 'شارك';
+  @override
+  String get inviteHeadlineAccent => 'الاشتراك.';
+  @override
+  String get inviteBlurb =>
+      'أصدقاؤك يحصلون على أسبوع مجاني. أنت تحصل على مكافأة عند اشتراكهم.';
+  @override
+  String get inviteYourCode => 'رمزك';
+  @override
+  String get inviteShareLink => 'رابط المشاركة';
+  @override
+  String get inviteCopyCode => 'نسخ';
+  @override
+  String get inviteShare => 'مشاركة';
+  @override
+  String get inviteCodeCopied => 'تم نسخ الرمز';
+  @override
+  String get inviteLinkCopied => 'تم نسخ الرابط';
+  @override
+  String get inviteCountsPending => 'قيد الانتظار';
+  @override
+  String get inviteCountsConverted => 'مؤكدة';
+  @override
+  String get inviteCountsExpired => 'منتهية';
+  @override
+  String get inviteListTitle => 'المدعوّون';
+  @override
+  String get inviteListEmpty => 'لا توجد دعوات بعد. شارك رمزك للبدء.';
+  @override
+  String get inviteStatusPending => 'قيد الانتظار';
+  @override
+  String get inviteStatusConverted => 'مؤكدة';
+  @override
+  String get inviteStatusExpired => 'منتهية';
+  @override
+  String get inviteInvitedBy => 'دعاك';
+  @override
+  String get inviteInvitedByNone => 'لم تتم دعوتك';
+  @override
+  String get inviteClaimTitle => 'لديك رمز من صديق؟';
+  @override
+  String get inviteClaimBlurb =>
+      'أدخل رمزه بصيغة GP-XXXXXX لنحتسب له دعوتك.';
+  @override
+  String get inviteClaimInputLabel => 'رمز الصديق';
+  @override
+  String get inviteClaimInputHint => 'GP-XXXXXX';
+  @override
+  String get inviteClaimCta => 'تأكيد الرمز';
+  @override
+  String inviteClaimSuccess(String name) => 'تمّ — سيُحتسب $name دعوتك.';
+  @override
+  String get inviteClaimErrorInvalid => 'الرمز غير صالح.';
+  @override
+  String get inviteClaimErrorNotFound => 'لا يوجد عضو بهذا الرمز.';
+  @override
+  String get inviteClaimErrorOwnCode => 'هذا رمزك الخاص.';
+  @override
+  String get inviteClaimErrorAlready => 'لقد استخدمت رمز صديق سابقاً.';
+
+  @override
+  String get settingsTitle => 'الإعدادات';
+  @override
+  String get settingsLanguage => 'اللغة';
+  @override
+  String get settingsNotifications => 'الإشعارات';
+  @override
+  String get settingsAccount => 'الحساب';
+  @override
+  String get settingsLangArabic => 'العربية';
+  @override
+  String get settingsLangEnglish => 'English';
+  @override
+  String get settingsAppearance => 'المظهر';
+  @override
+  String get settingsThemeLight => 'فاتح';
+  @override
+  String get settingsThemeDark => 'داكن';
+  @override
+  String get settingsNotifPlanReminders => 'تذكيرات الباقة';
+  @override
+  String get settingsNotifNewClubs => 'أندية جديدة قريبة';
+  @override
+  String get settingsNotifPromos => 'عروض وخصومات';
+  @override
+  String get settingsAccountEditProfile => 'تعديل الملف';
+  @override
+  String get settingsAccountSecurity => 'الأمان والخصوصية';
+  @override
+  String get settingsAccountTerms => 'الشروط والسياسات';
+  @override
+  String get settingsAccountLogout => 'تسجيل الخروج';
+  @override
+  String get settingsAppVersion => 'جيم باس 1.0 · صُنع في عمّان';
+
+  @override
+  String get notificationsOverline => 'المستجدّات';
+  @override
+  String get notificationsEmpty => 'لا توجد إشعارات بعد';
+
+  @override
+  String get notificationsHeadline => 'صندوق';
+  @override
+  String get notificationsHeadlineAccent => 'الإشعارات.';
+  @override
+  String get notificationsMarkAllRead => 'تعليم الكل كمقروء';
+  @override
+  String get notifFilterAll => 'الكل';
+  @override
+  String get notifFilterUnread => 'غير مقروءة';
+  @override
+  String get notifFilterCheckin => 'حضور';
+  @override
+  String get notifFilterPromo => 'عروض';
+
+  @override
+  String get splashTagline => 'بطاقة واحدة · كل النوادي';
+  @override
+  String get splashLoading => 'جارٍ التحميل';
+  @override
+  String get splashFooter => 'صُنع في عمّان · 2025';
+
+  @override
+  String get gymsMapPreview => 'عمّان · معاينة الخريطة';
+
+  @override
+  String get checkinStepLabel => 'مسح الرمز · الخطوة 1 من 2';
+  @override
+  String get checkinAlignTitle => 'حاذِ';
+  @override
+  String get checkinAlignAccent => 'الرمز.';
+  @override
+  String get checkinAlignHintCaps => 'حاذِ رمز QR داخل الإطار';
+  @override
+  String get checkinFailedGeneric => 'فشل تسجيل الحضور';
+
+  @override
+  String get checkinConfirmHintCaps => 'أكّد لتسجيل زيارتك';
+  @override
+  String get checkinConfirmEyebrow => 'تم التعرّف على الرمز';
+  @override
+  String get checkinConfirmPrompt => 'أنت على وشك الدخول إلى';
+  @override
+  String checkinConfirmCta(String gym) => 'سجّل الدخول إلى $gym';
+  @override
+  String get checkinCancelScan => 'مسح رمز آخر';
+  @override
+  String get checkinPassLabel => 'مرور';
+  @override
+  String get checkinPassEyebrow => 'تم منح الدخول';
+  @override
+  String get checkinEntryDetailsLabel => 'تفاصيل الدخول';
+  @override
+  String get checkinStatVisitsLeft => 'الزيارات المتبقية';
+  @override
+  String get checkinStatDaysToRenewal => 'أيام حتى التجديد';
+  @override
+  String get checkinStatThisTerm => 'هذه الدورة';
+  @override
+  String checkinLowVisitsWarning(int count) =>
+      'تبقّى $count زيارة في هذه الدورة — جدّد قبل المسح القادم.';
+  @override
+  String get checkinViewPlans => 'عرض الباقات';
+
+  @override
+  String get welcomeOverline => 'أنت داخل';
+  @override
+  String get welcomeYoureTitle => 'أنت';
+  @override
+  String get welcomeYoureAccent => 'داخل.';
+  @override
+  String welcomeSubTier(String tier) => 'مرحباً بك في $tier.';
+  @override
+  String welcomeBlurbLong(String visits) =>
+      'بطاقتك مفعّلة. $visits زيارة بانتظارك في جميع الأندية الشريكة ضمن الشبكة.';
+  @override
+  String get welcomeFindGym => 'ابحث عن ناديك الأول';
+  @override
+  String get welcomeGoHome => 'إلى الرئيسية';
+
+  @override
+  String get subscriptionVisitLabelCaps => 'زيارة';
+
+  @override
+  String get snackErrorGeneric => 'حدث خطأ. الرجاء المحاولة مرة أخرى.';
+
+  @override
+  String get demoUserName => 'عضو ضيف';
+  @override
+  String profileVisitsCount(int n) => '$n زيارة';
+
+  @override
+  String get searchHintHome => 'ابحث عن نادٍ أو منطقة أو فئة…';
+  @override
+  String get favAddedMessage => 'تمت الإضافة إلى المفضلة';
+  @override
+  String get favRemovedMessage => 'تمت الإزالة من المفضلة';
+  @override
+  String get shareMessage => 'تم نسخ رابط المشاركة';
+  @override
+  String get filterDialogTitle => 'تصفية النتائج';
+  @override
+  String get filterApply => 'تطبيق';
+  @override
+  String get filterReset => 'إعادة ضبط';
+  @override
+  String get filterDone => 'تم';
+  @override
+  String filterMatchCount(int count) => count == 1 ? 'نادٍ واحد مطابق' : '$count أندية مطابقة';
+  @override
+  String get filterCategory => 'حسب الفئة';
+  @override
+  String get filterTier => 'حسب الباقة';
+  @override
+  String get googleSignInMock => 'تسجيل الدخول بجوجل في وضع التجربة — جارٍ المتابعة.';
+  @override
+  String get googleMockEmail => 'guest@gympass.jo';
+  @override
+  String get editProfileTitle => 'تعديل الملف الشخصي';
+  @override
+  String get editProfileSave => 'حفظ';
+  @override
+  String get editProfileFirstName => 'الاسم الأول';
+  @override
+  String get editProfileLastName => 'اسم العائلة';
+  @override
+  String get editProfileEmail => 'البريد الإلكتروني';
+  @override
+  String get editProfileSaved => 'تم تحديث الملف الشخصي';
+  @override
+  String get helpTitle => 'المساعدة والدعم';
+  @override
+  String get helpContactSupport => 'تواصل مع الدعم';
+  @override
+  String get helpFaq => 'الأسئلة الشائعة';
+  @override
+  String get helpReportIssue => 'الإبلاغ عن مشكلة';
+  @override
+  String get securityTitle => 'الأمان';
+  @override
+  String get securityChangePhone => 'تغيير رقم الهاتف';
+  @override
+  String get securitySessions => 'الجلسات النشطة';
+  @override
+  String get termsTitle => 'الشروط والخصوصية';
+  @override
+  String get termsBody =>
+      'باستخدامك لتطبيق GymPass فإنك توافق على اشتراك واحد يمنحك الوصول إلى جميع النوادي ضمن شبكة الشركاء. تحدد باقتك (فضية، ذهبية، بلاتينية، ماسية) النوادي التي يمكنك دخولها وعدد الزيارات في كل دورة. تُحتسب الزيارات لحظة مسح رمز QR، وتُعاد كل 30 يوماً اعتباراً من تاريخ بدء اشتراكك. لا نقوم باسترداد الزيارات غير المستخدمة في نهاية الدورة. يمكنك إيقاف التجديد التلقائي في أي وقت، وسيبقى اشتراكك فعّالاً حتى نهاية فترة الفوترة الحالية. أي إساءة لاستخدام رمز QR — بما في ذلك مشاركة حسابك أو محاولة تجاوز قيود الباقات — قد تؤدي إلى تعليق الحساب. قد نقوم بتحديث هذه الشروط مع إشعارك عبر التطبيق، ويُعدّ استمرارك في الاستخدام بعد الإشعار قبولاً للتحديث.';
+  @override
+  String get privacyPolicyBody =>
+      'نجمع فقط البيانات اللازمة لتشغيل عضويتك: رقم هاتفك، بريدك الإلكتروني، اسمك، جنسك، تاريخ ميلادك، وكلمة مرور مشفّرة. تُسجَّل كل عملية تسجيل دخول ناجحة (النادي، الوقت، باقة اشتراكك) في سجل التدقيق لدفع مستحقات النوادي الشريكة بشكل صحيح ولتمكينك من مراجعة سجل زياراتك. لا تتم مشاركة هاتفك أو بريدك مع النوادي الشريكة — يرون فقط باقتك واسمك عند الدخول. نستخدم مزوّد دفع لمعالجة الفواتير، ولا تصل بيانات بطاقتك إلى خوادمنا. تُستخدم بيانات الموقع على جهازك فقط لعرض النوادي القريبة في صفحة الاستكشاف — لا نحتفظ بسجل GPS الخاص بك. يمكنك طلب تصدير بياناتك أو حذفها في أي وقت من الإعدادات ← الخصوصية. نحتفظ بسجلات التدقيق لمدة 24 شهراً لأغراض مكافحة الاحتيال والمحاسبة؛ ما عدا ذلك يُحذف خلال 30 يوماً من إغلاق الحساب.';
+  @override
+  String get logoutConfirmTitle => 'تسجيل الخروج؟';
+  @override
+  String get logoutConfirmBody =>
+      'ستحتاج إلى التحقق من رقم هاتفك مرة أخرى لتسجيل الدخول.';
+  @override
+  String get logoutConfirmYes => 'تسجيل الخروج';
+
+  @override
+  String get supportOverline => 'احصل على مساعدة';
+  @override
+  String get supportHeadline => 'نحن هنا';
+  @override
+  String get supportHeadlineAccent => 'لمساعدتك.';
+  @override
+  String get supportBlurb =>
+      'متوسط الرد خلال أقل من 4 ساعات. فريقنا في عمّان.';
+  @override
+  String get supportChannelsLabel => 'قنوات التواصل';
+  @override
+  String get supportChannelCallTitle => 'اتصل بفريقنا';
+  @override
+  String get supportChannelCallSubtitle => 'الأحد–الخميس · 9 ص – 7 م';
+  @override
+  String get supportChannelEmailTitle => 'الدعم عبر البريد';
+  @override
+  String get supportChannelEmailSubtitle => 'support@gym-pass.net';
+  @override
+  String get supportChannelWhatsappTitle => 'الدردشة عبر واتساب';
+  @override
+  String get supportChannelWhatsappSubtitle => 'عادةً يرد خلال 10 دقائق';
+  @override
+  String get supportSupportPhone => '+962 6 555 0100';
+  @override
+  String get supportMessageLabel => 'إرسال رسالة';
+  @override
+  String get supportSubjectLabel => 'الموضوع';
+  @override
+  String get supportSubjectHint => 'بماذا يتعلق؟';
+  @override
+  String get supportBodyLabel => 'كيف يمكننا المساعدة؟';
+  @override
+  String get supportBodyHint => 'أخبرنا بما يحدث…';
+  @override
+  String get supportSendBtn => 'إرسال الرسالة';
+  @override
+  String get supportSentSnackbar => 'شكراً — سنعود إليك خلال 24 ساعة.';
+  @override
+  String get supportMissingFields => 'الرجاء تعبئة الموضوع والرسالة.';
+
+  @override
+  String get faqOverline => 'قاعدة المعرفة';
+  @override
+  String get faqHeadline => 'الأسئلة';
+  @override
+  String get faqHeadlineAccent => 'الشائعة.';
+  @override
+  String get faqBlurb => 'إجابات سريعة لما يسأل عنه الأعضاء يومياً.';
+  @override
+  String get faqSearchHint => 'ابحث في الأسئلة…';
+  @override
+  String get faqEmpty =>
+      'لا توجد أسئلة مطابقة. جرّب كلمات مختلفة أو تواصل مع الدعم.';
+  @override
+  String get faqContactFooter => 'لم تجد ما تبحث عنه؟';
+  @override
+  String get faqContactCta => 'تواصل مع الدعم';
+  @override
+  String get faqCategoryAll => 'الكل';
+  @override
+  String get faqCategoryGeneral => 'عام';
+  @override
+  String get faqCategoryBilling => 'الفواتير';
+  @override
+  String get faqCategoryCheckin => 'تسجيل الحضور';
+  @override
+  String get faqCategoryClasses => 'الحصص';
+  @override
+  String get faqQ1 => 'كيف يعمل تسجيل الحضور عبر QR؟';
+  @override
+  String get faqA1 =>
+      'لكل نادٍ رمز QR خاص به. افتح تبويب تسجيل الحضور، وامسح الرمز عند الباب، وانتظر شاشة التأكيد. يتم تحديث عدد زياراتك فوراً.';
+  @override
+  String get faqQ2 => 'هل يمكنني تغيير الباقة في أي وقت؟';
+  @override
+  String get faqA2 =>
+      'نعم. الترقية تُحتسب بالتناسب وتبدأ فوراً، والتخفيض يُطبّق في دورة الفوترة التالية.';
+  @override
+  String get faqQ3 => 'ماذا يحدث إذا فوّت شهراً؟';
+  @override
+  String get faqA3 =>
+      'الزيارات غير المستخدمة لا تُرحّل. يعود عدد الزيارات إلى الصفر في بداية كل دورة فوترة.';
+  @override
+  String get faqQ5 => 'ما طرق الدفع المقبولة؟';
+  @override
+  String get faqA5 =>
+      'فيزا، ماستركارد، CliQ، وApple Pay. جميع الفواتير بالدينار الأردني.';
+  @override
+  String get faqQ6 => 'هل يمكنني تجميد أو إلغاء الاشتراك؟';
+  @override
+  String get faqA6 =>
+      'لا يوجد إجراء إلغاء — أنت غير مقيَّد. خطتك تنتهي ببساطة في آخر يوم من فترتك الحالية، ويمكنك اختيار التجديد (أو عدمه) في أي وقت. التجميد متاح للخطط نصف السنوية والسنوية: الفضية 10/24 يوماً، الذهبية 12/26، البلاتينية 14/28، الماسية 16/30 (6 أشهر/12 شهراً). التجميد كتلة واحدة لا تُقسَّم، وتتيح الخطة السنوية استخدامه مرتين. يُؤجِّل التجميد كلاً من موعد التجديد وتاريخ الانتهاء بعدد الأيام التي تستخدمها فعلياً.';
+  @override
+  String get faqQ7 => 'هل بياناتي تُشارك مع النوادي؟';
+  @override
+  String get faqA7 =>
+      'فقط ما يلزم لتسجيل الحضور: اسمك وباقتك. رقم هاتفك وبريدك لا يغادران خوادمنا.';
+  @override
+  String get faqQ8 => 'ما الفرق بين الباقات؟';
+  @override
+  String get faqA8 =>
+      'كل باقة تمنحك 30 زيارة شهرياً. الفرق هو شبكة النوادي التي تدخلها — الفضية تغطي الأندية الأساسية، والذهبية تضيف الفضية + الذهبية، والبلاتينية تضيف الأندية الراقية، والماسية تفتح جميع النوادي الشريكة في الشبكة.';
+
+  @override
+  String get reportOverline => 'الإبلاغ عن خلل';
+  @override
+  String get reportHeadline => 'هل هناك';
+  @override
+  String get reportHeadlineAccent => 'مشكلة؟';
+  @override
+  String get reportBlurb =>
+      'أخبرنا بما حدث — الصور تساعدنا على الإصلاح أسرع.';
+  @override
+  String get reportCategoryLabel => 'الفئة';
+  @override
+  String get reportCategoryCheckin => 'تسجيل الحضور';
+  @override
+  String get reportCategoryPayment => 'الدفع';
+  @override
+  String get reportCategoryApp => 'التطبيق / الواجهة';
+  @override
+  String get reportCategoryAccount => 'الحساب';
+  @override
+  String get reportCategoryOther => 'أخرى';
+  @override
+  String get reportGymLabel => 'النادي (اختياري)';
+  @override
+  String get reportGymHint => 'أي نادٍ؟';
+  @override
+  String get reportDescLabel => 'ماذا حدث؟';
+  @override
+  String get reportDescHint => 'خطوة بخطوة إن أمكن…';
+  @override
+  String get reportAttachLabel => 'مرفق (اختياري)';
+  @override
+  String get reportAttachPlaceholder => 'إرفاق لقطة شاشة';
+  @override
+  String get reportAttachAttached => 'تم إرفاق لقطة شاشة · اضغط للإزالة';
+  @override
+  String get reportSubmitBtn => 'إرسال البلاغ';
+  @override
+  String get reportSubmittedTitle => 'تم استلام البلاغ';
+  @override
+  String reportSubmittedBody(String ref) =>
+      'شكراً لإبلاغك. رقم المرجع الخاص بك هو $ref — سنتابع معك عبر البريد.';
+  @override
+  String get reportSubmittedClose => 'إغلاق';
+  @override
+  String get reportMissingFields =>
+      'الرجاء اختيار الفئة ووصف المشكلة.';
+
+  @override
+  String get billingOverline => 'الفواتير · المدفوعات';
+  @override
+  String get billingHeadline => 'إدارة';
+  @override
+  String get billingHeadlineAccent => 'الفواتير.';
+  @override
+  String get billingBlurb =>
+      'إدارة طرق الدفع، ومراجعة الفواتير، ومتابعة موعد التجديد القادم.';
+  @override
+  String get billingMethodsLabel => 'طرق الدفع';
+  @override
+  String get billingMethodsEmpty =>
+      'لا توجد طريقة دفع بعد. أضف واحدة لتبقى اشتراكك نشطاً.';
+  @override
+  String get billingAddMethod => 'إضافة طريقة';
+  @override
+  String get billingSetDefault => 'اجعلها افتراضية';
+  @override
+  String get billingDefaultChip => 'افتراضية';
+  @override
+  String get billingRemoveMethod => 'إزالة';
+  @override
+  String billingRemoveConfirmBody(String label) =>
+      'هل تريد إزالة $label من طرق الدفع المحفوظة؟';
+  @override
+  String get billingRemoveConfirmTitle => 'إزالة الطريقة';
+  @override
+  String get billingRemoveConfirmYes => 'إزالة';
+  @override
+  String get billingAddTitle => 'إضافة طريقة دفع';
+  @override
+  String get billingAddCard => 'بطاقة (Visa / Mastercard)';
+  @override
+  String get billingAddCliq => 'كليك';
+  @override
+  String get billingAddApple => 'Apple Pay';
+  @override
+  String get billingAddGoogle => 'Google Pay';
+  @override
+  String get billingAddSaveBtn => 'حفظ الطريقة';
+  @override
+  String get billingAddCardSection => 'تفاصيل البطاقة';
+  @override
+  String get billingAddCliqSection => 'تفاصيل كليك';
+  @override
+  String get billingAddApplePaySection => 'Apple Pay';
+  @override
+  String get billingAddGooglePaySection => 'Google Pay';
+  @override
+  String get billingAddCardNumberLabel => 'رقم البطاقة';
+  @override
+  String get billingAddCardNumberHint => '4242 4242 4242 4242';
+  @override
+  String get billingAddExpiryLabel => 'تاريخ الانتهاء';
+  @override
+  String get billingAddExpiryHint => 'MM / YY';
+  @override
+  String get billingAddCvvLabel => 'CVV';
+  @override
+  String get billingAddCvvHint => '123';
+  @override
+  String get billingAddHolderLabel => 'اسم حامل البطاقة';
+  @override
+  String get billingAddHolderHint => 'الاسم كما هو مطبوع على البطاقة';
+  @override
+  String get billingAddCliqAliasLabel => 'اسم كليك';
+  @override
+  String get billingAddCliqAliasHint => 'مثال: omar.jo';
+  @override
+  String get billingAddCliqPhoneLabel => 'رقم كليك';
+  @override
+  String get billingAddCliqPhoneHint => '+962 7X XXX XXXX';
+  @override
+  String get billingAddCliqModeAlias => 'الاسم المستعار';
+  @override
+  String get billingAddCliqModePhone => 'رقم الهاتف';
+  @override
+  String get billingAddApplePayBlurb =>
+      'اربط Apple Pay للدفع باستخدام Face ID أو Touch ID. تبقى بطاقتك داخل المحفظة — نستلم رمز الدفع فقط.';
+  @override
+  String get billingAddApplePayConnect => 'ربط Apple Pay';
+  @override
+  String get billingAddApplePayConnecting => 'جارٍ الاتصال بالمحفظة…';
+  @override
+  String get billingAddApplePayConnected => 'تم ربط Apple Pay';
+  @override
+  String get billingAddGooglePayBlurb =>
+      'اربط Google Pay للدفع ببصمتك أو فتح الجهاز. تبقى بطاقتك داخل Google Wallet — نستلم رمز الدفع فقط.';
+  @override
+  String get billingAddGooglePayConnect => 'ربط Google Pay';
+  @override
+  String get billingAddGooglePayConnecting => 'جارٍ الاتصال بـ Google Wallet…';
+  @override
+  String get billingAddGooglePayConnected => 'تم ربط Google Pay';
+  @override
+  String get billingAddErrCardNumber => 'أدخل رقم بطاقة صالح من 13 إلى 19 خانة.';
+  @override
+  String get billingAddErrExpiry =>
+      'تاريخ الانتهاء يجب أن يكون MM/YY مستقبليًا.';
+  @override
+  String get billingAddErrCvv => 'CVV يجب أن يكون 3 أو 4 أرقام.';
+  @override
+  String get billingAddErrHolder => 'أدخل اسم حامل البطاقة.';
+  @override
+  String get billingAddErrCliq => 'أدخل اسم كليك أو رقم هاتف أردني صالح.';
+  @override
+  String get billingAddErrApplePay =>
+      'اضغط "ربط Apple Pay" لإكمال ربط المحفظة.';
+  @override
+  String get billingAddErrGooglePay =>
+      'اضغط "ربط Google Pay" لإكمال ربط المحفظة.';
+  @override
+  String get billingMethodAdded => 'تمت إضافة طريقة الدفع.';
+  @override
+  String get billingMethodRemoved => 'تمت إزالة طريقة الدفع.';
+  @override
+  String get billingDefaultUpdated => 'تم تحديث طريقة الدفع الافتراضية.';
+  @override
+  String get billingNextChargeLabel => 'الفاتورة القادمة';
+  @override
+  String billingNextChargeBody(String date, int amount) =>
+      '$date · $amount د.أ';
+  @override
+  String get billingHistoryLabel => 'سجل الفواتير';
+  @override
+  String get billingHistoryEmpty => 'لا توجد فواتير بعد.';
+  @override
+  String billingInvoicePaid(String iso, int amount) => '$iso · $amount د.أ';
+  @override
+  String get billingInvoiceReceipt => 'الإيصال';
+  @override
+  String get billingCardNetworkVisa => 'Visa';
+  @override
+  String get billingCardNetworkMastercard => 'Mastercard';
+  @override
+  String get billingCardNetworkCliq => 'كليك';
+  @override
+  String get billingCardNetworkApple => 'Apple Pay';
+  @override
+  String get billingCardNetworkGoogle => 'Google Pay';
+
+  @override
+  String get securityBlurb =>
+      'غيّر رقم هاتفك، فعّل تسجيل الدخول بالبصمة، وتحقق من جلساتك النشطة.';
+  @override
+  String get securityChangePhoneDesc => 'تغيير رقم الهاتف المرتبط بحسابك.';
+  @override
+  String get securitySessionsDesc =>
+      'شاهد الأجهزة المسجلة حالياً واسحب الصلاحية من أي جهاز غير معروف.';
+  @override
+  String get securityChangePhoneTitle => 'تغيير رقم الهاتف';
+  @override
+  String get securityChangePhoneNewLabel => 'رقم الهاتف الجديد';
+  @override
+  String get securityChangePhoneOtpNote =>
+      'سنرسل رمز تحقق لتأكيد الرقم الجديد.';
+  @override
+  String get securityChangePhoneSubmit => 'إرسال الرمز';
+  @override
+  String get securityChangePhoneSuccess =>
+      'تم إرسال رمز التحقق. راجع رسائل SMS.';
+  @override
+  String get securityChangePhoneInvalid => 'أدخل رقم هاتف صحيح.';
+  @override
+  String get securityChangePhoneOtpTitle => 'تحقق من رقمك';
+  @override
+  String securityChangePhoneOtpSubtitle(String phone) =>
+      'أدخل الرمز المكوّن من 4 أرقام الذي أرسلناه إلى $phone.';
+  @override
+  String get securityChangePhoneVerifyBtn => 'تحقق';
+  @override
+  String get securityChangePhoneOtpError => 'الرمز غير صحيح أو منتهي.';
+  @override
+  String get securityChangePhoneInUse =>
+      'هذا الرقم مستخدم في حساب آخر.';
+  @override
+  String get securitySessionsTitle => 'الجلسات النشطة';
+  @override
+  String get securitySessionsThisDevice => 'هذا الجهاز';
+  @override
+  String get securitySessionsActive => 'نشطة الآن';
+  @override
+  String get securitySessionsRevoke => 'إنهاء';
+  @override
+  String get securitySessionsRevoked => 'تم إنهاء الجلسة.';
+  @override
+  String get securitySessionsRevokeAll => 'تسجيل الخروج من الباقي';
+  @override
+  String securitySessionsLastActive(String when) => 'آخر نشاط $when';
+
+  @override
+  String get helpOverline => 'المساعدة · الدعم';
+  @override
+  String get helpHeadline => 'كيف يمكننا';
+  @override
+  String get helpHeadlineAccent => 'مساعدتك؟';
+  @override
+  String get helpBlurb =>
+      'تحدّث إلى فريقنا، راجع الأسئلة الشائعة، أو أرسل بلاغاً — نحن هنا.';
+  @override
+  String get helpContactSupportDesc =>
+      'اتصال، بريد إلكتروني، أو واتساب — فريقنا يرد خلال ساعات العمل.';
+  @override
+  String get helpFaqDesc =>
+      'إجابات سريعة لأكثر الأسئلة التي يطرحها أعضاؤنا.';
+  @override
+  String get helpReportIssueDesc =>
+      'هل هناك خلل؟ أرسل بلاغاً وسنتابع معك عبر البريد.';
+
+  @override
+  String get supportEmail => 'support@gym-pass.net';
+  @override
+  String get supportWhatsapp => '+962 7 9000 0100';
+  @override
+  String supportChannelCopied(String value) => 'تم نسخ $value.';
+  @override
+  String supportSentWithRef(String ref) =>
+      'شكراً — رقم التذكرة $ref. سنرد خلال 24 ساعة.';
+  @override
+  String get supportSubmittedTitle => 'تم استلام رسالتك';
+
+  @override
+  String get reportAttachPickerTitle => 'إرفاق دليل';
+  @override
+  String get reportAttachScreenshot => 'لقطة شاشة حديثة';
+  @override
+  String get reportAttachCameraRoll => 'صورة من معرض الصور';
+  @override
+  String get reportAttachPhoto => 'التقاط صورة';
+  @override
+  String get reportAttachRemove => 'إزالة المرفق';
+
+  @override
+  String get billingReceiptTitle => 'إيصال';
+  @override
+  String get billingReceiptItemsLabel => 'بنود الفاتورة';
+  @override
+  String get billingReceiptLineBase => 'اشتراك شهري';
+  @override
+  String billingReceiptLineTax(int amount) => 'ضريبة · $amount د.أ';
+  @override
+  String get billingReceiptTotalLabel => 'الإجمالي';
+  @override
+  String get billingReceiptSendEmail => 'إرسال إلى البريد';
+  @override
+  String get billingReceiptEmailQueued =>
+      'تم إرسال الإيصال إلى بريدك خلال دقيقة.';
+  @override
+  String get billingReceiptCloseBtn => 'إغلاق';
+
+  @override
+  String securityChangePhoneUpdated(String phone) =>
+      'تم تحديث رقم الهاتف إلى $phone.';
+
+  @override
+  String get forgotOverline => 'استعادة كلمة المرور';
+  @override
+  String get forgotTitle => 'أعد';
+  @override
+  String get forgotTitleAccent => 'تعيين كلمتك.';
+  @override
+  String get forgotStep1 => 'الخطوة 1 من 3 — اختر الطريقة';
+  @override
+  String get forgotStep2 => 'الخطوة 2 من 3 — أدخل الرمز';
+  @override
+  String get forgotStep3 => 'الخطوة 3 من 3 — كلمة مرور جديدة';
+  @override
+  String get forgotBlurb1 => 'اختر كيف تريد استلام الرمز المكوّن من 4 أرقام.';
+  @override
+  String get forgotMethodSmsTitle => 'أرسل رمزاً برسالة';
+  @override
+  String forgotMethodSmsSubtitle(String phone) => 'إلى الرقم $phone';
+  @override
+  String get forgotMethodEmailTitle => 'أرسل رمزاً بالبريد';
+  @override
+  String forgotMethodEmailSubtitle(String email) => 'إلى $email';
+  @override
+  String get forgotMethodEmailMissing =>
+      'لا يوجد بريد مسجّل. استخدم الرسائل القصيرة.';
+  @override
+  String get forgotSendCode => 'إرسال الرمز';
+  @override
+  String forgotCodeBlurb(String target) =>
+      'أرسلنا رمزاً مكوّناً من 4 أرقام إلى $target. أدخله بالأسفل.';
+  @override
+  String get forgotResendCode => 'إعادة الإرسال';
+  @override
+  String get forgotVerifyCode => 'تحقق من الرمز';
+  @override
+  String get forgotNewPasswordBlurb =>
+      'اختر كلمة مرور جديدة. ستستخدمها لتسجيل الدخول من الآن.';
+  @override
+  String get forgotSetNewPassword => 'تحديث كلمة المرور';
+  @override
+  String get forgotResetSuccess =>
+      'تم تحديث كلمة المرور. يمكنك تسجيل الدخول بها الآن.';
+  @override
+  String get forgotErrAccountMissing => 'لا يوجد حساب مسجّل على هذا الرقم.';
+  @override
+  String get forgotErrCodeInvalid => 'الرمز غير متطابق. حاول مجدداً.';
+  @override
+  String get forgotDevHint =>
+      'وضع التطوير: أي رمز من 4 أرقام يعمل، و1234 هو الرمز المعتمد.';
+
+  @override
+  String get securityBiometricTitle => 'تسجيل الدخول بالبصمة';
+  @override
+  String get securityBiometricDesc =>
+      'استخدم بصمة الإصبع أو الوجه أو رمز الجهاز بدلاً من كتابة كلمة المرور.';
+  @override
+  String get securityBiometricNoPassword =>
+      'حدّد كلمة مرور أولاً لتفعيل تسجيل الدخول بالبصمة.';
+  @override
+  String get securityBiometricUnavailable =>
+      'هذا الجهاز لا يدعم البصمة أو لم يتم ضبط قفل للشاشة.';
+  @override
+  String get biometricEnrollTitle => 'أكّد كلمة المرور';
+  @override
+  String biometricEnrollBlurb(String biometric) =>
+      'أعد إدخال كلمة المرور لنحفظها خلف $biometric.';
+  @override
+  String get biometricEnrollPasswordLabel => 'كلمة المرور';
+  @override
+  String get biometricEnrollPasswordHint => 'أدخل كلمة المرور';
+  @override
+  String get biometricEnrollSubmit => 'تأكيد';
+  @override
+  String get biometricUnlockReason => 'افتح GymPass لتسجيل الدخول';
+  @override
+  String get biometricEnrollReason => 'أكّد لحفظ بيانات الدخول';
+  @override
+  String get biometricSignInBtn => 'الدخول بالبصمة';
+  @override
+  String get biometricEnabled => 'تم تفعيل الدخول بالبصمة.';
+  @override
+  String get biometricDisabled => 'تم إيقاف الدخول بالبصمة.';
+  @override
+  String get biometricCancelled => 'تم إلغاء طلب البصمة.';
+  @override
+  String get biometricGenericLabel => 'البصمة';
+}

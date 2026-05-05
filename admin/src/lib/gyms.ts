@@ -1,0 +1,180 @@
+import { getServerSession } from "next-auth";
+
+import { api, ApiError } from "@/lib/api";
+import { authOptions } from "@/lib/auth";
+import { env } from "@/lib/env";
+
+export type GymRead = {
+  id: string;
+  slug: string;
+  nameEn: string;
+  nameAr: string;
+  addressEn: string;
+  addressAr: string;
+  area: string;
+  phone?: string | null;
+  category: string;
+  requiredTier: string;
+  perVisitRateJod: string;
+  lat: string;
+  lng: string;
+  isActive: boolean;
+  amenities: string[];
+  openingHours: Record<string, unknown>;
+  coverImageUrl?: string | null;
+  logoUrl?: string | null;
+  rating?: string | null;
+  reviewCount: number;
+  photoCount: number;
+};
+
+export type Page<T> = { items: T[]; total: number; page: number; pageSize: number };
+
+async function token(): Promise<string> {
+  const session = await getServerSession(authOptions);
+  const t = session?.serviceToken;
+  if (!t) throw new Error("No service token on session.");
+  return t;
+}
+
+export async function listGyms(page = 1, pageSize = 20): Promise<Page<GymRead>> {
+  return api(`/api/v1/admin/gyms?page=${page}&pageSize=${pageSize}`, {
+    token: await token(),
+  });
+}
+
+export async function getGym(id: string): Promise<GymRead> {
+  return api(`/api/v1/admin/gyms/${id}`, { token: await token() });
+}
+
+export async function createGym(body: Partial<GymRead>): Promise<GymRead> {
+  return api(`/api/v1/admin/gyms`, {
+    method: "POST",
+    body: JSON.stringify(body),
+    token: await token(),
+  });
+}
+
+export async function updateGym(
+  id: string,
+  body: Partial<GymRead>,
+): Promise<GymRead> {
+  return api(`/api/v1/admin/gyms/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+    token: await token(),
+  });
+}
+
+export async function deleteGym(id: string): Promise<void> {
+  return api(`/api/v1/admin/gyms/${id}`, {
+    method: "DELETE",
+    token: await token(),
+  });
+}
+
+export type GymPhotoRead = {
+  id: string;
+  url: string;
+  sortOrder: number;
+  altTextEn?: string | null;
+  altTextAr?: string | null;
+};
+
+export type GymPhotoUpdate = {
+  sortOrder?: number;
+  altTextEn?: string | null;
+  altTextAr?: string | null;
+};
+
+export async function listGymPhotos(gymId: string): Promise<GymPhotoRead[]> {
+  return api(`/api/v1/admin/gyms/${gymId}/photos`, { token: await token() });
+}
+
+export async function uploadGymPhoto(
+  gymId: string,
+  formData: FormData,
+): Promise<GymPhotoRead> {
+  const bearer = await token();
+  const response = await fetch(
+    `${env.API_BASE_URL}/api/v1/admin/gyms/${gymId}/photos`,
+    {
+      method: "POST",
+      headers: { authorization: `Bearer ${bearer}` },
+      body: formData,
+      cache: "no-store",
+    },
+  );
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const err = body?.error;
+    throw new ApiError(
+      err?.code ?? "UNKNOWN",
+      err?.message ?? response.statusText,
+      response.status,
+      err?.details,
+    );
+  }
+  return body as GymPhotoRead;
+}
+
+export async function updateGymPhoto(
+  gymId: string,
+  photoId: string,
+  body: GymPhotoUpdate,
+): Promise<GymPhotoRead> {
+  return api(`/api/v1/admin/gyms/${gymId}/photos/${photoId}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+    token: await token(),
+  });
+}
+
+export async function deleteGymPhoto(
+  gymId: string,
+  photoId: string,
+): Promise<void> {
+  return api(`/api/v1/admin/gyms/${gymId}/photos/${photoId}`, {
+    method: "DELETE",
+    token: await token(),
+  });
+}
+
+export function resolvePhotoUrl(url: string): string {
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  return `${env.API_BASE_URL}${url}`;
+}
+
+export async function uploadGymLogo(
+  gymId: string,
+  formData: FormData,
+): Promise<GymRead> {
+  const bearer = await token();
+  const response = await fetch(
+    `${env.API_BASE_URL}/api/v1/admin/gyms/${gymId}/logo`,
+    {
+      method: "POST",
+      headers: { authorization: `Bearer ${bearer}` },
+      body: formData,
+      cache: "no-store",
+    },
+  );
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const err = body?.error;
+    throw new ApiError(
+      err?.code ?? "UNKNOWN",
+      err?.message ?? response.statusText,
+      response.status,
+      err?.details,
+    );
+  }
+  return body as GymRead;
+}
+
+export async function deleteGymLogo(gymId: string): Promise<GymRead> {
+  return api(`/api/v1/admin/gyms/${gymId}/logo`, {
+    method: "DELETE",
+    token: await token(),
+  });
+}

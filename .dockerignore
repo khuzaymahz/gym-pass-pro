@@ -1,0 +1,15 @@
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+mobile/
+design/
+docs/
+node_modules/
+**/__pycache__/
+**/*.pyc
+**/.venv/
+**/.next/
+**/build/
+**/dist/

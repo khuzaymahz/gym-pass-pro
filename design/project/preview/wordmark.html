@@ -1,0 +1,39 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="_base.css"><title>Wordmark</title>
+<style>
+.card { padding: 0; height: 240px; }
+.stage { height: 100%; display: flex; align-items: center; justify-content: center; position: relative; }
+.wm {
+  font-family: var(--gp-f-display);
+  font-weight: 900;
+  font-style: italic;
+  font-size: 112px;
+  line-height: 1;
+  letter-spacing: -0.045em;
+  display: inline-flex;
+  align-items: baseline;
+}
+.wm .gym { color: var(--gp-ink); }
+.wm .pass { color: var(--gp-lime); text-shadow: 0 0 40px rgba(187,251,70,0.35); }
+.meta { position: absolute; bottom: 18px; left: 24px; right: 24px; display: flex; justify-content: space-between; }
+
+.mini { margin-top: 28px; display: flex; gap: 28px; align-items: center; justify-content: center; }
+.mini .wm-s { font-size: 44px; }
+.mini .wm-xs { font-size: 22px; }
+.mini .swatch { display: inline-flex; align-items: baseline; padding: 14px 20px; border-radius: 100px; background: var(--gp-bg-2); border: 1px solid var(--gp-border); }
+.mini .swatch.lime { background: var(--gp-lime); border-color: var(--gp-lime); }
+.mini .swatch.lime .gym { color: #0A0B0A; }
+.mini .swatch.lime .pass { color: #0A0B0A; opacity: 0.55; text-shadow: none; }
+</style></head><body>
+<div class="card">
+  <div class="stage">
+    <div style="display:flex; flex-direction:column; align-items:center; gap: 2px">
+      <div class="wm"><span class="gym">GYM</span><span class="pass">PASS</span></div>
+      <div class="mini">
+        <div class="swatch"><span class="wm wm-s"><span class="gym">GYM</span><span class="pass">PASS</span></span></div>
+        <div class="swatch lime"><span class="wm wm-xs"><span class="gym">GYM</span><span class="pass">PASS</span></span></div>
+      </div>
+    </div>
+  </div>
+  <div class="meta"><span class="mono">◆ Wordmark · primary</span><span class="mono">Archivo Black Italic · no space</span></div>
+</div>
+</body></html>

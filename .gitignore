@@ -1,0 +1,68 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+.vite/
+.cache/
+
+# Env
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.uv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Flutter / Dart
+mobile/.dart_tool/
+mobile/build/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.packages
+mobile/pubspec.lock.bak
+mobile/ios/Pods/
+mobile/ios/.symlinks/
+mobile/android/.gradle/
+mobile/android/local.properties
+
+# Docker
+docker-compose.override.yml
+
+# IDE / OS
+.idea/
+.vscode/*
+!.vscode/settings.shared.json
+!.vscode/extensions.json
+*.swp
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Certs
+letsencrypt/
+
+# Tool outputs
+*.tgz
+*.tar.gz
+.eslintcache

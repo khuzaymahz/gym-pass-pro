@@ -1,0 +1,65 @@
+{
+  "brand": {
+    "name": "GymPass",
+    "tagline": "لوحة المشرفين · إنتاج"
+  },
+  "nav": {
+    "groups": {
+      "overview": "نظرة عامة",
+      "network": "الشبكة",
+      "revenue": "الإيرادات",
+      "activity": "النشاط",
+      "system": "النظام"
+    },
+    "items": {
+      "dashboard": "لوحة التحكم",
+      "support": "الدعم",
+      "gyms": "الأندية",
+      "users": "المستخدمون",
+      "subscriptions": "الاشتراكات",
+      "plans": "الباقات",
+      "payouts": "الدفعات",
+      "checkins": "تسجيلات الدخول",
+      "notifications": "الإشعارات",
+      "audit": "سجل التدقيق",
+      "admins": "المشرفون",
+      "settings": "الإعدادات"
+    }
+  },
+  "account": {
+    "signOut": "تسجيل الخروج"
+  },
+  "locale": {
+    "toggleTo": {
+      "ar": "AR",
+      "en": "EN"
+    },
+    "label": "اللغة"
+  },
+  "common": {
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "saved": "تم الحفظ",
+    "loading": "جارٍ التحميل…",
+    "error": "حدث خطأ",
+    "empty": "لا توجد بيانات",
+    "noChanges": "لا تغييرات للحفظ",
+    "retry": "إعادة المحاولة"
+  },
+  "login": {
+    "title": "تسجيل الدخول",
+    "subtitle": "لوحة المشرفين",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "submit": "دخول",
+    "withGoogle": "المتابعة عبر جوجل"
+  },
+  "dashboard": {
+    "title": "نظرة عامة",
+    "health": {
+      "allSystems": "كل الأنظمة تعمل",
+      "degraded": "تدهور"
+    },
+    "noPriorMonth": "لا شهر سابق"
+  }
+}

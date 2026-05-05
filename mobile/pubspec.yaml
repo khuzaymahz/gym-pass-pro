@@ -1,0 +1,93 @@
+name: gympass
+description: GymPass mobile app — multi-gym access for members.
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+  flutter: ">=3.24.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # State + DI
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+
+  # Networking
+  dio: ^5.7.0
+
+  # Storage
+  flutter_secure_storage: ^9.2.2
+
+  # Biometric unlock for the saved-credential vault. Falls back to the OS
+  # PIN/passcode when fingerprint/face is unavailable, never plaintext.
+  local_auth: ^2.3.0
+
+  # Password hashing for the on-device "remembered password" marker. Real
+  # backend uses argon2id; mobile only stores SHA-256 so the local copy
+  # never carries the plaintext secret used at login time.
+  crypto: ^3.0.3
+
+  # Router
+  go_router: ^14.6.0
+
+  # QR
+  mobile_scanner: ^5.2.3
+
+  # Google Sign-In on Android. The OAuth client id created in Google
+  # Cloud is referenced via `serverClientId` so the mobile mints an
+  # ID token the backend's JWKS verifier can accept.
+  google_sign_in: ^6.2.1
+
+  # Device GPS for the Explore tab — picks the member's region (Amman /
+  # Zarqa / ...) for the static-map preview centre and powers the
+  # per-gym distance pills. Permission is asked the first time the tab
+  # opens; denial silently falls back to the Amman default region.
+  geolocator: ^13.0.1
+
+  # Utilities
+  intl: ^0.20.2
+  freezed_annotation: ^2.4.4
+  json_annotation: ^4.9.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  build_runner: ^2.4.11
+  freezed: ^2.5.7
+  json_serializable: ^6.8.0
+  riverpod_generator: ^2.4.3
+  custom_lint: ^0.7.3
+  riverpod_lint: ^2.6.1
+
+flutter:
+  uses-material-design: true
+  generate: false
+
+  assets:
+    - assets/fonts/
+
+  fonts:
+    - family: Archivo
+      fonts:
+        - asset: assets/fonts/Archivo-VariableFont_wdth_wght.ttf
+        - asset: assets/fonts/Archivo-Italic-VariableFont_wdth_wght.ttf
+          style: italic
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-VariableFont_opsz_wght.ttf
+        - asset: assets/fonts/Inter-Italic-VariableFont_opsz_wght.ttf
+          style: italic
+    - family: InstrumentSerif
+      fonts:
+        - asset: assets/fonts/InstrumentSerif-Regular.ttf
+        - asset: assets/fonts/InstrumentSerif-Italic.ttf
+          style: italic
+    - family: Cairo
+      fonts:
+        - asset: assets/fonts/Cairo-VariableFont_slnt_wght.ttf

@@ -1,0 +1,65 @@
+{
+  "brand": {
+    "name": "GymPass",
+    "tagline": "Admin · production"
+  },
+  "nav": {
+    "groups": {
+      "overview": "Overview",
+      "network": "Network",
+      "revenue": "Revenue",
+      "activity": "Activity",
+      "system": "System"
+    },
+    "items": {
+      "dashboard": "Dashboard",
+      "support": "Support",
+      "gyms": "Gyms",
+      "users": "Users",
+      "subscriptions": "Subscriptions",
+      "plans": "Plans",
+      "payouts": "Payouts",
+      "checkins": "Check-ins",
+      "notifications": "Notifications",
+      "audit": "Audit log",
+      "admins": "Admins",
+      "settings": "Settings"
+    }
+  },
+  "account": {
+    "signOut": "Sign out"
+  },
+  "locale": {
+    "toggleTo": {
+      "ar": "AR",
+      "en": "EN"
+    },
+    "label": "Language"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "saved": "Saved",
+    "loading": "Loading…",
+    "error": "Something went wrong",
+    "empty": "No data",
+    "noChanges": "No changes to save",
+    "retry": "Retry"
+  },
+  "login": {
+    "title": "Sign in",
+    "subtitle": "Admin console",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Sign in",
+    "withGoogle": "Continue with Google"
+  },
+  "dashboard": {
+    "title": "Overview",
+    "health": {
+      "allSystems": "All systems",
+      "degraded": "Degraded"
+    },
+    "noPriorMonth": "No prior month"
+  }
+}

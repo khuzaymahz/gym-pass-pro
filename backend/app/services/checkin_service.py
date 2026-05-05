@@ -1,0 +1,217 @@
+from __future__ import annotations
+
+from uuid import UUID
+
+from app.core.exceptions import AppError, ErrorCode
+from app.db.enums import CheckinStatus, SubscriptionStatus, Tier
+from app.db.models import Checkin, Gym, User
+from app.repositories.checkin_repo import CheckinRepository
+from app.repositories.gym_repo import GymRepository
+from app.repositories.payout_repo import PayoutLedgerRepository
+from app.repositories.plan_repo import PlanRepository
+from app.repositories.subscription_pause_repo import SubscriptionPauseRepository
+from app.repositories.subscription_repo import SubscriptionRepository
+from app.services.audit_service import Actor, AuditService
+from app.services.rate_limit import RateLimiter
+from app.utils.time import current_period_start, utcnow
+
+CHECKIN_RATE_LIMIT = 1
+CHECKIN_RATE_WINDOW_SECONDS = 30 * 60
+
+
+class CheckinService:
+    def __init__(
+        self,
+        gyms: GymRepository,
+        subs: SubscriptionRepository,
+        plans: PlanRepository,
+        checkins: CheckinRepository,
+        pauses: SubscriptionPauseRepository,
+        ledger: PayoutLedgerRepository,
+        rate_limiter: RateLimiter,
+        audit: AuditService,
+    ) -> None:
+        self.gyms = gyms
+        self.subs = subs
+        self.plans = plans
+        self.checkins = checkins
+        self.pauses = pauses
+        self.ledger = ledger
+        self.rate_limiter = rate_limiter
+        self.audit = audit
+
+    async def scan(
+        self,
+        *,
+        user: User,
+        qr_payload: str,
+        actor: Actor,
+    ) -> Checkin:
+        gym = await self._resolve_gym(qr_payload)
+
+        if gym is None or not gym.is_active or gym.deleted_at is not None:
+            # If we couldn't resolve a real gym at all, skip the
+            # `checkins` row — `gym_id` is FK NOT NULL, and writing a
+            # phantom UUID raises an IntegrityError that surfaces to
+            # the client as a 500. The audit-log entry below preserves
+            # the failed-scan trail without polluting the gym FK.
+            if gym is not None:
+                await self.checkins.create(
+                    user_id=user.id,
+                    gym_id=gym.id,
+                    subscription_id=None,
+                    status=CheckinStatus.INVALID_QR,
+                    failure_reason="gym_inactive_or_deleted",
+                    ip_address=actor.ip_address,
+                    user_agent=actor.user_agent,
+                )
+            await self.audit.log(
+                actor=actor,
+                action="checkin.invalid_qr",
+                entity_type="checkin",
+                entity_id=None,
+                diff={"qr_payload": qr_payload[:64]},
+            )
+            raise AppError(ErrorCode.CHECKIN_QR_INVALID, "Invalid QR.") from None
+
+        # Rate limit BEFORE touching subscription — prevents auth user from
+        # burning visits via spam scans.
+        rl_key = f"checkin:{user.id}:{gym.id}"
+        if not await self.rate_limiter.allow(
+            rl_key, limit=CHECKIN_RATE_LIMIT,
+            window_seconds=CHECKIN_RATE_WINDOW_SECONDS,
+        ):
+            await self.checkins.create(
+                user_id=user.id, gym_id=gym.id, subscription_id=None,
+                status=CheckinStatus.RATE_LIMITED,
+                failure_reason="duplicate_scan_within_window",
+                ip_address=actor.ip_address, user_agent=actor.user_agent,
+            )
+            raise AppError(
+                ErrorCode.CHECKIN_ALREADY_SCANNED,
+                "Already scanned recently at this gym.",
+            )
+
+        sub = await self.subs.active_for_user(user.id)
+        if sub is None or sub.status != SubscriptionStatus.ACTIVE:
+            await self.checkins.create(
+                user_id=user.id, gym_id=gym.id, subscription_id=None,
+                status=CheckinStatus.EXPIRED, failure_reason="no_active_subscription",
+                ip_address=actor.ip_address, user_agent=actor.user_agent,
+            )
+            raise AppError(ErrorCode.SUB_EXPIRED, "No active subscription.")
+
+        # Pause guard. An open pause whose window straddles today blocks
+        # the scan — a paused member is paying nothing for these days
+        # and the gym should see them as inactive at the door. We log
+        # the failure as `expired` since `checkin_status_enum` doesn't
+        # have a `paused` variant; `failure_reason` carries the detail
+        # for the admin queue.
+        open_pause = await self.pauses.open_for_subscription(sub.id)
+        if open_pause is not None:
+            today = utcnow().date()
+            in_window = (
+                open_pause.starts_on <= today <= open_pause.ends_on
+            )
+            if in_window:
+                await self.checkins.create(
+                    user_id=user.id, gym_id=gym.id, subscription_id=sub.id,
+                    status=CheckinStatus.EXPIRED,
+                    failure_reason="subscription_paused",
+                    ip_address=actor.ip_address, user_agent=actor.user_agent,
+                )
+                raise AppError(
+                    ErrorCode.SUB_PAUSED,
+                    "Subscription is paused. Resume to check in.",
+                    details={
+                        "endsOn": open_pause.ends_on.isoformat(),
+                    },
+                )
+
+        if sub.tier.rank < gym.required_tier.rank:
+            await self.checkins.create(
+                user_id=user.id, gym_id=gym.id, subscription_id=sub.id,
+                status=CheckinStatus.TIER_LOCKED,
+                failure_reason=f"required_tier={gym.required_tier.value}",
+                ip_address=actor.ip_address, user_agent=actor.user_agent,
+            )
+            raise AppError(
+                ErrorCode.CHECKIN_TIER_LOCKED,
+                f"{gym.required_tier.value.capitalize()} tier required.",
+                details={"requiredTier": gym.required_tier.value,
+                         "userTier": sub.tier.value},
+            )
+
+        # Visit budget — Diamond bypasses. The cap is *per billing period*,
+        # not lifetime: counting from `current_period_start` means a
+        # 12-month plan resets every 30 days without a cron, and the
+        # answer is always derivable from immutable check-in rows.
+        plan = await self.plans.get(sub.plan_id)
+        if plan is None:
+            raise AppError(ErrorCode.PLAN_NOT_FOUND, "Plan missing for subscription.")
+        if sub.tier != Tier.DIAMOND:
+            period_start = current_period_start(sub.starts_at, utcnow())
+            current_period_visits = (
+                await self.checkins.count_success_since_for_user(
+                    user.id, period_start
+                )
+            )
+            if current_period_visits >= plan.monthly_visits:
+                await self.checkins.create(
+                    user_id=user.id, gym_id=gym.id, subscription_id=sub.id,
+                    status=CheckinStatus.NO_VISITS,
+                    failure_reason="visits_exhausted",
+                    ip_address=actor.ip_address, user_agent=actor.user_agent,
+                )
+                raise AppError(
+                    ErrorCode.CHECKIN_NO_VISITS, "Visit budget exhausted."
+                )
+
+        # Success path.
+        checkin = await self.checkins.create(
+            user_id=user.id, gym_id=gym.id, subscription_id=sub.id,
+            status=CheckinStatus.SUCCESS,
+            ip_address=actor.ip_address, user_agent=actor.user_agent,
+        )
+        if sub.tier != Tier.DIAMOND:
+            await self.subs.increment_visits(sub.id)
+        await self.ledger.record(
+            gym_id=gym.id, checkin_id=checkin.id, rate=gym.per_visit_rate_jod
+        )
+        await self.audit.log(
+            actor=actor, action="checkin.success",
+            entity_type="checkin", entity_id=checkin.id,
+            diff={"gym_id": str(gym.id)},
+        )
+        return checkin
+
+    async def history(self, user: User, *, limit: int = 20) -> list[tuple[Checkin, Gym]]:
+        return await self.checkins.history_for_user(user.id, limit=limit)
+
+    async def _resolve_gym(self, qr_payload: str) -> Gym | None:
+        """QR formats accepted, in priority order:
+
+        1. `gympass:<uuid>` — production printable QR
+        2. Plain UUID — legacy / direct
+        3. Plain slug (e.g. `iron-forge`) — used by the mobile dev
+           panel's "Scan Silver / Gold / ..." shortcuts so testers
+           can exercise the real backend round-trip without needing
+           a printed code. Slug lookup is gated on no-leading-colon
+           so it never collides with the `gympass:` prefix.
+        """
+        payload = qr_payload.strip()
+        if payload.startswith("gympass:"):
+            payload = payload.split(":", 1)[1]
+        try:
+            gym_id = UUID(payload)
+        except ValueError:
+            # Not a UUID — try the slug path. Slugs are
+            # `[a-z0-9-]+` so anything containing other characters
+            # is bogus and short-circuits to None without a DB hit.
+            if payload and all(c.isalnum() or c == "-" for c in payload):
+                return await self.gyms.get_by_slug(payload)
+            return None
+        return await self.gyms.get(gym_id)
+
+
+__all__ = ["CheckinService"]

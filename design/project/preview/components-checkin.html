@@ -1,0 +1,57 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="_base.css"><title>Check-in</title>
+<style>
+.card { padding: 24px; }
+.stage { background: var(--gp-bg-2); border: 1px solid var(--gp-border); border-radius: 20px; padding: 28px; position: relative; overflow: hidden; }
+.stage::before { content:''; position: absolute; top: -80px; right: -80px; width: 280px; height: 280px; border-radius: 100px; background: radial-gradient(circle, rgba(187,251,70,0.15), transparent 60%); }
+.stage > * { position: relative; z-index: 1; }
+
+.hdr { display: flex; justify-content: space-between; align-items: flex-start; }
+.loc { font-family: var(--gp-f-mono); font-size: 10px; letter-spacing: 0.18em; color: var(--gp-ink-3); text-transform: uppercase; }
+.name { font-family: var(--gp-f-display); font-weight: 900; font-style: italic; font-size: 36px; letter-spacing: -0.035em; color: var(--gp-ink); text-transform: uppercase; line-height: 0.95; margin-top: 6px; }
+.name em { font-family: var(--gp-f-serif); font-weight: 400; color: var(--gp-lime); font-size: 30px; letter-spacing: -0.01em; }
+
+.status { display: inline-flex; align-items: center; gap: 6px; font-family: var(--gp-f-mono); font-size: 11px; padding: 6px 12px; border-radius: 100px; background: rgba(48,209,88,0.14); color: #30D158; margin-top: 12px; }
+.status::before { content:''; width: 7px; height: 7px; border-radius: 100px; background: #30D158; box-shadow: 0 0 10px #30D158; }
+
+.meta-row { display: flex; gap: 24px; margin-top: 22px; }
+.meta { display: flex; flex-direction: column; gap: 3px; }
+.meta .k { font-family: var(--gp-f-mono); font-size: 9px; letter-spacing: 0.16em; color: var(--gp-ink-3); text-transform: uppercase; }
+.meta .v { font-family: var(--gp-f-mono); font-size: 18px; color: var(--gp-ink); font-weight: 500; }
+.meta .v.lime { color: var(--gp-lime); }
+
+.mega {
+  width: 100%; margin-top: 22px;
+  background: linear-gradient(180deg, #D5FF7E, #BBFB46);
+  color: #0A0B0A;
+  font-family: var(--gp-f-display); font-weight: 900; font-style: italic; font-size: 28px; letter-spacing: 0.01em;
+  padding: 22px; border: none; border-radius: 18px;
+  box-shadow: 0 0 40px -8px rgba(187,251,70,0.6), inset 0 1px 0 rgba(255,255,255,0.3);
+  text-transform: uppercase;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+}
+.mega .sub { display: block; font-family: var(--gp-f-mono); font-size: 10px; font-weight: 500; font-style: normal; letter-spacing: 0.2em; opacity: 0.6; margin-top: 3px; }
+.mega svg { width: 28px; height: 28px; }
+</style></head><body>
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<div class="card">
+  <div class="stage">
+    <div class="hdr">
+      <div>
+        <div class="loc">◆ BROOKLYN, NY · 0.4 MI</div>
+        <div class="name">WILLIAMSBURG<br><em>strength</em> CO.</div>
+        <span class="status">OPEN NOW · 127 HERE</span>
+      </div>
+    </div>
+    <div class="meta-row">
+      <div class="meta"><span class="k">WALK</span><span class="v">12 min</span></div>
+      <div class="meta"><span class="k">YOU'VE VISITED</span><span class="v lime">23×</span></div>
+      <div class="meta"><span class="k">TIER</span><span class="v">SILVER+</span></div>
+    </div>
+    <button class="mega">
+      <span>CHECK IN<span class="sub">HOLD · OR SCAN QR</span></span>
+      <i data-lucide="arrow-right"></i>
+    </button>
+  </div>
+</div>
+<script>lucide.createIcons();</script>
+</body></html>

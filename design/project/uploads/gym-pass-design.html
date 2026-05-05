@@ -1,0 +1,3983 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GYM PASS · Design &amp; Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700;1,800;1,900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #0A0B0A;
+  --bg-1:     #111312;
+  --bg-2:     #171A19;
+  --bg-3:     #1E2221;
+  --surface:  rgba(255,255,255,0.04);
+  --surface-2: rgba(255,255,255,0.07);
+  --border:   rgba(255,255,255,0.08);
+  --border-2: rgba(255,255,255,0.14);
+  --ink:      #F4F4F0;
+  --ink-2:    #CACBC2;
+  --ink-3:    #8E8F86;
+  --ink-4:    #5A5B54;
+  --lime:     #BBFB46;
+  --lime-2:   #D5FF7E;
+  --red:      #FF453A;
+  --green:    #30D158;
+  --yellow:   #FFD60A;
+  --blue:     #61CDFF;
+  --purple:   #BF5AF2;
+  --orange:   #FF7351;
+  --f-display: 'Archivo', sans-serif;
+  --f-body:    'Inter', sans-serif;
+  --f-mono:    'JetBrains Mono', monospace;
+  --f-serif:   'Instrument Serif', serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  background: #050505;
+  color: var(--ink);
+  font-family: var(--f-body);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.6;
+  font-size: 14px;
+}
+
+/* =========================================================
+   DOCUMENT SHELL
+   ========================================================= */
+.doc {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 60px 48px 120px;
+  position: relative;
+  background:
+    radial-gradient(ellipse 1000px 500px at 15% 0%, rgba(187,251,70,0.05), transparent 60%),
+    #050505;
+  min-height: 100vh;
+}
+.doc::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  opacity: 0.04;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+  z-index: 1;
+}
+.doc > * { position: relative; z-index: 2; }
+
+/* =========================================================
+   HEADER · MASTHEAD
+   ========================================================= */
+.masthead {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 36px;
+  margin-bottom: 56px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 32px;
+  align-items: end;
+}
+.masthead .left .kicker {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.24em;
+  color: var(--lime);
+  margin-bottom: 18px;
+  display: flex; align-items: center; gap: 10px;
+}
+.masthead .left .kicker::before {
+  content: ''; width: 8px; height: 8px;
+  background: var(--lime); border-radius: 100px;
+  box-shadow: 0 0 12px var(--lime);
+}
+.masthead h1 {
+  font-family: var(--f-display);
+  font-weight: 900;
+  font-style: italic;
+  font-size: clamp(48px, 7vw, 96px);
+  line-height: 0.86;
+  letter-spacing: -0.04em;
+  color: var(--ink);
+  margin-bottom: 16px;
+}
+.masthead h1 em {
+  font-family: var(--f-serif);
+  font-style: italic;
+  font-weight: 400;
+  color: var(--lime);
+  letter-spacing: -0.02em;
+}
+.masthead .sub {
+  font-family: var(--f-body);
+  font-size: 15px;
+  color: var(--ink-2);
+  max-width: 620px;
+  line-height: 1.6;
+}
+.masthead .right {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ink-3);
+  line-height: 1.9;
+  text-align: right;
+}
+.masthead .right b { color: var(--ink); font-weight: 600; }
+.masthead .right .tag {
+  display: inline-block;
+  padding: 4px 10px;
+  border: 1px solid rgba(187,251,70,0.3);
+  border-radius: 100px;
+  color: var(--lime);
+  margin-top: 10px;
+}
+
+/* =========================================================
+   TOC
+   ========================================================= */
+.toc {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 28px;
+  margin-bottom: 56px;
+}
+.toc-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 18px;
+}
+.toc-head h3 {
+  font-family: var(--f-display);
+  font-weight: 900;
+  font-style: italic;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+.toc-head h3 em { font-family: var(--f-serif); font-weight: 400; color: var(--lime); font-style: italic; }
+.toc-head .count {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+.toc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 4px 20px;
+}
+.toc-grid a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  color: var(--ink-2);
+  text-decoration: none;
+  font-size: 13px;
+  border-bottom: 1px dashed transparent;
+  transition: color 0.15s;
+}
+.toc-grid a:hover { color: var(--lime); }
+.toc-grid a .num {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  color: var(--lime);
+  min-width: 22px;
+  font-weight: 600;
+}
+
+/* =========================================================
+   SECTIONS
+   ========================================================= */
+section { margin-bottom: 80px; scroll-margin-top: 40px; }
+.sec-head {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 20px;
+  align-items: baseline;
+  margin-bottom: 32px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+.sec-num {
+  font-family: var(--f-display);
+  font-weight: 900;
+  font-style: italic;
+  font-size: 72px;
+  line-height: 0.8;
+  letter-spacing: -0.04em;
+  color: var(--lime);
+}
+.sec-title {
+  font-family: var(--f-display);
+  font-weight: 900;
+  font-style: italic;
+  font-size: 42px;
+  line-height: 0.9;
+  letter-spacing: -0.03em;
+}
+.sec-title em { font-family: var(--f-serif); font-weight: 400; color: var(--lime); font-style: italic; }
+.sec-meta {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--ink-3);
+  text-align: right;
+}
+
+h3.sub-title {
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-style: italic;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+  margin: 36px 0 14px;
+  color: var(--ink);
+}
+h3.sub-title::before {
+  content: '◆';
+  color: var(--lime);
+  margin-right: 10px;
+  font-size: 14px;
+  vertical-align: middle;
+}
+
+h4.mini-title {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--lime);
+  margin: 24px 0 10px;
+  font-weight: 600;
+}
+
+p { margin-bottom: 12px; color: var(--ink-2); }
+p.lead { font-size: 16px; color: var(--ink); margin-bottom: 24px; }
+
+/* =========================================================
+   CARDS · BOXES
+   ========================================================= */
+.card {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+.card-lime {
+  background:
+    radial-gradient(ellipse at top right, rgba(187,251,70,0.08), transparent 60%),
+    var(--bg-1);
+  border-color: rgba(187,251,70,0.15);
+}
+.card-danger {
+  background: rgba(255,69,58,0.04);
+  border-color: rgba(255,69,58,0.2);
+}
+.card-warn {
+  background: rgba(255,214,10,0.04);
+  border-color: rgba(255,214,10,0.2);
+}
+
+.callout {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 18px 22px;
+  border-radius: 14px;
+  margin: 16px 0;
+}
+.callout .icon {
+  width: 32px; height: 32px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 900;
+  flex-shrink: 0;
+  font-family: var(--f-display);
+  font-style: italic;
+}
+.callout.rule { background: rgba(187,251,70,0.06); border: 1px solid rgba(187,251,70,0.18); }
+.callout.rule .icon { background: var(--lime); color: #0A0B0A; }
+.callout.warn { background: rgba(255,214,10,0.06); border: 1px solid rgba(255,214,10,0.2); }
+.callout.warn .icon { background: var(--yellow); color: #0A0B0A; }
+.callout.danger { background: rgba(255,69,58,0.06); border: 1px solid rgba(255,69,58,0.2); }
+.callout.danger .icon { background: var(--red); color: #fff; }
+.callout h5 {
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-style: italic;
+  font-size: 15px;
+  margin-bottom: 4px;
+  color: var(--ink);
+}
+.callout p { margin: 0; font-size: 13px; }
+
+/* =========================================================
+   CODE BLOCKS
+   ========================================================= */
+pre {
+  background: #020302;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px 24px;
+  overflow-x: auto;
+  font-family: var(--f-mono);
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--ink-2);
+  margin: 14px 0;
+  position: relative;
+}
+pre::before {
+  content: attr(data-lang);
+  position: absolute;
+  top: 10px; right: 14px;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--ink-4);
+}
+pre .c { color: var(--ink-4); font-style: italic; }
+pre .k { color: var(--lime); }
+pre .s { color: #FFD56B; }
+pre .n { color: #61CDFF; }
+pre .f { color: #D5FF7E; }
+pre .t { color: var(--ink); }
+
+code {
+  font-family: var(--f-mono);
+  font-size: 0.88em;
+  padding: 2px 7px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--lime);
+}
+
+/* =========================================================
+   TABLES
+   ========================================================= */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14px 0 20px;
+  font-size: 13px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+th {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ink-3);
+  font-weight: 600;
+  text-align: left;
+  padding: 14px 18px;
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--border-2);
+}
+td {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  color: var(--ink-2);
+  vertical-align: top;
+}
+tr:last-child td { border-bottom: none; }
+tr:nth-child(even) td { background: rgba(255,255,255,0.015); }
+td code { font-size: 12px; }
+td b { color: var(--ink); font-weight: 600; }
+
+/* =========================================================
+   LISTS
+   ========================================================= */
+ul, ol { padding-left: 0; list-style: none; margin: 10px 0 18px; }
+ul li, ol li {
+  position: relative;
+  padding-left: 26px;
+  margin-bottom: 8px;
+  color: var(--ink-2);
+  font-size: 13.5px;
+  line-height: 1.65;
+}
+ul li::before {
+  content: '◆';
+  position: absolute; left: 4px; top: 0;
+  color: var(--lime);
+  font-size: 10px;
+}
+ol { counter-reset: item; }
+ol li { counter-increment: item; }
+ol li::before {
+  content: counter(item, decimal-leading-zero);
+  position: absolute; left: 0; top: 0;
+  color: var(--lime);
+  font-family: var(--f-mono);
+  font-size: 10px;
+  font-weight: 600;
+}
+li b { color: var(--ink); }
+li code { font-size: 12px; }
+
+/* =========================================================
+   GRIDS
+   ========================================================= */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 14px 0; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 14px 0; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 14px 0; }
+@media (max-width: 760px) {
+  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+}
+
+/* =========================================================
+   TOKEN SWATCHES
+   ========================================================= */
+.swatch {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+}
+.swatch .chip {
+  height: 80px;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+}
+.swatch .name {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  color: var(--ink);
+  font-weight: 600;
+  margin-bottom: 3px;
+}
+.swatch .hex {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  color: var(--ink-3);
+  text-transform: uppercase;
+}
+.swatch .use {
+  font-size: 11px;
+  color: var(--ink-3);
+  margin-top: 6px;
+}
+
+/* =========================================================
+   TYPE SCALE DEMO
+   ========================================================= */
+.type-row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 20px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+  align-items: baseline;
+}
+.type-row:last-child { border-bottom: none; }
+.type-row .meta {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ink-3);
+  line-height: 1.7;
+}
+.type-row .meta b { color: var(--ink); display: block; font-weight: 600; }
+.type-row .sample { color: var(--ink); }
+
+/* =========================================================
+   FLOW DIAGRAM
+   ========================================================= */
+.flow {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 24px;
+  margin: 20px 0;
+  overflow-x: auto;
+}
+.flow-track {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  min-width: min-content;
+}
+.flow-node {
+  flex-shrink: 0;
+  min-width: 140px;
+  padding: 14px 18px;
+  background: var(--bg-2);
+  border: 1px solid var(--border-2);
+  border-radius: 14px;
+  text-align: center;
+}
+.flow-node.start { border-color: var(--lime); background: rgba(187,251,70,0.05); }
+.flow-node.end { border-color: var(--blue); background: rgba(97,205,255,0.05); }
+.flow-node .id {
+  font-family: var(--f-mono);
+  font-size: 9px;
+  color: var(--lime);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  margin-bottom: 4px;
+}
+.flow-node .name {
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-style: italic;
+  font-size: 14px;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  line-height: 1.2;
+}
+.flow-arrow {
+  flex-shrink: 0;
+  color: var(--lime);
+  font-family: var(--f-mono);
+  font-size: 16px;
+}
+
+/* =========================================================
+   SCREEN SPEC BLOCK
+   ========================================================= */
+.screen-spec {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  margin-bottom: 28px;
+  overflow: hidden;
+}
+.screen-spec-head {
+  padding: 24px 28px 20px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(135deg, rgba(187,251,70,0.04), transparent 60%);
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 20px;
+  align-items: center;
+}
+.screen-spec-head .num {
+  font-family: var(--f-display);
+  font-weight: 900;
+  font-style: italic;
+  font-size: 44px;
+  line-height: 1;
+  color: var(--lime);
+  letter-spacing: -0.04em;
+}
+.screen-spec-head .name {
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-style: italic;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+  margin-bottom: 4px;
+}
+.screen-spec-head .route {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  color: var(--lime);
+  background: rgba(187,251,70,0.08);
+  padding: 3px 9px;
+  border-radius: 5px;
+  display: inline-block;
+}
+.screen-spec-head .tag {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ink-3);
+  padding: 6px 12px;
+  border: 1px solid var(--border-2);
+  border-radius: 100px;
+}
+.screen-spec-body { padding: 24px 28px 28px; }
+.spec-row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 20px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+.spec-row:last-child { border-bottom: none; }
+.spec-row .label {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ink-3);
+  padding-top: 2px;
+}
+.spec-row .content { font-size: 13px; color: var(--ink-2); line-height: 1.65; }
+.spec-row .content code { font-size: 12px; }
+.spec-row .content b { color: var(--ink); }
+
+/* =========================================================
+   PILLS · TAGS
+   ========================================================= */
+.tag-stack { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 100px;
+  font-family: var(--f-mono);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--ink-2);
+}
+.tag.lime { color: var(--lime); border-color: rgba(187,251,70,0.25); background: rgba(187,251,70,0.05); }
+.tag.red  { color: var(--red); border-color: rgba(255,69,58,0.25); background: rgba(255,69,58,0.05); }
+.tag.blue { color: var(--blue); border-color: rgba(97,205,255,0.25); background: rgba(97,205,255,0.05); }
+
+/* =========================================================
+   VISUAL PROTOTYPE — Embedded phone mockups (§14)
+   All classes prefixed with .proto- to avoid conflicts
+   ========================================================= */
+.proto-stage {
+  background:
+    radial-gradient(ellipse 800px 400px at 15% 0%, rgba(187,251,70,0.06), transparent 60%),
+    var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 48px 32px;
+  margin: 24px 0;
+  position: relative;
+}
+.proto-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 40px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+.proto-legend .item {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--f-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ink-3);
+}
+.proto-legend .item .sw {
+  width: 10px; height: 10px; border-radius: 2px; background: var(--lime);
+}
+
+.proto-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 48px 28px;
+}
+.proto-cell {
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+}
+.proto-label {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--ink-3);
+  display: flex; align-items: center; gap: 10px;
+  width: 100%;
+  justify-content: center;
+}
+.proto-label .num { color: var(--lime); font-weight: 600; }
+.proto-label .div { flex: 1; height: 1px; max-width: 40px; background: linear-gradient(90deg, transparent, var(--border-2), transparent); }
+
+/* Phone frame */
+.proto-phone {
+  width: 300px;
+  height: 640px;
+  background: var(--bg);
+  border-radius: 40px;
+  position: relative;
+  box-shadow:
+    0 0 0 2px #1a1a1a,
+    0 0 0 8px #0a0a0a,
+    0 30px 60px -15px rgba(0,0,0,0.7);
+  overflow: hidden;
+  isolation: isolate;
+}
+.proto-phone::before {
+  content: '';
+  position: absolute; top: 8px; left: 50%;
+  transform: translateX(-50%);
+  width: 96px; height: 26px;
+  background: #000; border-radius: 100px; z-index: 50;
+}
+.proto-phone::after {
+  content: '';
+  position: absolute; bottom: 6px; left: 50%;
+  transform: translateX(-50%);
+  width: 100px; height: 3px;
+  background: rgba(255,255,255,0.25);
+  border-radius: 100px; z-index: 50;
+}
+.proto-statusbar {
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 44px;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 28px 0;
+  font-family: var(--f-body); font-size: 11px; font-weight: 600;
+  color: var(--darkInk, #F4F4F0);
+  z-index: 40;
+}
+.proto-statusbar .sb-right { display: flex; gap: 5px; align-items: center; }
+.proto-statusbar .sb-right svg { width: 12px; height: 12px; }
+.proto-screen {
+  position: absolute; inset: 0;
+  overflow: hidden;
+  padding-top: 44px;
+  padding-bottom: 86px;
+}
+.proto-screen.no-tab { padding-bottom: 20px; }
+.proto-screen.no-pad { padding: 0; }
+
+/* Proto primitives */
+.p-overline {
+  font-family: var(--f-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--lime);
+  font-weight: 500;
+}
+.p-btn {
+  height: 48px;
+  border-radius: 100px;
+  background: linear-gradient(135deg, var(--lime) 0%, var(--limeLight, #D5FF7E) 100%);
+  color: #0A0B0A;
+  font-weight: 700; font-size: 13px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 0 20px; width: 100%;
+  box-shadow: 0 15px 30px -10px rgba(187,251,70,0.3);
+}
+.p-btn .arrow {
+  width: 24px; height: 24px;
+  background: #0A0B0A; border-radius: 100px;
+  display: flex; align-items: center; justify-content: center;
+}
+.p-btn .arrow svg { width: 12px; height: 12px; color: var(--lime); }
+.p-ghost {
+  height: 42px;
+  border-radius: 100px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #F4F4F0;
+  font-weight: 600; font-size: 12px;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.p-back {
+  width: 38px; height: 38px; border-radius: 100px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  display: flex; align-items: center; justify-content: center;
+  color: #F4F4F0;
+}
+.p-back svg { width: 14px; height: 14px; }
+
+.p-tier {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 8px; border-radius: 5px;
+  font-family: var(--f-mono); font-size: 9px;
+  font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em;
+}
+.p-tier.silver { background: rgba(192,192,192,0.15); color: #D8D8D8; border: 1px solid rgba(192,192,192,0.3); }
+.p-tier.gold { background: rgba(255,215,0,0.12); color: #FFE36B; border: 1px solid rgba(255,215,0,0.3); }
+.p-tier.platinum { background: rgba(220,220,255,0.12); color: #E0E6FF; border: 1px solid rgba(220,220,255,0.3); }
+.p-tier.diamond { background: rgba(100,210,255,0.12); color: #9EE7FF; border: 1px solid rgba(100,210,255,0.3); }
+
+.p-tab {
+  position: absolute; left: 12px; right: 12px; bottom: 18px;
+  height: 58px;
+  background: rgba(14,14,12,0.92);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 100px;
+  display: flex; align-items: center; padding: 5px; gap: 3px; z-index: 30;
+}
+.p-tab .t {
+  flex: 1; height: 48px; border-radius: 100px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px;
+  color: #8E8F86; font-size: 9px; font-weight: 600; letter-spacing: 0.04em;
+}
+.p-tab .t svg { width: 18px; height: 18px; }
+.p-tab .t.active { background: var(--lime); color: #0A0B0A; }
+.p-tab .t.active svg { color: #0A0B0A; }
+
+/* Login screen */
+.p-login {
+  padding: 40px 20px 30px; height: 100%;
+  background:
+    radial-gradient(circle 240px at 85% 15%, rgba(187,251,70,0.12), transparent 70%),
+    radial-gradient(circle 200px at 10% 85%, rgba(187,251,70,0.05), transparent 70%),
+    var(--bg);
+}
+.p-login h1 {
+  font-family: var(--f-display); font-weight: 900; font-style: italic;
+  font-size: 42px; line-height: 0.88; letter-spacing: -0.04em;
+  margin-top: 28px; margin-bottom: 24px;
+}
+.p-login h1 span { color: var(--lime); }
+.p-login h1 em {
+  font-family: var(--f-serif); font-weight: 400;
+  font-size: 0.45em; color: #8E8F86;
+  display: block; margin-top: 6px;
+}
+.p-hero-card {
+  background: #171A19; border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 18px; padding: 14px 16px;
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 28px;
+  position: relative; overflow: hidden;
+}
+.p-hero-card::before {
+  content: ''; position: absolute; top: 0; right: 0;
+  width: 100px; height: 100%;
+  background: radial-gradient(ellipse at right, rgba(187,251,70,0.12), transparent 70%);
+}
+.p-hero-card .lbl {
+  font-family: var(--f-display); font-weight: 800; font-size: 12px; font-style: italic;
+}
+.p-hero-card .lbl em {
+  font-family: var(--f-serif); font-weight: 400; color: var(--lime);
+}
+.p-pulse {
+  width: 8px; height: 8px; background: var(--lime); border-radius: 100px; position: relative;
+}
+.p-pulse::after {
+  content: ''; position: absolute; inset: -5px;
+  border: 2px solid var(--lime); border-radius: 100px;
+  animation: p-pulse 1.8s ease-out infinite;
+}
+@keyframes p-pulse {
+  0% { transform: scale(0.6); opacity: 1; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+.p-label {
+  font-family: var(--f-mono); font-size: 9px;
+  text-transform: uppercase; letter-spacing: 0.2em;
+  color: #8E8F86; margin-bottom: 8px; display: block;
+}
+.p-phone-input {
+  background: #171A19; border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 24px; height: 54px;
+  display: flex; align-items: center; padding: 0 6px 0 16px;
+  box-shadow: 0 0 0 3px rgba(187,251,70,0.08);
+  margin-bottom: 18px;
+}
+.p-flag {
+  width: 26px; height: 18px; border-radius: 2px;
+  /* Jordan flag: black / white / green horizontal stripes */
+  background: linear-gradient(to bottom, #000000 33.33%, #FFFFFF 33.33%, #FFFFFF 66.66%, #007A3D 66.66%);
+  position: relative; overflow: hidden; flex-shrink: 0;
+}
+.p-flag::before {
+  /* Red chevron/triangle on the hoist side */
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 40%; background: #CE1126;
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+.p-flag::after {
+  /* Seven-pointed white star inside the red chevron */
+  content: '';
+  position: absolute;
+  left: 9%; top: 50%;
+  width: 6px; height: 6px;
+  transform: translateY(-50%);
+  background: #FFFFFF;
+  clip-path: polygon(
+    50% 0%, 58% 35%, 95% 35%, 64% 57%,
+    76% 91%, 50% 70%, 24% 91%, 36% 57%,
+    5% 35%, 42% 35%
+  );
+}
+.p-phone-input .code { font-weight: 600; font-size: 13px; margin: 0 8px 0 10px; color: #F4F4F0; }
+.p-phone-input .num { flex: 1; font-weight: 600; font-size: 13px; color: #F4F4F0; letter-spacing: 0.02em; }
+.p-signup {
+  text-align: center; margin-top: 14px;
+  font-size: 11px; color: #8E8F86;
+}
+.p-signup a { color: var(--lime); font-weight: 600; }
+
+/* OTP screen */
+.p-otp { padding: 50px 20px 30px; height: 100%; background: var(--bg); }
+.p-title {
+  font-family: var(--f-display); font-weight: 900; font-style: italic;
+  font-size: 34px; line-height: 0.9; letter-spacing: -0.03em;
+  margin-bottom: 12px;
+}
+.p-title em { font-family: var(--f-serif); font-weight: 400; color: var(--lime); }
+.p-desc {
+  font-size: 12px; color: #8E8F86; line-height: 1.5; margin-bottom: 28px;
+}
+.p-desc b { color: #F4F4F0; font-weight: 600; }
+.p-otp-digits {
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px;
+  margin-bottom: 22px;
+}
+.p-otp-digits .d {
+  aspect-ratio: 1/1.15; background: #171A19;
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 11px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 18px; color: #F4F4F0; font-style: italic;
+}
+.p-otp-digits .d.filled { border-color: var(--lime); box-shadow: 0 0 0 2px rgba(187,251,70,0.1); }
+.p-otp-digits .d.active { border-color: var(--lime); box-shadow: 0 0 0 2px rgba(187,251,70,0.15); }
+.p-otp-digits .d.active::after {
+  content: ''; width: 2px; height: 18px; background: var(--lime);
+  animation: p-blink 1s infinite;
+}
+@keyframes p-blink { 50% { opacity: 0; } }
+.p-resend {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 14px;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 13px; margin-bottom: 18px; font-size: 11px; color: #8E8F86;
+}
+.p-resend .timer { font-family: var(--f-mono); font-weight: 600; color: var(--lime); }
+
+/* Register form */
+.p-form-input {
+  background: #171A19; border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px; height: 50px;
+  padding: 0 16px; display: flex; align-items: center; gap: 10px;
+  margin-bottom: 10px;
+}
+.p-form-input svg { width: 15px; height: 15px; color: #8E8F86; flex-shrink: 0; }
+.p-form-input .v { flex: 1; font-weight: 500; font-size: 12px; color: #F4F4F0; }
+.p-form-input.focused { border-color: var(--lime); box-shadow: 0 0 0 3px rgba(187,251,70,0.1); }
+.p-form-input .opt { font-size: 9px; color: #5A5B54; font-family: var(--f-mono); }
+.p-check-row {
+  display: flex; align-items: flex-start; gap: 10px; margin: 20px 0 22px;
+}
+.p-check {
+  width: 18px; height: 18px; border-radius: 5px; background: var(--lime);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.p-check svg { width: 11px; height: 11px; color: #0A0B0A; }
+.p-check-row p { font-size: 10px; line-height: 1.5; color: #8E8F86; }
+.p-check-row p a { color: var(--lime); font-weight: 600; }
+
+/* Home screen */
+.p-home { height: 100%; overflow-y: auto; scrollbar-width: none; padding: 0 0 90px; }
+.p-home::-webkit-scrollbar { display: none; }
+.p-home-top {
+  padding: 10px 18px 0; display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 22px;
+}
+.p-home-top .l { display: flex; align-items: center; gap: 10px; }
+.p-avatar {
+  width: 42px; height: 42px; border-radius: 12px;
+  background: linear-gradient(135deg, var(--lime), #D5FF7E);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 18px; color: #0A0B0A; font-style: italic;
+}
+.p-home-top .greet {
+  font-size: 9px; color: #8E8F86;
+  font-family: var(--f-mono);
+  text-transform: uppercase; letter-spacing: 0.14em; margin-bottom: 2px;
+}
+.p-home-top h2 {
+  font-family: var(--f-display); font-weight: 800; font-size: 15px;
+  font-style: italic; letter-spacing: -0.02em;
+}
+.p-home-top h2 em { font-family: var(--f-serif); font-weight: 400; color: var(--lime); }
+.p-icon-btn {
+  width: 38px; height: 38px; border-radius: 12px;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+  display: flex; align-items: center; justify-content: center;
+  position: relative; color: #F4F4F0;
+}
+.p-icon-btn svg { width: 15px; height: 15px; }
+.p-icon-btn .dot {
+  position: absolute; top: 8px; right: 8px;
+  width: 7px; height: 7px; border-radius: 100px;
+  background: var(--lime); box-shadow: 0 0 0 2px var(--bg);
+}
+.p-sub-card {
+  margin: 0 18px 26px;
+  background: linear-gradient(135deg, #1a1d1b, #0f110f);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 20px; padding: 18px; position: relative; overflow: hidden;
+}
+.p-sub-card::before {
+  content: ''; position: absolute; top: -50%; right: -20%;
+  width: 200px; height: 200px;
+  background: radial-gradient(circle, rgba(187,251,70,0.12), transparent 70%);
+}
+.p-sub-card .head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 16px; position: relative; z-index: 2;
+}
+.p-sub-card .active-tag {
+  font-family: var(--f-mono); font-size: 9px;
+  color: var(--lime); text-transform: uppercase; letter-spacing: 0.16em;
+  display: flex; align-items: center; gap: 5px;
+}
+.p-sub-card .active-tag .dot {
+  width: 5px; height: 5px; border-radius: 100px; background: var(--lime);
+  box-shadow: 0 0 6px var(--lime);
+}
+.p-sub-card h3 {
+  font-family: var(--f-display); font-weight: 900; font-style: italic;
+  font-size: 34px; line-height: 1; letter-spacing: -0.03em;
+  margin-bottom: 4px; position: relative; z-index: 2;
+}
+.p-sub-card .meta {
+  font-size: 10px; color: #8E8F86; margin-bottom: 16px; position: relative; z-index: 2;
+}
+.p-sub-card .stats {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px; margin-bottom: 16px; position: relative; z-index: 2;
+}
+.p-stat {
+  background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 11px; padding: 9px 8px;
+}
+.p-stat .n {
+  font-weight: 900; font-style: italic; font-size: 18px;
+  letter-spacing: -0.02em; color: var(--lime); line-height: 1;
+}
+.p-stat .l {
+  font-size: 8px; color: #8E8F86; text-transform: uppercase;
+  letter-spacing: 0.12em; margin-top: 3px; font-family: var(--f-mono);
+}
+.p-sub-card .upgrade {
+  height: 38px; border-radius: 100px; background: var(--lime);
+  color: #0A0B0A; font-weight: 700; font-size: 11px;
+  display: flex; align-items: center; justify-content: center;
+  gap: 5px; position: relative; z-index: 2;
+}
+.p-sec-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 0 18px; margin-bottom: 12px;
+}
+.p-sec-head h3 {
+  font-family: var(--f-display);
+  font-weight: 800; font-style: italic; font-size: 15px; letter-spacing: -0.02em;
+}
+.p-sec-head h3 em { font-family: var(--f-serif); font-weight: 400; color: var(--lime); }
+.p-sec-head a {
+  font-family: var(--f-mono); font-size: 9px;
+  color: #8E8F86; text-transform: uppercase; letter-spacing: 0.14em;
+}
+.p-cat-row {
+  display: flex; gap: 8px; padding: 0 18px 4px;
+  overflow-x: auto; scrollbar-width: none; margin-bottom: 24px;
+}
+.p-cat-row::-webkit-scrollbar { display: none; }
+.p-cat {
+  flex-shrink: 0; width: 72px; height: 84px;
+  border-radius: 14px; background: #171A19; border: 1px solid rgba(255,255,255,0.08);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; padding: 6px;
+}
+.p-cat .ico {
+  width: 28px; height: 28px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+}
+.p-cat .ico svg { width: 15px; height: 15px; color: #0A0B0A; }
+.p-cat .ico.gym { background: var(--lime); }
+.p-cat .ico.cross { background: #30D158; }
+.p-cat .ico.mart { background: #FF453A; }
+.p-cat .ico.yoga { background: #BF5AF2; }
+.p-cat .nm { font-size: 9px; font-weight: 600; color: #F4F4F0; }
+.p-cat .ct { font-size: 8px; color: #8E8F86; font-family: var(--f-mono); }
+.p-gym-grid {
+  padding: 0 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+}
+.p-gym-card {
+  border-radius: 15px; overflow: hidden;
+  background: #171A19; border: 1px solid rgba(255,255,255,0.08);
+}
+.p-gym-card .img {
+  aspect-ratio: 1/1; position: relative;
+  background: linear-gradient(135deg, #2a2d2b, #141514); overflow: hidden;
+}
+.p-gym-card .img::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.7), transparent 60%);
+}
+.p-gym-card .img svg {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 40%; height: 40%; opacity: 0.25; color: var(--lime);
+}
+.p-gym-card .img .badge { position: absolute; top: 8px; left: 8px; z-index: 2; }
+.p-gym-card .body { padding: 10px; }
+.p-gym-card .nm { font-weight: 700; font-size: 11px; margin-bottom: 3px; color: #F4F4F0; }
+.p-gym-card .loc {
+  font-size: 9px; color: #8E8F86;
+  display: flex; align-items: center; gap: 3px; margin-bottom: 4px;
+}
+.p-gym-card .rate {
+  display: flex; align-items: center; gap: 3px; font-size: 9px; font-weight: 600; color: #F4F4F0;
+}
+.p-gym-card .rate svg { width: 9px; height: 9px; color: var(--lime); }
+.p-gym-card .rate .cnt { color: #8E8F86; font-weight: 500; }
+
+/* QR screen */
+.p-qr { height: 100%; background: #000; padding: 0; position: relative; }
+.p-qr-head {
+  padding: 14px 18px; display: flex; justify-content: space-between; align-items: center;
+}
+.p-qr-head h2 {
+  font-family: var(--f-display); font-weight: 800; font-style: italic;
+  font-size: 18px; letter-spacing: -0.02em; color: #F4F4F0;
+}
+.p-qr-head h2 em { font-family: var(--f-serif); font-weight: 400; color: var(--lime); }
+.p-camera {
+  margin: 12px 18px 18px; aspect-ratio: 1/1;
+  border-radius: 22px; overflow: hidden; position: relative;
+  background: linear-gradient(135deg, #0a0e0a, #1a1f1a);
+  border: 1px solid rgba(255,255,255,0.14);
+}
+.p-camera::before {
+  content: ''; position: absolute; inset: 0;
+  background:
+    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(187,251,70,0.03) 2px, rgba(187,251,70,0.03) 4px);
+}
+.p-brackets {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 62%; aspect-ratio: 1/1;
+}
+.p-brackets .c {
+  position: absolute; width: 26px; height: 26px; border: 3px solid var(--lime);
+}
+.p-brackets .c.tl { top: 0; left: 0; border-right: none; border-bottom: none; border-radius: 6px 0 0 0; }
+.p-brackets .c.tr { top: 0; right: 0; border-left: none; border-bottom: none; border-radius: 0 6px 0 0; }
+.p-brackets .c.bl { bottom: 0; left: 0; border-right: none; border-top: none; border-radius: 0 0 0 6px; }
+.p-brackets .c.br { bottom: 0; right: 0; border-left: none; border-top: none; border-radius: 0 0 6px 0; }
+.p-scanline {
+  position: absolute; left: 10%; right: 10%; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--lime), transparent);
+  box-shadow: 0 0 8px var(--lime); top: 50%;
+  animation: p-scan 2.5s ease-in-out infinite;
+}
+@keyframes p-scan {
+  0%, 100% { top: 20%; } 50% { top: 80%; }
+}
+.p-qr-mock {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 44%; aspect-ratio: 1/1;
+  background: white; border-radius: 6px; padding: 5px; opacity: 0.6;
+}
+.p-qr-mock svg { width: 100%; height: 100%; }
+.p-qr-instruct {
+  padding: 0 18px; text-align: center; margin-bottom: 18px;
+}
+.p-qr-instruct h3 {
+  font-family: var(--f-display); font-weight: 800; font-style: italic;
+  font-size: 18px; letter-spacing: -0.02em; margin-bottom: 4px; color: #F4F4F0;
+}
+.p-qr-instruct h3 em { font-family: var(--f-serif); font-weight: 400; color: var(--lime); }
+.p-qr-instruct p { font-size: 11px; color: #8E8F86; line-height: 1.5; }
+.p-qr-actions { padding: 0 18px; display: flex; gap: 8px; }
+.p-qr-actions .a {
+  flex: 1; height: 44px; border-radius: 13px;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px;
+}
+.p-qr-actions .a svg { width: 13px; height: 13px; color: var(--lime); }
+.p-qr-actions .a .l { font-size: 9px; font-weight: 600; color: #F4F4F0; }
+
+/* Profile screen */
+.p-profile { padding: 12px 18px 90px; }
+.p-profile-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin: 8px 0 22px;
+}
+.p-profile-head h2 {
+  font-family: var(--f-display); font-weight: 800; font-style: italic;
+  font-size: 22px; letter-spacing: -0.03em; color: #F4F4F0;
+}
+.p-profile-head h2 em { font-family: var(--f-serif); font-weight: 400; color: var(--lime); }
+.p-profile-card {
+  background: #171A19; border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 18px; padding: 16px; margin-bottom: 14px;
+  display: flex; align-items: center; gap: 12px;
+}
+.p-avatar-lg {
+  width: 54px; height: 54px; border-radius: 16px;
+  background: linear-gradient(135deg, var(--lime), #D5FF7E);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 22px; color: #0A0B0A; font-style: italic;
+}
+.p-profile-card .nm { font-weight: 700; font-size: 14px; color: #F4F4F0; margin-bottom: 2px; }
+.p-profile-card .em, .p-profile-card .ph {
+  font-size: 10px; color: #8E8F86; font-family: var(--f-mono);
+}
+.p-sub-mini {
+  background: linear-gradient(135deg, #1a1d1b, #0f110f);
+  border: 1px solid rgba(255,255,255,0.14); border-radius: 18px;
+  padding: 14px 16px; margin-bottom: 14px; position: relative; overflow: hidden;
+}
+.p-sub-mini::before {
+  content: ''; position: absolute; top: -20px; right: -20px;
+  width: 100px; height: 100px;
+  background: radial-gradient(circle, rgba(187,251,70,0.12), transparent 70%);
+}
+.p-sub-mini .row {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: 12px; position: relative; z-index: 2;
+}
+.p-sub-mini h4 {
+  font-family: var(--f-display); font-weight: 900; font-style: italic;
+  font-size: 22px; line-height: 1; letter-spacing: -0.02em; margin-top: 6px; color: #F4F4F0;
+}
+.p-bar {
+  height: 5px; background: rgba(255,255,255,0.08); border-radius: 100px;
+  overflow: hidden; margin-bottom: 6px; position: relative; z-index: 2;
+}
+.p-bar .fill {
+  height: 100%; width: 50%;
+  background: linear-gradient(90deg, var(--lime), #D5FF7E);
+  border-radius: 100px;
+}
+.p-bar-lbl {
+  display: flex; justify-content: space-between;
+  font-size: 10px; font-family: var(--f-mono); color: #8E8F86;
+  position: relative; z-index: 2;
+}
+.p-bar-lbl b { color: #F4F4F0; }
+.p-view-link {
+  margin-top: 10px; font-size: 9px; color: var(--lime); font-weight: 600;
+  font-family: var(--f-mono); text-transform: uppercase; letter-spacing: 0.12em;
+  position: relative; z-index: 2; display: flex; align-items: center; gap: 3px;
+}
+.p-quick-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px;
+}
+.p-quick {
+  aspect-ratio: 1.3/1; background: #171A19;
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 14px;
+  padding: 12px; display: flex; flex-direction: column;
+  justify-content: space-between; align-items: flex-start;
+}
+.p-quick .ico-wrap {
+  width: 30px; height: 30px; border-radius: 10px;
+  background: rgba(187,251,70,0.1); border: 1px solid rgba(187,251,70,0.2);
+  display: flex; align-items: center; justify-content: center;
+}
+.p-quick .ico-wrap svg { width: 13px; height: 13px; color: var(--lime); }
+.p-quick .lbl { font-weight: 700; font-size: 11px; color: #F4F4F0; line-height: 1.2; }
+.p-logout {
+  height: 44px; border-radius: 100px;
+  background: rgba(255,69,58,0.1); border: 1px solid rgba(255,69,58,0.25);
+  color: #FF453A; font-weight: 700; font-size: 12px; width: 100%;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+}
+.p-logout svg { width: 13px; height: 13px; }
+
+/* Plans screen */
+.p-plans { padding: 50px 18px 30px; }
+.p-plans .ttl {
+  font-family: var(--f-display); font-weight: 900; font-style: italic;
+  font-size: 32px; line-height: 0.9; letter-spacing: -0.03em;
+  margin: 16px 0 6px;
+}
+.p-plans .ttl em { font-family: var(--f-serif); font-weight: 400; color: var(--lime); }
+.p-plans .d { font-size: 11px; color: #8E8F86; margin-bottom: 18px; }
+.p-tier-picker {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 14px;
+}
+.p-tier-btn {
+  aspect-ratio: 1/1.1; background: #171A19;
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 12px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 3px; padding: 5px; color: #F4F4F0;
+}
+.p-tier-btn .ic { font-size: 14px; }
+.p-tier-btn .n { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
+.p-tier-btn.active { background: var(--lime); color: #0A0B0A; border-color: var(--lime); }
+.p-dur-picker {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px;
+  background: #171A19; padding: 4px; border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.08); margin-bottom: 18px;
+}
+.p-dur-btn {
+  height: 38px; border-radius: 9px; font-weight: 600; font-size: 10px;
+  color: #8E8F86;
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 1px;
+}
+.p-dur-btn .sv { font-size: 7px; color: var(--lime); font-family: var(--f-mono); }
+.p-dur-btn.active { background: #F4F4F0; color: #0A0B0A; }
+.p-plan-details {
+  background: #171A19; border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 18px; padding: 18px; margin-bottom: 14px;
+  position: relative; overflow: hidden;
+}
+.p-plan-details::before {
+  content: 'GOLD'; position: absolute; top: -15px; right: -15px;
+  font-family: var(--f-display); font-weight: 900; font-style: italic;
+  font-size: 80px; letter-spacing: -0.04em;
+  color: rgba(255,215,0,0.05); line-height: 1;
+}
+.p-price-row {
+  display: flex; align-items: baseline; gap: 5px; margin-bottom: 3px;
+  position: relative; z-index: 2;
+}
+.p-price {
+  font-family: var(--f-display); font-weight: 900; font-style: italic;
+  font-size: 40px; line-height: 1; letter-spacing: -0.03em; color: var(--lime);
+}
+.p-cur { font-size: 12px; font-weight: 600; color: #8E8F86; font-family: var(--f-mono); }
+.p-per { font-size: 10px; color: #8E8F86; margin-bottom: 14px; position: relative; z-index: 2; }
+.p-plan-details ul { list-style: none; position: relative; z-index: 2; padding: 0; }
+.p-plan-details ul li {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 0; font-size: 11px; color: #CACBC2; margin: 0;
+}
+.p-plan-details ul li::before { display: none; }
+.p-plan-details ul li svg { width: 13px; height: 13px; color: var(--lime); flex-shrink: 0; }
+
+/* Browse screen */
+.p-browse { padding: 0; height: 100%; overflow-y: auto; scrollbar-width: none; padding-bottom: 90px; }
+.p-browse::-webkit-scrollbar { display: none; }
+.p-browse-head { padding: 10px 18px 16px; }
+.p-browse-head h2 {
+  font-family: var(--f-display); font-weight: 800; font-style: italic;
+  font-size: 22px; letter-spacing: -0.03em; margin-bottom: 12px; color: #F4F4F0;
+}
+.p-browse-head h2 em { font-family: var(--f-serif); font-weight: 400; color: var(--lime); }
+.p-search {
+  background: #171A19; border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 15px; height: 44px;
+  padding: 0 14px; display: flex; align-items: center; gap: 8px;
+}
+.p-search svg { width: 14px; height: 14px; color: #8E8F86; }
+.p-search .ph { flex: 1; font-size: 11px; color: #5A5B54; }
+.p-search .fil {
+  width: 30px; height: 30px; border-radius: 8px; background: var(--lime);
+  display: flex; align-items: center; justify-content: center;
+}
+.p-search .fil svg { color: #0A0B0A; }
+.p-chips {
+  display: flex; gap: 7px; padding: 0 18px 14px;
+  overflow-x: auto; scrollbar-width: none;
+}
+.p-chips::-webkit-scrollbar { display: none; }
+.p-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 10px; border-radius: 100px;
+  font-size: 10px; font-weight: 600;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+  color: #CACBC2; flex-shrink: 0;
+}
+.p-chip.active { background: var(--lime); color: #0A0B0A; border-color: var(--lime); }
+.p-chip .dt { width: 5px; height: 5px; border-radius: 100px; background: currentColor; }
+.p-list { padding: 0 18px; display: flex; flex-direction: column; gap: 10px; }
+.p-list-item {
+  background: #171A19; border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px; padding: 10px;
+  display: flex; gap: 12px; position: relative;
+}
+.p-list-item.locked::after {
+  content: ''; position: absolute; inset: 0;
+  background: rgba(0,0,0,0.35); border-radius: 16px; pointer-events: none;
+}
+.p-list-item .img {
+  width: 66px; height: 66px; border-radius: 12px;
+  background: linear-gradient(135deg, #2a2d2b, #141514);
+  flex-shrink: 0; position: relative; overflow: hidden;
+}
+.p-list-item .img svg {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 38%; height: 38%; opacity: 0.3; color: var(--lime);
+}
+.p-list-item .info {
+  flex: 1; display: flex; flex-direction: column; justify-content: space-between; min-width: 0;
+}
+.p-list-item .tp {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 7px;
+}
+.p-list-item .nm { font-weight: 700; font-size: 12px; color: #F4F4F0; }
+.p-list-item .lc { font-size: 10px; color: #8E8F86; margin-top: 2px; }
+.p-list-item .bt {
+  display: flex; justify-content: space-between; align-items: center;
+}
+.p-list-item .rt {
+  display: flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 600; color: #F4F4F0;
+}
+.p-list-item .rt svg { width: 9px; height: 9px; color: var(--lime); }
+.p-list-item .ds { font-family: var(--f-mono); font-size: 9px; color: #8E8F86; }
+
+/* Detail screen */
+.p-detail { padding-top: 0; height: 100%; overflow-y: auto; scrollbar-width: none; padding-bottom: 90px; }
+.p-detail::-webkit-scrollbar { display: none; }
+.p-detail-hero {
+  height: 280px; background: linear-gradient(135deg, #2a2d2b, #0f110f);
+  position: relative; overflow: hidden;
+}
+.p-detail-hero::before {
+  content: ''; position: absolute; inset: 0;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(187,251,70,0.15), transparent 60%),
+    linear-gradient(to bottom, transparent 40%, rgba(10,11,10,0.95) 100%);
+}
+.p-detail-hero svg.dumbbell {
+  position: absolute; top: 40%; left: 50%;
+  transform: translate(-50%, -50%); width: 180px;
+  opacity: 0.18; color: var(--lime);
+}
+.p-detail-top {
+  position: absolute; top: 55px; left: 18px; right: 18px;
+  display: flex; justify-content: space-between; align-items: center; z-index: 3;
+}
+.p-detail-top .heart {
+  width: 38px; height: 38px; border-radius: 12px;
+  background: rgba(255,255,255,0.1); backdrop-filter: blur(10px);
+  display: flex; align-items: center; justify-content: center; color: #F4F4F0;
+}
+.p-detail-top .heart svg { width: 14px; height: 14px; }
+.p-detail-bottom {
+  position: absolute; bottom: 18px; left: 18px; right: 18px; z-index: 3;
+}
+.p-detail-bottom h1 {
+  font-family: var(--f-display); font-weight: 900; font-style: italic;
+  font-size: 28px; line-height: 0.9; letter-spacing: -0.03em;
+  margin-top: 8px; margin-bottom: 4px; color: #F4F4F0;
+}
+.p-detail-bottom .addr {
+  font-size: 11px; color: #CACBC2; display: flex; align-items: center; gap: 3px;
+}
+.p-detail-body { padding: 18px 18px 70px; }
+.p-det-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 18px; }
+.p-det-stat {
+  background: #171A19; border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px; padding: 10px 8px; text-align: center;
+}
+.p-det-stat .n {
+  font-family: var(--f-display); font-weight: 900; font-style: italic;
+  font-size: 16px; line-height: 1; color: var(--lime); letter-spacing: -0.02em;
+}
+.p-det-stat .l {
+  font-size: 8px; color: #8E8F86; text-transform: uppercase;
+  letter-spacing: 0.12em; margin-top: 3px; font-family: var(--f-mono);
+}
+.p-det-sec { margin-bottom: 18px; }
+.p-det-sec h4 {
+  font-family: var(--f-mono); font-size: 9px;
+  text-transform: uppercase; letter-spacing: 0.18em;
+  color: #8E8F86; margin-bottom: 8px;
+}
+.p-amenities { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.p-amenity {
+  aspect-ratio: 1/1; background: #171A19; border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 11px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 3px; padding: 3px;
+}
+.p-amenity svg { width: 13px; height: 13px; color: var(--lime); }
+.p-amenity .l { font-size: 8px; color: #CACBC2; font-weight: 600; }
+.p-hours {
+  display: flex; justify-content: space-between;
+  padding: 8px 12px; background: #171A19;
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;
+  font-size: 10px; margin-bottom: 4px;
+}
+.p-hours .d { color: #8E8F86; }
+.p-hours .t { color: #F4F4F0; font-family: var(--f-mono); font-weight: 600; }
+.p-detail-cta {
+  position: absolute; bottom: 18px; left: 18px; right: 18px;
+  height: 48px;
+  background: linear-gradient(135deg, var(--lime), #D5FF7E);
+  color: #0A0B0A; font-weight: 700; font-size: 13px;
+  border-radius: 100px;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  box-shadow: 0 15px 30px -10px rgba(187,251,70,0.3); z-index: 10;
+}
+
+/* My Subscription */
+.p-mysub { padding: 50px 18px 30px; height: 100%; overflow-y: auto; scrollbar-width: none; }
+.p-mysub::-webkit-scrollbar { display: none; }
+.p-mysub-head {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 20px;
+}
+.p-mysub-head h2 {
+  font-family: var(--f-display); font-weight: 800; font-style: italic;
+  font-size: 18px; letter-spacing: -0.03em; color: #F4F4F0;
+}
+.p-mysub-head h2 em { font-family: var(--f-serif); font-weight: 400; color: var(--lime); }
+.p-big-plan {
+  background:
+    radial-gradient(ellipse at top right, rgba(255,215,0,0.15), transparent 60%),
+    linear-gradient(135deg, #1a1d1b, #0f110f);
+  border: 1px solid rgba(255,215,0,0.2); border-radius: 22px;
+  padding: 20px; margin-bottom: 14px; position: relative; overflow: hidden;
+}
+.p-tier-mega {
+  font-family: var(--f-display); font-weight: 900; font-style: italic;
+  font-size: 56px; line-height: 0.85; letter-spacing: -0.04em;
+  background: linear-gradient(135deg, #FFE36B, #FFD60A);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  margin-top: 12px; margin-bottom: 4px;
+}
+.p-valid {
+  font-size: 10px; color: #8E8F86; font-family: var(--f-mono); margin-bottom: 16px;
+}
+.p-valid b { color: #F4F4F0; }
+.p-visit-ring {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px; background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 13px;
+  margin-bottom: 10px;
+}
+.p-visit-ring .l {
+  font-size: 9px; text-transform: uppercase; letter-spacing: 0.12em;
+  color: #8E8F86; font-family: var(--f-mono); margin-bottom: 3px;
+}
+.p-visit-ring .n {
+  font-family: var(--f-display); font-weight: 900; font-style: italic;
+  font-size: 24px; letter-spacing: -0.02em; line-height: 1; color: #F4F4F0;
+}
+.p-visit-ring .n em {
+  font-family: var(--f-serif); font-weight: 400; color: #8E8F86; font-size: 0.6em;
+}
+.p-ring {
+  width: 48px; height: 48px; position: relative;
+}
+.p-ring svg { transform: rotate(-90deg); }
+.p-ring .pct {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 800; color: var(--lime); font-family: var(--f-mono);
+}
+.p-auto-renew {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px; background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 13px;
+}
+.p-auto-renew .lbl { font-weight: 600; font-size: 12px; color: #F4F4F0; }
+.p-auto-renew .sub { font-size: 10px; color: #8E8F86; margin-top: 2px; }
+.p-toggle {
+  width: 38px; height: 22px; background: var(--lime);
+  border-radius: 100px; position: relative; flex-shrink: 0;
+}
+.p-toggle::after {
+  content: ''; position: absolute; top: 2px; right: 2px;
+  width: 18px; height: 18px; background: #0A0B0A; border-radius: 100px;
+}
+.p-benefits {
+  background: #171A19; border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px; padding: 14px; margin-bottom: 14px;
+}
+.p-benefits h4 {
+  font-family: var(--f-mono); font-size: 9px; text-transform: uppercase;
+  letter-spacing: 0.18em; color: #8E8F86; margin-bottom: 10px;
+}
+.p-benefits ul { list-style: none; padding: 0; }
+.p-benefits ul li {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 0; font-size: 11px; color: #CACBC2;
+  border-bottom: 1px solid rgba(255,255,255,0.08); margin: 0;
+}
+.p-benefits ul li:last-child { border: none; }
+.p-benefits ul li::before { display: none; }
+.p-benefits ul li svg { width: 12px; height: 12px; color: var(--lime); flex-shrink: 0; }
+
+/* Payment */
+.p-pay { padding: 50px 18px 30px; }
+.p-order {
+  background: #171A19; border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px; padding: 16px; margin-bottom: 18px;
+}
+.p-order h4 {
+  font-family: var(--f-mono); font-size: 9px; text-transform: uppercase;
+  letter-spacing: 0.18em; color: #8E8F86; margin-bottom: 12px;
+}
+.p-order .r {
+  display: flex; justify-content: space-between;
+  padding: 8px 0; font-size: 11px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.p-order .r:last-child { border: none; }
+.p-order .r .k { color: #8E8F86; }
+.p-order .r .v { font-weight: 600; color: #F4F4F0; }
+.p-order .r.tot {
+  margin-top: 6px; padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,0.14); border-bottom: none;
+}
+.p-order .r.tot .k {
+  font-family: var(--f-display); font-weight: 800; font-style: italic;
+  font-size: 16px; color: #F4F4F0;
+}
+.p-order .r.tot .v {
+  font-family: var(--f-display); font-weight: 900; font-style: italic;
+  font-size: 22px; color: var(--lime);
+}
+.p-methods { display: flex; flex-direction: column; gap: 8px; margin-bottom: 22px; }
+.p-method {
+  height: 50px; background: #171A19;
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 13px;
+  padding: 0 14px; display: flex; align-items: center; gap: 11px;
+}
+.p-method.selected {
+  border-color: var(--lime); background: rgba(187,251,70,0.04);
+  box-shadow: 0 0 0 3px rgba(187,251,70,0.1);
+}
+.p-method .ico {
+  width: 34px; height: 24px; border-radius: 5px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 9px; flex-shrink: 0;
+}
+.p-method .ico.apple { background: #000; color: #fff; border: 1px solid rgba(255,255,255,0.14); font-size: 12px; }
+.p-method .ico.google { background: #fff; color: #4285F4; font-size: 10px; }
+.p-method .ico.card { background: linear-gradient(135deg, var(--lime), #D5FF7E); color: #0A0B0A; font-size: 11px; }
+.p-method .info { flex: 1; }
+.p-method .info .n { font-weight: 600; font-size: 11px; color: #F4F4F0; }
+.p-method .info .d { font-size: 9px; color: #8E8F86; font-family: var(--f-mono); }
+.p-method .chk {
+  width: 18px; height: 18px; border-radius: 100px; border: 1.5px solid rgba(255,255,255,0.14);
+}
+.p-method.selected .chk {
+  background: var(--lime); border-color: var(--lime);
+  display: flex; align-items: center; justify-content: center;
+}
+.p-method.selected .chk svg { width: 10px; height: 10px; color: #0A0B0A; }
+
+/* Success */
+.p-success {
+  padding: 50px 18px 30px; height: 100%;
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  background:
+    radial-gradient(ellipse 400px 250px at 50% 20%, rgba(187,251,70,0.12), transparent 70%),
+    var(--bg);
+  overflow-y: auto; scrollbar-width: none;
+}
+.p-success::-webkit-scrollbar { display: none; }
+.p-success-mark {
+  width: 90px; height: 90px; margin: 40px auto 24px; position: relative;
+}
+.p-success-mark .ro {
+  position: absolute; inset: 0;
+  border: 2px solid rgba(187,251,70,0.3); border-radius: 100px;
+  animation: p-ring 2s ease-out infinite;
+}
+@keyframes p-ring {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+.p-success-mark .ri {
+  position: absolute; inset: 8px;
+  background: linear-gradient(135deg, var(--lime), #D5FF7E);
+  border-radius: 100px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 30px rgba(187,251,70,0.4);
+}
+.p-success-mark .ri svg { width: 38px; height: 38px; color: #0A0B0A; stroke-width: 3; }
+.p-success h2 {
+  font-family: var(--f-display); font-weight: 900; font-style: italic;
+  font-size: 34px; line-height: 0.9; letter-spacing: -0.03em;
+  margin-bottom: 8px; color: #F4F4F0;
+}
+.p-success h2 em { font-family: var(--f-serif); font-weight: 400; color: var(--lime); }
+.p-success p {
+  font-size: 12px; color: #8E8F86; margin-bottom: 22px; line-height: 1.5; padding: 0 8px;
+}
+.p-receipt {
+  background: #171A19; border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px; padding: 14px; width: 100%;
+  text-align: left; margin-bottom: 18px; position: relative;
+}
+.p-receipt .r {
+  display: flex; justify-content: space-between; padding: 5px 0; font-size: 10px;
+}
+.p-receipt .r .k {
+  color: #8E8F86; font-family: var(--f-mono); font-size: 9px;
+  text-transform: uppercase; letter-spacing: 0.1em;
+}
+.p-receipt .r .v { font-weight: 600; color: #F4F4F0; }
+.p-success-btns { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+
+/* Settings */
+.p-settings { padding: 50px 18px 30px; }
+.p-set-group { margin-bottom: 18px; }
+.p-set-group h4 {
+  font-family: var(--f-mono); font-size: 9px; text-transform: uppercase;
+  letter-spacing: 0.18em; color: #8E8F86; margin-bottom: 10px;
+}
+.p-toggle-duo {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 5px;
+  background: #171A19; border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 13px; padding: 4px;
+}
+.p-toggle-duo .o {
+  height: 42px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  gap: 7px; font-weight: 600; font-size: 11px; color: #8E8F86;
+}
+.p-toggle-duo .o svg { width: 13px; height: 13px; }
+.p-toggle-duo .o.active { background: var(--lime); color: #0A0B0A; }
+.p-set-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 13px 14px; background: #171A19;
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 13px; margin-bottom: 6px;
+}
+.p-set-row .l { font-weight: 500; font-size: 11px; color: #F4F4F0; }
+.p-set-row .v { color: #8E8F86; font-size: 10px; font-family: var(--f-mono); }
+.p-set-row svg { width: 12px; height: 12px; color: #8E8F86; }
+
+/* Notifications */
+.p-notif { padding: 50px 18px 30px; }
+.p-notif-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin: 10px 0 20px;
+}
+.p-notif-head h2 {
+  font-family: var(--f-display); font-weight: 800; font-style: italic;
+  font-size: 22px; letter-spacing: -0.03em; color: #F4F4F0;
+}
+.p-notif-head h2 em { font-family: var(--f-serif); font-weight: 400; color: var(--lime); }
+.p-mark-all {
+  font-family: var(--f-mono); font-size: 9px;
+  text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--lime); font-weight: 600;
+}
+.p-notif-list { display: flex; flex-direction: column; gap: 8px; }
+.p-notif-item {
+  background: #171A19; border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 15px; padding: 13px;
+  display: flex; gap: 10px; position: relative;
+}
+.p-notif-item.unread {
+  border-color: rgba(187,251,70,0.2);
+  background: rgba(187,251,70,0.02);
+}
+.p-notif-item.unread::before {
+  content: ''; position: absolute; top: 14px; right: 12px;
+  width: 5px; height: 5px; background: var(--lime); border-radius: 100px;
+}
+.p-notif-icon {
+  width: 32px; height: 32px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.p-notif-icon svg { width: 13px; height: 13px; }
+.p-notif-icon.info { background: rgba(97,205,255,0.15); color: #61CDFF; }
+.p-notif-icon.ok { background: rgba(48,209,88,0.15); color: #30D158; }
+.p-notif-icon.warn { background: rgba(255,214,10,0.15); color: #FFD60A; }
+.p-notif-icon.danger { background: rgba(255,69,58,0.15); color: #FF453A; }
+.p-notif-body { flex: 1; min-width: 0; }
+.p-notif-body .t { font-weight: 700; font-size: 11px; margin-bottom: 2px; color: #F4F4F0; }
+.p-notif-body .m { font-size: 10px; color: #8E8F86; line-height: 1.5; margin-bottom: 4px; }
+.p-notif-body .ts {
+  font-size: 8px; color: #5A5B54;
+  font-family: var(--f-mono); text-transform: uppercase; letter-spacing: 0.08em;
+}
+
+/* =========================================================
+   RTL demo
+   ========================================================= */
+.rtl-demo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 16px 0;
+}
+.rtl-box {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+}
+.rtl-box.ltr-mode { direction: ltr; }
+.rtl-box.rtl-mode { direction: rtl; }
+.rtl-box .lbl {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--lime);
+  margin-bottom: 8px;
+}
+.rtl-box .demo-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background: var(--bg-3);
+  border-radius: 8px;
+  font-size: 13px;
+}
+.rtl-box .demo-card .ico {
+  width: 30px; height: 30px;
+  background: var(--lime);
+  border-radius: 8px;
+  color: #0A0B0A;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800;
+  font-style: italic;
+  flex-shrink: 0;
+}
+.rtl-box .demo-card .chev {
+  margin-left: auto;
+  color: var(--ink-3);
+}
+.rtl-box.rtl-mode .demo-card .chev { transform: scaleX(-1); }
+
+/* =========================================================
+   FOOTER
+   ========================================================= */
+.doc-footer {
+  margin-top: 100px;
+  padding-top: 36px;
+  border-top: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 40px;
+  font-family: var(--f-mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  line-height: 1.9;
+}
+.doc-footer b { color: var(--lime); display: block; font-size: 10px; margin-bottom: 6px; }
+.doc-footer p { text-transform: none; letter-spacing: 0.04em; color: var(--ink-3); font-size: 11px; }
+
+@media (max-width: 760px) {
+  .doc { padding: 40px 20px 80px; }
+  .masthead { grid-template-columns: 1fr; }
+  .masthead .right { text-align: left; }
+  .sec-head { grid-template-columns: 1fr; }
+  .sec-meta { text-align: left; }
+}
+@media print {
+  body { background: white; color: #000; }
+  .doc::before { display: none; }
+  section { page-break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <header class="masthead">
+    <div class="left">
+      <div class="kicker">Design Asset · For Claude Design</div>
+      <h1>GYM<br>PASS<em>design &amp; prototype.</em></h1>
+      <p class="sub">The visual and UX specification for Gym Pass — a single-subscription multi-gym access app for Jordan. Opens with the full interactive prototype (14 phone mockups), followed by the design system, screen specs, and supporting context. Engineering detail (tech stack, data models, API, build order) lives in a separate code reference.</p>
+    </div>
+    <div class="right">
+      Design asset · v1.0<br>
+      Contains · <b>Prototype + Design System</b><br>
+      Platforms · <b>iOS · Android</b><br>
+      Market · <b>Jordan 🇯🇴</b>
+      <div class="tag">● Prototype-ready</div>
+    </div>
+  </header>
+
+  <nav class="toc">
+    <div class="toc-head">
+      <h3>In this <em>document</em></h3>
+      <span class="count">10 SECTIONS</span>
+    </div>
+    <div class="toc-grid">
+      <a href="#s14"><span class="num">14</span> Visual Prototype</a>
+      <a href="#s13"><span class="num">13</span> Screen Specifications</a>
+      <a href="#s12"><span class="num">12</span> Reusable Components</a>
+      <a href="#s05"><span class="num">05</span> Design Tokens</a>
+      <a href="#s06"><span class="num">06</span> Theming</a>
+      <a href="#s08"><span class="num">08</span> RTL Handling</a>
+      <a href="#s07"><span class="num">07</span> Localization</a>
+      <a href="#s09"><span class="num">09</span> User Flows</a>
+      <a href="#s01"><span class="num">01</span> Product Overview</a>
+      <a href="#s02"><span class="num">02</span> Market & Audience</a>
+    </div>
+  </nav>
+
+
+  <section id="s14">
+    <div class="sec-head">
+      <div class="sec-num">14</div>
+      <h2 class="sec-title">Visual <em>prototype</em></h2>
+      <div class="sec-meta">14 screens · rendered inline</div>
+    </div>
+
+    <p class="lead">All 14 screen mockups rendered as interactive HTML/CSS phone frames. This is the <b>single source of visual truth</b> — implementors should match these pixel-for-pixel (within reason). Screens are dark-mode by default; use §06 theming matrix to derive light-mode values.</p>
+
+    <!-- ICON DEFS (hidden, reused across all mockups) -->
+    <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+      <symbol id="pi-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></symbol>
+      <symbol id="pi-back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></symbol>
+      <symbol id="pi-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
+      <symbol id="pi-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></symbol>
+      <symbol id="pi-qr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14h1v1h-1zM14 20h1v1h-1zM20 20h1v1h-1z"/></symbol>
+      <symbol id="pi-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+      <symbol id="pi-dumbbell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 6.5 17.5 17.5M21 21l-1-1M3 3l1 1M18 22l4-4M2 6l4-4M3 10l7-7M14 21l7-7"/><path d="m6 2 4 4M20 18l-4-4"/></symbol>
+      <symbol id="pi-star" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15 8.5 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 9 8.5"/></symbol>
+      <symbol id="pi-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></symbol>
+      <symbol id="pi-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></symbol>
+      <symbol id="pi-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+      <symbol id="pi-filter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.5 10 19 14 21 14 12.5"/></symbol>
+      <symbol id="pi-logout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></symbol>
+      <symbol id="pi-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/></symbol>
+      <symbol id="pi-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+      <symbol id="pi-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></symbol>
+      <symbol id="pi-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></symbol>
+      <symbol id="pi-wifi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></symbol>
+      <symbol id="pi-droplet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></symbol>
+      <symbol id="pi-car" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 16H9m10 0h3v-3.15a1 1 0 0 0-.84-.99L16 11l-2.7-3.6a1 1 0 0 0-.8-.4H5.24a2 2 0 0 0-1.8 1.1l-.8 1.63A6 6 0 0 0 2 12.42V16h2"/><circle cx="6.5" cy="16.5" r="2.5"/><circle cx="16.5" cy="16.5" r="2.5"/></symbol>
+      <symbol id="pi-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></symbol>
+      <symbol id="pi-flash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></symbol>
+      <symbol id="pi-heart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></symbol>
+      <symbol id="pi-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
+      <symbol id="pi-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></symbol>
+      <symbol id="pi-receipt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-2 2 2 2-2 2 2 2-2 2 2 2-2 2 2V2l-2 2-2-2-2 2-2-2-2 2-2-2-2 2z"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/></symbol>
+      <symbol id="pi-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></symbol>
+      <symbol id="pi-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></symbol>
+      <symbol id="pi-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></symbol>
+      <symbol id="pi-activity" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></symbol>
+      <symbol id="pi-gift" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></symbol>
+      <symbol id="pi-flame" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></symbol>
+    </svg>
+
+    <div class="proto-stage">
+      <div class="proto-legend">
+        <div class="item"><span class="sw"></span>Primary (lime)</div>
+        <div class="item"><span class="sw" style="background:#171A19;border:1px solid rgba(255,255,255,0.14)"></span>Surface</div>
+        <div class="item"><span class="sw" style="background:#FFD60A"></span>Gold tier</div>
+        <div class="item"><span class="sw" style="background:#FF453A"></span>Danger</div>
+        <div class="item"><span class="sw" style="background:#30D158"></span>Success</div>
+        <div class="item" style="margin-left:auto;color:var(--lime)"><b>14 screens</b> · dark theme · EN locale shown</div>
+      </div>
+
+      <div class="proto-grid">
+
+        <!-- SCREEN 01 · LOGIN -->
+        <div class="proto-cell">
+          <div class="proto-label"><span class="div"></span><span class="num">01</span> · Login<span class="div"></span></div>
+          <div class="proto-phone">
+            <div class="proto-statusbar">
+              <span>9:41 AM</span>
+              <span class="sb-right">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 17h20v2H2zM1.15 12.9l1.45-1.15A16.94 16.94 0 0 1 12 8c3.8 0 7.11 1.25 9.4 3.75L22.85 12.9A19 19 0 0 0 12 9a19 19 0 0 0-10.85 3.9z"/></svg>
+                <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="8" width="20" height="8" rx="2"/></svg>
+              </span>
+            </div>
+            <div class="proto-screen no-tab">
+              <div class="p-login">
+                <div class="p-overline">● WELCOME — MEMBER LOGIN</div>
+                <h1>ONE<br><span>PASS.</span><br>EVERY GYM.<em>your city. one card.</em></h1>
+                <div class="p-hero-card">
+                  <div>
+                    <div class="p-overline" style="font-size:8px;margin-bottom:3px">LIVE NOW</div>
+                    <div class="lbl">ONE SUB <em>every</em> GYM.</div>
+                  </div>
+                  <div class="p-pulse"></div>
+                </div>
+                <label class="p-label">Phone Number</label>
+                <div class="p-phone-input">
+                  <div class="p-flag"></div>
+                  <span class="code">+962</span>
+                  <span class="num">79 123 4567</span>
+                </div>
+                <button class="p-btn">Continue <span class="arrow"><svg><use href="#pi-arrow"/></svg></span></button>
+                <p class="p-signup">Don't have an account? <a>Sign Up</a></p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SCREEN 02 · OTP -->
+        <div class="proto-cell">
+          <div class="proto-label"><span class="div"></span><span class="num">02</span> · OTP Verification<span class="div"></span></div>
+          <div class="proto-phone">
+            <div class="proto-statusbar">
+              <span>9:41 AM</span>
+              <span class="sb-right">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 17h20v2H2zM1.15 12.9l1.45-1.15A16.94 16.94 0 0 1 12 8c3.8 0 7.11 1.25 9.4 3.75L22.85 12.9A19 19 0 0 0 12 9a19 19 0 0 0-10.85 3.9z"/></svg>
+                <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="8" width="20" height="8" rx="2"/></svg>
+              </span>
+            </div>
+            <div class="proto-screen no-tab">
+              <div class="p-otp">
+                <button class="p-back"><svg><use href="#pi-back"/></svg></button>
+                <div class="p-overline" style="margin:24px 0 10px">● STEP 2 OF 3 — VERIFY</div>
+                <h1 class="p-title">Enter the<br><em>6-digit</em> code</h1>
+                <p class="p-desc">We sent a code to <b>+962 79 123 4567</b>. Didn't get it? Check your SMS or tap resend.</p>
+                <div class="p-otp-digits">
+                  <div class="d filled">1</div>
+                  <div class="d filled">2</div>
+                  <div class="d filled">3</div>
+                  <div class="d active"></div>
+                  <div class="d"></div>
+                  <div class="d"></div>
+                </div>
+                <div class="p-resend">
+                  <span>Resend code</span>
+                  <span class="timer">01:45</span>
+                </div>
+                <button class="p-btn">Verify Code <span class="arrow"><svg><use href="#pi-arrow"/></svg></span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SCREEN 03 · REGISTER -->
+        <div class="proto-cell">
+          <div class="proto-label"><span class="div"></span><span class="num">03</span> · Register<span class="div"></span></div>
+          <div class="proto-phone">
+            <div class="proto-statusbar">
+              <span>9:41 AM</span>
+              <span class="sb-right">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 17h20v2H2zM1.15 12.9l1.45-1.15A16.94 16.94 0 0 1 12 8c3.8 0 7.11 1.25 9.4 3.75L22.85 12.9A19 19 0 0 0 12 9a19 19 0 0 0-10.85 3.9z"/></svg>
+                <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="8" width="20" height="8" rx="2"/></svg>
+              </span>
+            </div>
+            <div class="proto-screen no-tab">
+              <div class="p-otp">
+                <button class="p-back"><svg><use href="#pi-back"/></svg></button>
+                <div class="p-overline" style="margin:24px 0 10px">● FINAL STEP — MAKE IT YOURS</div>
+                <h1 class="p-title" style="margin-bottom:22px">Create your<br><em>account</em></h1>
+                <div class="p-form-input focused">
+                  <svg><use href="#pi-user"/></svg>
+                  <span class="v">Mohammad Al-Zahran</span>
+                </div>
+                <div class="p-form-input">
+                  <svg><use href="#pi-mail"/></svg>
+                  <span class="v" style="color:#5A5B54">Email address</span>
+                  <span class="opt">OPT</span>
+                </div>
+                <div class="p-form-input">
+                  <svg><use href="#pi-lock"/></svg>
+                  <span class="v">••••••••••</span>
+                </div>
+                <div class="p-form-input">
+                  <svg><use href="#pi-lock"/></svg>
+                  <span class="v">••••••••••</span>
+                </div>
+                <div class="p-check-row">
+                  <div class="p-check"><svg><use href="#pi-check"/></svg></div>
+                  <p>I agree to the <a>Terms of Service</a> and <a>Privacy Policy</a>.</p>
+                </div>
+                <button class="p-btn">Create Account <span class="arrow"><svg><use href="#pi-arrow"/></svg></span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SCREEN 04 · HOME -->
+        <div class="proto-cell">
+          <div class="proto-label"><span class="div"></span><span class="num">04</span> · Home<span class="div"></span></div>
+          <div class="proto-phone">
+            <div class="proto-statusbar">
+              <span>9:41 AM</span>
+              <span class="sb-right">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 17h20v2H2zM1.15 12.9l1.45-1.15A16.94 16.94 0 0 1 12 8c3.8 0 7.11 1.25 9.4 3.75L22.85 12.9A19 19 0 0 0 12 9a19 19 0 0 0-10.85 3.9z"/></svg>
+                <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="8" width="20" height="8" rx="2"/></svg>
+              </span>
+            </div>
+            <div class="proto-screen">
+              <div class="p-home">
+                <div class="p-home-top">
+                  <div class="l">
+                    <div class="p-avatar">M</div>
+                    <div>
+                      <div class="greet">HEY THERE ●</div>
+                      <h2>Mohammad, <em>let's train.</em></h2>
+                    </div>
+                  </div>
+                  <div class="p-icon-btn">
+                    <svg><use href="#pi-bell"/></svg>
+                    <span class="dot"></span>
+                  </div>
+                </div>
+                <div class="p-sub-card">
+                  <div class="head">
+                    <span class="active-tag"><span class="dot"></span> ACTIVE PLAN</span>
+                    <span class="p-tier gold">◆ GOLD</span>
+                  </div>
+                  <h3>Gold Pass</h3>
+                  <p class="meta">Expires Nov 18 · auto-renews</p>
+                  <div class="stats">
+                    <div class="p-stat"><div class="n">45</div><div class="l">Visits</div></div>
+                    <div class="p-stat"><div class="n">42</div><div class="l">Gyms</div></div>
+                    <div class="p-stat"><div class="n">12</div><div class="l">Month</div></div>
+                  </div>
+                  <button class="upgrade">Upgrade to Platinum →</button>
+                </div>
+                <div class="p-sec-head">
+                  <h3>Browse <em>by category</em></h3>
+                  <a>VIEW ALL →</a>
+                </div>
+                <div class="p-cat-row">
+                  <div class="p-cat">
+                    <div class="ico gym"><svg><use href="#pi-dumbbell"/></svg></div>
+                    <div class="nm">Gym</div>
+                    <div class="ct">42</div>
+                  </div>
+                  <div class="p-cat">
+                    <div class="ico cross"><svg><use href="#pi-activity"/></svg></div>
+                    <div class="nm">Crossfit</div>
+                    <div class="ct">14</div>
+                  </div>
+                  <div class="p-cat">
+                    <div class="ico mart"><svg><use href="#pi-flash"/></svg></div>
+                    <div class="nm">Martial</div>
+                    <div class="ct">18</div>
+                  </div>
+                  <div class="p-cat">
+                    <div class="ico yoga"><svg><use href="#pi-heart"/></svg></div>
+                    <div class="nm">Yoga</div>
+                    <div class="ct">22</div>
+                  </div>
+                </div>
+                <div class="p-sec-head">
+                  <h3>Featured <em>gyms</em></h3>
+                  <a>SEE ALL →</a>
+                </div>
+                <div class="p-gym-grid">
+                  <div class="p-gym-card">
+                    <div class="img">
+                      <span class="badge"><span class="p-tier gold">◆ GOLD</span></span>
+                      <svg><use href="#pi-dumbbell"/></svg>
+                    </div>
+                    <div class="body">
+                      <div class="nm">Iron Forge</div>
+                      <div class="loc"><svg width="8" height="8"><use href="#pi-pin"/></svg> Abdoun · 0.8 km</div>
+                      <div class="rate"><svg><use href="#pi-star"/></svg> 4.9 <span class="cnt">(412)</span></div>
+                    </div>
+                  </div>
+                  <div class="p-gym-card">
+                    <div class="img">
+                      <span class="badge"><span class="p-tier silver">◇ SILVER</span></span>
+                      <svg><use href="#pi-activity"/></svg>
+                    </div>
+                    <div class="body">
+                      <div class="nm">Pulse Studio</div>
+                      <div class="loc"><svg width="8" height="8"><use href="#pi-pin"/></svg> Sweifieh</div>
+                      <div class="rate"><svg><use href="#pi-star"/></svg> 4.7 <span class="cnt">(289)</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="p-tab">
+                <div class="t active"><svg><use href="#pi-home"/></svg>HOME</div>
+                <div class="t"><svg><use href="#pi-qr"/></svg>CHECK-IN</div>
+                <div class="t"><svg><use href="#pi-user"/></svg>PROFILE</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SCREEN 05 · QR CHECK-IN -->
+        <div class="proto-cell">
+          <div class="proto-label"><span class="div"></span><span class="num">05</span> · QR Check-In<span class="div"></span></div>
+          <div class="proto-phone">
+            <div class="proto-statusbar">
+              <span>9:41 AM</span>
+              <span class="sb-right">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 17h20v2H2zM1.15 12.9l1.45-1.15A16.94 16.94 0 0 1 12 8c3.8 0 7.11 1.25 9.4 3.75L22.85 12.9A19 19 0 0 0 12 9a19 19 0 0 0-10.85 3.9z"/></svg>
+                <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="8" width="20" height="8" rx="2"/></svg>
+              </span>
+            </div>
+            <div class="proto-screen">
+              <div class="p-qr">
+                <div class="p-qr-head">
+                  <h2>Scan <em>&amp; go</em></h2>
+                  <div class="p-icon-btn" style="width:32px;height:32px;border-radius:10px">
+                    <svg><use href="#pi-flash"/></svg>
+                  </div>
+                </div>
+                <div class="p-camera">
+                  <div class="p-brackets">
+                    <div class="c tl"></div>
+                    <div class="c tr"></div>
+                    <div class="c bl"></div>
+                    <div class="c br"></div>
+                  </div>
+                  <div class="p-qr-mock">
+                    <svg viewBox="0 0 64 64" fill="#000">
+                      <rect x="2" y="2" width="18" height="18"/><rect x="6" y="6" width="10" height="10" fill="#fff"/><rect x="9" y="9" width="4" height="4"/>
+                      <rect x="44" y="2" width="18" height="18"/><rect x="48" y="6" width="10" height="10" fill="#fff"/><rect x="51" y="9" width="4" height="4"/>
+                      <rect x="2" y="44" width="18" height="18"/><rect x="6" y="48" width="10" height="10" fill="#fff"/><rect x="9" y="51" width="4" height="4"/>
+                      <rect x="24" y="4" width="4" height="4"/><rect x="32" y="4" width="4" height="4"/>
+                      <rect x="24" y="12" width="4" height="4"/><rect x="36" y="12" width="4" height="4"/>
+                      <rect x="28" y="20" width="4" height="4"/><rect x="36" y="24" width="4" height="4"/>
+                      <rect x="24" y="28" width="4" height="4"/><rect x="32" y="32" width="4" height="4"/>
+                      <rect x="44" y="28" width="4" height="4"/><rect x="52" y="28" width="4" height="4"/>
+                      <rect x="24" y="40" width="4" height="4"/><rect x="36" y="40" width="4" height="4"/>
+                      <rect x="28" y="48" width="4" height="4"/><rect x="44" y="44" width="4" height="4"/>
+                      <rect x="52" y="44" width="4" height="4"/><rect x="48" y="52" width="4" height="4"/>
+                      <rect x="56" y="52" width="4" height="4"/><rect x="40" y="52" width="4" height="4"/>
+                      <rect x="40" y="28" width="4" height="4"/>
+                    </svg>
+                  </div>
+                  <div class="p-scanline"></div>
+                </div>
+                <div class="p-qr-instruct">
+                  <h3>Point at gym's <em>QR code</em></h3>
+                  <p>Hold steady — auto check-in</p>
+                </div>
+                <div class="p-qr-actions">
+                  <div class="a"><svg><use href="#pi-search"/></svg><span class="l">Manual</span></div>
+                  <div class="a"><svg><use href="#pi-clock"/></svg><span class="l">Recent</span></div>
+                  <div class="a"><svg><use href="#pi-receipt"/></svg><span class="l">Visits</span></div>
+                </div>
+              </div>
+              <div class="p-tab">
+                <div class="t"><svg><use href="#pi-home"/></svg>HOME</div>
+                <div class="t active"><svg><use href="#pi-qr"/></svg>CHECK-IN</div>
+                <div class="t"><svg><use href="#pi-user"/></svg>PROFILE</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SCREEN 06 · PROFILE -->
+        <div class="proto-cell">
+          <div class="proto-label"><span class="div"></span><span class="num">06</span> · Profile<span class="div"></span></div>
+          <div class="proto-phone">
+            <div class="proto-statusbar">
+              <span>9:41 AM</span>
+              <span class="sb-right">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 17h20v2H2zM1.15 12.9l1.45-1.15A16.94 16.94 0 0 1 12 8c3.8 0 7.11 1.25 9.4 3.75L22.85 12.9A19 19 0 0 0 12 9a19 19 0 0 0-10.85 3.9z"/></svg>
+                <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="8" width="20" height="8" rx="2"/></svg>
+              </span>
+            </div>
+            <div class="proto-screen">
+              <div class="p-profile">
+                <div class="p-profile-head">
+                  <h2>My <em>Profile</em></h2>
+                  <div class="p-icon-btn"><svg><use href="#pi-gear"/></svg></div>
+                </div>
+                <div class="p-profile-card">
+                  <div class="p-avatar-lg">M</div>
+                  <div>
+                    <div class="nm">Mohammad Al-Zahran</div>
+                    <div class="em">m.zahran@mail.com</div>
+                    <div class="ph">+962 79 123 4567</div>
+                  </div>
+                </div>
+                <div class="p-sub-mini">
+                  <div class="row">
+                    <div>
+                      <span class="p-tier gold">◆ GOLD TIER</span>
+                      <h4>Gold Pass</h4>
+                    </div>
+                    <div class="p-overline" style="font-size:9px">◈ 50%</div>
+                  </div>
+                  <div class="p-bar"><div class="fill"></div></div>
+                  <div class="p-bar-lbl">
+                    <span><b>45</b> visits left</span>
+                    <span>of 90 / month</span>
+                  </div>
+                  <div class="p-view-link">VIEW DETAILS <svg width="9" height="9"><use href="#pi-chev"/></svg></div>
+                </div>
+                <div class="p-quick-grid">
+                  <div class="p-quick"><div class="ico-wrap"><svg><use href="#pi-receipt"/></svg></div><div class="lbl">My<br>Subscription</div></div>
+                  <div class="p-quick"><div class="ico-wrap"><svg><use href="#pi-gear"/></svg></div><div class="lbl">Settings</div></div>
+                  <div class="p-quick"><div class="ico-wrap"><svg><use href="#pi-card"/></svg></div><div class="lbl">Payment<br>History</div></div>
+                  <div class="p-quick"><div class="ico-wrap"><svg><use href="#pi-shield"/></svg></div><div class="lbl">Support</div></div>
+                </div>
+                <button class="p-logout"><svg><use href="#pi-logout"/></svg>Log out</button>
+              </div>
+              <div class="p-tab">
+                <div class="t"><svg><use href="#pi-home"/></svg>HOME</div>
+                <div class="t"><svg><use href="#pi-qr"/></svg>CHECK-IN</div>
+                <div class="t active"><svg><use href="#pi-user"/></svg>PROFILE</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SCREEN 07 · PLANS -->
+        <div class="proto-cell">
+          <div class="proto-label"><span class="div"></span><span class="num">07</span> · Plans · Upgrade<span class="div"></span></div>
+          <div class="proto-phone">
+            <div class="proto-statusbar">
+              <span>9:41 AM</span>
+              <span class="sb-right">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 17h20v2H2zM1.15 12.9l1.45-1.15A16.94 16.94 0 0 1 12 8c3.8 0 7.11 1.25 9.4 3.75L22.85 12.9A19 19 0 0 0 12 9a19 19 0 0 0-10.85 3.9z"/></svg>
+                <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="8" width="20" height="8" rx="2"/></svg>
+              </span>
+            </div>
+            <div class="proto-screen no-tab">
+              <div class="p-plans">
+                <button class="p-back"><svg><use href="#pi-back"/></svg></button>
+                <div class="p-overline" style="margin-top:14px">● CHOOSE YOUR TIER</div>
+                <h1 class="ttl">Pick a<br><em>pass.</em></h1>
+                <p class="d">More gyms, more visits, more everything.</p>
+                <div class="p-tier-picker">
+                  <div class="p-tier-btn"><span class="ic">◇</span><span class="n">Silver</span></div>
+                  <div class="p-tier-btn active"><span class="ic">◆</span><span class="n">Gold</span></div>
+                  <div class="p-tier-btn"><span class="ic">◈</span><span class="n">Plat</span></div>
+                  <div class="p-tier-btn"><span class="ic">◉</span><span class="n">Diam</span></div>
+                </div>
+                <div class="p-dur-picker">
+                  <div class="p-dur-btn">1 mo</div>
+                  <div class="p-dur-btn active">3 mo</div>
+                  <div class="p-dur-btn">6 mo<span class="sv">-10%</span></div>
+                  <div class="p-dur-btn">12 mo<span class="sv">-25%</span></div>
+                </div>
+                <div class="p-plan-details">
+                  <div class="p-price-row">
+                    <span class="p-price">45</span>
+                    <span class="p-cur">JOD</span>
+                  </div>
+                  <div class="p-per">per 3 months · 15 JOD/month</div>
+                  <ul>
+                    <li><svg><use href="#pi-check"/></svg> Silver + Gold gym access</li>
+                    <li><svg><use href="#pi-check"/></svg> 90 visits per month</li>
+                    <li><svg><use href="#pi-check"/></svg> Martial arts &amp; yoga included</li>
+                    <li><svg><use href="#pi-check"/></svg> Priority support</li>
+                    <li><svg><use href="#pi-check"/></svg> Guest pass (1x/month)</li>
+                  </ul>
+                </div>
+                <button class="p-btn">Subscribe · 45 JOD <span class="arrow"><svg><use href="#pi-arrow"/></svg></span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SCREEN 08 · BROWSE -->
+        <div class="proto-cell">
+          <div class="proto-label"><span class="div"></span><span class="num">08</span> · Gyms Browse<span class="div"></span></div>
+          <div class="proto-phone">
+            <div class="proto-statusbar">
+              <span>9:41 AM</span>
+              <span class="sb-right">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 17h20v2H2zM1.15 12.9l1.45-1.15A16.94 16.94 0 0 1 12 8c3.8 0 7.11 1.25 9.4 3.75L22.85 12.9A19 19 0 0 0 12 9a19 19 0 0 0-10.85 3.9z"/></svg>
+                <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="8" width="20" height="8" rx="2"/></svg>
+              </span>
+            </div>
+            <div class="proto-screen">
+              <div class="p-browse">
+                <div class="p-browse-head">
+                  <h2>All <em>gyms</em> — 116</h2>
+                  <div class="p-search">
+                    <svg><use href="#pi-search"/></svg>
+                    <span class="ph">Search gyms, locations...</span>
+                    <div class="fil"><svg><use href="#pi-filter"/></svg></div>
+                  </div>
+                </div>
+                <div class="p-chips">
+                  <span class="p-chip active"><span class="dt"></span> All</span>
+                  <span class="p-chip">Nearest</span>
+                  <span class="p-chip">Open now</span>
+                  <span class="p-chip">Top rated</span>
+                  <span class="p-chip">Gold+</span>
+                </div>
+                <div class="p-list">
+                  <div class="p-list-item">
+                    <div class="img"><svg><use href="#pi-dumbbell"/></svg></div>
+                    <div class="info">
+                      <div class="tp">
+                        <div>
+                          <div class="nm">Iron Forge Amman</div>
+                          <div class="lc">Abdoun Circle</div>
+                        </div>
+                        <span class="p-tier gold">◆ GOLD</span>
+                      </div>
+                      <div class="bt">
+                        <span class="rt"><svg><use href="#pi-star"/></svg> 4.9 <span style="color:#8E8F86">(412)</span></span>
+                        <span class="ds">0.8 KM · OPEN</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="p-list-item">
+                    <div class="img"><svg><use href="#pi-activity"/></svg></div>
+                    <div class="info">
+                      <div class="tp">
+                        <div>
+                          <div class="nm">Pulse Studio</div>
+                          <div class="lc">Sweifieh · Pasha Plaza</div>
+                        </div>
+                        <span class="p-tier silver">◇ SILVER</span>
+                      </div>
+                      <div class="bt">
+                        <span class="rt"><svg><use href="#pi-star"/></svg> 4.7 <span style="color:#8E8F86">(289)</span></span>
+                        <span class="ds">1.2 KM · OPEN</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="p-list-item locked">
+                    <div class="img"><svg><use href="#pi-flame"/></svg></div>
+                    <div class="info">
+                      <div class="tp">
+                        <div>
+                          <div class="nm">Apex Club Diamond</div>
+                          <div class="lc">Jabal Amman</div>
+                        </div>
+                        <span class="p-tier diamond">◉ DIAMOND</span>
+                      </div>
+                      <div class="bt">
+                        <span class="rt"><svg><use href="#pi-star"/></svg> 5.0 <span style="color:#8E8F86">(98)</span></span>
+                        <span class="ds" style="color:#FF453A">● LOCKED</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="p-list-item">
+                    <div class="img"><svg><use href="#pi-heart"/></svg></div>
+                    <div class="info">
+                      <div class="tp">
+                        <div>
+                          <div class="nm">Om Yoga Hub</div>
+                          <div class="lc">Rainbow Street</div>
+                        </div>
+                        <span class="p-tier gold">◆ GOLD</span>
+                      </div>
+                      <div class="bt">
+                        <span class="rt"><svg><use href="#pi-star"/></svg> 4.8 <span style="color:#8E8F86">(201)</span></span>
+                        <span class="ds">1.7 KM · OPEN</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="p-tab">
+                <div class="t active"><svg><use href="#pi-home"/></svg>HOME</div>
+                <div class="t"><svg><use href="#pi-qr"/></svg>CHECK-IN</div>
+                <div class="t"><svg><use href="#pi-user"/></svg>PROFILE</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SCREEN 09 · GYM DETAIL -->
+        <div class="proto-cell">
+          <div class="proto-label"><span class="div"></span><span class="num">09</span> · Gym Detail<span class="div"></span></div>
+          <div class="proto-phone">
+            <div class="proto-statusbar" style="color:#fff">
+              <span>9:41 AM</span>
+              <span class="sb-right">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 17h20v2H2zM1.15 12.9l1.45-1.15A16.94 16.94 0 0 1 12 8c3.8 0 7.11 1.25 9.4 3.75L22.85 12.9A19 19 0 0 0 12 9a19 19 0 0 0-10.85 3.9z"/></svg>
+                <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="8" width="20" height="8" rx="2"/></svg>
+              </span>
+            </div>
+            <div class="proto-screen no-pad">
+              <div class="p-detail">
+                <div class="p-detail-hero">
+                  <svg class="dumbbell"><use href="#pi-dumbbell"/></svg>
+                  <div class="p-detail-top">
+                    <button class="p-back" style="background:rgba(255,255,255,0.1)"><svg><use href="#pi-back"/></svg></button>
+                    <button class="heart"><svg><use href="#pi-heart"/></svg></button>
+                  </div>
+                  <div class="p-detail-bottom">
+                    <span class="p-tier gold">◆ GOLD TIER · INCLUDED</span>
+                    <h1>Iron Forge<br>Amman</h1>
+                    <div class="addr">
+                      <svg width="10" height="10"><use href="#pi-pin"/></svg>
+                      Abdoun Circle · 0.8 km
+                    </div>
+                  </div>
+                </div>
+                <div class="p-detail-body">
+                  <div class="p-det-stats">
+                    <div class="p-det-stat"><div class="n">4.9</div><div class="l">Rating</div></div>
+                    <div class="p-det-stat"><div class="n">412</div><div class="l">Reviews</div></div>
+                    <div class="p-det-stat"><div class="n">24/7</div><div class="l">Open</div></div>
+                  </div>
+                  <div class="p-det-sec">
+                    <h4>◆ AMENITIES · 8</h4>
+                    <div class="p-amenities">
+                      <div class="p-amenity"><svg><use href="#pi-wifi"/></svg><span class="l">WiFi</span></div>
+                      <div class="p-amenity"><svg><use href="#pi-lock"/></svg><span class="l">Lockers</span></div>
+                      <div class="p-amenity"><svg><use href="#pi-droplet"/></svg><span class="l">Showers</span></div>
+                      <div class="p-amenity"><svg><use href="#pi-car"/></svg><span class="l">Parking</span></div>
+                      <div class="p-amenity"><svg><use href="#pi-shield"/></svg><span class="l">Trainer</span></div>
+                      <div class="p-amenity"><svg><use href="#pi-flame"/></svg><span class="l">Sauna</span></div>
+                      <div class="p-amenity"><svg><use href="#pi-gift"/></svg><span class="l">Shop</span></div>
+                      <div class="p-amenity"><svg><use href="#pi-activity"/></svg><span class="l">Classes</span></div>
+                    </div>
+                  </div>
+                  <div class="p-det-sec">
+                    <h4>◆ HOURS</h4>
+                    <div class="p-hours"><span class="d">Mon – Fri</span><span class="t">06:00 — 23:00</span></div>
+                    <div class="p-hours"><span class="d">Sat – Sun</span><span class="t">08:00 — 22:00</span></div>
+                  </div>
+                </div>
+                <button class="p-detail-cta">
+                  <svg width="14" height="14"><use href="#pi-qr"/></svg>
+                  Check In Now
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SCREEN 10 · MY SUBSCRIPTION -->
+        <div class="proto-cell">
+          <div class="proto-label"><span class="div"></span><span class="num">10</span> · My Subscription<span class="div"></span></div>
+          <div class="proto-phone">
+            <div class="proto-statusbar">
+              <span>9:41 AM</span>
+              <span class="sb-right">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 17h20v2H2zM1.15 12.9l1.45-1.15A16.94 16.94 0 0 1 12 8c3.8 0 7.11 1.25 9.4 3.75L22.85 12.9A19 19 0 0 0 12 9a19 19 0 0 0-10.85 3.9z"/></svg>
+                <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="8" width="20" height="8" rx="2"/></svg>
+              </span>
+            </div>
+            <div class="proto-screen no-tab">
+              <div class="p-mysub">
+                <div class="p-mysub-head">
+                  <button class="p-back"><svg><use href="#pi-back"/></svg></button>
+                  <h2>My <em>Subscription</em></h2>
+                </div>
+                <div class="p-big-plan">
+                  <span class="p-tier gold">◆ ACTIVE · GOLD TIER</span>
+                  <div class="p-tier-mega">GOLD<br>PASS</div>
+                  <div class="p-valid">Started Aug 18 · expires <b>Nov 18, 2026</b></div>
+                  <div class="p-visit-ring">
+                    <div>
+                      <div class="l">VISITS LEFT</div>
+                      <div class="n">45<em> / 90</em></div>
+                    </div>
+                    <div class="p-ring">
+                      <svg width="48" height="48" viewBox="0 0 48 48">
+                        <circle cx="24" cy="24" r="20" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="4"/>
+                        <circle cx="24" cy="24" r="20" fill="none" stroke="#BBFB46" stroke-width="4"
+                          stroke-dasharray="125.6" stroke-dashoffset="62.8" stroke-linecap="round"/>
+                      </svg>
+                      <div class="pct">50%</div>
+                    </div>
+                  </div>
+                  <div class="p-auto-renew">
+                    <div>
+                      <div class="lbl">Auto-renewal</div>
+                      <div class="sub">Next charge Nov 18 · 45 JOD</div>
+                    </div>
+                    <div class="p-toggle"></div>
+                  </div>
+                </div>
+                <div class="p-benefits">
+                  <h4>◆ WHAT'S INCLUDED</h4>
+                  <ul>
+                    <li><svg><use href="#pi-check"/></svg> Access 42 Silver + Gold gyms</li>
+                    <li><svg><use href="#pi-check"/></svg> Up to 90 check-ins / month</li>
+                    <li><svg><use href="#pi-check"/></svg> Yoga &amp; martial arts studios</li>
+                    <li><svg><use href="#pi-check"/></svg> Priority customer support</li>
+                    <li><svg><use href="#pi-check"/></svg> 1 guest pass per month</li>
+                  </ul>
+                </div>
+                <button class="p-btn">Upgrade to Platinum <span class="arrow"><svg><use href="#pi-arrow"/></svg></span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SCREEN 11 · PAYMENT -->
+        <div class="proto-cell">
+          <div class="proto-label"><span class="div"></span><span class="num">11</span> · Payment<span class="div"></span></div>
+          <div class="proto-phone">
+            <div class="proto-statusbar">
+              <span>9:41 AM</span>
+              <span class="sb-right">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 17h20v2H2zM1.15 12.9l1.45-1.15A16.94 16.94 0 0 1 12 8c3.8 0 7.11 1.25 9.4 3.75L22.85 12.9A19 19 0 0 0 12 9a19 19 0 0 0-10.85 3.9z"/></svg>
+                <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="8" width="20" height="8" rx="2"/></svg>
+              </span>
+            </div>
+            <div class="proto-screen no-tab">
+              <div class="p-pay">
+                <button class="p-back"><svg><use href="#pi-back"/></svg></button>
+                <div class="p-overline" style="margin-top:14px">● SECURE CHECKOUT</div>
+                <h1 class="ttl" style="font-family:var(--f-display);font-weight:900;font-style:italic;font-size:28px;line-height:0.95;letter-spacing:-0.03em;margin:14px 0 20px">Almost<br><em style="font-family:var(--f-serif);font-weight:400;color:var(--lime)">there.</em></h1>
+                <div class="p-order">
+                  <h4>◆ ORDER SUMMARY</h4>
+                  <div class="r"><span class="k">Plan</span><span class="v">Gold Pass</span></div>
+                  <div class="r"><span class="k">Duration</span><span class="v">3 months</span></div>
+                  <div class="r"><span class="k">Subtotal</span><span class="v">42.50 JOD</span></div>
+                  <div class="r"><span class="k">VAT (16%)</span><span class="v">2.50 JOD</span></div>
+                  <div class="r tot"><span class="k">Total</span><span class="v">45 JOD</span></div>
+                </div>
+                <h4 style="font-family:var(--f-mono);font-size:9px;text-transform:uppercase;letter-spacing:0.18em;color:#8E8F86;margin-bottom:10px">◆ PAYMENT METHOD</h4>
+                <div class="p-methods">
+                  <div class="p-method selected">
+                    <div class="ico apple"></div>
+                    <div class="info">
+                      <div class="n">Apple Pay</div>
+                      <div class="d">FACE ID · READY</div>
+                    </div>
+                    <div class="chk"><svg><use href="#pi-check"/></svg></div>
+                  </div>
+                  <div class="p-method">
+                    <div class="ico google">G Pay</div>
+                    <div class="info">
+                      <div class="n">Google Pay</div>
+                      <div class="d">QUICK CHECKOUT</div>
+                    </div>
+                    <div class="chk"></div>
+                  </div>
+                  <div class="p-method">
+                    <div class="ico card">••••</div>
+                    <div class="info">
+                      <div class="n">Credit / Debit Card</div>
+                      <div class="d">VISA · MASTERCARD</div>
+                    </div>
+                    <div class="chk"></div>
+                  </div>
+                </div>
+                <button class="p-btn">Pay 45 JOD <span class="arrow"><svg><use href="#pi-arrow"/></svg></span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SCREEN 12 · SUCCESS -->
+        <div class="proto-cell">
+          <div class="proto-label"><span class="div"></span><span class="num">12</span> · Payment Success<span class="div"></span></div>
+          <div class="proto-phone">
+            <div class="proto-statusbar">
+              <span>9:41 AM</span>
+              <span class="sb-right">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 17h20v2H2zM1.15 12.9l1.45-1.15A16.94 16.94 0 0 1 12 8c3.8 0 7.11 1.25 9.4 3.75L22.85 12.9A19 19 0 0 0 12 9a19 19 0 0 0-10.85 3.9z"/></svg>
+                <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="8" width="20" height="8" rx="2"/></svg>
+              </span>
+            </div>
+            <div class="proto-screen no-tab">
+              <div class="p-success">
+                <div class="p-success-mark">
+                  <div class="ro"></div>
+                  <div class="ri"><svg><use href="#pi-check"/></svg></div>
+                </div>
+                <div class="p-overline" style="margin-bottom:8px">● PAYMENT CONFIRMED</div>
+                <h2>You're in.<br><em>Welcome to Gold.</em></h2>
+                <p>Your subscription is active. Start checking in at any Gold-tier gym.</p>
+                <div class="p-receipt">
+                  <div class="r"><span class="k">Plan</span><span class="v">Gold · 3 months</span></div>
+                  <div class="r"><span class="k">Amount</span><span class="v">45 JOD</span></div>
+                  <div class="r"><span class="k">Transaction</span><span class="v">GP-GL-7X2R9</span></div>
+                  <div class="r"><span class="k">Date</span><span class="v">Aug 18 · 9:41</span></div>
+                  <div class="r"><span class="k">Valid until</span><span class="v">Nov 18, 2026</span></div>
+                </div>
+                <div class="p-success-btns">
+                  <button class="p-btn">Start Training <span class="arrow"><svg><use href="#pi-arrow"/></svg></span></button>
+                  <button class="p-ghost"><svg width="12" height="12"><use href="#pi-receipt"/></svg> Download Receipt</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SCREEN 13 · SETTINGS -->
+        <div class="proto-cell">
+          <div class="proto-label"><span class="div"></span><span class="num">13</span> · Settings<span class="div"></span></div>
+          <div class="proto-phone">
+            <div class="proto-statusbar">
+              <span>9:41 AM</span>
+              <span class="sb-right">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 17h20v2H2zM1.15 12.9l1.45-1.15A16.94 16.94 0 0 1 12 8c3.8 0 7.11 1.25 9.4 3.75L22.85 12.9A19 19 0 0 0 12 9a19 19 0 0 0-10.85 3.9z"/></svg>
+                <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="8" width="20" height="8" rx="2"/></svg>
+              </span>
+            </div>
+            <div class="proto-screen no-tab">
+              <div class="p-settings">
+                <div class="p-mysub-head" style="margin-bottom:8px">
+                  <button class="p-back"><svg><use href="#pi-back"/></svg></button>
+                  <h2 style="font-family:var(--f-display);font-weight:800;font-style:italic;font-size:22px;letter-spacing:-0.03em;color:#F4F4F0">Settings <em style="font-family:var(--f-serif);font-weight:400;color:var(--lime)">&amp; prefs</em></h2>
+                </div>
+                <div class="p-set-group" style="margin-top:16px">
+                  <h4>◆ APPEARANCE</h4>
+                  <div class="p-toggle-duo">
+                    <div class="o"><svg><use href="#pi-sun"/></svg>Light</div>
+                    <div class="o active"><svg><use href="#pi-moon"/></svg>Dark</div>
+                  </div>
+                </div>
+                <div class="p-set-group">
+                  <h4>◆ LANGUAGE</h4>
+                  <div class="p-toggle-duo">
+                    <div class="o active"><svg><use href="#pi-globe"/></svg>English</div>
+                    <div class="o">العربية</div>
+                  </div>
+                </div>
+                <div class="p-set-group">
+                  <h4>◆ ACCOUNT</h4>
+                  <div class="p-set-row"><span class="l">Push Notifications</span><div class="p-toggle"></div></div>
+                  <div class="p-set-row"><span class="l">Location Services</span><svg><use href="#pi-chev"/></svg></div>
+                </div>
+                <div class="p-set-group">
+                  <h4>◆ APP INFO</h4>
+                  <div class="p-set-row"><span class="l">Version</span><span class="v">1.0.0 · 042</span></div>
+                  <div class="p-set-row"><span class="l">Terms of Service</span><svg><use href="#pi-chev"/></svg></div>
+                  <div class="p-set-row"><span class="l">Privacy Policy</span><svg><use href="#pi-chev"/></svg></div>
+                </div>
+                <button class="p-logout"><svg><use href="#pi-logout"/></svg>Log out</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SCREEN 14 · NOTIFICATIONS -->
+        <div class="proto-cell">
+          <div class="proto-label"><span class="div"></span><span class="num">14</span> · Notifications<span class="div"></span></div>
+          <div class="proto-phone">
+            <div class="proto-statusbar">
+              <span>9:41 AM</span>
+              <span class="sb-right">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 17h20v2H2zM1.15 12.9l1.45-1.15A16.94 16.94 0 0 1 12 8c3.8 0 7.11 1.25 9.4 3.75L22.85 12.9A19 19 0 0 0 12 9a19 19 0 0 0-10.85 3.9z"/></svg>
+                <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="8" width="20" height="8" rx="2"/></svg>
+              </span>
+            </div>
+            <div class="proto-screen no-tab">
+              <div class="p-notif">
+                <button class="p-back"><svg><use href="#pi-back"/></svg></button>
+                <div class="p-notif-head">
+                  <h2>Notify-<em>cations</em></h2>
+                  <span class="p-mark-all">MARK ALL READ</span>
+                </div>
+                <div class="p-notif-list">
+                  <div class="p-notif-item unread">
+                    <div class="p-notif-icon warn"><svg><use href="#pi-clock"/></svg></div>
+                    <div class="p-notif-body">
+                      <div class="t">Plan expires in 14 days</div>
+                      <div class="m">Your Gold Pass expires on Nov 18. Renew now.</div>
+                      <div class="ts">2 HOURS AGO · PLAN</div>
+                    </div>
+                  </div>
+                  <div class="p-notif-item unread">
+                    <div class="p-notif-icon ok"><svg><use href="#pi-check"/></svg></div>
+                    <div class="p-notif-body">
+                      <div class="t">Checked in: Iron Forge</div>
+                      <div class="m">Great workout! 45 visits remaining.</div>
+                      <div class="ts">YESTERDAY · 07:34 AM</div>
+                    </div>
+                  </div>
+                  <div class="p-notif-item">
+                    <div class="p-notif-icon info"><svg><use href="#pi-gift"/></svg></div>
+                    <div class="p-notif-body">
+                      <div class="t">3 new gyms added</div>
+                      <div class="m">Pulse, Apex and Om Yoga just joined.</div>
+                      <div class="ts">2 DAYS AGO · SYSTEM</div>
+                    </div>
+                  </div>
+                  <div class="p-notif-item">
+                    <div class="p-notif-icon danger"><svg><use href="#pi-bell"/></svg></div>
+                    <div class="p-notif-body">
+                      <div class="t">Scheduled maintenance</div>
+                      <div class="m">QR check-in unavailable Sun 3-5am.</div>
+                      <div class="ts">3 DAYS AGO · SYSTEM</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="callout rule" style="margin-top:24px">
+      <div class="icon">i</div>
+      <div>
+        <h5>Implementation note</h5>
+        <p>These mockups are the visual source of truth for v1.0. When implementing, reproduce the exact type sizes, spacing, border radii, and motion behavior (scan line animation, pulse dots, success ring). All dimensions scale from the design tokens defined in §05 — don't introduce new magic numbers.</p>
+      </div>
+    </div>
+  </section>
+
+
+  <section id="s13">
+    <div class="sec-head">
+      <div class="sec-num">13</div>
+      <h2 class="sec-title">Screen <em>specifications</em></h2>
+      <div class="sec-meta">14 screens · per-screen contracts</div>
+    </div>
+
+    <p class="lead">Each screen spec lists: route, state, components, behavior, empty/error states, and acceptance criteria. Build screens in the order given; earlier screens unblock later ones.</p>
+
+    <!-- SCREEN 01 LOGIN -->
+    <div class="screen-spec">
+      <div class="screen-spec-head">
+        <div class="num">01</div>
+        <div>
+          <div class="name">Login</div>
+          <div class="route">/auth/login</div>
+        </div>
+        <div class="tag">AUTH · UNAUTH ONLY</div>
+      </div>
+      <div class="screen-spec-body">
+        <div class="spec-row">
+          <div class="label">Purpose</div>
+          <div class="content">First screen a new or returning user sees. Collects phone number and requests OTP.</div>
+        </div>
+        <div class="spec-row">
+          <div class="label">Key widgets</div>
+          <div class="content"><code>PhoneInput</code>, <code>PrimaryButton</code>, editorial headline, animated "LIVE NOW" hero card with pulsing dot.</div>
+        </div>
+        <div class="spec-row">
+          <div class="label">Validation</div>
+          <div class="content">Phone must match <code>^0(77|78|79)\d{7}$</code>. Normalize to <code>+9627XXXXXXXXX</code> before submit. Show error message in form-level error region (not a snackbar).</div>
+        </div>
+        <div class="spec-row">
+          <div class="label">Behavior</div>
+          <div class="content">On CTA tap: disable button, call <code>authNotifier.requestOtp(phone)</code>. On success → push <code>/auth/otp</code> with <code>phone</code> as extra. On error → show inline message, re-enable button.</div>
+        </div>
+        <div class="spec-row">
+          <div class="label">Accept if</div>
+          <div class="content">Jordanian numbers accepted · invalid numbers blocked · works in RTL · haptic on submit.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 02 OTP -->
+    <div class="screen-spec">
+      <div class="screen-spec-head">
+        <div class="num">02</div>
+        <div>
+          <div class="name">OTP Verification</div>
+          <div class="route">/auth/otp?phone={e164}</div>
+        </div>
+        <div class="tag">AUTH · 120s TIMER</div>
+      </div>
+      <div class="screen-spec-body">
+        <div class="spec-row">
+          <div class="label">Purpose</div>
+          <div class="content">Verify phone ownership. Entry point for both new and returning users.</div>
+        </div>
+        <div class="spec-row">
+          <div class="label">Components</div>
+          <div class="content"><code>OtpInput</code> (6 cells), countdown timer (120s), resend row, dev hint ("Use 123456" in non-release builds only).</div>
+        </div>
+        <div class="spec-row">
+          <div class="label">Behavior</div>
+          <div class="content">Auto-submit on 6th digit. <code>verifyOtp()</code> returns <code>isNewUser</code>: true → push <code>/auth/register</code>; false → <code>go('/')</code>. Timer can restart via resend (disabled until 0).</div>
+        </div>
+        <div class="spec-row">
+          <div class="label">Edge cases</div>
+          <div class="content">Wrong OTP: shake digits animation + clear fields. Expired: block verify, show "Resend code". Lost network: retry with exponential backoff.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 03 REGISTER -->
+    <div class="screen-spec">
+      <div class="screen-spec-head">
+        <div class="num">03</div>
+        <div>
+          <div class="name">Register</div>
+          <div class="route">/auth/register</div>
+        </div>
+        <div class="tag">AUTH · NEW USERS ONLY</div>
+      </div>
+      <div class="screen-spec-body">
+        <div class="spec-row">
+          <div class="label">Fields</div>
+          <div class="content">Full name (req, ≥2 chars), email (opt, valid format), password (req, ≥8), confirm password (match), terms checkbox (req).</div>
+        </div>
+        <div class="spec-row">
+          <div class="label">Behavior</div>
+          <div class="content">On submit → <code>authNotifier.completeRegistration(data)</code> → on success, <code>go('/')</code>.</div>
+        </div>
+        <div class="spec-row">
+          <div class="label">Accept if</div>
+          <div class="content">Validation firing inline · terms link opens in in-app browser · avatar initial derived from name's first letter.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 04 HOME -->
+    <div class="screen-spec">
+      <div class="screen-spec-head">
+        <div class="num">04</div>
+        <div>
+          <div class="name">Home</div>
+          <div class="route">/</div>
+        </div>
+        <div class="tag">SHELL · TAB 1</div>
+      </div>
+      <div class="screen-spec-body">
+        <div class="spec-row">
+          <div class="label">Sections (top → bottom)</div>
+          <div class="content">
+            <b>1. Header</b> — greeting, avatar pill, bell icon w/ unread dot.<br>
+            <b>2. ActiveSubCard</b> — lime-accented card; shows tier, visits remaining, 3 mini-stats, upgrade CTA. If no active sub: shows "Get started — Pick a plan" variant.<br>
+            <b>3. Category carousel</b> — horizontal scroll, 4 tiles (Gym, Crossfit, Martial, Yoga).<br>
+            <b>4. Featured gyms</b> — 2-column grid, 4 cards, tap for detail.
+          </div>
+        </div>
+        <div class="spec-row">
+          <div class="label">Data</div>
+          <div class="content">Watches <code>activeSubscriptionProvider</code>, <code>categoriesProvider</code>, <code>gymsListProvider(featured: true)</code>.</div>
+        </div>
+        <div class="spec-row">
+          <div class="label">Loading</div>
+          <div class="content">Skeleton variants for each section. Never show a single full-screen spinner.</div>
+        </div>
+        <div class="spec-row">
+          <div class="label">Pull to refresh</div>
+          <div class="content">Invalidates all three providers.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 05 QR -->
+    <div class="screen-spec">
+      <div class="screen-spec-head">
+        <div class="num">05</div>
+        <div>
+          <div class="name">QR Check-In</div>
+          <div class="route">/checkin</div>
+        </div>
+        <div class="tag">SHELL · TAB 2 · CAMERA</div>
+      </div>
+      <div class="screen-spec-body">
+        <div class="spec-row">
+          <div class="label">Package</div>
+          <div class="content"><code>mobile_scanner</code>. Request camera permission on first entry; if denied, show permission fallback with "Open Settings" CTA.</div>
+        </div>
+        <div class="spec-row">
+          <div class="label">UI</div>
+          <div class="content">Rounded camera viewport with lime corner brackets, animated horizontal scan line, instructions below, 3 quick actions (Enter Manually / Recent / My Visits).</div>
+        </div>
+        <div class="spec-row">
+          <div class="label">Success path</div>
+          <div class="content">QR decoded → pause scanner → call <code>POST /checkins</code> → on 200: show bottom-sheet modal with gym name, time, visits remaining, haptic heavy. Auto-dismiss after 3s OR user taps dismiss.</div>
+        </div>
+        <div class="spec-row">
+          <div class="label">Error paths</div>
+          <div class="content">
+            • <b>Invalid QR</b> — "This QR code is not recognized" toast · resume scan after 1s<br>
+            • <b>No visits left</b> — error modal with "Upgrade Plan" CTA → <code>/plans</code><br>
+            • <b>Tier locked</b> — error modal with required tier + upgrade CTA<br>
+            • <b>Expired sub</b> — error modal with "Renew" CTA → <code>/plans</code>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 06 PROFILE -->
+    <div class="screen-spec">
+      <div class="screen-spec-head">
+        <div class="num">06</div>
+        <div>
+          <div class="name">Profile</div>
+          <div class="route">/account</div>
+        </div>
+        <div class="tag">SHELL · TAB 3</div>
+      </div>
+      <div class="screen-spec-body">
+        <div class="spec-row">
+          <div class="label">Sections</div>
+          <div class="content">Title "My Profile" + gear button (→ settings); user card (avatar + name + email + phone); mini sub card with progress bar + "View Details" (→ <code>/subscription</code>); 2×2 quick action grid; red logout button.</div>
+        </div>
+        <div class="spec-row">
+          <div class="label">Logout behavior</div>
+          <div class="content">Confirmation dialog first. On confirm → <code>authNotifier.logout()</code> → router redirects to <code>/auth/login</code>.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 07 PLANS -->
+    <div class="screen-spec">
+      <div class="screen-spec-head">
+        <div class="num">07</div>
+        <div>
+          <div class="name">Plans · Upgrade</div>
+          <div class="route">/plans</div>
+        </div>
+        <div class="tag">SUB-PAGE</div>
+      </div>
+      <div class="screen-spec-body">
+        <div class="spec-row">
+          <div class="label">Controls</div>
+          <div class="content">Tier picker (4 buttons: Silver/Gold/Platinum/Diamond); Duration picker (4 buttons: 1/3/6/12 months, with "save X%" badges); Plan details card (price, features, included gym count); Subscribe CTA showing total price in JOD.</div>
+        </div>
+        <div class="spec-row">
+          <div class="label">Dynamic</div>
+          <div class="content">Price updates on tier OR duration change. Features list swaps between <code>featuresEn</code> / <code>featuresAr</code>.</div>
+        </div>
+        <div class="spec-row">
+          <div class="label">Submit</div>
+          <div class="content">POST creates pending subscription → push <code>/payment-stub</code> with <code>sub_id</code>.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 08 BROWSE -->
+    <div class="screen-spec">
+      <div class="screen-spec-head">
+        <div class="num">08</div>
+        <div>
+          <div class="name">Gyms Browse</div>
+          <div class="route">/gyms?cat=&amp;search=</div>
+        </div>
+        <div class="tag">SUB-PAGE · FILTERABLE</div>
+      </div>
+      <div class="screen-spec-body">
+        <div class="spec-row">
+          <div class="label">Filters</div>
+          <div class="content">Category chip (dismissible), search bar with debounce (400ms), filter chips (All / Nearest / Open Now / Top Rated / Gold+).</div>
+        </div>
+        <div class="spec-row">
+          <div class="label">List</div>
+          <div class="content">Virtual list (<code>ListView.builder</code>), each row = <code>GymCard.list</code>. Locked gyms (tier &gt; user's) rendered with overlay and "LOCKED" badge; tap shows upsell sheet → <code>/plans</code>.</div>
+        </div>
+        <div class="spec-row">
+          <div class="label">Pagination</div>
+          <div class="content">Infinite scroll, 20 per page. Loading row at bottom during fetch.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 09 DETAIL -->
+    <div class="screen-spec">
+      <div class="screen-spec-head">
+        <div class="num">09</div>
+        <div>
+          <div class="name">Gym Detail</div>
+          <div class="route">/gyms/:id</div>
+        </div>
+        <div class="tag">SUB-PAGE</div>
+      </div>
+      <div class="screen-spec-body">
+        <div class="spec-row">
+          <div class="label">Layout</div>
+          <div class="content">SliverAppBar with 320dp hero image (parallax) + back + favorite button; tier badge + bilingual name + address; 3-stat row (rating / reviews / open); amenity grid (4-col); hours table; call/directions actions; sticky bottom CTA.</div>
+        </div>
+        <div class="spec-row">
+          <div class="label">CTA state</div>
+          <div class="content">• User has access → "Check In Now" (lime, navigates to <code>/checkin</code> with prefilled context).<br>• User lacks tier → "Upgrade to [Tier] to access" (warning color, → <code>/plans</code>).<br>• User no sub → "Get started" (lime, → <code>/plans</code>).</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 10 MY SUB -->
+    <div class="screen-spec">
+      <div class="screen-spec-head">
+        <div class="num">10</div>
+        <div>
+          <div class="name">My Subscription</div>
+          <div class="route">/subscription</div>
+        </div>
+        <div class="tag">SUB-PAGE</div>
+      </div>
+      <div class="screen-spec-body">
+        <div class="spec-row">
+          <div class="label">Sections</div>
+          <div class="content">Big tier card (tier mega-text, validity, visit ring, auto-renew toggle); "What's included" bullet list; Upgrade CTA + "Manage Payment Method" ghost.</div>
+        </div>
+        <div class="spec-row">
+          <div class="label">Toggle</div>
+          <div class="content">Auto-renew toggle writes optimistically, shows undo snackbar for 4s if call fails.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 11 PAYMENT -->
+    <div class="screen-spec">
+      <div class="screen-spec-head">
+        <div class="num">11</div>
+        <div>
+          <div class="name">Payment Stub</div>
+          <div class="route">/payment-stub?sub_id=</div>
+        </div>
+        <div class="tag">SUB-PAGE · MOCK</div>
+      </div>
+      <div class="screen-spec-body">
+        <div class="spec-row">
+          <div class="label">v1.0 behavior</div>
+          <div class="content">Pure mock. Shows real order summary (plan, duration, VAT 16%, total); 3 payment method options (Apple Pay / Google Pay / Card) — radio-selectable; Pay CTA shows total.</div>
+        </div>
+        <div class="spec-row">
+          <div class="label">On pay</div>
+          <div class="content">Simulate 1.5s processing (lottie spinner) → call <code>POST /payments/mock</code> → navigate to <code>/success?txn_id=</code>.</div>
+        </div>
+        <div class="spec-row">
+          <div class="label">Future proof</div>
+          <div class="content">Wrap payment call in <code>PaymentGateway</code> interface so real gateway (HyperPay, Tap, etc.) can slot in later.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 12 SUCCESS -->
+    <div class="screen-spec">
+      <div class="screen-spec-head">
+        <div class="num">12</div>
+        <div>
+          <div class="name">Payment Success</div>
+          <div class="route">/success?txn_id=</div>
+        </div>
+        <div class="tag">TERMINAL</div>
+      </div>
+      <div class="screen-spec-body">
+        <div class="spec-row">
+          <div class="label">Layout</div>
+          <div class="content">Centered success mark (lime circle, animated ring pulse, white checkmark icon); "You're in! Welcome to [Tier]." headline; receipt card (plan / amount / txn ID / date / valid until); 2 CTAs: "Start Training" (→ home) + "Download Receipt" (opens PDF in-app).</div>
+        </div>
+        <div class="spec-row">
+          <div class="label">Motion</div>
+          <div class="content">Lottie <code>success.json</code> plays once. Heavy haptic on screen appear.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 13 SETTINGS -->
+    <div class="screen-spec">
+      <div class="screen-spec-head">
+        <div class="num">13</div>
+        <div>
+          <div class="name">Settings</div>
+          <div class="route">/settings</div>
+        </div>
+        <div class="tag">SUB-PAGE</div>
+      </div>
+      <div class="screen-spec-body">
+        <div class="spec-row">
+          <div class="label">Groups</div>
+          <div class="content">
+            <b>Appearance</b> — Light / Dark two-button toggle (instant apply)<br>
+            <b>Language</b> — English / العربية two-button toggle (instant apply, triggers full rebuild)<br>
+            <b>Account</b> — Push notifications switch · Email updates switch · Location services row<br>
+            <b>App Info</b> — Version row · Terms · Privacy<br>
+            <b>Logout button</b> at bottom
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 14 NOTIFICATIONS -->
+    <div class="screen-spec">
+      <div class="screen-spec-head">
+        <div class="num">14</div>
+        <div>
+          <div class="name">Notifications</div>
+          <div class="route">/notifications</div>
+        </div>
+        <div class="tag">SUB-PAGE</div>
+      </div>
+      <div class="screen-spec-body">
+        <div class="spec-row">
+          <div class="label">Types</div>
+          <div class="content">info (blue) · success (green) · warning (yellow) · danger (red). Each has icon, title, message, timestamp, optional deep link.</div>
+        </div>
+        <div class="spec-row">
+          <div class="label">Actions</div>
+          <div class="content">"Mark all read" in header; pull-to-refresh; swipe-to-delete; tap opens deep link (e.g., "Plan expires" → <code>/plans</code>).</div>
+        </div>
+        <div class="spec-row">
+          <div class="label">Empty state</div>
+          <div class="content">Icon + "You're all caught up" + subtitle. No retry button.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <section id="s12">
+    <div class="sec-head">
+      <div class="sec-num">12</div>
+      <h2 class="sec-title">Reusable <em>components</em></h2>
+      <div class="sec-meta">Build these first</div>
+    </div>
+
+    <p class="lead">Build these shared widgets before the screens. Every screen depends on them. Keep them dumb — no business logic, no provider reads.</p>
+
+    <div class="grid-2">
+      <div class="card">
+        <h4 class="mini-title">◆ PrimaryButton</h4>
+        <p>Full-width lime pill with optional trailing arrow icon. 56dp height. Disabled state dims to 40%.</p>
+        <div class="tag-stack">
+          <span class="tag">Height 56</span><span class="tag">Radius pill</span><span class="tag lime">Primary</span>
+        </div>
+      </div>
+      <div class="card">
+        <h4 class="mini-title">◆ GhostButton</h4>
+        <p>Transparent with border. 48dp height. Used as secondary action ("Download Receipt", "Manage Payment").</p>
+        <div class="tag-stack">
+          <span class="tag">Height 48</span><span class="tag">Border</span><span class="tag">Secondary</span>
+        </div>
+      </div>
+      <div class="card">
+        <h4 class="mini-title">◆ TierBadge</h4>
+        <p>Shows tier with glyph (◇◆◈◉) and color. Three sizes: mini (10px), small (11px), large (16px).</p>
+        <div class="tag-stack">
+          <span class="tag" style="color:#D8D8D8">◇ SILVER</span>
+          <span class="tag" style="color:#FFE36B">◆ GOLD</span>
+          <span class="tag" style="color:#E0E6FF">◈ PLATINUM</span>
+          <span class="tag" style="color:#9EE7FF">◉ DIAMOND</span>
+        </div>
+      </div>
+      <div class="card">
+        <h4 class="mini-title">◆ GymCard</h4>
+        <p>Grid variant (square image on top) and list variant (horizontal). Shows tier badge, rating, distance. Handles locked state.</p>
+        <div class="tag-stack"><span class="tag">2 variants</span><span class="tag">Locked state</span></div>
+      </div>
+      <div class="card">
+        <h4 class="mini-title">◆ CategoryTile</h4>
+        <p>Vertical tile — colored icon + name + gym count. 88×100dp. Horizontal scroll list uses this.</p>
+      </div>
+      <div class="card">
+        <h4 class="mini-title">◆ PhoneInput</h4>
+        <p>Flag + <code>+962</code> prefix + digit field. Validates live. Formats as <code>79 123 4567</code>.</p>
+      </div>
+      <div class="card">
+        <h4 class="mini-title">◆ OtpInput</h4>
+        <p>6 digit cells. Auto-focuses next. Submits on completion. Dev bypass: <code>123456</code>.</p>
+      </div>
+      <div class="card">
+        <h4 class="mini-title">◆ ActiveSubCard</h4>
+        <p>Hero card on home + profile. Tier mega-text, visits stats, upgrade CTA. Lime radial glow.</p>
+      </div>
+      <div class="card">
+        <h4 class="mini-title">◆ VisitRing</h4>
+        <p>Circular gauge (56×56) showing visits-used percentage. SweepGradient from lime → limeLight.</p>
+      </div>
+      <div class="card">
+        <h4 class="mini-title">◆ BottomTabBar</h4>
+        <p>Custom — 3 tabs (Home / QR / Profile), translucent pill container, lime active background with spring animation.</p>
+      </div>
+      <div class="card">
+        <h4 class="mini-title">◆ AppStatusBar</h4>
+        <p>Adjusts system chrome brightness based on active theme. Use in every screen's <code>initState</code>.</p>
+      </div>
+      <div class="card">
+        <h4 class="mini-title">◆ SkeletonLoader</h4>
+        <p>Shimmer variants for: gym card, sub card, list row. Shown during <code>AsyncValue.loading</code>.</p>
+      </div>
+      <div class="card">
+        <h4 class="mini-title">◆ EmptyState</h4>
+        <p>Icon + title + subtitle + optional CTA. Used on empty notifications, no-results search.</p>
+      </div>
+      <div class="card">
+        <h4 class="mini-title">◆ ErrorView</h4>
+        <p>Used inside <code>AsyncValue.error</code>. Shows friendly copy + Retry button. Never shows stack trace.</p>
+      </div>
+    </div>
+  </section>
+
+
+  <section id="s05">
+    <div class="sec-head">
+      <div class="sec-num">05</div>
+      <h2 class="sec-title">Design <em>tokens</em></h2>
+      <div class="sec-meta">Colors · type · spacing · radii</div>
+    </div>
+
+    <h3 class="sub-title">Color palette</h3>
+    <div class="grid-4">
+      <div class="swatch">
+        <div class="chip" style="background:#BBFB46"></div>
+        <div class="name">lime / primary</div>
+        <div class="hex">#BBFB46</div>
+        <div class="use">CTAs · active tab · brand accents</div>
+      </div>
+      <div class="swatch">
+        <div class="chip" style="background:#D5FF7E"></div>
+        <div class="name">lime.light</div>
+        <div class="hex">#D5FF7E</div>
+        <div class="use">Gradient end · hover</div>
+      </div>
+      <div class="swatch">
+        <div class="chip" style="background:#0A0B0A"></div>
+        <div class="name">bg.dark</div>
+        <div class="hex">#0A0B0A</div>
+        <div class="use">Dark mode canvas</div>
+      </div>
+      <div class="swatch">
+        <div class="chip" style="background:#F4F4F0; border-color:#ccc"></div>
+        <div class="name">ink.light-surface</div>
+        <div class="hex">#F4F4F0</div>
+        <div class="use">Light mode canvas</div>
+      </div>
+      <div class="swatch">
+        <div class="chip" style="background:#171A19"></div>
+        <div class="name">surface.dark</div>
+        <div class="hex">#171A19</div>
+        <div class="use">Cards · inputs · dark mode</div>
+      </div>
+      <div class="swatch">
+        <div class="chip" style="background:#FFFFFF; border-color:#ddd"></div>
+        <div class="name">surface.light</div>
+        <div class="hex">#FFFFFF</div>
+        <div class="use">Cards · inputs · light mode</div>
+      </div>
+      <div class="swatch">
+        <div class="chip" style="background:#FF453A"></div>
+        <div class="name">danger</div>
+        <div class="hex">#FF453A</div>
+        <div class="use">Errors · logout · expired</div>
+      </div>
+      <div class="swatch">
+        <div class="chip" style="background:#30D158"></div>
+        <div class="name">success</div>
+        <div class="hex">#30D158</div>
+        <div class="use">Check-in confirms · success toasts</div>
+      </div>
+      <div class="swatch">
+        <div class="chip" style="background:#FFD60A"></div>
+        <div class="name">warn</div>
+        <div class="hex">#FFD60A</div>
+        <div class="use">Expiry warnings · gold tier</div>
+      </div>
+      <div class="swatch">
+        <div class="chip" style="background:#61CDFF"></div>
+        <div class="name">info</div>
+        <div class="hex">#61CDFF</div>
+        <div class="use">Info notifs · diamond tier</div>
+      </div>
+      <div class="swatch">
+        <div class="chip" style="background:#BF5AF2"></div>
+        <div class="name">yoga accent</div>
+        <div class="hex">#BF5AF2</div>
+        <div class="use">Yoga category tile</div>
+      </div>
+      <div class="swatch">
+        <div class="chip" style="background:#FF7351"></div>
+        <div class="name">orange</div>
+        <div class="hex">#FF7351</div>
+        <div class="use">Warning notifs</div>
+      </div>
+    </div>
+
+    <h3 class="sub-title">Dart implementation — <code>app_colors.dart</code></h3>
+<pre data-lang="dart"><span class="k">import</span> <span class="s">'package:flutter/material.dart'</span>;
+
+<span class="k">class</span> <span class="t">AppColors</span> {
+  <span class="c">// --- Brand ---</span>
+  <span class="k">static const</span> lime     = <span class="t">Color</span>(<span class="n">0xFFBBFB46</span>);
+  <span class="k">static const</span> limeLight = <span class="t">Color</span>(<span class="n">0xFFD5FF7E</span>);
+  <span class="k">static const</span> limeDim  = <span class="t">Color</span>(<span class="n">0xFF7FA82E</span>);
+
+  <span class="c">// --- Semantic ---</span>
+  <span class="k">static const</span> danger  = <span class="t">Color</span>(<span class="n">0xFFFF453A</span>);
+  <span class="k">static const</span> success = <span class="t">Color</span>(<span class="n">0xFF30D158</span>);
+  <span class="k">static const</span> warn    = <span class="t">Color</span>(<span class="n">0xFFFFD60A</span>);
+  <span class="k">static const</span> info    = <span class="t">Color</span>(<span class="n">0xFF61CDFF</span>);
+
+  <span class="c">// --- Dark theme ---</span>
+  <span class="k">static const</span> darkBg       = <span class="t">Color</span>(<span class="n">0xFF0A0B0A</span>);
+  <span class="k">static const</span> darkSurface  = <span class="t">Color</span>(<span class="n">0xFF171A19</span>);
+  <span class="k">static const</span> darkSurface2 = <span class="t">Color</span>(<span class="n">0xFF1E2221</span>);
+  <span class="k">static const</span> darkInk      = <span class="t">Color</span>(<span class="n">0xFFF4F4F0</span>);
+  <span class="k">static const</span> darkInk2     = <span class="t">Color</span>(<span class="n">0xFFCACBC2</span>);
+  <span class="k">static const</span> darkInk3     = <span class="t">Color</span>(<span class="n">0xFF8E8F86</span>);
+  <span class="k">static const</span> darkBorder   = <span class="t">Color</span>(<span class="n">0x14FFFFFF</span>); <span class="c">// 8% white</span>
+
+  <span class="c">// --- Light theme ---</span>
+  <span class="k">static const</span> lightBg       = <span class="t">Color</span>(<span class="n">0xFFF8F8F4</span>);
+  <span class="k">static const</span> lightSurface  = <span class="t">Color</span>(<span class="n">0xFFFFFFFF</span>);
+  <span class="k">static const</span> lightSurface2 = <span class="t">Color</span>(<span class="n">0xFFF0F0EB</span>);
+  <span class="k">static const</span> lightInk      = <span class="t">Color</span>(<span class="n">0xFF0A0B0A</span>);
+  <span class="k">static const</span> lightInk2    = <span class="t">Color</span>(<span class="n">0xFF3A3D37</span>);
+  <span class="k">static const</span> lightInk3    = <span class="t">Color</span>(<span class="n">0xFF6B6D65</span>);
+  <span class="k">static const</span> lightBorder  = <span class="t">Color</span>(<span class="n">0x140A0B0A</span>); <span class="c">// 8% black</span>
+
+  <span class="c">// --- Tier colors ---</span>
+  <span class="k">static const</span> tierSilver   = <span class="t">Color</span>(<span class="n">0xFFC0C0C0</span>);
+  <span class="k">static const</span> tierGold     = <span class="t">Color</span>(<span class="n">0xFFFFD60A</span>);
+  <span class="k">static const</span> tierPlatinum = <span class="t">Color</span>(<span class="n">0xFFE0E6FF</span>);
+  <span class="k">static const</span> tierDiamond  = <span class="t">Color</span>(<span class="n">0xFF64D2FF</span>);
+
+  <span class="c">// --- Category colors ---</span>
+  <span class="k">static const</span> catGym      = lime;
+  <span class="k">static const</span> catCrossfit = <span class="t">Color</span>(<span class="n">0xFF30D158</span>);
+  <span class="k">static const</span> catMartial  = <span class="t">Color</span>(<span class="n">0xFFFF453A</span>);
+  <span class="k">static const</span> catYoga     = <span class="t">Color</span>(<span class="n">0xFFBF5AF2</span>);
+}</pre>
+
+    <h3 class="sub-title">Spacing scale</h3>
+    <p>Use only these values. No arbitrary padding.</p>
+    <table>
+      <thead><tr><th>Token</th><th>Value</th><th>Typical use</th></tr></thead>
+      <tbody>
+        <tr><td><code>AppSpacing.xs</code></td><td>4</td><td>Icon-to-label gap · tight chips</td></tr>
+        <tr><td><code>AppSpacing.sm</code></td><td>8</td><td>Element gaps inside a card</td></tr>
+        <tr><td><code>AppSpacing.md</code></td><td>12</td><td>List item internal padding</td></tr>
+        <tr><td><code>AppSpacing.lg</code></td><td>16</td><td>Card padding · content gaps</td></tr>
+        <tr><td><code>AppSpacing.xl</code></td><td>20</td><td>Section spacing</td></tr>
+        <tr><td><code>AppSpacing.xxl</code></td><td>24</td><td>Screen horizontal padding</td></tr>
+        <tr><td><code>AppSpacing.xxxl</code></td><td>32</td><td>Major section gaps</td></tr>
+      </tbody>
+    </table>
+
+    <h3 class="sub-title">Border radii</h3>
+    <table>
+      <thead><tr><th>Token</th><th>Value</th><th>Use</th></tr></thead>
+      <tbody>
+        <tr><td><code>AppRadii.sm</code></td><td>8</td><td>Small chips · tags</td></tr>
+        <tr><td><code>AppRadii.md</code></td><td>12</td><td>Icons · small buttons</td></tr>
+        <tr><td><code>AppRadii.lg</code></td><td>16</td><td>Inputs · cards</td></tr>
+        <tr><td><code>AppRadii.xl</code></td><td>20</td><td>Large cards · sheets</td></tr>
+        <tr><td><code>AppRadii.xxl</code></td><td>28</td><td>Hero cards · input pills</td></tr>
+        <tr><td><code>AppRadii.pill</code></td><td>100</td><td>Buttons · tabs</td></tr>
+      </tbody>
+    </table>
+
+    <h3 class="sub-title">Typography scale</h3>
+    <div class="card">
+      <div class="type-row">
+        <div class="meta"><b>display.1</b>Archivo Black Italic<br>54 / 0.88 / -0.04em</div>
+        <div class="sample" style="font-family:var(--f-display);font-weight:900;font-style:italic;font-size:46px;line-height:0.88;letter-spacing:-0.04em">ONE PASS</div>
+      </div>
+      <div class="type-row">
+        <div class="meta"><b>display.2</b>Archivo Black Italic<br>42 / 0.9 / -0.03em</div>
+        <div class="sample" style="font-family:var(--f-display);font-weight:900;font-style:italic;font-size:36px;line-height:0.9;letter-spacing:-0.03em">Pick a pass.</div>
+      </div>
+      <div class="type-row">
+        <div class="meta"><b>heading.1</b>Archivo Black Italic<br>26 / 1 / -0.03em</div>
+        <div class="sample" style="font-family:var(--f-display);font-weight:800;font-style:italic;font-size:24px;letter-spacing:-0.03em">My Profile</div>
+      </div>
+      <div class="type-row">
+        <div class="meta"><b>heading.2</b>Archivo Bold Italic<br>18 / 1.15 / -0.02em</div>
+        <div class="sample" style="font-family:var(--f-display);font-weight:800;font-style:italic;font-size:18px;letter-spacing:-0.02em">Featured gyms</div>
+      </div>
+      <div class="type-row">
+        <div class="meta"><b>body.lg</b>Inter Regular<br>15 / 1.5</div>
+        <div class="sample" style="font-family:var(--f-body);font-size:15px">Your subscription is active and ready.</div>
+      </div>
+      <div class="type-row">
+        <div class="meta"><b>body.md</b>Inter Regular<br>13 / 1.6</div>
+        <div class="sample" style="font-family:var(--f-body);font-size:13px">Access all Silver + Gold gyms, 90 visits per month.</div>
+      </div>
+      <div class="type-row">
+        <div class="meta"><b>label</b>Inter Medium<br>12 / 1.4</div>
+        <div class="sample" style="font-family:var(--f-body);font-weight:500;font-size:12px">Phone Number</div>
+      </div>
+      <div class="type-row">
+        <div class="meta"><b>overline</b>JetBrains Mono<br>10 / 1.8 / 0.2em UPPER</div>
+        <div class="sample" style="font-family:var(--f-mono);font-size:10px;text-transform:uppercase;letter-spacing:0.2em;color:var(--lime)">● ACTIVE PLAN</div>
+      </div>
+      <div class="type-row">
+        <div class="meta"><b>serif.accent</b>Instrument Serif Italic<br>0.7× of display</div>
+        <div class="sample" style="font-family:var(--f-serif);font-style:italic;font-size:28px;color:var(--lime)">your city. one card.</div>
+      </div>
+    </div>
+
+    <div class="callout rule">
+      <div class="icon">i</div>
+      <div>
+        <h5>Font strategy rule</h5>
+        <p>When <code>Directionality.of(context) == TextDirection.rtl</code>, the theme swaps <code>displayFontFamily</code> to <b>Cairo Black</b> and body to <b>Cairo Regular</b>. Do NOT attempt to render Archivo glyphs for Arabic text — they don't exist.</p>
+      </div>
+    </div>
+  </section>
+
+
+  <section id="s06">
+    <div class="sec-head">
+      <div class="sec-num">06</div>
+      <h2 class="sec-title">Theming — <em>light &amp; dark</em></h2>
+      <div class="sec-meta">ThemeData · ThemeMode</div>
+    </div>
+
+    <p class="lead">Both themes share the same lime primary and semantic palette. Only surfaces, ink, and borders swap. The app must persist the user's theme choice to <code>SharedPreferences</code> and load it synchronously at startup.</p>
+
+    <h3 class="sub-title">Theme behavior matrix</h3>
+    <table>
+      <thead><tr><th>Element</th><th>Dark Mode</th><th>Light Mode</th></tr></thead>
+      <tbody>
+        <tr><td>Canvas background</td><td><code>#0A0B0A</code></td><td><code>#F8F8F4</code></td></tr>
+        <tr><td>Card / surface</td><td><code>#171A19</code></td><td><code>#FFFFFF</code></td></tr>
+        <tr><td>Primary text</td><td><code>#F4F4F0</code></td><td><code>#0A0B0A</code></td></tr>
+        <tr><td>Secondary text</td><td><code>#CACBC2</code></td><td><code>#3A3D37</code></td></tr>
+        <tr><td>Tertiary / muted</td><td><code>#8E8F86</code></td><td><code>#6B6D65</code></td></tr>
+        <tr><td>Border / divider</td><td>8% white</td><td>8% black</td></tr>
+        <tr><td>Primary button (CTA)</td><td>Lime + dark ink</td><td>Lime + dark ink (unchanged)</td></tr>
+        <tr><td>Status bar brightness</td><td><code>Brightness.light</code> icons</td><td><code>Brightness.dark</code> icons</td></tr>
+        <tr><td>Bottom tab bar background</td><td>Dark translucent glass</td><td>White translucent glass</td></tr>
+      </tbody>
+    </table>
+
+    <h3 class="sub-title">Theme provider pattern</h3>
+<pre data-lang="dart"><span class="c">// core/theme/theme_provider.dart</span>
+<span class="k">import</span> <span class="s">'package:flutter/material.dart'</span>;
+<span class="k">import</span> <span class="s">'package:flutter_riverpod/flutter_riverpod.dart'</span>;
+<span class="k">import</span> <span class="s">'package:shared_preferences/shared_preferences.dart'</span>;
+
+<span class="k">final</span> themeModeProvider = <span class="t">StateNotifierProvider</span>&lt;<span class="t">ThemeModeNotifier</span>, <span class="t">ThemeMode</span>&gt;(
+  (ref) =&gt; <span class="t">ThemeModeNotifier</span>(),
+);
+
+<span class="k">class</span> <span class="t">ThemeModeNotifier</span> <span class="k">extends</span> <span class="t">StateNotifier</span>&lt;<span class="t">ThemeMode</span>&gt; {
+  <span class="k">static const</span> _key = <span class="s">'theme_mode'</span>;
+
+  <span class="t">ThemeModeNotifier</span>() : <span class="k">super</span>(<span class="t">ThemeMode</span>.dark) {
+    _load();
+  }
+
+  <span class="t">Future</span>&lt;<span class="k">void</span>&gt; _load() <span class="k">async</span> {
+    <span class="k">final</span> prefs = <span class="k">await</span> <span class="t">SharedPreferences</span>.getInstance();
+    <span class="k">final</span> raw = prefs.getString(_key) ?? <span class="s">'dark'</span>;
+    state = <span class="k">switch</span> (raw) {
+      <span class="s">'light'</span> =&gt; <span class="t">ThemeMode</span>.light,
+      <span class="s">'system'</span> =&gt; <span class="t">ThemeMode</span>.system,
+      _ =&gt; <span class="t">ThemeMode</span>.dark,
+    };
+  }
+
+  <span class="t">Future</span>&lt;<span class="k">void</span>&gt; <span class="f">setMode</span>(<span class="t">ThemeMode</span> mode) <span class="k">async</span> {
+    state = mode;
+    <span class="k">final</span> prefs = <span class="k">await</span> <span class="t">SharedPreferences</span>.getInstance();
+    <span class="k">await</span> prefs.setString(_key, mode.name);
+  }
+}</pre>
+  </section>
+
+
+  <section id="s08">
+    <div class="sec-head">
+      <div class="sec-num">08</div>
+      <h2 class="sec-title">RTL <em>handling</em></h2>
+      <div class="sec-meta">Flutter mirrors automatically — with caveats</div>
+    </div>
+
+    <p class="lead">Flutter auto-mirrors <code>Padding</code>, <code>Row</code>, <code>Align</code>, <code>Positioned</code>, etc. when <code>Directionality</code> is <code>rtl</code>. But icons, animations, numbers, and custom <code>Transform</code>s do NOT mirror. Follow these rules religiously.</p>
+
+    <div class="rtl-demo">
+      <div class="rtl-box ltr-mode">
+        <div class="lbl">● LTR (English)</div>
+        <div class="demo-card">
+          <div class="ico">G</div>
+          <div>Gold Pass · 45 visits</div>
+          <div class="chev">›</div>
+        </div>
+      </div>
+      <div class="rtl-box rtl-mode">
+        <div class="lbl">● RTL (Arabic)</div>
+        <div class="demo-card">
+          <div class="ico">ذ</div>
+          <div>اشتراك ذهبي · ٤٥ زيارة</div>
+          <div class="chev">›</div>
+        </div>
+      </div>
+    </div>
+
+    <h3 class="sub-title">RTL rules</h3>
+    <ol>
+      <li><b>Use logical properties.</b> Prefer <code>EdgeInsetsDirectional</code> over <code>EdgeInsets</code>, <code>AlignmentDirectional.centerStart</code> over <code>Alignment.centerLeft</code>. Use <code>start</code>/<code>end</code> — never <code>left</code>/<code>right</code>.</li>
+      <li><b>Mirror chevrons &amp; directional icons.</b> <code>chevron_right</code> points the wrong way in RTL. Use <code>Icons.arrow_forward_ios</code> wrapped in a <code>Transform</code> that flips based on directionality, or use <code>chevron_right</code> in AR since it visually reads as "next" when mirrored. <b>Default pattern:</b><br><code>Transform(alignment: Alignment.center, transform: Matrix4.identity()..scale(isRtl ? -1.0 : 1.0, 1.0), child: Icon(Icons.chevron_right))</code></li>
+      <li><b>Numbers stay LTR.</b> Phone numbers, prices, OTP digits, timers — ALL stay in LTR visual order even in Arabic UI. Wrap them in <code>Directionality(textDirection: TextDirection.ltr, child: ...)</code>.</li>
+      <li><b>Format numbers with intl.</b> Use <code>NumberFormat('#,##0.00', 'ar_JO')</code> to get Arabic-Indic numerals (٠١٢٣٤٥٦٧٨٩) when appropriate. For prices and phone numbers, use Latin numerals (more internationally readable).</li>
+      <li><b>Logos are NEVER mirrored.</b> Wrap the app logo in <code>Directionality(textDirection: TextDirection.ltr, child: ...)</code>.</li>
+      <li><b>Swipe gestures mirror.</b> A "swipe to delete" from the right in LTR becomes a swipe from the left in RTL. Flutter's <code>Dismissible</code> handles this — but test it.</li>
+      <li><b>Animations.</b> Slide-in transitions should originate from the <i>leading</i> edge, not a hardcoded side. Use <code>SlideTransition</code> with <code>Offset.fromDirection</code> or check <code>Directionality.of</code>.</li>
+      <li><b>QR scanner overlay.</b> Scan-line animation moves top-to-bottom — this does not mirror. The "point at code" text label flips naturally.</li>
+      <li><b>Currency symbol placement.</b> EN: <code>45 JOD</code> · AR: <code>٤٥ د.أ</code> (currency after number in both). Use the <code>priceFormat</code> ARB string.</li>
+    </ol>
+
+    <div class="callout warn">
+      <div class="icon">!</div>
+      <div>
+        <h5>Common mistake</h5>
+        <p>Setting <code>textAlign: TextAlign.left</code> breaks RTL. Always use <code>TextAlign.start</code> / <code>TextAlign.end</code>. The default for most <code>Text</code> widgets is already correct — only override when necessary.</p>
+      </div>
+    </div>
+
+    <h3 class="sub-title">RTL helper utility</h3>
+<pre data-lang="dart"><span class="c">// core/utils/rtl_helpers.dart</span>
+<span class="k">extension</span> <span class="t">RtlContext</span> <span class="k">on</span> <span class="t">BuildContext</span> {
+  <span class="k">bool</span> <span class="k">get</span> isRtl =&gt; <span class="t">Directionality</span>.of(<span class="k">this</span>) == <span class="t">TextDirection</span>.rtl;
+}
+
+<span class="k">class</span> <span class="t">DirectionalIcon</span> <span class="k">extends</span> <span class="t">StatelessWidget</span> {
+  <span class="k">final</span> <span class="t">IconData</span> icon;
+  <span class="k">final double</span>? size;
+  <span class="k">final</span> <span class="t">Color</span>? color;
+
+  <span class="k">const</span> <span class="t">DirectionalIcon</span>(<span class="k">this</span>.icon, {<span class="k">super</span>.key, <span class="k">this</span>.size, <span class="k">this</span>.color});
+
+  <span class="k">@override</span>
+  <span class="t">Widget</span> <span class="f">build</span>(<span class="t">BuildContext</span> context) {
+    <span class="k">return</span> <span class="t">Transform</span>(
+      alignment: <span class="t">Alignment</span>.center,
+      transform: <span class="t">Matrix4</span>.identity()..scale(context.isRtl ? -<span class="n">1.0</span> : <span class="n">1.0</span>, <span class="n">1.0</span>),
+      child: <span class="t">Icon</span>(icon, size: size, color: color),
+    );
+  }
+}</pre>
+  </section>
+
+
+  <section id="s07">
+    <div class="sec-head">
+      <div class="sec-num">07</div>
+      <h2 class="sec-title">Localization — <em>AR · EN</em></h2>
+      <div class="sec-meta">ARB files · flutter gen_l10n</div>
+    </div>
+
+    <p class="lead">Use Flutter's built-in <code>gen_l10n</code> pipeline. Arabic is the <b>default locale</b> and the <b>fallback locale</b>. Every user-facing string in the codebase must come from <code>AppLocalizations.of(context)</code>. No hardcoded strings.</p>
+
+    <h3 class="sub-title">l10n.yaml (project root)</h3>
+<pre data-lang="yaml"><span class="k">arb-dir:</span> <span class="s">lib/l10n</span>
+<span class="k">template-arb-file:</span> <span class="s">app_ar.arb</span>
+<span class="k">output-localization-file:</span> <span class="s">app_localizations.dart</span>
+<span class="k">output-class:</span> <span class="s">AppLocalizations</span>
+<span class="k">preferred-supported-locales:</span> <span class="s">[ ar, en ]</span>
+<span class="k">synthetic-package:</span> <span class="s">false</span>
+<span class="k">output-dir:</span> <span class="s">lib/core/localization/gen</span></pre>
+
+    <h3 class="sub-title">app_ar.arb (excerpt)</h3>
+<pre data-lang="json">{
+  <span class="s">"@@locale"</span>: <span class="s">"ar"</span>,
+
+  <span class="s">"appName"</span>: <span class="s">"جيم باس"</span>,
+  <span class="s">"welcome"</span>: <span class="s">"أهلاً بك"</span>,
+  <span class="s">"loginTitle"</span>: <span class="s">"اشتراك واحد.\nكل النوادي."</span>,
+  <span class="s">"phoneLabel"</span>: <span class="s">"رقم الهاتف"</span>,
+  <span class="s">"phonePlaceholder"</span>: <span class="s">"7X XXX XXXX"</span>,
+  <span class="s">"continueCta"</span>: <span class="s">"متابعة"</span>,
+  <span class="s">"noAccount"</span>: <span class="s">"ليس لديك حساب؟"</span>,
+  <span class="s">"signUp"</span>: <span class="s">"سجّل الآن"</span>,
+
+  <span class="s">"otpTitle"</span>: <span class="s">"أدخل الرمز"</span>,
+  <span class="s">"otpSentTo"</span>: <span class="s">"أرسلنا رمزاً إلى {phone}"</span>,
+  <span class="s">"@otpSentTo"</span>: {
+    <span class="s">"placeholders"</span>: { <span class="s">"phone"</span>: { <span class="s">"type"</span>: <span class="s">"String"</span> } }
+  },
+  <span class="s">"resendIn"</span>: <span class="s">"أعد الإرسال خلال {seconds}"</span>,
+
+  <span class="s">"homeGreeting"</span>: <span class="s">"أهلاً، {name}"</span>,
+  <span class="s">"activePlan"</span>: <span class="s">"اشتراك نشط"</span>,
+  <span class="s">"visitsLeft"</span>: <span class="s">"{count} زيارة متبقية"</span>,
+  <span class="s">"@visitsLeft"</span>: {
+    <span class="s">"placeholders"</span>: { <span class="s">"count"</span>: { <span class="s">"type"</span>: <span class="s">"int"</span>, <span class="s">"format"</span>: <span class="s">"decimalPattern"</span> } }
+  },
+
+  <span class="s">"catGym"</span>: <span class="s">"نادي رياضي"</span>,
+  <span class="s">"catCrossfit"</span>: <span class="s">"كروس فيت"</span>,
+  <span class="s">"catMartial"</span>: <span class="s">"فنون قتالية"</span>,
+  <span class="s">"catYoga"</span>: <span class="s">"يوغا"</span>,
+
+  <span class="s">"tierSilver"</span>: <span class="s">"فضي"</span>,
+  <span class="s">"tierGold"</span>: <span class="s">"ذهبي"</span>,
+  <span class="s">"tierPlatinum"</span>: <span class="s">"بلاتيني"</span>,
+  <span class="s">"tierDiamond"</span>: <span class="s">"ماسي"</span>,
+
+  <span class="s">"scanTitle"</span>: <span class="s">"امسح الرمز"</span>,
+  <span class="s">"scanHint"</span>: <span class="s">"وجّه الكاميرا نحو رمز QR الخاص بالنادي"</span>,
+  <span class="s">"checkInSuccess"</span>: <span class="s">"تم تسجيل دخولك"</span>,
+
+  <span class="s">"settingsTitle"</span>: <span class="s">"الإعدادات"</span>,
+  <span class="s">"appearance"</span>: <span class="s">"المظهر"</span>,
+  <span class="s">"themeLight"</span>: <span class="s">"فاتح"</span>,
+  <span class="s">"themeDark"</span>: <span class="s">"داكن"</span>,
+  <span class="s">"language"</span>: <span class="s">"اللغة"</span>,
+  <span class="s">"logout"</span>: <span class="s">"تسجيل الخروج"</span>,
+
+  <span class="s">"currencySymbol"</span>: <span class="s">"د.أ"</span>,
+  <span class="s">"priceFormat"</span>: <span class="s">"{amount} {symbol}"</span>,
+  <span class="s">"@priceFormat"</span>: {
+    <span class="s">"placeholders"</span>: {
+      <span class="s">"amount"</span>: { <span class="s">"type"</span>: <span class="s">"num"</span>, <span class="s">"format"</span>: <span class="s">"decimalPattern"</span> },
+      <span class="s">"symbol"</span>: { <span class="s">"type"</span>: <span class="s">"String"</span> }
+    }
+  }
+}</pre>
+
+    <h3 class="sub-title">app_en.arb (excerpt)</h3>
+<pre data-lang="json">{
+  <span class="s">"@@locale"</span>: <span class="s">"en"</span>,
+  <span class="s">"appName"</span>: <span class="s">"Gym Pass"</span>,
+  <span class="s">"welcome"</span>: <span class="s">"Welcome"</span>,
+  <span class="s">"loginTitle"</span>: <span class="s">"ONE PASS.\nEVERY GYM."</span>,
+  <span class="s">"phoneLabel"</span>: <span class="s">"Phone Number"</span>,
+  <span class="s">"continueCta"</span>: <span class="s">"Continue"</span>,
+  <span class="s">"signUp"</span>: <span class="s">"Sign Up"</span>,
+  <span class="s">"tierGold"</span>: <span class="s">"Gold"</span>,
+  <span class="s">"checkInSuccess"</span>: <span class="s">"You're in!"</span>,
+  <span class="s">"currencySymbol"</span>: <span class="s">"JOD"</span>
+  <span class="c">/* ... full parity with app_ar.arb required */</span>
+}</pre>
+
+    <h3 class="sub-title">MaterialApp.router setup</h3>
+<pre data-lang="dart"><span class="c">// app.dart</span>
+<span class="t">MaterialApp</span>.router(
+  title: <span class="s">'Gym Pass'</span>,
+  routerConfig: appRouter,
+  theme: lightTheme,
+  darkTheme: darkTheme,
+  themeMode: ref.watch(themeModeProvider),
+  locale: ref.watch(localeProvider),            <span class="c">// Locale('ar') default</span>
+  localizationsDelegates: <span class="t">AppLocalizations</span>.localizationsDelegates,
+  supportedLocales: <span class="k">const</span> [<span class="t">Locale</span>(<span class="s">'ar'</span>), <span class="t">Locale</span>(<span class="s">'en'</span>)],
+  localeResolutionCallback: (device, supported) {
+    <span class="k">if</span> (device == <span class="k">null</span>) <span class="k">return const</span> <span class="t">Locale</span>(<span class="s">'ar'</span>);
+    <span class="k">return</span> supported.firstWhere(
+      (l) =&gt; l.languageCode == device.languageCode,
+      orElse: () =&gt; <span class="k">const</span> <span class="t">Locale</span>(<span class="s">'ar'</span>),  <span class="c">// default to Arabic</span>
+    );
+  },
+);</pre>
+  </section>
+
+
+  <section id="s09">
+    <div class="sec-head">
+      <div class="sec-num">09</div>
+      <h2 class="sec-title">Routing &amp; <em>navigation</em></h2>
+      <div class="sec-meta">go_router · ShellRoute · redirects</div>
+    </div>
+
+    <h3 class="sub-title">Navigation model</h3>
+    <p>The app has <b>two route trees</b>:</p>
+    <ol>
+      <li><b>Unauthenticated stack</b>: Login → OTP → Register. Linear push navigation with back gesture support.</li>
+      <li><b>Authenticated shell</b>: <code>ShellRoute</code> hosting the 3-tab bottom navigation (Home · QR · Profile). Sub-screens (plans, detail, settings, notifications) push on top of the current tab's navigator.</li>
+    </ol>
+
+    <h3 class="sub-title">Complete route map</h3>
+    <table>
+      <thead>
+        <tr><th>Path</th><th>Name</th><th>Guard</th><th>Parent</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>/splash</code></td><td>splash</td><td>—</td><td>root</td></tr>
+        <tr><td><code>/auth/login</code></td><td>login</td><td>unauth-only</td><td>root</td></tr>
+        <tr><td><code>/auth/otp</code></td><td>otp</td><td>unauth-only · requires <code>phone</code> extra</td><td>root</td></tr>
+        <tr><td><code>/auth/register</code></td><td>register</td><td>unauth-only · requires OTP session</td><td>root</td></tr>
+        <tr><td><code>/</code></td><td>home</td><td>auth-required</td><td>shell</td></tr>
+        <tr><td><code>/checkin</code></td><td>checkin</td><td>auth · camera perm</td><td>shell</td></tr>
+        <tr><td><code>/account</code></td><td>profile</td><td>auth-required</td><td>shell</td></tr>
+        <tr><td><code>/plans</code></td><td>plans</td><td>auth-required</td><td>home</td></tr>
+        <tr><td><code>/gyms</code></td><td>gyms</td><td>auth-required · optional <code>?cat=</code></td><td>home</td></tr>
+        <tr><td><code>/gyms/:id</code></td><td>gymDetail</td><td>auth-required</td><td>home</td></tr>
+        <tr><td><code>/subscription</code></td><td>mySubscription</td><td>auth · requires active sub</td><td>profile</td></tr>
+        <tr><td><code>/payment-stub</code></td><td>paymentStub</td><td>auth · requires <code>sub_id</code></td><td>root</td></tr>
+        <tr><td><code>/success</code></td><td>paymentSuccess</td><td>auth · requires <code>txn_id</code></td><td>root</td></tr>
+        <tr><td><code>/settings</code></td><td>settings</td><td>auth-required</td><td>profile</td></tr>
+        <tr><td><code>/notifications</code></td><td>notifications</td><td>auth-required</td><td>home</td></tr>
+      </tbody>
+    </table>
+
+    <h3 class="sub-title">Redirect logic</h3>
+<pre data-lang="dart"><span class="t">GoRouter</span>(
+  initialLocation: <span class="s">'/splash'</span>,
+  redirect: (context, state) {
+    <span class="k">final</span> session = ref.read(authNotifierProvider);
+    <span class="k">final</span> loc = state.matchedLocation;
+
+    <span class="k">final</span> isAuthRoute = loc.startsWith(<span class="s">'/auth'</span>);
+    <span class="k">final</span> isSplash    = loc == <span class="s">'/splash'</span>;
+
+    <span class="k">if</span> (session.isLoading &amp;&amp; !isSplash) <span class="k">return</span> <span class="s">'/splash'</span>;
+    <span class="k">if</span> (!session.isAuthenticated &amp;&amp; !isAuthRoute &amp;&amp; !isSplash) {
+      <span class="k">return</span> <span class="s">'/auth/login'</span>;
+    }
+    <span class="k">if</span> (session.isAuthenticated &amp;&amp; (isAuthRoute || isSplash)) {
+      <span class="k">return</span> <span class="s">'/'</span>;
+    }
+    <span class="k">return null</span>;
+  },
+  routes: [ <span class="c">/* ...see routes.dart */</span> ],
+);</pre>
+
+    <h3 class="sub-title">End-to-end navigation flows</h3>
+
+    <h4 class="mini-title">◆ Flow A · New member onboarding</h4>
+    <div class="flow">
+      <div class="flow-track">
+        <div class="flow-node start"><div class="id">START</div><div class="name">Splash</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><div class="id">01</div><div class="name">Login<br>(enter phone)</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><div class="id">02</div><div class="name">OTP<br>(verify code)</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><div class="id">03</div><div class="name">Register<br>(set name)</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><div class="id">04</div><div class="name">Home<br>(no plan)</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><div class="id">07</div><div class="name">Plans<br>(pick tier)</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><div class="id">11</div><div class="name">Payment<br>(pay)</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node end"><div class="id">END</div><div class="name">Success +<br>Home (active)</div></div>
+      </div>
+    </div>
+
+    <h4 class="mini-title">◆ Flow B · Returning member check-in</h4>
+    <div class="flow">
+      <div class="flow-track">
+        <div class="flow-node start"><div class="id">START</div><div class="name">Home<br>(active plan)</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><div class="id">05</div><div class="name">Check-In tab<br>(camera)</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><div class="id">API</div><div class="name">Validate<br>QR + tier</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node end"><div class="id">END</div><div class="name">Success modal<br>visits --</div></div>
+      </div>
+    </div>
+
+    <h4 class="mini-title">◆ Flow C · Browse &amp; upgrade</h4>
+    <div class="flow">
+      <div class="flow-track">
+        <div class="flow-node start"><div class="id">START</div><div class="name">Home</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><div class="id">08</div><div class="name">Gyms Browse<br>(filtered)</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><div class="id">09</div><div class="name">Gym Detail<br>(tier locked)</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><div class="id">07</div><div class="name">Plans<br>(upgrade)</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><div class="id">11</div><div class="name">Payment</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node end"><div class="id">END</div><div class="name">Detail unlocked<br>→ Check-in</div></div>
+      </div>
+    </div>
+
+    <h4 class="mini-title">◆ Flow D · Subscription management</h4>
+    <div class="flow">
+      <div class="flow-track">
+        <div class="flow-node start"><div class="id">START</div><div class="name">Profile</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><div class="id">10</div><div class="name">My Subscription<br>(details)</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><div class="id">07</div><div class="name">Plans<br>(upgrade)</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><div class="id">11</div><div class="name">Payment</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node end"><div class="id">END</div><div class="name">Updated<br>Subscription</div></div>
+      </div>
+    </div>
+  </section>
+
+
+  <section id="s01">
+    <div class="sec-head">
+      <div class="sec-num">01</div>
+      <h2 class="sec-title">Product <em>overview</em></h2>
+      <div class="sec-meta">Context · what we're building</div>
+    </div>
+
+    <p class="lead">Gym Pass is a Jordan-based gym pass app. One subscription grants a member access to a network of gyms across a tiered system. Members browse gyms, subscribe to a tier, and check in at any included gym via QR code.</p>
+
+    <h3 class="sub-title">Core value proposition</h3>
+    <ul>
+      <li><b>One subscription</b> unlocks many gyms — no separate memberships</li>
+      <li><b>Tiered access</b> — Silver / Gold / Platinum / Diamond — each tier includes more gyms and more monthly visits</li>
+      <li><b>QR-based check-in</b> — members scan a gym's QR code to enter, subject to subscription and tier validation</li>
+      <li><b>Jordan-first</b> — Arabic-first UI, JOD currency, +962 phone format, local payment methods</li>
+    </ul>
+
+    <h3 class="sub-title">Scope</h3>
+    <div class="grid-2">
+      <div class="card card-lime">
+        <h4 class="mini-title" style="color:var(--lime)">◆ IN SCOPE (v1.0)</h4>
+        <ul>
+          <li>Member mobile app (iOS + Android)</li>
+          <li>Auth: phone OTP + registration</li>
+          <li>Browse gyms · filter by category</li>
+          <li>Subscribe to plan · payment stub</li>
+          <li>QR check-in flow</li>
+          <li>Profile &amp; subscription management</li>
+          <li>Notifications inbox</li>
+          <li>Light &amp; dark modes · AR &amp; EN</li>
+        </ul>
+      </div>
+      <div class="card card-danger">
+        <h4 class="mini-title" style="color:var(--red)">◆ OUT OF SCOPE (v1.0)</h4>
+        <ul>
+          <li>Gym owner / admin app (separate project)</li>
+          <li>Real payment gateway integration (stub only)</li>
+          <li>Social features (friends, sharing)</li>
+          <li>Class booking / scheduling</li>
+          <li>Personal trainer marketplace</li>
+          <li>Wearable / fitness tracker integration</li>
+          <li>Web version</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+
+  <section id="s02">
+    <div class="sec-head">
+      <div class="sec-num">02</div>
+      <h2 class="sec-title">Market &amp; <em>audience</em></h2>
+      <div class="sec-meta">Who · where · how</div>
+    </div>
+
+    <table>
+      <thead>
+        <tr><th style="width:22%">Attribute</th><th>Value</th><th>Implementation Notes</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>Target country</b></td>
+          <td>Jordan 🇯🇴</td>
+          <td>Cities prioritized: Amman, Zarqa, Irbid, Aqaba. Default map center: <code>Amman (31.9539°N, 35.9106°E)</code></td>
+        </tr>
+        <tr>
+          <td><b>Phone format</b></td>
+          <td><code>+962 7X XXX XXXX</code> (10 digits, starts with <code>078</code>, <code>079</code>, or <code>077</code>)</td>
+          <td>Validation regex: <code>^0(77|78|79)\d{7}$</code> for local · <code>^\+9627(7|8|9)\d{7}$</code> with country code. Show flag + <code>+962</code> prefix in UI</td>
+        </tr>
+        <tr>
+          <td><b>Primary language</b></td>
+          <td>Arabic (AR) — default</td>
+          <td>App must launch in Arabic unless device locale is English. <b>RTL layout is mandatory.</b></td>
+        </tr>
+        <tr>
+          <td><b>Secondary language</b></td>
+          <td>English (EN)</td>
+          <td>Full parity — every string localized</td>
+        </tr>
+        <tr>
+          <td><b>Currency</b></td>
+          <td>Jordanian Dinar (JOD)</td>
+          <td>Format: <code>45 JOD</code> (EN) · <code>٤٥ د.أ</code> (AR). Use 2–3 decimals where needed (JOD is a fils-based currency).</td>
+        </tr>
+        <tr>
+          <td><b>Audience</b></td>
+          <td>Males &amp; females, 18–45, fitness-oriented</td>
+          <td>Imagery must be inclusive. No gendered defaults. Avatar uses initials, not photos, by default.</td>
+        </tr>
+        <tr>
+          <td><b>Content scope</b></td>
+          <td>Gyms only (v1.0)</td>
+          <td>Categories visible: Gym, Crossfit, Martial Arts, Yoga. Spa / Pool hidden or flagged "coming soon".</td>
+        </tr>
+        <tr>
+          <td><b>Time format</b></td>
+          <td>24h (e.g. <code>18:30</code>)</td>
+          <td>Standard in Jordan. Use <code>intl</code> package with <code>ar_JO</code> / <code>en_US</code> locale.</td>
+        </tr>
+        <tr>
+          <td><b>Calendar</b></td>
+          <td>Gregorian</td>
+          <td>Week starts Sunday in AR locale.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout rule">
+      <div class="icon">!</div>
+      <div>
+        <h5>Cultural sensitivity</h5>
+        <p>Imagery of gym equipment, running, weights, and athletic silhouettes is fine. Avoid revealing workout attire in marketing imagery. Prefer abstract / icon-driven visuals over stock photos of people for universal appeal.</p>
+      </div>
+    </div>
+  </section>
+
+
+  <footer class="doc-footer">
+    <div>
+      <b>◆ DESIGN ASSET</b>
+      <p>Gym Pass design &amp; prototype · v1.0 · Prototype-forward document for design work. Engineering detail (tech stack, state, data models, API, build order) is in the companion code reference file.</p>
+    </div>
+    <div>
+      <b>◆ QUICK STATS</b>
+      <p>14 screens · 14 shared widgets · 4 tiers · 2 locales · 2 themes</p>
+    </div>
+  </footer>
+
+</div>
+
+</body>
+</html>

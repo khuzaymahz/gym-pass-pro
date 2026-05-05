@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>GYMPASS — Design Index</title>
+  <link rel="stylesheet" href="/design/project/colors_and_type.css"/>
+  <style>
+    html, body {
+      margin: 0; padding: 0; min-height: 100%;
+      background:
+        radial-gradient(ellipse 1400px 700px at 20% -5%, rgba(187,251,70,0.06), transparent 55%),
+        radial-gradient(ellipse 1000px 600px at 80% 110%, rgba(100,210,255,0.04), transparent 60%),
+        #080907;
+      color: #F4F4F0;
+      font-family: 'Inter', system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    * { box-sizing: border-box; }
+    .page { max-width: 1440px; margin: 0 auto; padding: 56px 48px 120px; }
+    .head { display: flex; align-items: flex-end; justify-content: space-between; gap: 32px; padding-bottom: 32px; border-bottom: 1px solid rgba(255,255,255,0.08); margin-bottom: 48px; }
+    .mark { font-family: 'Archivo', system-ui, sans-serif; font-weight: 900; font-style: italic; font-size: 64px; letter-spacing: -0.045em; line-height: 0.88; }
+    .mark .gym { color: #F4F4F0; }
+    .mark .pass { color: #BBFB46; }
+    .kit { font-family: 'Archivo', system-ui, sans-serif; font-weight: 900; font-style: italic; font-size: 20px; letter-spacing: -0.03em; color: #F4F4F0; text-transform: uppercase; margin-top: 14px; }
+    .kit em { font-family: 'Instrument Serif', serif; font-style: italic; font-weight: 400; color: #BBFB46; text-transform: lowercase; letter-spacing: -0.01em; }
+    .meta { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8E8F86; letter-spacing: 0.2em; text-transform: uppercase; }
+    .meta .live::before { content: '●'; color: #BBFB46; margin-right: 8px; }
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 20px; }
+    .card {
+      grid-column: span 4;
+      background: #111312;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px;
+      padding: 26px;
+      display: flex; flex-direction: column; gap: 14px;
+      text-decoration: none; color: inherit;
+      position: relative; overflow: hidden;
+      transition: border-color 180ms cubic-bezier(0.4,0,0.2,1), transform 180ms cubic-bezier(0.4,0,0.2,1);
+    }
+    .card::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse at top right, rgba(187,251,70,0.10), transparent 60%);
+      opacity: 0; transition: opacity 220ms ease;
+      pointer-events: none;
+    }
+    .card:hover { border-color: rgba(187,251,70,0.25); transform: translateY(-2px); }
+    .card:hover::before { opacity: 1; }
+    .card .num { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.2em; color: #BBFB46; text-transform: uppercase; }
+    .card h2 { margin: 0; font-family: 'Archivo', system-ui, sans-serif; font-weight: 900; font-style: italic; font-size: 28px; line-height: 1.0; letter-spacing: -0.03em; color: #F4F4F0; }
+    .card h2 em { font-family: 'Instrument Serif', serif; font-style: italic; font-weight: 400; color: #BBFB46; text-transform: lowercase; letter-spacing: -0.01em; }
+    .card p { margin: 0; font-size: 14px; line-height: 1.55; color: #CACBC2; }
+    .card .foot { margin-top: auto; display: flex; align-items: center; justify-content: space-between; }
+    .card .tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.16em; color: #8E8F86; text-transform: uppercase; }
+    .card .arrow { color: #BBFB46; font-family: 'Archivo', system-ui, sans-serif; font-weight: 900; font-size: 18px; font-style: italic; }
+    .section-title { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.2em; color: #BBFB46; text-transform: uppercase; margin: 48px 0 16px; }
+    .section-title::before { content: '● '; }
+    .span6 { grid-column: span 6; }
+    .span12 { grid-column: span 12; }
+    @media (max-width: 960px) {
+      .card, .span6 { grid-column: span 12; }
+      .head { flex-direction: column; align-items: flex-start; }
+      .mark { font-size: 44px; }
+      .page { padding: 32px 20px 80px; }
+    }
+    .toc { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 14px; }
+    .toc a {
+      font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.14em;
+      color: #CACBC2; background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      padding: 6px 10px; border-radius: 100px;
+      text-transform: uppercase; text-decoration: none;
+      transition: all 120ms;
+    }
+    .toc a:hover { color: #BBFB46; border-color: rgba(187,251,70,0.3); background: rgba(187,251,70,0.06); }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="head">
+      <div>
+        <div class="mark"><span class="gym">GYM</span><span class="pass">PASS</span></div>
+        <div class="kit">Monorepo <em>index</em></div>
+        <div class="toc">
+          <a href="/CLAUDE.md">CLAUDE.md</a>
+          <a href="/docs/architecture.md">Architecture</a>
+          <a href="/docs/tasks.md">Tasks</a>
+          <a href="/docs/database-schema.md">DB Schema</a>
+          <a href="/docs/api-standards.md">API</a>
+          <a href="/docs/git-instructions.md">Git</a>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div class="meta"><span class="live">PROTOTYPE LIVE</span></div>
+        <div class="meta" style="margin-top:6px">16 SCREENS · DARK · AR + EN</div>
+      </div>
+    </header>
+
+    <div class="section-title">Prototypes</div>
+    <div class="grid">
+      <a class="card" href="/Gym%20pass%20Mobile%20App/Gym%20Pass%20Prototype.html">
+        <span class="num">A / INTERACTIVE</span>
+        <h2>Member <em>prototype</em></h2>
+        <p>Clickable 16-screen prototype with sidebar nav, quick resets and live state. Source of UX truth.</p>
+        <div class="foot"><span class="tag">/Gym pass Mobile App</span><span class="arrow">→</span></div>
+      </a>
+
+      <a class="card" href="/design/project/ui_kits/mobile_app/index.html">
+        <span class="num">B / DESIGN BUNDLE</span>
+        <h2>Mobile <em>UI kit</em></h2>
+        <p>Claude Design export — the authoritative bundle: components, screens, tokens, icon sprite. Read first for UI work.</p>
+        <div class="foot"><span class="tag">/design/project/ui_kits/mobile_app</span><span class="arrow">→</span></div>
+      </a>
+
+      <a class="card" href="/design/project/README.md">
+        <span class="num">C / SPEC</span>
+        <h2>Design <em>system</em></h2>
+        <p>Content fundamentals, visual foundations, iconography, voice rules. The Gym Pass brand, written down.</p>
+        <div class="foot"><span class="tag">/design/project/README.md</span><span class="arrow">→</span></div>
+      </a>
+    </div>
+
+    <div class="section-title">Preview cards (tokens & components)</div>
+    <div class="grid">
+      <a class="card" href="/design/project/preview/type-display.html"><span class="num">TYPE</span><h2>Display <em>type</em></h2><p>Archivo Black Italic + Instrument Serif accent. Size ramp, kerning, line heights.</p><div class="foot"><span class="tag">preview/type-display.html</span><span class="arrow">→</span></div></a>
+      <a class="card" href="/design/project/preview/type-body.html"><span class="num">TYPE</span><h2>Body <em>type</em></h2><p>Inter scale + JetBrains Mono micro-labels. Overline, caption, body-lg/md/sm.</p><div class="foot"><span class="tag">preview/type-body.html</span><span class="arrow">→</span></div></a>
+      <a class="card" href="/design/project/preview/type-scale.html"><span class="num">TYPE</span><h2>Full <em>scale</em></h2><p>All semantic type tokens rendered together.</p><div class="foot"><span class="tag">preview/type-scale.html</span><span class="arrow">→</span></div></a>
+
+      <a class="card" href="/design/project/preview/colors-lime.html"><span class="num">COLOR</span><h2>Lime <em>brand</em></h2><p>The single electric accent. Gradient, halo, CTA glow.</p><div class="foot"><span class="tag">preview/colors-lime.html</span><span class="arrow">→</span></div></a>
+      <a class="card" href="/design/project/preview/colors-ink.html"><span class="num">COLOR</span><h2>Ink <em>scale</em></h2><p>Canvas + ink ramp, dark + light surfaces.</p><div class="foot"><span class="tag">preview/colors-ink.html</span><span class="arrow">→</span></div></a>
+      <a class="card" href="/design/project/preview/colors-tiers.html"><span class="num">COLOR</span><h2>Tier <em>palette</em></h2><p>Silver · Gold · Platinum · Diamond.</p><div class="foot"><span class="tag">preview/colors-tiers.html</span><span class="arrow">→</span></div></a>
+      <a class="card" href="/design/project/preview/colors-categories.html"><span class="num">COLOR</span><h2>Category <em>palette</em></h2><p>Gym · CrossFit · Martial · Yoga.</p><div class="foot"><span class="tag">preview/colors-categories.html</span><span class="arrow">→</span></div></a>
+      <a class="card" href="/design/project/preview/colors-semantic.html"><span class="num">COLOR</span><h2>Semantic <em>colors</em></h2><p>Danger · Success · Warn · Info.</p><div class="foot"><span class="tag">preview/colors-semantic.html</span><span class="arrow">→</span></div></a>
+      <a class="card" href="/design/project/preview/colors-canvas.html"><span class="num">COLOR</span><h2>Canvas <em>glow</em></h2><p>Dark canvas + lime radial + noise overlay spec.</p><div class="foot"><span class="tag">preview/colors-canvas.html</span><span class="arrow">→</span></div></a>
+
+      <a class="card" href="/design/project/preview/spacing-radii.html"><span class="num">LAYOUT</span><h2>Spacing <em>& radii</em></h2><p>Spacing scale (xs–4xl) + corner radii (8–pill).</p><div class="foot"><span class="tag">preview/spacing-radii.html</span><span class="arrow">→</span></div></a>
+      <a class="card" href="/design/project/preview/iconography.html"><span class="num">ICONS</span><h2>Icon <em>set</em></h2><p>Lucide-family line icons + Unicode glyph ornaments.</p><div class="foot"><span class="tag">preview/iconography.html</span><span class="arrow">→</span></div></a>
+      <a class="card" href="/design/project/preview/wordmark.html"><span class="num">BRAND</span><h2>Word <em>mark</em></h2><p>GYMPASS logotype lockups + do/don't.</p><div class="foot"><span class="tag">preview/wordmark.html</span><span class="arrow">→</span></div></a>
+
+      <a class="card" href="/design/project/preview/components-buttons.html"><span class="num">CMP</span><h2>Buttons</h2><p>Primary pill, icon button, chip, segmented.</p><div class="foot"><span class="tag">preview/components-buttons.html</span><span class="arrow">→</span></div></a>
+      <a class="card" href="/design/project/preview/components-inputs.html"><span class="num">CMP</span><h2>Inputs</h2><p>Phone, OTP cells, text, select.</p><div class="foot"><span class="tag">preview/components-inputs.html</span><span class="arrow">→</span></div></a>
+      <a class="card" href="/design/project/preview/components-badges.html"><span class="num">CMP</span><h2>Badges</h2><p>Tier chips, category chips, status dots.</p><div class="foot"><span class="tag">preview/components-badges.html</span><span class="arrow">→</span></div></a>
+      <a class="card" href="/design/project/preview/components-nav.html"><span class="num">CMP</span><h2>Navigation</h2><p>Bottom tab bar (glass) + top bar.</p><div class="foot"><span class="tag">preview/components-nav.html</span><span class="arrow">→</span></div></a>
+      <a class="card" href="/design/project/preview/components-venue.html"><span class="num">CMP</span><h2>Venue cards</h2><p>Gym tiles, detail hero, amenities grid.</p><div class="foot"><span class="tag">preview/components-venue.html</span><span class="arrow">→</span></div></a>
+      <a class="card" href="/design/project/preview/components-checkin.html"><span class="num">CMP</span><h2>Check-in</h2><p>QR viewport, scanline, success ring.</p><div class="foot"><span class="tag">preview/components-checkin.html</span><span class="arrow">→</span></div></a>
+      <a class="card" href="/design/project/preview/components-stats.html"><span class="num">CMP</span><h2>Stats</h2><p>Visit ring, KPIs, metric cards.</p><div class="foot"><span class="tag">preview/components-stats.html</span><span class="arrow">→</span></div></a>
+      <a class="card" href="/design/project/preview/components-classes.html"><span class="num">CMP</span><h2>Classes</h2><p>Class rows, schedule list.</p><div class="foot"><span class="tag">preview/components-classes.html</span><span class="arrow">→</span></div></a>
+    </div>
+
+    <div class="section-title">Engineering references</div>
+    <div class="grid">
+      <a class="card span6" href="/CLAUDE.md">
+        <span class="num">HANDBOOK</span>
+        <h2>CLAUDE <em>.md</em></h2>
+        <p>Working rules for Claude Code: stack, boundaries, dev-mode guarantees, SOLID rules, open questions.</p>
+        <div class="foot"><span class="tag">/CLAUDE.md</span><span class="arrow">→</span></div>
+      </a>
+      <a class="card span6" href="/docs/architecture.md">
+        <span class="num">BLUEPRINT</span>
+        <h2>Architecture</h2>
+        <p>Layered FastAPI backend · Next.js admin · Flutter mobile · docker-compose · SOLID mapping.</p>
+        <div class="foot"><span class="tag">/docs/architecture.md</span><span class="arrow">→</span></div>
+      </a>
+      <a class="card" href="/docs/tasks.md"><span class="num">PLAN</span><h2>Tasks</h2><p>Phase 0 → 5 implementation plan with acceptance criteria.</p><div class="foot"><span class="tag">/docs/tasks.md</span><span class="arrow">→</span></div></a>
+      <a class="card" href="/docs/database-schema.md"><span class="num">DB</span><h2>Schema</h2><p>Every table, index, enum, and the reasoning behind each.</p><div class="foot"><span class="tag">/docs/database-schema.md</span><span class="arrow">→</span></div></a>
+      <a class="card" href="/docs/api-standards.md"><span class="num">API</span><h2>Standards</h2><p>Endpoint shape, error codes, versioning, idempotency, pagination.</p><div class="foot"><span class="tag">/docs/api-standards.md</span><span class="arrow">→</span></div></a>
+      <a class="card span12" href="/docs/git-instructions.md">
+        <span class="num">WORKFLOW</span>
+        <h2>Git <em>flow</em></h2>
+        <p>Branching model, conventional commits, PR template, CI gates, release rhythm, hotfix protocol.</p>
+        <div class="foot"><span class="tag">/docs/git-instructions.md</span><span class="arrow">→</span></div>
+      </a>
+    </div>
+  </div>
+</body>
+</html>

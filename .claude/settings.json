@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell($env:Path += ';C:\\\\Program Files\\\\nodejs'; cd c:/gym-pass-pro/admin; npm install next@15 --include=dev 2>&1 | Select-Object -Last 20)",
+      "PowerShell(docker compose -f c:/gym-pass-pro/docker-compose.yml ps --format 'table {{.Service}}\\\\t{{.State}}' 2>&1)",
+      "Bash(flutter analyze *)"
+    ]
+  }
+}

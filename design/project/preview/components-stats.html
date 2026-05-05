@@ -1,0 +1,66 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="_base.css"><title>Stats</title>
+<style>
+.card { padding: 24px; }
+.grid { display: grid; grid-template-columns: 1fr 1.2fr; gap: 14px; }
+.block { border: 1px solid var(--gp-border); border-radius: 16px; padding: 18px; background: var(--gp-bg-2); }
+.tag-h { font-family: var(--gp-f-mono); font-size: 9px; text-transform: uppercase; letter-spacing: 0.16em; color: var(--gp-ink-3); margin-bottom: 14px; }
+
+.ring-wrap { display: flex; align-items: center; gap: 20px; }
+.ring { width: 140px; height: 140px; position: relative; flex-shrink: 0; }
+.ring svg { transform: rotate(-90deg); }
+.ring-track { fill: none; stroke: var(--gp-bg-3); stroke-width: 10; }
+.ring-fill { fill: none; stroke: var(--gp-lime); stroke-width: 10; stroke-linecap: round; filter: drop-shadow(0 0 8px rgba(187,251,70,0.6)); }
+.ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.ring-num { font-family: var(--gp-f-display); font-weight: 900; font-style: italic; font-size: 36px; color: var(--gp-ink); letter-spacing: -0.04em; line-height: 1; }
+.ring-lbl { font-family: var(--gp-f-mono); font-size: 9px; color: var(--gp-ink-3); letter-spacing: 0.16em; text-transform: uppercase; margin-top: 4px; }
+
+.kvs { display: flex; flex-direction: column; gap: 12px; }
+.kv { display: flex; justify-content: space-between; align-items: baseline; }
+.k { font-family: var(--gp-f-mono); font-size: 11px; color: var(--gp-ink-3); letter-spacing: 0.1em; text-transform: uppercase; }
+.v { font-family: var(--gp-f-mono); font-size: 15px; color: var(--gp-ink); font-weight: 500; }
+.v.lime { color: var(--gp-lime); }
+
+/* weekly bars */
+.bars { display: flex; align-items: flex-end; gap: 8px; height: 120px; }
+.bar { flex: 1; background: var(--gp-bg-3); border-radius: 4px; position: relative; display: flex; flex-direction: column; justify-content: flex-end; }
+.bar-fill { background: var(--gp-lime); border-radius: 4px; }
+.bar.empty .bar-fill { background: var(--gp-border-2); }
+.bar-lbl { position: absolute; bottom: -20px; left: 0; right: 0; text-align: center; font-family: var(--gp-f-mono); font-size: 9px; color: var(--gp-ink-4); letter-spacing: 0.1em; }
+</style></head><body>
+<div class="card">
+  <div class="grid">
+    <div class="block">
+      <div class="tag-h">◆ Progress ring · visits this month</div>
+      <div class="ring-wrap">
+        <div class="ring">
+          <svg width="140" height="140" viewBox="0 0 140 140">
+            <circle class="ring-track" cx="70" cy="70" r="60"/>
+            <circle class="ring-fill" cx="70" cy="70" r="60" stroke-dasharray="377" stroke-dashoffset="94"/>
+          </svg>
+          <div class="ring-center">
+            <div class="ring-num">23</div>
+            <div class="ring-lbl">/ 30 VISITS</div>
+          </div>
+        </div>
+        <div class="kvs" style="flex:1">
+          <div class="kv"><span class="k">STREAK</span><span class="v lime">14 DAYS</span></div>
+          <div class="kv"><span class="k">BEST WEEK</span><span class="v">5 ×</span></div>
+          <div class="kv"><span class="k">NEXT TIER</span><span class="v">7 to GOLD</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="block">
+      <div class="tag-h">◆ Weekly cadence · bar chart</div>
+      <div class="bars">
+        <div class="bar"><div class="bar-fill" style="height:60%"></div><div class="bar-lbl">MON</div></div>
+        <div class="bar"><div class="bar-fill" style="height:85%"></div><div class="bar-lbl">TUE</div></div>
+        <div class="bar empty"><div class="bar-fill" style="height:20%"></div><div class="bar-lbl">WED</div></div>
+        <div class="bar"><div class="bar-fill" style="height:70%"></div><div class="bar-lbl">THU</div></div>
+        <div class="bar"><div class="bar-fill" style="height:95%"></div><div class="bar-lbl">FRI</div></div>
+        <div class="bar empty"><div class="bar-fill" style="height:0%"></div><div class="bar-lbl">SAT</div></div>
+        <div class="bar"><div class="bar-fill" style="height:45%"></div><div class="bar-lbl">SUN</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>

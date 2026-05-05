@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Native launch window. Flat dark fill only — the branded splash (wordmark
+  + reveal animation + lime continuity dot) is owned by Flutter's
+  SplashPage so a single source of truth controls the brand moment. This
+  drawable exists just to bridge the 300-800ms window between
+  process-start and Flutter's first frame; keeping it a solid colour means
+  there is nothing to "jump" when Flutter takes over.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/gp_ink" />
+</layer-list>

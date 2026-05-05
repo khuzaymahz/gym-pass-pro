@@ -1,0 +1,48 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="_base.css"><title>Tiers</title>
+<style>
+.grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.sw { border: 1px solid var(--gp-border); border-radius: 14px; padding: 14px; background: var(--gp-bg-2); text-align: center; position: relative; overflow: hidden; }
+.chip {
+  height: 80px; border-radius: 10px; margin-bottom: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--gp-f-display); font-weight: 900; font-style: italic;
+  font-size: 22px; color: #0A0B0A; letter-spacing: 0.18em;
+  gap: 3px;
+}
+.name { font-family: var(--gp-f-mono); font-size: 11px; color: var(--gp-ink); font-weight: 600; letter-spacing: 0.1em; }
+.hex { font-family: var(--gp-f-mono); font-size: 10px; color: var(--gp-ink-3); margin-top: 2px; }
+.badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border-radius: 5px; font-family: var(--gp-f-mono); font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; margin-top: 8px; }
+.rank { display: inline-flex; gap: 3px; }
+.rank i { width: 6px; height: 10px; border-radius: 1px; background: #0A0B0A; display: inline-block; }
+.note { font-family: var(--gp-f-mono); font-size: 10px; color: var(--gp-ink-3); letter-spacing: 0.14em; text-transform: uppercase; margin-top: 14px; text-align: center; }
+</style></head><body>
+<div class="card">
+  <div class="grid">
+    <div class="sw">
+      <div class="chip" style="background:#B8B8B0"><span class="rank"><i></i></span></div>
+      <div class="name">SILVER</div>
+      <div class="hex">#B8B8B0</div>
+      <div class="badge" style="background:rgba(184,184,176,0.14); color:#D8D8CF; border:1px solid rgba(184,184,176,0.35)"><span class="rank" style="height:9px;align-items:center;"><i style="background:currentColor;width:4px;height:7px;"></i></span> SILVER</div>
+    </div>
+    <div class="sw">
+      <div class="chip" style="background:#FFD60A"><span class="rank"><i></i><i></i></span></div>
+      <div class="name">GOLD</div>
+      <div class="hex">#FFD60A</div>
+      <div class="badge" style="background:rgba(255,214,10,0.12); color:#FFE36B; border:1px solid rgba(255,214,10,0.35)"><span class="rank" style="height:9px;align-items:center;"><i style="background:currentColor;width:4px;height:7px;"></i><i style="background:currentColor;width:4px;height:7px;"></i></span> GOLD</div>
+    </div>
+    <div class="sw">
+      <div class="chip" style="background:#B49CFF"><span class="rank"><i></i><i></i><i></i></span></div>
+      <div class="name">PLATINUM</div>
+      <div class="hex">#B49CFF</div>
+      <div class="badge" style="background:rgba(180,156,255,0.14); color:#CFB8FF; border:1px solid rgba(180,156,255,0.4)"><span class="rank" style="height:9px;align-items:center;"><i style="background:currentColor;width:4px;height:7px;"></i><i style="background:currentColor;width:4px;height:7px;"></i><i style="background:currentColor;width:4px;height:7px;"></i></span> PLATINUM</div>
+    </div>
+    <div class="sw">
+      <div class="chip" style="background:#67E8F9"><span class="rank"><i></i><i></i><i></i><i></i></span></div>
+      <div class="name">DIAMOND</div>
+      <div class="hex">#67E8F9</div>
+      <div class="badge" style="background:rgba(103,232,249,0.12); color:#9EE7FF; border:1px solid rgba(103,232,249,0.4)"><span class="rank" style="height:9px;align-items:center;"><i style="background:currentColor;width:4px;height:7px;"></i><i style="background:currentColor;width:4px;height:7px;"></i><i style="background:currentColor;width:4px;height:7px;"></i><i style="background:currentColor;width:4px;height:7px;"></i></span> DIAMOND</div>
+    </div>
+  </div>
+  <div class="note">● RANK BARS ACCUMULATE 1→4 · COLOR FAMILIES ARE DISTINCT HUES, NOT ALL GRAYS</div>
+</div>
+</body></html>

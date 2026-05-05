@@ -1,0 +1,128 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="_base.css"><title>Buttons</title>
+<style>
+.card { padding: 24px; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.block { border: 1px solid var(--gp-border); border-radius: 14px; padding: 16px; background: var(--gp-bg-2); }
+.tag { font-family: var(--gp-f-mono); font-size: 9px; text-transform: uppercase; letter-spacing: 0.16em; color: var(--gp-ink-3); margin-bottom: 12px; }
+.stack { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+
+/* Primary pill button */
+.btn-primary {
+  background: linear-gradient(180deg, #D5FF7E, #BBFB46);
+  color: #0A0B0A;
+  font-family: var(--gp-f-display);
+  font-weight: 900;
+  font-style: italic;
+  font-size: 16px;
+  letter-spacing: 0.02em;
+  padding: 14px 22px;
+  border: none;
+  border-radius: 100px;
+  box-shadow: 0 0 30px -6px rgba(187,251,70,0.5), inset 0 1px 0 rgba(255,255,255,0.3);
+  cursor: pointer;
+  text-transform: uppercase;
+}
+.btn-secondary {
+  background: var(--gp-bg-3);
+  color: var(--gp-ink);
+  font-family: var(--gp-f-body);
+  font-weight: 600;
+  font-size: 14px;
+  padding: 13px 20px;
+  border: 1px solid var(--gp-border-2);
+  border-radius: 100px;
+  cursor: pointer;
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--gp-lime);
+  font-family: var(--gp-f-body);
+  font-weight: 600;
+  font-size: 14px;
+  padding: 11px 18px;
+  border: 1px solid var(--gp-lime);
+  border-radius: 100px;
+  cursor: pointer;
+}
+.btn-link {
+  background: transparent; border: none;
+  color: var(--gp-ink-2);
+  font-family: var(--gp-f-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0;
+  cursor: pointer;
+  border-bottom: 1px solid var(--gp-ink-4);
+  padding-bottom: 2px;
+}
+.btn-danger {
+  background: rgba(255,69,58,0.1);
+  color: #FF453A;
+  font-family: var(--gp-f-body);
+  font-weight: 600;
+  font-size: 14px;
+  padding: 13px 20px;
+  border: 1px solid rgba(255,69,58,0.3);
+  border-radius: 100px;
+}
+
+/* CHECK IN mega button */
+.mega {
+  width: 100%;
+  background: linear-gradient(180deg, #D5FF7E, #BBFB46);
+  color: #0A0B0A;
+  font-family: var(--gp-f-display);
+  font-weight: 900;
+  font-style: italic;
+  font-size: 24px;
+  letter-spacing: 0.01em;
+  padding: 22px;
+  border: none;
+  border-radius: 18px;
+  box-shadow: 0 0 40px -8px rgba(187,251,70,0.6), inset 0 1px 0 rgba(255,255,255,0.3);
+  text-transform: uppercase;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.mega .sub { font-family: var(--gp-f-mono); font-size: 10px; font-style: normal; font-weight: 500; letter-spacing: 0.2em; opacity: 0.7; }
+.mega svg { width: 24px; height: 24px; }
+
+.fab {
+  width: 56px; height: 56px; border-radius: 100px;
+  background: linear-gradient(180deg, #D5FF7E, #BBFB46);
+  display: flex; align-items: center; justify-content: center;
+  color: #0A0B0A;
+  box-shadow: 0 0 30px -6px rgba(187,251,70,0.55);
+}
+.fab svg { width: 28px; height: 28px; }
+</style></head><body>
+<svg width="0" height="0" style="position:absolute"><use/></svg>
+<script>fetch('../assets/icons.svg').then(r=>r.text()).then(t=>document.body.insertAdjacentHTML('afterbegin',t))</script>
+<div class="card">
+  <div class="grid" style="grid-template-columns: 1.25fr 1fr">
+    <div class="block">
+      <div class="tag">◆ Primary action · check-in</div>
+      <button class="mega">
+        <span style="display:flex; flex-direction:column; align-items:flex-start; gap:2px">
+          CHECK IN
+          <span class="sub">HOLD TO CONFIRM</span>
+        </span>
+        <svg><use href="#pi-arrow"/></svg>
+      </button>
+      <div style="display:flex; gap:10px; margin-top:14px; align-items:center">
+        <button class="btn-primary">JOIN CLASS</button>
+        <div class="fab"><svg><use href="#pi-qr"/></svg></div>
+      </div>
+    </div>
+    <div class="block">
+      <div class="tag">◆ Hierarchy</div>
+      <div class="stack">
+        <button class="btn-secondary">Save for later</button>
+        <button class="btn-ghost">Book again</button>
+        <button class="btn-link">VIEW DETAILS →</button>
+        <button class="btn-danger">Cancel booking</button>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>
