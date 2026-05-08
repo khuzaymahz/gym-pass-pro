@@ -45,9 +45,14 @@ class WordmarkRefresh extends StatefulWidget {
   final double? topOffset;
 
   /// Minimum time the indicator stays visible. Refreshes that resolve
-  /// faster than this still show the indicator long enough to read
-  /// as "I'm working".
-  static const Duration minActiveDisplay = Duration(milliseconds: 800);
+  /// faster than this still show the indicator long enough for the
+  /// human eye to register the state change. Tuned to 220 ms — the
+  /// usual perception threshold for a "yes, something happened"
+  /// signal — instead of the previous 800 ms which left users on
+  /// fast networks staring at skeletons for ~3/4 s after the data
+  /// was already in. Anything below ~150 ms reads as a one-frame
+  /// flash and members report "the gesture didn't work".
+  static const Duration minActiveDisplay = Duration(milliseconds: 220);
 
   @override
   State<WordmarkRefresh> createState() => _WordmarkRefreshState();
@@ -65,6 +70,17 @@ class _WordmarkRefreshState extends State<WordmarkRefresh>
   double _pullExtent = 0;
   bool _refreshing = false;
 
+  /// Highest top-pull extent the user reached during the most recent
+  /// gesture, in the same logical pixels as `_pullExtent`. Reset to 0
+  /// at the start of every new scroll gesture and read by
+  /// `_wrappedOnRefresh` as a hard gate against phantom refreshes —
+  /// `RefreshIndicator` can arm from oscillating ballistics or
+  /// edge-case notifications even when the user never actually pulled
+  /// down at the top, so we double-gate on this peak. Refresh runs
+  /// only when the peak exceeds `_triggerExtent`, mirroring the same
+  /// threshold the platform indicator uses for its dumbbell arming.
+  double _peakPullThisGesture = 0;
+
   /// Drives the post-refresh "completion spin → fade out" sequence.
   /// Runs from 0 to 1 after the refresh future resolves:
   ///   - 0.0 → 0.55  → quick 360° rotation (the "rep complete" spin)
@@ -74,7 +90,11 @@ class _WordmarkRefreshState extends State<WordmarkRefresh>
   /// `_wrappedOnRefresh` yet), so the dumbbell finishes its motion
   /// inside the gap before the page slides closed.
   late final AnimationController _completion;
-  static const Duration _completionDuration = Duration(milliseconds: 520);
+  // Was 520 ms — felt like the page was holding its breath after the
+  // data already arrived. 180 ms is enough for the dumbbell's
+  // "rep complete" beat to read without padding the perceived
+  // refresh time.
+  static const Duration _completionDuration = Duration(milliseconds: 180);
 
   @override
   void initState() {
@@ -95,17 +115,24 @@ class _WordmarkRefreshState extends State<WordmarkRefresh>
     if (n.depth != 0) return false;
     if (_refreshing) return false;
 
-    if (n is OverscrollNotification && n.overscroll < 0) {
+    if (n is ScrollStartNotification) {
+      // New gesture — clear the peak so the next refresh-gate read
+      // reflects only what the user does in this gesture, not stale
+      // state from an earlier flick.
+      _peakPullThisGesture = 0;
+    } else if (n is OverscrollNotification && n.overscroll < 0) {
       final next =
           (_pullExtent - n.overscroll).clamp(0.0, _maxIndicatorExtent);
       if (next != _pullExtent) {
         setState(() => _pullExtent = next.toDouble());
       }
+      if (next > _peakPullThisGesture) _peakPullThisGesture = next;
     } else if (n is ScrollUpdateNotification && n.metrics.pixels < 0) {
       final next = (-n.metrics.pixels).clamp(0.0, _maxIndicatorExtent);
       if (next != _pullExtent) {
         setState(() => _pullExtent = next.toDouble());
       }
+      if (next > _peakPullThisGesture) _peakPullThisGesture = next;
     } else if (n is ScrollEndNotification && _pullExtent != 0) {
       // RefreshIndicator owns the trigger; if it fires, _refreshing
       // will flip true via the wrapped onRefresh callback. Either
@@ -125,6 +152,21 @@ class _WordmarkRefreshState extends State<WordmarkRefresh>
   static const Duration _refreshHardTimeout = Duration(seconds: 8);
 
   Future<void> _wrappedOnRefresh() async {
+    // Hard gate against phantom refreshes. The platform
+    // `RefreshIndicator` can arm from oscillating ballistics, transient
+    // negative-pixel ticks during fast flings, and other edge cases
+    // we don't always intercept upstream. Members were seeing the
+    // gray skeleton state pop in after a hard upward flick at the
+    // bottom — the simulation briefly registered as a top overscroll
+    // and armed the indicator. The custom `_peakPullThisGesture`
+    // tracker only grows from genuine top overscroll, so requiring it
+    // to exceed `_triggerExtent` here is a second, deliberate check
+    // that the user actually pulled the page down. If the gate
+    // rejects, we resolve immediately so the indicator closes its
+    // gap and no skeleton state ever flips on.
+    if (_peakPullThisGesture < _triggerExtent) {
+      return;
+    }
     setState(() {
       _refreshing = true;
     });

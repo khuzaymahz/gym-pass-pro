@@ -8,6 +8,7 @@ import '../../../core/theme/gp_tokens.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
 import '../../../core/widgets/pill_button.dart';
+import '../../../core/widgets/top_bounce_physics.dart';
 import '../../../l10n/app_localizations.dart';
 import '../data/plan_pricing.dart';
 import '../data/subscription_state.dart';
@@ -197,7 +198,7 @@ class _PlansPageState extends ConsumerState<PlansPage> {
               // headline above.
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(
-                  parent: BouncingScrollPhysics(),
+                  parent: TopBouncePhysics(),
                 ),
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
                 children: GPTier.all.map((t) {

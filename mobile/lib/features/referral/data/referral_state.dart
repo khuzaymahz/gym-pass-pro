@@ -155,7 +155,7 @@ class ReferralController extends StateNotifier<ReferralState> {
     _ready = _hydrate();
     _ref.listen<UserProfile>(
       profileProvider,
-      (_, next) => _ensureCodeFor(next),
+      (_, next) => _ensureSummaryFor(next),
       fireImmediately: true,
     );
   }
@@ -180,24 +180,64 @@ class ReferralController extends StateNotifier<ReferralState> {
     );
   }
 
-  /// Pulls the user's referral code from the backend (which generates one on
-  /// first request) and caches it. Network failures keep the cached value;
-  /// the share button surfaces empty-state if there's nothing to show.
-  Future<void> _ensureCodeFor(UserProfile profile) async {
+  /// Pulls the full referral summary from the backend (code +
+  /// invited list + counts) and merges it into local state. Network
+  /// failures keep the cached values; the share button surfaces
+  /// empty-state if there's nothing to show. Was previously called
+  /// `_ensureCodeFor` and only fetched the code — every call site
+  /// has been updated to expect full hydration.
+  Future<void> _ensureSummaryFor(UserProfile profile) async {
     await _ready;
     final hasIdentity = (profile.phone ?? profile.email ?? '').isNotEmpty;
     if (!hasIdentity) return;
-    if (state.code.isNotEmpty) return;
+    // Skip if we already have a code AND a synced invited list. The
+    // invited list is the strong signal — an empty `invited` could
+    // mean "no invites" or "stale local copy"; the code being
+    // present + invited being empty keeps us from refetching forever
+    // for a member who's never invited anyone. Force-refresh paths
+    // (page pull) call `refreshFromBackend` directly.
+    if (state.code.isNotEmpty && state.invited.isNotEmpty) return;
+    await _hydrateFromBackend();
+  }
+
+  /// Fetch the latest referral summary and persist it. Called from
+  /// `_ensureSummaryFor` (cold-start hydrate) and from
+  /// `refreshFromBackend` (page pull-to-refresh). Errors are
+  /// swallowed — the cached state stays accurate even when the
+  /// backend hiccups.
+  Future<void> _hydrateFromBackend() async {
     try {
-      final code = await _repo.fetchMyReferralCode();
-      state = state.copyWith(code: code);
-      await _store.writeCode(code);
+      final summary = await _repo.fetchMyReferralSummary();
+      final invited = summary.invited
+          .map(
+            (i) => InvitedFriend(
+              id: i.id,
+              displayName: i.name?.trim().isNotEmpty == true
+                  ? i.name!
+                  : 'Member',
+              status: ReferralStatus.values.firstWhere(
+                (e) => e.name == i.status,
+                orElse: () => ReferralStatus.pending,
+              ),
+              createdAt: i.createdAt,
+              convertedAt: i.convertedAt,
+            ),
+          )
+          .toList();
+      state = state.copyWith(code: summary.code, invited: invited);
+      await _store.writeCode(summary.code);
+      await _store.writeInvited(invited);
     } catch (_) {
-      // Offline / not-yet-authenticated: leave the code empty. The next call
-      // (when the listener fires again, or when the invite page mounts) will
-      // retry — there's no value in surfacing a transient backend failure here.
+      // Offline / not-yet-authenticated: leave whatever we last had.
+      // The next call (listener fire, page pull, or app restart) will
+      // retry — surfacing a transient failure here only adds noise.
     }
   }
+
+  /// Force-refresh path used by the invite page's pull-to-refresh.
+  /// Bypasses the "already have code + invited" short-circuit so the
+  /// member can always hammer the gesture to recheck their list.
+  Future<void> refreshFromBackend() => _hydrateFromBackend();
 
   /// Call when signing up with a friend's code. Validates shape only —
   /// the real validation runs on the backend.

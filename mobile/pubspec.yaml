@@ -49,6 +49,12 @@ dependencies:
   # opens; denial silently falls back to the Amman default region.
   geolocator: ^13.0.1
 
+  # Native share sheet — invite link + gym detail share buttons hand
+  # off to the OS picker (WhatsApp, Messages, Mail, etc.) instead of
+  # silently copying to clipboard. iOS gets UIActivityViewController,
+  # Android gets the system chooser.
+  share_plus: ^10.1.0
+
   # Utilities
   intl: ^0.20.2
   freezed_annotation: ^2.4.4

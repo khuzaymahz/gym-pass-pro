@@ -5,6 +5,8 @@ import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
+import '../../../core/widgets/skeleton.dart';
+import '../../../core/widgets/top_bounce_physics.dart';
 import '../../../core/widgets/wordmark_refresh.dart';
 import '../../../l10n/app_localizations.dart';
 
@@ -60,7 +62,7 @@ class _HelpPageState extends State<HelpPage> {
             onRefresh: _onRefresh,
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
+                parent: TopBouncePhysics(),
               ),
               padding: EdgeInsets.fromLTRB(20, topInset + 12, 20, 32),
               children: [
@@ -84,20 +86,45 @@ class _HelpPageState extends State<HelpPage> {
                 style: GPText.body(size: 14, color: gp.mutedSoft),
               ),
               const SizedBox(height: 24),
-              for (final e in entries)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _helpCard(
-                    context,
-                    gp,
-                    icon: e.$1,
-                    title: e.$2,
-                    subtitle: e.$3,
-                    accent: e.$5,
-                    isRtl: isRtl,
-                    onTap: () => context.push(e.$4),
-                  ),
-                ),
+              // Pull-to-refresh skeleton — keeps the help page in
+              // the same visual register as every other refreshable
+              // surface in the app even though Help links are static
+              // today (refresh becomes a real fetch once the planned
+              // outage / status banner ships, at which point this
+              // already does the right thing).
+              Builder(
+                builder: (innerCtx) {
+                  if (RefreshScope.of(innerCtx)) {
+                    return Column(
+                      children: List.generate(
+                        entries.length,
+                        (_) => const Padding(
+                          padding: EdgeInsets.only(bottom: 12),
+                          child: SkeletonGymRow(),
+                        ),
+                      ),
+                    );
+                  }
+                  return Column(
+                    children: [
+                      for (final e in entries)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _helpCard(
+                            context,
+                            gp,
+                            icon: e.$1,
+                            title: e.$2,
+                            subtitle: e.$3,
+                            accent: e.$5,
+                            isRtl: isRtl,
+                            onTap: () => context.push(e.$4),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
               ],
             ),
           ),

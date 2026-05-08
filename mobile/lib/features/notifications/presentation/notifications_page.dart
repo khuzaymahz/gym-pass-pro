@@ -7,6 +7,7 @@ import '../../../core/theme/gp_tokens.dart';
 import '../../../core/widgets/skeleton.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
+import '../../../core/widgets/top_bounce_physics.dart';
 import '../../../core/widgets/wordmark_refresh.dart';
 import '../../../l10n/app_localizations.dart';
 import '../data/notifications_repository.dart';
@@ -90,7 +91,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
             onRefresh: _refresh,
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
+                parent: TopBouncePhysics(),
               ),
               padding: EdgeInsets.fromLTRB(20, topInset + 12, 20, 16),
               children: [

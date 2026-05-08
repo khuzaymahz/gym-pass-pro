@@ -11,6 +11,7 @@ import '../../../core/widgets/overline.dart';
 import '../../../core/widgets/pill_button.dart';
 import '../../../core/widgets/tier_chip.dart';
 import '../../../core/widgets/skeleton.dart';
+import '../../../core/widgets/top_bounce_physics.dart';
 import '../../../core/widgets/wordmark_refresh.dart';
 import '../../../l10n/app_localizations.dart';
 import '../data/subscription_state.dart';
@@ -47,12 +48,16 @@ class MySubscriptionPage extends ConsumerWidget {
             child: RadialGlow(opacity: 0.12, size: 520, alignment: Alignment(0, -0.95)),
           ),
           WordmarkRefresh(
-            onRefresh: () async {
-              await ref.read(subscriptionProvider.notifier).ready;
-            },
+            // Real refresh — re-fetches the live subscription so the
+            // visit count, renewal date, and pause window all reflect
+            // whatever the backend has right now. Was awaiting
+            // `.ready`, which is a resolved future after first hydrate
+            // and never re-fetched anything on subsequent pulls.
+            onRefresh: () =>
+                ref.read(subscriptionProvider.notifier).refreshFromBackend(),
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
+                parent: TopBouncePhysics(),
               ),
               padding: EdgeInsets.fromLTRB(20, topInset + 12, 20, 20),
               children: [

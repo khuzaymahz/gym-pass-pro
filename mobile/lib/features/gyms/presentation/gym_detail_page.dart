@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../core/di/providers.dart';
 import '../../../core/theme/gp_text.dart';
@@ -153,17 +154,28 @@ class GymDetailPage extends ConsumerWidget {
                         },
                       ),
                       const SizedBox(width: 10),
-                      IconBtn(
-                        icon: Icons.ios_share,
-                        onPressed: () {
-                          ScaffoldMessenger.of(context)
-                            ..hideCurrentSnackBar()
-                            ..showSnackBar(
-                              SnackBar(
-                                content: Text(l.shareMessage),
-                                duration: const Duration(seconds: 2),
-                              ),
-                            );
+                      Builder(
+                        builder: (btnCtx) {
+                          return IconBtn(
+                            icon: Icons.ios_share,
+                            // Native share sheet — pre-fills the OS
+                            // chooser with the gym's display name plus
+                            // its public URL so a member can drop the
+                            // gym into WhatsApp / Messages / Mail in
+                            // one gesture. Replaces the previous
+                            // snackbar-only stub. The gym name
+                            // resolves from the backend summary when
+                            // available, falling back to the seed
+                            // entry for offline / pre-hydrate cases.
+                            onPressed: () => _shareGym(
+                              context: btnCtx,
+                              webBase: ref.read(envProvider).webBaseUrl,
+                              nameAr: gymSummary?.nameAr ?? gym.name,
+                              nameEn: gymSummary?.nameEn ?? gym.name,
+                              slug: slug,
+                              isAr: isAr,
+                            ),
+                          );
                         },
                       ),
                     ],
@@ -464,6 +476,35 @@ class GymDetailPage extends ConsumerWidget {
 String _resolvePhotoUrl(String mediaBase, String url) {
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
   return '$mediaBase$url';
+}
+
+/// Pop the OS share sheet with the gym's name and a public URL the
+/// recipient can open in any browser. The URL shape mirrors the web
+/// router's gym-detail path so a deep link from WhatsApp lands on the
+/// same page if/when the web app catches up — for now it just opens
+/// the marketing landing with the slug as a fragment, which is a
+/// reasonable fallback. iPad anchors the popover to the page bounds
+/// (passed as `sharePositionOrigin`); other devices ignore that arg.
+Future<void> _shareGym({
+  required BuildContext context,
+  required String webBase,
+  required String nameAr,
+  required String nameEn,
+  required String slug,
+  required bool isAr,
+}) async {
+  final displayName = isAr && nameAr.isNotEmpty ? nameAr : nameEn;
+  final url = '$webBase/gyms/$slug';
+  final body = '$displayName\n$url';
+  final box = context.findRenderObject() as RenderBox?;
+  final origin = box != null && box.hasSize
+      ? box.localToGlobal(Offset.zero) & box.size
+      : null;
+  await Share.share(
+    body,
+    subject: displayName,
+    sharePositionOrigin: origin,
+  );
 }
 
 class _PhotoSlider extends StatefulWidget {

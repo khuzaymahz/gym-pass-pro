@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../core/di/providers.dart';
 import '../../../core/theme/gp_text.dart';
@@ -10,6 +11,7 @@ import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
 import '../../../core/widgets/pill_button.dart';
 import '../../../core/widgets/skeleton.dart';
+import '../../../core/widgets/top_bounce_physics.dart';
 import '../../../core/widgets/wordmark_refresh.dart';
 import '../../../l10n/app_localizations.dart';
 import '../data/referral_state.dart';
@@ -54,7 +56,7 @@ class _InvitePageState extends ConsumerState<InvitePage> {
             onRefresh: _onRefresh,
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
+                parent: TopBouncePhysics(),
               ),
               padding: EdgeInsets.fromLTRB(20, topInset + 12, 20, 32),
               children: [
@@ -121,14 +123,8 @@ class _InvitePageState extends ConsumerState<InvitePage> {
     );
   }
 
-  Future<void> _onRefresh() async {
-    // Referrals will rehydrate from the backend list endpoint once it
-    // exists; today the source is local secure storage so the refresh is
-    // a visual no-op. WordmarkRefresh enforces a minimum dwell so the
-    // gesture still has weight.
-    if (!mounted) return;
-    setState(() {});
-  }
+  Future<void> _onRefresh() =>
+      ref.read(referralProvider.notifier).refreshFromBackend();
 
   Widget _codeCard(
     BuildContext context,
@@ -242,8 +238,14 @@ class _InvitePageState extends ConsumerState<InvitePage> {
           child: PillButton(
             label: l.inviteShare,
             leadingIcon: Icons.ios_share_rounded,
+            // Native share sheet — hands the URL + a one-line blurb
+            // off to whichever app the member picks (WhatsApp,
+            // Messages, Mail, ...). Was a clipboard copy before,
+            // which forced the member into a second step (open
+            // their app, paste, send) for what should be a single
+            // gesture.
             onPressed: hasCode
-                ? () => _copy(context, shareUrl, l.inviteLinkCopied)
+                ? () => _shareInvite(context, l, referral.code, shareUrl)
                 : null,
           ),
         ),
@@ -580,6 +582,37 @@ class _InvitePageState extends ConsumerState<InvitePage> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(confirmation)));
+  }
+
+  /// Pop the OS share sheet pre-filled with the member's referral URL
+  /// and a short blurb. The blurb mirrors what the page already says
+  /// ("free week for them, reward for you") so the message that lands
+  /// in WhatsApp / Messages reads as continuous with the page the
+  /// member just shared from. The `subject` argument is only honoured
+  /// by destinations that have a separate subject field (Mail, Gmail);
+  /// chat apps quietly ignore it. The full text body always carries
+  /// the URL plus the explanation, so the gesture works the same
+  /// regardless of where it lands.
+  Future<void> _shareInvite(
+    BuildContext context,
+    AppLocalizations l,
+    String code,
+    String shareUrl,
+  ) async {
+    final body = '${l.inviteBlurb}\n\n$shareUrl';
+    final box = context.findRenderObject() as RenderBox?;
+    final origin = box != null && box.hasSize
+        ? box.localToGlobal(Offset.zero) & box.size
+        : null;
+    await Share.share(
+      body,
+      subject: l.inviteOverline,
+      // sharePositionOrigin is required on iPad to anchor the
+      // popover to the trigger; ignored on phones. Pass the page's
+      // bounds — close enough to the button to read as anchored,
+      // and avoids us threading a key through the widget tree.
+      sharePositionOrigin: origin,
+    );
   }
 }
 

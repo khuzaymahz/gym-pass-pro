@@ -11,6 +11,7 @@ import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
 import '../../../core/widgets/tier_chip.dart';
 import '../../../core/widgets/skeleton.dart';
+import '../../../core/widgets/top_bounce_physics.dart';
 import '../../../core/widgets/wordmark_refresh.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../auth/data/user_profile.dart';
@@ -59,8 +60,11 @@ class ProfilePage extends ConsumerWidget {
             ]);
           },
           child: ListView(
+            // Top bounces (so pull-to-refresh feels native), bottom
+            // clamps (no rebound that members read as a fake refresh
+            // when they swipe up past the last row on this short page).
             physics: const AlwaysScrollableScrollPhysics(
-              parent: BouncingScrollPhysics(),
+              parent: TopBouncePhysics(),
             ),
             padding: EdgeInsets.fromLTRB(20, topInset + 12, 20, 24),
             children: [

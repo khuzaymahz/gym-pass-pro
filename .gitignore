@@ -66,3 +66,6 @@ letsencrypt/
 *.tgz
 *.tar.gz
 .eslintcache
+
+# Celery beat scheduler runtime state (binary file regenerated on every boot)
+backend/celerybeat-schedule

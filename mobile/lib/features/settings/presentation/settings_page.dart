@@ -10,6 +10,7 @@ import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
 import '../../../core/widgets/gym_loader.dart';
 import '../../../core/widgets/icon_btn.dart';
+import '../../../core/widgets/top_bounce_physics.dart';
 import '../../../core/widgets/overline.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../auth/data/biometric_settings_controller.dart';
@@ -41,7 +42,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           // refresh gesture had nothing meaningful to fetch.
           ListView(
             physics: const AlwaysScrollableScrollPhysics(
-              parent: BouncingScrollPhysics(),
+              parent: TopBouncePhysics(),
             ),
             padding: EdgeInsets.fromLTRB(20, topInset + 12, 20, 20),
             children: [

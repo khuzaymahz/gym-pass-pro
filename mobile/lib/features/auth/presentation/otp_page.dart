@@ -91,6 +91,14 @@ class _OtpPageState extends ConsumerState<OtpPage> {
             child: RadialGlow(opacity: 0.14, alignment: Alignment(0, -0.95)),
           ),
           SafeArea(
+            // Scrollable top + bottom-pinned CTA. The previous layout
+            // was a `Padding > Column` with a `Spacer` before the
+            // Continue button — that pattern overflowed when the
+            // numeric keyboard claimed enough viewport that the
+            // Column's natural content exceeded the remaining height.
+            // The split below keeps Continue visible at the bottom of
+            // the slot and lets the OTP cells / resend row scroll
+            // independently if a tiny phone squeezes the layout.
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
               child: Column(
@@ -107,75 +115,101 @@ class _OtpPageState extends ConsumerState<OtpPage> {
                     ],
                   ),
                   const SizedBox(height: 26),
-                  Overline(l.otpStep),
-                  const SizedBox(height: 18),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
-                    children: [
-                      DisplayText(l.otpAlmostTitle, size: 44, height: 0.9),
-                      const SizedBox(width: 10),
-                      SerifAccent(l.otpAlmostAccent, size: 44),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    l.otpSentToPhone(
-                        state.phone.isEmpty ? l.otpPhoneFallback : state.phone,),
-                    style: GPText.body(size: 14, color: gp.mutedSoft),
-                  ),
-                  const SizedBox(height: 34),
-                  // OTP digits are always entered left-to-right, even on AR —
-                  // locking the row to LTR keeps cell 1 on the visual left so
-                  // the auto-advance focus flow matches what the user sees.
-                  Directionality(
-                    textDirection: TextDirection.ltr,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: List.generate(4, (i) => _otpCell(i, gp)),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(
+                        parent: ClampingScrollPhysics(),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Overline(l.otpStep),
+                          const SizedBox(height: 18),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
+                            children: [
+                              DisplayText(l.otpAlmostTitle,
+                                  size: 44, height: 0.9,),
+                              const SizedBox(width: 10),
+                              SerifAccent(l.otpAlmostAccent, size: 44),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+                          Text(
+                            l.otpSentToPhone(
+                              state.phone.isEmpty
+                                  ? l.otpPhoneFallback
+                                  : state.phone,
+                            ),
+                            style: GPText.body(size: 14, color: gp.mutedSoft),
+                          ),
+                          const SizedBox(height: 34),
+                          // OTP digits always L-to-R, even on AR — cell 1
+                          // sits on the visual left so the auto-advance
+                          // focus flow matches what the user sees.
+                          Directionality(
+                            textDirection: TextDirection.ltr,
+                            child: Row(
+                              mainAxisAlignment:
+                                  MainAxisAlignment.spaceBetween,
+                              children: List.generate(
+                                4,
+                                (i) => _otpCell(i, gp),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 22),
+                          Row(
+                            children: [
+                              Text(
+                                _seconds > 0
+                                    ? l.otpResendIn(_seconds)
+                                    : l.otpResendNow,
+                                style: GPText.mono(
+                                  size: 11,
+                                  letterSpacing: 1.5,
+                                  color: _seconds > 0
+                                      ? gp.accentInk
+                                      : gp.mutedSoft,
+                                ),
+                              ),
+                              const Spacer(),
+                              TextButton(
+                                onPressed: _seconds == 0
+                                    ? () {
+                                        ref
+                                            .read(
+                                              authControllerProvider.notifier,
+                                            )
+                                            .requestOtp(state.phone);
+                                        _startCountdown();
+                                      }
+                                    : null,
+                                child: Text(
+                                  l.otpResendBtn,
+                                  style: GPText.mono(
+                                    size: 11,
+                                    letterSpacing: 1.5,
+                                    color: _seconds == 0 ? gp.fg : gp.muted,
+                                    weight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (state.error != null) ...[
+                            const SizedBox(height: 12),
+                            Text(
+                              state.error!,
+                              style: GPText.body(size: 13, color: GP.danger),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 22),
-                  Row(
-                    children: [
-                      Text(
-                        _seconds > 0
-                            ? l.otpResendIn(_seconds)
-                            : l.otpResendNow,
-                        style: GPText.mono(
-                          size: 11,
-                          letterSpacing: 1.5,
-                          color: _seconds > 0 ? gp.accentInk : gp.mutedSoft,
-                        ),
-                      ),
-                      const Spacer(),
-                      TextButton(
-                        onPressed: _seconds == 0
-                            ? () {
-                                ref
-                                    .read(authControllerProvider.notifier)
-                                    .requestOtp(state.phone);
-                                _startCountdown();
-                              }
-                            : null,
-                        child: Text(
-                          l.otpResendBtn,
-                          style: GPText.mono(
-                            size: 11,
-                            letterSpacing: 1.5,
-                            color: _seconds == 0 ? gp.fg : gp.muted,
-                            weight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (state.error != null) ...[
-                    const SizedBox(height: 12),
-                    Text(state.error!,
-                        style: GPText.body(size: 13, color: GP.danger),),
-                  ],
-                  const Spacer(),
+                  const SizedBox(height: 12),
                   PillButton(
                     label: l.continueLabel,
                     trailingIcon: Icons.arrow_forward,

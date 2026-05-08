@@ -19,6 +19,7 @@ import '../data/jordan_regions.dart';
 import '../data/location_service.dart';
 import '../data/media_url.dart';
 import '../data/static_map_url.dart';
+import '../../../core/widgets/top_bounce_physics.dart';
 import 'gym_detail_page.dart' show favoritedGymsProvider;
 import 'gyms_filter_state.dart';
 
@@ -251,8 +252,8 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
               // Plain scroll view — no DraggableScrollableSheet, no
               // platform map underneath, just a standard list.
               CustomScrollView(
-                physics: const BouncingScrollPhysics(
-                  parent: AlwaysScrollableScrollPhysics(),
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: TopBouncePhysics(),
                 ),
                 slivers: [
                   // Top inset + chrome height so the static map starts

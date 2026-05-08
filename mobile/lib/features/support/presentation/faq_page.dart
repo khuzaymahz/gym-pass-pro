@@ -5,7 +5,7 @@ import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
-import '../../../core/widgets/wordmark_refresh.dart';
+import '../../../core/widgets/top_bounce_physics.dart';
 import '../../../l10n/app_localizations.dart';
 
 class FaqPage extends StatefulWidget {
@@ -60,17 +60,21 @@ class _FaqPageState extends State<FaqPage> {
     final topInset = MediaQuery.viewPaddingOf(context).top;
     final entries = _entries(l);
     final filtered = _filtered(entries);
+    // No `WordmarkRefresh` here — FAQ entries are localised strings
+    // shipped in the ARB bundle, so there is nothing to re-fetch. A
+    // pull-to-refresh gesture would be theatre that lies about what
+    // it's doing. If a CMS-driven FAQ ever ships, wrap the ListView
+    // in a `WordmarkRefresh` and re-add the skeleton-on-refresh
+    // gating then.
     return Scaffold(
       body: Stack(
         children: [
-          WordmarkRefresh(
-            onRefresh: _onRefresh,
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
-              ),
-              padding: EdgeInsets.fromLTRB(20, topInset + 12, 20, 28),
-              children: [
+          ListView(
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: TopBouncePhysics(),
+            ),
+            padding: EdgeInsets.fromLTRB(20, topInset + 12, 20, 28),
+            children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [Overline(l.faqOverline)],
@@ -114,8 +118,7 @@ class _FaqPageState extends State<FaqPage> {
                 }),
               const SizedBox(height: 20),
               _contactFooter(l, gp),
-              ],
-            ),
+            ],
           ),
           PositionedDirectional(
             top: topInset + 12,
@@ -125,14 +128,6 @@ class _FaqPageState extends State<FaqPage> {
         ],
       ),
     );
-  }
-
-  Future<void> _onRefresh() async {
-    // FAQ entries are statically localized — there is no remote source to
-    // re-fetch yet. WordmarkRefresh enforces a minimum dwell so the gesture
-    // is still perceptible.
-    if (!mounted) return;
-    setState(() {});
   }
 
   int _entryKey(List<_FaqEntry> all, _FaqEntry entry) => all.indexOf(entry);

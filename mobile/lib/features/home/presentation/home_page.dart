@@ -12,7 +12,9 @@ import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
 import '../../../core/widgets/pill_button.dart';
 import '../../../core/widgets/tier_chip.dart';
+import '../../../core/widgets/skeleton.dart';
 import '../../../core/widgets/wordmark.dart';
+import '../../../core/widgets/top_bounce_physics.dart';
 import '../../../core/widgets/wordmark_refresh.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../auth/data/user_profile.dart';
@@ -90,11 +92,12 @@ class _HomePageState extends ConsumerState<HomePage> {
           // never lands inside the iPhone Dynamic Island / notch.
           topOffset: topInset + 56,
           child: ListView(
-            // BouncingScrollPhysics + AlwaysScrollable lets the indicator
-            // arm even when the list fits the viewport; the bouncy edge also
-            // matches the design system's eased motion style.
+            // TopBouncePhysics: top bounces (so pull-to-refresh feels
+            // native), bottom clamps (no rebound that members read as a
+            // fake refresh). AlwaysScrollable lets the refresh indicator
+            // arm even when the list fits the viewport.
             physics: const AlwaysScrollableScrollPhysics(
-              parent: BouncingScrollPhysics(),
+              parent: TopBouncePhysics(),
             ),
             padding: EdgeInsets.fromLTRB(20, topInset + 12, 20, 24),
             children: [
@@ -126,7 +129,23 @@ class _HomePageState extends ConsumerState<HomePage> {
                 ],
               ),
               const SizedBox(height: 26),
-              _PlanCard(sub: sub),
+              // Builder gives a context positioned inside the
+              // WordmarkRefresh's RefreshScope subtree (the outer
+              // HomePage build context sits above WordmarkRefresh and
+              // would silently miss the lookup). On pull-to-refresh
+              // the plan card morphs to a SkeletonPlanCard so the
+              // member sees "we're working" instead of stale numbers
+              // sitting under a spinner. NOT used on cold start —
+              // that path renders the real card directly so a returning
+              // member never waits on a placeholder.
+              Builder(
+                builder: (innerCtx) {
+                  if (RefreshScope.of(innerCtx)) {
+                    return const SkeletonPlanCard();
+                  }
+                  return _PlanCard(sub: sub);
+                },
+              ),
               const SizedBox(height: 26),
               _sectionHeader(
                 context,
@@ -145,14 +164,37 @@ class _HomePageState extends ConsumerState<HomePage> {
                 },
               ),
               const SizedBox(height: 14),
-              ...nearYou.map(
-                (g) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: GymRow(
-                    gym: g,
-                    onTap: () => context.push('/gyms/${g.slug}'),
-                  ),
-                ),
+              // Same RefreshScope trick as the plan card above —
+              // gym rows morph to SkeletonGymRows during pull-to-
+              // refresh so the whole "near you" block participates
+              // in the loading visual instead of sitting still.
+              Builder(
+                builder: (innerCtx) {
+                  if (RefreshScope.of(innerCtx)) {
+                    return Column(
+                      children: List.generate(
+                        nearYou.length.clamp(2, 4),
+                        (_) => const Padding(
+                          padding: EdgeInsets.only(bottom: 10),
+                          child: SkeletonGymRow(),
+                        ),
+                      ),
+                    );
+                  }
+                  return Column(
+                    children: nearYou
+                        .map(
+                          (g) => Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: GymRow(
+                              gym: g,
+                              onTap: () => innerCtx.push('/gyms/${g.slug}'),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  );
+                },
               ),
               const SizedBox(height: 16),
               _sectionHeader(context, l.homeCategories, gp),

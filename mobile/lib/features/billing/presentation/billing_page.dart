@@ -6,6 +6,7 @@ import '../../../core/theme/gp_tokens.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
 import '../../../core/widgets/pill_button.dart';
+import '../../../core/widgets/top_bounce_physics.dart';
 import '../../../core/widgets/wordmark_refresh.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../subscription/data/subscription_state.dart';
@@ -36,10 +37,20 @@ class BillingPage extends ConsumerWidget {
       body: Stack(
         children: [
           WordmarkRefresh(
-            onRefresh: () => ref.read(subscriptionProvider.notifier).ready,
+            // Real refresh — re-fetches both the active subscription
+            // (drives the header's tier chip + renewal date) and the
+            // billing state (saved methods, invoice history). The
+            // previous implementation awaited `.ready`, which after
+            // the first hydrate is a resolved future and a no-op, so
+            // the gesture appeared to work but the page never
+            // actually re-fetched anything.
+            onRefresh: () => Future.wait([
+              ref.read(subscriptionProvider.notifier).refreshFromBackend(),
+              ref.read(billingProvider.notifier).refreshFromBackend(),
+            ]),
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
+                parent: TopBouncePhysics(),
               ),
               padding: EdgeInsets.fromLTRB(20, topInset + 12, 20, 32),
               children: [

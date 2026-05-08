@@ -155,9 +155,8 @@ class _SignInPageState extends ConsumerState<SignInPage> {
       case BiometricResult.ok:
         break;
     }
-    final ok = await ref
-        .read(authControllerProvider.notifier)
-        .signInWithBiometric();
+    final ok =
+        await ref.read(authControllerProvider.notifier).signInWithBiometric();
     if (!mounted) return;
     if (!ok) {
       // Saved credential rejected (likely a server-side password change).
@@ -229,8 +228,7 @@ class _SignInPageState extends ConsumerState<SignInPage> {
           next.phase == AuthPhase.awaitingCode) {
         context.push('/otp');
       }
-      if (prev?.phase != AuthPhase.authed &&
-          next.phase == AuthPhase.authed) {
+      if (prev?.phase != AuthPhase.authed && next.phase == AuthPhase.authed) {
         context.go('/home');
       }
       // Password gate just closed (user edited the phone or reset manually):
@@ -262,7 +260,10 @@ class _SignInPageState extends ConsumerState<SignInPage> {
         children: [
           const Positioned.fill(
             child: RadialGlow(
-                opacity: 0.18, size: 520, alignment: Alignment(0, -0.9),),
+              opacity: 0.18,
+              size: 520,
+              alignment: Alignment(0, -0.9),
+            ),
           ),
           SafeArea(
             minimum: const EdgeInsets.only(bottom: 8),
@@ -271,196 +272,214 @@ class _SignInPageState extends ConsumerState<SignInPage> {
               child: Form(
                 key: _formKey,
                 autovalidateMode: AutovalidateMode.onUserInteraction,
-                // Scroll the whole sheet when the keyboard is up, but pin the
-                // CTA stack (Continue + Google) to the bottom of the viewport
-                // the rest of the time. The Spacer below works because
-                // IntrinsicHeight forces a finite height inside the scroll
-                // view.
-                child: LayoutBuilder(
-                  builder: (context, constraints) => SingleChildScrollView(
-                    child: ConstrainedBox(
-                      constraints:
-                          BoxConstraints(minHeight: constraints.maxHeight),
-                      child: IntrinsicHeight(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                // The page scrolls when the keyboard claims room. Previously
+                // the layout used `IntrinsicHeight` + `Spacer` to pin the
+                // CTA stack to the bottom of the viewport, which broke once
+                // content exceeded available height (keyboard up + password
+                // gate appeared) — `Spacer` can't go negative, so the
+                // Column overflowed by ~20 px and rendered the yellow/black
+                // overflow stripes. The simpler scroll-friendly layout
+                // below trades the bottom-pinned CTA for a clean scroll on
+                // all viewport sizes.
+                child: SingleChildScrollView(
+                  // Push extra padding when the keyboard is up so the last
+                  // CTA can scroll *above* the IME instead of being kissed
+                  // by it.
+                  padding: EdgeInsets.only(
+                    bottom:
+                        MediaQuery.viewInsetsOf(context).bottom > 0 ? 16 : 0,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Lock the top row to LTR so the wordmark stays
+                      // top-start and the locale toggle stays top-end
+                      // in both locales — brand identity is not
+                      // mirrored.
+                      const Directionality(
+                        textDirection: TextDirection.ltr,
+                        child: Row(
                           children: [
-                            // Lock the top row to LTR so the wordmark stays
-                            // top-start and the locale toggle stays top-end
-                            // in both locales — brand identity is not
-                            // mirrored.
-                            const Directionality(
-                              textDirection: TextDirection.ltr,
-                              child: Row(
-                                children: [
-                                  Wordmark(size: 26),
-                                  Spacer(),
-                                  EntryTopToggles(),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 36),
-                            Overline(l.signInStep),
-                            const SizedBox(height: 22),
-                            DisplayText(l.signInHeadline1,
-                                size: 52, height: 0.88,),
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.baseline,
-                              textBaseline: TextBaseline.alphabetic,
-                              children: [
-                                DisplayText(l.signInHeadline2,
-                                    size: 52, height: 0.88,),
-                                const SizedBox(width: 10),
-                                SerifAccent(l.signInHeadlineAccent, size: 52),
-                              ],
-                            ),
-                            const SizedBox(height: 22),
-                            SizedBox(
-                              width: 300,
-                              child: Text(
-                                l.signInBlurb,
-                                style: GPText.body(
-                                    size: 14, color: context.gp.mutedSoft,),
-                              ),
-                            ),
-                            const SizedBox(height: 40),
-                            _PhoneField(
-                              controller: _phoneCtrl,
-                              validator: (v) => _validatePhone(v, l),
-                            ),
-                            if (gatePassword) ...[
-                              const SizedBox(height: 14),
-                              _PasswordField(
-                                controller: _passwordCtrl,
-                                visible: _passwordVisible,
-                                onToggle: () => setState(() =>
-                                    _passwordVisible = !_passwordVisible,),
-                                onChanged: () => setState(() {}),
-                                showEmptyError: _passwordSubmitAttempted &&
-                                    _passwordCtrl.text.isEmpty,
-                              ),
-                              const SizedBox(height: 10),
-                              _RememberForgotRow(
-                                rememberMe: state.rememberMe,
-                                onRememberChanged: (v) => ref
-                                    .read(authControllerProvider.notifier)
-                                    .setRememberMe(v),
-                                onForgotPassword: _onForgotPassword,
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                l.signInPasswordNote,
-                                style: GPText.mono(
-                                    size: 10,
-                                    letterSpacing: 1.2,
-                                    color: context.gp.muted,),
-                              ),
-                            ] else ...[
-                              const SizedBox(height: 12),
-                              Text(
-                                submitting
-                                    ? l.signInCheckingNumber
-                                    : l.signInOtpNote,
-                                style: GPText.mono(
-                                    size: 10,
-                                    letterSpacing: 1.2,
-                                    color: context.gp.muted,),
-                              ),
-                            ],
-                            // Spacer absorbs remaining vertical space so the
-                            // CTA stack below stays pinned to the bottom of
-                            // the viewport — same visual position as before
-                            // the password gate was added.
-                            const Spacer(),
-                            if (errorMessage != null) ...[
-                              Text(
-                                errorMessage,
-                                style:
-                                    GPText.body(size: 13, color: GP.danger),
-                              ),
-                              const SizedBox(height: 12),
-                            ],
-                            if (_biometricReady) ...[
-                              PillButton(
-                                label: l.biometricSignInBtn,
-                                leadingIcon: Icons.fingerprint,
-                                onPressed:
-                                    submitting ? null : _onBiometric,
-                              ),
-                              const SizedBox(height: 10),
-                            ],
-                            PillButton(
-                              label: gatePassword
-                                  ? l.signInWithPasswordCta
-                                  : l.continueLabel,
-                              trailingIcon: Icons.arrow_forward,
-                              variant: _biometricReady
-                                  ? PillVariant.secondary
-                                  : PillVariant.primary,
-                              onPressed: (submitting || !canSubmit)
-                                  ? null
-                                  : () => _submit(state),
-                            ),
-                            // Registration-adjacent controls (OR divider +
-                            // Google sign-in) disappear once the password
-                            // gate is showing, since they belong to the
-                            // new-user path.
-                            // Google sign-in is gated behind kDebugMode until
-                            // real Google JWKS verification lands on the
-                            // backend. Showing the button in a release build
-                            // would invite users to tap a path that 401s in
-                            // production, so the affordance is hidden there.
-                            if (!gatePassword && kDebugMode) ...[
-                              const SizedBox(height: 10),
-                              Row(
-                                children: [
-                                  Expanded(
-                                      child:
-                                          Divider(color: context.gp.line),),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,),
-                                    child: Text(l.orDivider,
-                                        style: GPText.mono(
-                                            size: 10,
-                                            letterSpacing: 2,
-                                            color: context.gp.muted,),),
-                                  ),
-                                  Expanded(
-                                      child:
-                                          Divider(color: context.gp.line),),
-                                ],
-                              ),
-                              const SizedBox(height: 10),
-                              PillButton(
-                                label: l.signInContinueWithGoogle,
-                                variant: PillVariant.secondary,
-                                leadingIcon: Icons.g_mobiledata_rounded,
-                                onPressed: submitting
-                                    ? null
-                                    : () async {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          SnackBar(
-                                              content:
-                                                  Text(l.googleSignInMock),),
-                                        );
-                                        await ref
-                                            .read(authControllerProvider
-                                                .notifier,)
-                                            .mockGoogleSignIn(
-                                              email: l.googleMockEmail,
-                                            );
-                                        if (!mounted) return;
-                                        this.context.go('/home');
-                                      },
-                              ),
-                            ],
-                            const SizedBox(height: 8),
+                            Wordmark(size: 26),
+                            Spacer(),
+                            EntryTopToggles(),
                           ],
                         ),
                       ),
-                    ),
+                      const SizedBox(height: 36),
+                      Overline(l.signInStep),
+                      const SizedBox(height: 22),
+                      DisplayText(
+                        l.signInHeadline1,
+                        size: 52,
+                        height: 0.88,
+                      ),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          DisplayText(
+                            l.signInHeadline2,
+                            size: 52,
+                            height: 0.88,
+                          ),
+                          const SizedBox(width: 10),
+                          SerifAccent(l.signInHeadlineAccent, size: 52),
+                        ],
+                      ),
+                      const SizedBox(height: 22),
+                      SizedBox(
+                        width: 300,
+                        child: Text(
+                          l.signInBlurb,
+                          style: GPText.body(
+                            size: 14,
+                            color: context.gp.mutedSoft,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 40),
+                      _PhoneField(
+                        controller: _phoneCtrl,
+                        validator: (v) => _validatePhone(v, l),
+                      ),
+                      if (gatePassword) ...[
+                        const SizedBox(height: 14),
+                        _PasswordField(
+                          controller: _passwordCtrl,
+                          visible: _passwordVisible,
+                          onToggle: () => setState(
+                            () => _passwordVisible = !_passwordVisible,
+                          ),
+                          onChanged: () => setState(() {}),
+                          showEmptyError: _passwordSubmitAttempted &&
+                              _passwordCtrl.text.isEmpty,
+                        ),
+                        const SizedBox(height: 10),
+                        _RememberForgotRow(
+                          rememberMe: state.rememberMe,
+                          onRememberChanged: (v) => ref
+                              .read(authControllerProvider.notifier)
+                              .setRememberMe(v),
+                          onForgotPassword: _onForgotPassword,
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          l.signInPasswordNote,
+                          style: GPText.mono(
+                            size: 10,
+                            letterSpacing: 1.2,
+                            color: context.gp.muted,
+                          ),
+                        ),
+                      ] else ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          submitting ? l.signInCheckingNumber : l.signInOtpNote,
+                          style: GPText.mono(
+                            size: 10,
+                            letterSpacing: 1.2,
+                            color: context.gp.muted,
+                          ),
+                        ),
+                      ],
+                      // Fixed gap between fields and CTA stack. Was a
+                      // `Spacer` before, but Spacer needs a bounded
+                      // parent height — once the keyboard came up
+                      // and content exceeded the viewport, Spacer
+                      // collapsed to 0 and the column overflowed. A
+                      // plain SizedBox lets the page scroll cleanly
+                      // when space is tight and gives reasonable
+                      // breathing room when it isn't.
+                      const SizedBox(height: 32),
+                      if (errorMessage != null) ...[
+                        Text(
+                          errorMessage,
+                          style: GPText.body(size: 13, color: GP.danger),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      if (_biometricReady) ...[
+                        PillButton(
+                          label: l.biometricSignInBtn,
+                          leadingIcon: Icons.fingerprint,
+                          onPressed: submitting ? null : _onBiometric,
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                      PillButton(
+                        label: gatePassword
+                            ? l.signInWithPasswordCta
+                            : l.continueLabel,
+                        trailingIcon: Icons.arrow_forward,
+                        variant: _biometricReady
+                            ? PillVariant.secondary
+                            : PillVariant.primary,
+                        onPressed: (submitting || !canSubmit)
+                            ? null
+                            : () => _submit(state),
+                      ),
+                      // Registration-adjacent controls (OR divider +
+                      // Google sign-in) disappear once the password
+                      // gate is showing, since they belong to the
+                      // new-user path.
+                      // Google sign-in is gated behind kDebugMode until
+                      // real Google JWKS verification lands on the
+                      // backend. Showing the button in a release build
+                      // would invite users to tap a path that 401s in
+                      // production, so the affordance is hidden there.
+                      if (!gatePassword && kDebugMode) ...[
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Divider(color: context.gp.line),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                              ),
+                              child: Text(
+                                l.orDivider,
+                                style: GPText.mono(
+                                  size: 10,
+                                  letterSpacing: 2,
+                                  color: context.gp.muted,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: Divider(color: context.gp.line),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        PillButton(
+                          label: l.signInContinueWithGoogle,
+                          variant: PillVariant.secondary,
+                          leadingIcon: Icons.g_mobiledata_rounded,
+                          onPressed: submitting
+                              ? null
+                              : () async {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(l.googleSignInMock),
+                                    ),
+                                  );
+                                  await ref
+                                      .read(
+                                        authControllerProvider.notifier,
+                                      )
+                                      .mockGoogleSignIn(
+                                        email: l.googleMockEmail,
+                                      );
+                                  if (!mounted) return;
+                                  this.context.go('/home');
+                                },
+                        ),
+                      ],
+                      const SizedBox(height: 8),
+                    ],
                   ),
                 ),
               ),
@@ -524,8 +543,7 @@ class _RememberForgotRow extends StatelessWidget {
         TextButton(
           onPressed: onForgotPassword,
           style: TextButton.styleFrom(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
             minimumSize: Size.zero,
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
@@ -599,9 +617,8 @@ class _PhoneFieldState extends State<_PhoneField> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final gp = context.gp;
-    final externalError = _interacted
-        ? widget.validator?.call(widget.controller.text)
-        : null;
+    final externalError =
+        _interacted ? widget.validator?.call(widget.controller.text) : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -711,8 +728,7 @@ class _PhoneFieldState extends State<_PhoneField> {
         // inner edge, not flush with the border.
         if (externalError != null)
           Padding(
-            padding:
-                const EdgeInsetsDirectional.fromSTEB(14, 8, 14, 0),
+            padding: const EdgeInsetsDirectional.fromSTEB(14, 8, 14, 0),
             child: Text(
               externalError,
               textAlign: TextAlign.start,
@@ -783,7 +799,10 @@ class _PasswordField extends StatelessWidget {
         Text(
           l.signInPasswordLabel,
           style: GPText.mono(
-              size: 10, letterSpacing: 1.8, color: gp.muted,),
+            size: 10,
+            letterSpacing: 1.8,
+            color: gp.muted,
+          ),
         ),
         const SizedBox(height: 8),
         // Passwords type left-to-right in every locale — otherwise an Arabic

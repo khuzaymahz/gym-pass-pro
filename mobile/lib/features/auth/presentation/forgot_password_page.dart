@@ -327,56 +327,60 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
     }
     final masked = (_maskedEmail ?? '').trim();
     final hasEmail = masked.isNotEmpty;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          l.forgotBlurb1,
-          style: GPText.body(size: 14, color: gp.mutedSoft),
-        ),
-        const SizedBox(height: 18),
-        _methodTile(
-          gp: gp,
-          selected: _method == _ResetMethod.sms,
-          icon: Icons.sms_outlined,
-          title: l.forgotMethodSmsTitle,
-          subtitle: l.forgotMethodSmsSubtitle(_maskPhone(widget.phone)),
-          onTap: () => setState(() => _method = _ResetMethod.sms),
-        ),
-        const SizedBox(height: 12),
-        _methodTile(
-          gp: gp,
-          selected: _method == _ResetMethod.email,
-          icon: Icons.mail_outline,
-          title: l.forgotMethodEmailTitle,
-          subtitle: hasEmail
-              ? l.forgotMethodEmailSubtitle(masked)
-              : l.forgotMethodEmailMissing,
-          onTap: hasEmail
-              ? () => setState(() => _method = _ResetMethod.email)
-              : null,
-        ),
-        const SizedBox(height: 16),
-        Text(
-          l.forgotDevHint,
-          style: GPText.mono(
-            size: 10,
-            letterSpacing: 1.2,
-            color: gp.muted,
+    // Scrollable top content + bottom-pinned CTA. The previous
+    // `Column + Spacer + button` pattern overflowed when the keyboard
+    // pushed the parent's bounded slot below the natural content
+    // height. The Stack-with-Positioned approach keeps the CTA
+    // visually pinned to the bottom of the slot while letting the top
+    // content scroll independently.
+    return _StepFrame(
+      gp: gp,
+      error: _error,
+      cta: PillButton(
+        label: l.forgotSendCode,
+        trailingIcon: Icons.arrow_forward,
+        onPressed: (_method == null || _loading) ? null : _sendCode,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l.forgotBlurb1,
+            style: GPText.body(size: 14, color: gp.mutedSoft),
           ),
-        ),
-        const Spacer(),
-        if (_error != null) ...[
-          Text(_error!, style: GPText.body(size: 13, color: GP.danger)),
+          const SizedBox(height: 18),
+          _methodTile(
+            gp: gp,
+            selected: _method == _ResetMethod.sms,
+            icon: Icons.sms_outlined,
+            title: l.forgotMethodSmsTitle,
+            subtitle: l.forgotMethodSmsSubtitle(_maskPhone(widget.phone)),
+            onTap: () => setState(() => _method = _ResetMethod.sms),
+          ),
           const SizedBox(height: 12),
+          _methodTile(
+            gp: gp,
+            selected: _method == _ResetMethod.email,
+            icon: Icons.mail_outline,
+            title: l.forgotMethodEmailTitle,
+            subtitle: hasEmail
+                ? l.forgotMethodEmailSubtitle(masked)
+                : l.forgotMethodEmailMissing,
+            onTap: hasEmail
+                ? () => setState(() => _method = _ResetMethod.email)
+                : null,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            l.forgotDevHint,
+            style: GPText.mono(
+              size: 10,
+              letterSpacing: 1.2,
+              color: gp.muted,
+            ),
+          ),
         ],
-        PillButton(
-          label: l.forgotSendCode,
-          trailingIcon: Icons.arrow_forward,
-          onPressed: (_method == null || _loading) ? null : _sendCode,
-        ),
-        const SizedBox(height: 8),
-      ],
+      ),
     );
   }
 
@@ -462,76 +466,74 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
   }
 
   Widget _codeStep(AppLocalizations l, GpColors gp) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          l.forgotCodeBlurb(_targetForSelectedMethod()),
-          style: GPText.body(size: 14, color: gp.mutedSoft),
-        ),
-        const SizedBox(height: 20),
-        Directionality(
-          textDirection: TextDirection.ltr,
-          child: TextField(
-            controller: _codeCtrl,
-            keyboardType: TextInputType.number,
-            textAlign: TextAlign.center,
-            maxLength: 4,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            style: GPText.display(28, color: gp.fg, height: 1.0)
-                .copyWith(fontStyle: FontStyle.normal, letterSpacing: 12),
-            cursorColor: gp.accentInk,
-            decoration: InputDecoration(
-              counterText: '',
-              hintText: '0000',
-              hintStyle: GPText.display(28, color: gp.muted)
+    return _StepFrame(
+      gp: gp,
+      error: _error,
+      cta: PillButton(
+        label: l.forgotVerifyCode,
+        trailingIcon: Icons.arrow_forward,
+        onPressed: (_loading || _codeCtrl.text.length != 4)
+            ? null
+            : _verifyCode,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l.forgotCodeBlurb(_targetForSelectedMethod()),
+            style: GPText.body(size: 14, color: gp.mutedSoft),
+          ),
+          const SizedBox(height: 20),
+          Directionality(
+            textDirection: TextDirection.ltr,
+            child: TextField(
+              controller: _codeCtrl,
+              keyboardType: TextInputType.number,
+              textAlign: TextAlign.center,
+              maxLength: 4,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              style: GPText.display(28, color: gp.fg, height: 1.0)
                   .copyWith(fontStyle: FontStyle.normal, letterSpacing: 12),
-              filled: true,
-              fillColor: gp.bg2,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(GPRadius.lg),
-                borderSide: BorderSide(color: gp.line),
+              cursorColor: gp.accentInk,
+              decoration: InputDecoration(
+                counterText: '',
+                hintText: '0000',
+                hintStyle: GPText.display(28, color: gp.muted)
+                    .copyWith(fontStyle: FontStyle.normal, letterSpacing: 12),
+                filled: true,
+                fillColor: gp.bg2,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(GPRadius.lg),
+                  borderSide: BorderSide(color: gp.line),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(GPRadius.lg),
+                  borderSide: BorderSide(color: gp.line),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(GPRadius.lg),
+                  borderSide: BorderSide(color: gp.accentInk, width: 1.5),
+                ),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
               ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(GPRadius.lg),
-                borderSide: BorderSide(color: gp.line),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(GPRadius.lg),
-                borderSide: BorderSide(color: gp.accentInk, width: 1.5),
-              ),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
             ),
           ),
-        ),
-        const SizedBox(height: 12),
-        TextButton(
-          onPressed: _loading ? null : _sendCode,
-          style: TextButton.styleFrom(
-            padding: EdgeInsets.zero,
-            minimumSize: Size.zero,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-          child: Text(
-            l.forgotResendCode,
-            style: GPText.body(size: 13, color: gp.accentInk),
-          ),
-        ),
-        const Spacer(),
-        if (_error != null) ...[
-          Text(_error!, style: GPText.body(size: 13, color: GP.danger)),
           const SizedBox(height: 12),
+          TextButton(
+            onPressed: _loading ? null : _sendCode,
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.zero,
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(
+              l.forgotResendCode,
+              style: GPText.body(size: 13, color: gp.accentInk),
+            ),
+          ),
         ],
-        PillButton(
-          label: l.forgotVerifyCode,
-          trailingIcon: Icons.arrow_forward,
-          onPressed: (_loading || _codeCtrl.text.length != 4)
-              ? null
-              : _verifyCode,
-        ),
-        const SizedBox(height: 8),
-      ],
+      ),
     );
   }
 
@@ -539,51 +541,49 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
     return Form(
       key: _passwordFormKey,
       autovalidateMode: AutovalidateMode.onUserInteraction,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            l.forgotNewPasswordBlurb,
-            style: GPText.body(size: 14, color: gp.mutedSoft),
-          ),
-          const SizedBox(height: 20),
-          _label(gp, l.labelPassword),
-          const SizedBox(height: 8),
-          _passwordField(
-            controller: _passwordCtrl,
-            hint: l.hintPassword,
-            visible: _passwordVisible,
-            onToggle: () =>
-                setState(() => _passwordVisible = !_passwordVisible),
-            validator: (v) => _validatePassword(v, l),
-            gp: gp,
-          ),
-          const SizedBox(height: 16),
-          _label(gp, l.labelPasswordConfirm),
-          const SizedBox(height: 8),
-          _passwordField(
-            controller: _confirmCtrl,
-            hint: l.hintPasswordConfirm,
-            visible: _confirmVisible,
-            onToggle: () =>
-                setState(() => _confirmVisible = !_confirmVisible),
-            validator: (v) => _validateConfirm(v, l),
-            gp: gp,
-          ),
-          const Spacer(),
-          if (_error != null) ...[
-            Text(_error!, style: GPText.body(size: 13, color: GP.danger)),
-            const SizedBox(height: 12),
+      child: _StepFrame(
+        gp: gp,
+        error: _error,
+        cta: PillButton(
+          label: l.forgotSetNewPassword,
+          trailingIcon: Icons.arrow_forward,
+          onPressed: (_loading || !_canSubmitPassword(l))
+              ? null
+              : _submitNewPassword,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              l.forgotNewPasswordBlurb,
+              style: GPText.body(size: 14, color: gp.mutedSoft),
+            ),
+            const SizedBox(height: 20),
+            _label(gp, l.labelPassword),
+            const SizedBox(height: 8),
+            _passwordField(
+              controller: _passwordCtrl,
+              hint: l.hintPassword,
+              visible: _passwordVisible,
+              onToggle: () =>
+                  setState(() => _passwordVisible = !_passwordVisible),
+              validator: (v) => _validatePassword(v, l),
+              gp: gp,
+            ),
+            const SizedBox(height: 16),
+            _label(gp, l.labelPasswordConfirm),
+            const SizedBox(height: 8),
+            _passwordField(
+              controller: _confirmCtrl,
+              hint: l.hintPasswordConfirm,
+              visible: _confirmVisible,
+              onToggle: () =>
+                  setState(() => _confirmVisible = !_confirmVisible),
+              validator: (v) => _validateConfirm(v, l),
+              gp: gp,
+            ),
           ],
-          PillButton(
-            label: l.forgotSetNewPassword,
-            trailingIcon: Icons.arrow_forward,
-            onPressed: (_loading || !_canSubmitPassword(l))
-                ? null
-                : _submitNewPassword,
-          ),
-          const SizedBox(height: 8),
-        ],
+        ),
       ),
     );
   }
@@ -639,6 +639,57 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
       ),
+    );
+  }
+}
+
+/// Step body frame: a scrollable top region above a CTA pinned to the
+/// bottom. Each step in the forgot-password wizard sits inside an
+/// `Expanded` slot whose height shrinks when the IME claims room — the
+/// previous `Column + Spacer + button` pattern overflowed once natural
+/// content exceeded the bounded height (typical on small Androids
+/// when both password fields + the keyboard are visible). This frame
+/// keeps the CTA visible at the bottom of the slot, lets the top
+/// content scroll independently when squeezed, and surfaces inline
+/// errors directly above the CTA where they're hardest to miss.
+class _StepFrame extends StatelessWidget {
+  const _StepFrame({
+    required this.gp,
+    required this.cta,
+    required this.child,
+    this.error,
+  });
+
+  final GpColors gp;
+  final Widget cta;
+  final Widget child;
+  final String? error;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            // Allow scrolling even when content is short — keeps the
+            // gesture available so a member can flick to dismiss the
+            // keyboard if they need to.
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: ClampingScrollPhysics(),
+            ),
+            child: child,
+          ),
+        ),
+        if (error != null) ...[
+          const SizedBox(height: 8),
+          Text(error!, style: GPText.body(size: 13, color: GP.danger)),
+          const SizedBox(height: 12),
+        ] else
+          const SizedBox(height: 12),
+        cta,
+        const SizedBox(height: 8),
+      ],
     );
   }
 }

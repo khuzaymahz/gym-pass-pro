@@ -194,16 +194,21 @@ class AuthRepository {
     );
   }
 
-  /// Returns the authenticated user's referral code (creating one server-side
-  /// if missing). Mobile uses this on hydrate so the share code shown in-app
-  /// matches what the backend will accept on lookup — no more local SHA256
-  /// derivation that could drift from the server's generated code.
-  Future<String> fetchMyReferralCode() async {
+  /// Returns the authenticated user's full referral summary — the code
+  /// (created server-side if missing), the canonical share URL, the
+  /// status counts, and the list of invited friends with their conversion
+  /// state. Mobile uses this on hydrate AND on the invite-page pull-to-
+  /// refresh so the share/invited surfaces always reflect what the
+  /// backend has, not a local snapshot. Replaces the older
+  /// `fetchMyReferralCode` which read the same endpoint but threw away
+  /// every field except `code`, leaving the invited list permanently
+  /// stale on disk.
+  Future<MyReferralSummary> fetchMyReferralSummary() async {
     final response = await _api.get<Map<String, dynamic>>(
       '/api/v1/me/referral',
       authed: true,
     );
-    return response.data!['code'] as String;
+    return MyReferralSummary.fromJson(response.data!);
   }
 
   /// Look up a friend's referral code on the backend. Returns the referrer's
@@ -276,6 +281,71 @@ class AuthRepository {
   Future<bool> hasSession() async => (await _tokens.readAccess()) != null;
 
   Future<bool> isSessionPersistent() => _tokens.isPersistent();
+}
+
+/// Wire shape of `GET /api/v1/me/referral`. Mirrors the backend's
+/// `MyReferralSummary` Pydantic model 1:1 — `code`, the canonical
+/// `shareUrl`, status counts, and the list of invited friends with
+/// their conversion state. Kept dumb so the controller can decide
+/// how to fold it into local state without this layer leaking
+/// `ReferralStatus` from the controller's enum.
+class MyReferralSummary {
+  const MyReferralSummary({
+    required this.code,
+    required this.shareUrl,
+    required this.counts,
+    required this.invited,
+  });
+
+  final String code;
+  final String shareUrl;
+  final Map<String, int> counts;
+  final List<MyReferralInvited> invited;
+
+  factory MyReferralSummary.fromJson(Map<String, dynamic> j) {
+    final rawCounts = (j['counts'] as Map?) ?? const {};
+    return MyReferralSummary(
+      code: j['code'] as String,
+      shareUrl: (j['shareUrl'] ?? '') as String,
+      counts: rawCounts.map((k, v) => MapEntry(k.toString(), (v as num).toInt())),
+      invited: ((j['invited'] as List?) ?? const [])
+          .cast<Map<String, dynamic>>()
+          .map(MyReferralInvited.fromJson)
+          .toList(),
+    );
+  }
+}
+
+class MyReferralInvited {
+  const MyReferralInvited({
+    required this.id,
+    required this.name,
+    required this.status,
+    required this.createdAt,
+    this.convertedAt,
+  });
+
+  final String id;
+  final String? name;
+
+  /// Always one of `pending`, `converted`, `expired` — mirrors the
+  /// backend `referral_status_enum`. The controller maps this to its
+  /// local Dart enum.
+  final String status;
+  final DateTime createdAt;
+  final DateTime? convertedAt;
+
+  factory MyReferralInvited.fromJson(Map<String, dynamic> j) {
+    return MyReferralInvited(
+      id: j['id'] as String,
+      name: j['name'] as String?,
+      status: j['status'] as String,
+      createdAt: DateTime.parse(j['createdAt'] as String),
+      convertedAt: j['convertedAt'] == null
+          ? null
+          : DateTime.parse(j['convertedAt'] as String),
+    );
+  }
 }
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
