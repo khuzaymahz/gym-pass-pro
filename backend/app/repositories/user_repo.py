@@ -73,6 +73,35 @@ class UserRepository:
         await self.session.flush()
         return user
 
+    async def create_gym_owner(
+        self,
+        *,
+        phone: str,
+        password_hash: str,
+        name: str,
+        gym_id: UUID,
+    ) -> User:
+        user = User(
+            id=uuid7(),
+            phone=phone,
+            name=name,
+            password_hash=password_hash,
+            role=Role.GYM_OWNER,
+            gym_id=gym_id,
+            locale=Locale.AR,
+        )
+        self.session.add(user)
+        await self.session.flush()
+        return user
+
+    async def get_gym_owner_for_gym(self, gym_id: UUID) -> User | None:
+        stmt = select(User).where(
+            User.gym_id == gym_id,
+            User.role == Role.GYM_OWNER,
+            User.deleted_at.is_(None),
+        )
+        return (await self.session.execute(stmt)).scalar_one_or_none()
+
     async def list_paginated(
         self,
         *,

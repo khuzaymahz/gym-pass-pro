@@ -332,6 +332,58 @@ class AuthService:
         )
         return user, tokens
 
+    # ---------- Gym partner phone+password ----------
+
+    async def login_partner(
+        self, phone: str, password: str, *, actor: Actor
+    ) -> User:
+        """Authenticate a gym-owner by Jordanian phone + password.
+
+        Mirrors `login_admin` in shape (rate-limited dual bucket,
+        timing-equalized invalid path) but accepts the same Jordan
+        phone format the member-app uses, so a partner whose number
+        is also registered as a member sees a coherent identity.
+        Refuses anything that isn't `Role.GYM_OWNER`.
+        """
+        ip = (actor.ip_address or "unknown").lower()
+        ip_key = f"partner:login:ip:{ip}"
+        phone_key = f"partner:login:phone:{phone}"
+        if not await self.rate_limiter.allow(
+            ip_key, limit=10, window_seconds=300
+        ) or not await self.rate_limiter.allow(
+            phone_key, limit=5, window_seconds=300
+        ):
+            raise AppError(
+                ErrorCode.RATE_LIMITED,
+                "Too many login attempts. Try again in a few minutes.",
+            )
+
+        user = await self.users.get_by_phone(phone)
+        if (
+            user is None
+            or user.role != Role.GYM_OWNER
+            or not user.password_hash
+            or user.gym_id is None
+        ):
+            verify_password(password, _dummy_password_hash())
+            raise AppError(
+                ErrorCode.AUTH_INVALID_CREDENTIALS, "Invalid credentials."
+            )
+        if not verify_password(password, user.password_hash):
+            raise AppError(
+                ErrorCode.AUTH_INVALID_CREDENTIALS, "Invalid credentials."
+            )
+        await self.audit.log(
+            actor=Actor(
+                user_id=user.id, role=user.role,
+                ip_address=actor.ip_address, user_agent=actor.user_agent,
+            ),
+            action="auth.partner.login",
+            entity_type="user",
+            entity_id=user.id,
+        )
+        return user
+
     # ---------- Admin email+password ----------
 
     async def login_admin(self, email: str, password: str, *, actor: Actor) -> User:

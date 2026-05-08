@@ -52,6 +52,15 @@ class User(Base):
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
+    # Gym-owner ↔ gym linkage. Nullable because only `role='gym_owner'`
+    # users carry it; partial unique index on (gym_id) WHERE
+    # role='gym_owner' enforces the 1:1 partner-per-gym invariant the
+    # product requires.
+    gym_id: Mapped[UUID | None] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("gyms.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     last_active_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
@@ -88,6 +97,19 @@ class User(Base):
         Index("ix_users_role", "role"),
         Index("ix_users_invited_by_user_id", "invited_by_user_id"),
         Index("ix_users_last_active_at", "last_active_at"),
+        Index(
+            "uq_users_gym_owner_gym_id",
+            "gym_id",
+            unique=True,
+            postgresql_where=text(
+                "role = 'gym_owner' AND gym_id IS NOT NULL AND deleted_at IS NULL"
+            ),
+        ),
+        Index(
+            "ix_users_gym_id",
+            "gym_id",
+            postgresql_where=text("gym_id IS NOT NULL"),
+        ),
         CheckConstraint(
             "phone IS NOT NULL OR email IS NOT NULL OR google_sub IS NOT NULL",
             name="identity",

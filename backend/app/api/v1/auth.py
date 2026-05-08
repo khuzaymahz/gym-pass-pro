@@ -16,6 +16,9 @@ from app.schemas.auth import (
     AdminLoginRequest,
     GoogleExchange,
     MeUser,
+    PartnerExchangeRequest,
+    PartnerLoginRequest,
+    PartnerMeUser,
     PhoneCheckRequest,
     PhoneCheckResult,
     PhoneLoginRequest,
@@ -258,6 +261,81 @@ async def admin_exchange(
     user = await svc.users.get_by_email(body.email)
     if user is None or user.role != Role.ADMIN:
         raise AppError(ErrorCode.AUTH_FORBIDDEN, "Not an admin.")
+    token, exp = await svc.issue_service_token(user)
+    return ServiceToken(token=token, expires_at=exp)  # type: ignore[arg-type]
+
+
+@router.post("/partner/login", response_model=PartnerMeUser)
+async def partner_login(
+    body: PartnerLoginRequest,
+    svc: Annotated[AuthService, Depends(auth_service)],
+    actor: Annotated[Actor, Depends(client_actor)],
+    session: Annotated[AsyncSession, Depends(db_session)],
+) -> PartnerMeUser:
+    user = await svc.login_partner(body.phone, body.password, actor=actor)
+    await session.commit()
+    return PartnerMeUser.model_validate(user)
+
+
+@router.post("/partner/exchange", response_model=ServiceToken)
+async def partner_exchange(
+    body: PartnerExchangeRequest,
+    svc: Annotated[AuthService, Depends(auth_service)],
+    redis: Annotated["Redis", Depends(redis_client)],
+) -> ServiceToken:
+    """NextAuth (gym-partner app) → backend service-token exchange.
+
+    Mirrors `/auth/admin/exchange`: signed envelope (phone | nonce |
+    signed_at) HMAC'd with the shared secret, single-use nonce in
+    Redis, rate-limit cap. Mints a service JWT scoped to the
+    partner's user id; backend `current_gym_owner` re-checks the
+    role and gym-link on every request, so a leaked token can only
+    act as the partner it was issued for.
+    """
+    import hashlib
+    import hmac
+    import time
+
+    from app.config import get_settings
+    from app.core.exceptions import AppError, ErrorCode
+    from app.db.enums import Role
+
+    rl_key = f"partner:exchange:{body.phone}"
+    if not await svc.rate_limiter.allow(
+        rl_key, limit=5, window_seconds=300,
+    ):
+        raise AppError(
+            ErrorCode.RATE_LIMITED,
+            "Too many exchange requests. Try again in a few minutes.",
+        )
+
+    settings = get_settings()
+    now = int(time.time())
+    skew = settings.admin_exchange_max_skew_seconds
+    if abs(now - body.signed_at) > skew:
+        raise AppError(
+            ErrorCode.AUTH_FORBIDDEN,
+            "Exchange envelope expired or clock-skewed.",
+        )
+    expected = hmac.new(
+        settings.admin_exchange_secret.encode("utf-8"),
+        f"{body.phone}|{body.nonce}|{body.signed_at}".encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    if not hmac.compare_digest(expected, body.signature.lower()):
+        raise AppError(ErrorCode.AUTH_FORBIDDEN, "Invalid exchange signature.")
+    nonce_key = f"partner:exchange:nonce:{body.nonce}"
+    set_ok = await redis.set(nonce_key, "1", nx=True, ex=skew)
+    if not set_ok:
+        raise AppError(ErrorCode.AUTH_FORBIDDEN, "Exchange envelope replayed.")
+
+    user = await svc.users.get_by_phone(body.phone)
+    if (
+        user is None
+        or user.role != Role.GYM_OWNER
+        or user.gym_id is None
+    ):
+        raise AppError(ErrorCode.AUTH_FORBIDDEN, "Not a gym partner.")
     token, exp = await svc.issue_service_token(user)
     return ServiceToken(token=token, expires_at=exp)  # type: ignore[arg-type]
 

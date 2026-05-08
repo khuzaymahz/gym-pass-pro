@@ -44,6 +44,7 @@ from app.services.audit_service import Actor, AuditService
 from app.services.auth_service import AuthService
 from app.services.checkin_service import CheckinService
 from app.services.gym_service import GymService
+from app.services.partner_metrics_service import PartnerMetricsService
 from app.services.pause_service import PauseService
 from app.services.payment_method_service import PaymentMethodService
 from app.services.rate_limit import RateLimiter
@@ -311,6 +312,12 @@ def support_ticket_service(
     return SupportTicketService(repo, audit)
 
 
+def partner_metrics_service(
+    session: SessionDep,
+) -> PartnerMetricsService:
+    return PartnerMetricsService(session)
+
+
 # ----- Auth / actor -----
 
 def _client_ip(request: Request) -> str | None:
@@ -412,6 +419,27 @@ async def current_admin(
     user = await _authed(request, users, authorization, ("service", "access"))
     if user.role != Role.ADMIN:
         raise AppError(ErrorCode.AUTH_FORBIDDEN, "Admin role required.")
+    return user
+
+
+async def current_gym_owner(
+    request: Request,
+    users: Annotated[UserRepository, Depends(user_repo)],
+    authorization: Annotated[str | None, Header()] = None,
+) -> User:
+    """Resolve the calling gym-owner. Refuses if the bearer isn't a
+    `gym_owner` role *and* doesn't have a gym linked. Both checks
+    matter — a partner whose gym was deleted (FK SET NULL) becomes
+    `gym_id IS NULL` and we want to reject that login session
+    cleanly rather than 500 inside a downstream query.
+    """
+    user = await _authed(request, users, authorization, ("service", "access"))
+    if user.role != Role.GYM_OWNER:
+        raise AppError(ErrorCode.AUTH_FORBIDDEN, "Gym owner role required.")
+    if user.gym_id is None:
+        raise AppError(
+            ErrorCode.AUTH_FORBIDDEN, "Gym owner is not linked to a gym."
+        )
     return user
 
 

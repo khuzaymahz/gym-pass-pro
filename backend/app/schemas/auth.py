@@ -93,6 +93,48 @@ class AdminLoginRequest(BaseModel):
     password: str = Field(min_length=8, max_length=128)
 
 
+class PartnerLoginRequest(PhoneStart):
+    """Gym-partner sign-in: Jordan phone + password."""
+
+    password: str = Field(min_length=8, max_length=128)
+
+
+class PartnerExchangeRequest(BaseModel):
+    """Partner NextAuth → backend service-token exchange. Same HMAC
+    envelope as `AdminExchangeRequest` but keyed on phone (which is
+    the partner's identifier — gym-owners don't necessarily have an
+    email on file)."""
+
+    phone: str
+    signed_at: int = Field(alias="signedAt")
+    nonce: str = Field(min_length=16, max_length=128)
+    signature: str = Field(min_length=64, max_length=128)
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    @field_validator("phone")
+    @classmethod
+    def normalize_phone(cls, v: str) -> str:
+        v = v.strip().replace(" ", "").replace("-", "")
+        if not PHONE_RE.match(v):
+            raise ValueError("invalid jordanian phone (expected +9627X…)")
+        return v
+
+
+class PartnerMeUser(BaseModel):
+    """Slim payload returned to NextAuth after `partner/login`. The
+    full gym profile is fetched separately by the partner SDK once
+    the session is live."""
+
+    id: UUID
+    phone: str
+    name: str | None = None
+    role: Role
+    gym_id: UUID = Field(alias="gymId")
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+
 class AdminExchangeRequest(BaseModel):
     """NextAuth posts a signed envelope rather than a bare email so the
     backend can verify the request actually came from the admin app
