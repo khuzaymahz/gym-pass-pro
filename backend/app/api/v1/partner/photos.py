@@ -18,6 +18,7 @@ from app.api.deps import (
 from app.config import get_settings
 from app.core.exceptions import AppError, ErrorCode
 from app.db.models import User
+from app.realtime import publish as realtime_publish
 from app.repositories.gym_photo_repo import GymPhotoRepository
 from app.schemas.gym_photo import GymPhotoRead, GymPhotoUpdate
 from app.services.audit_service import AuditService
@@ -115,6 +116,14 @@ async def upload_photo(
         },
     )
     await session.commit()
+    await realtime_publish(
+        f"gym/{gym.id}/photos",
+        {
+            "type": "gym.photo.added",
+            "gymId": str(gym.id),
+            "photoId": str(photo.id),
+        },
+    )
     return GymPhotoRead.model_validate(photo)
 
 
@@ -175,6 +184,15 @@ async def delete_photo(
         entity_id=photo_id,
     )
     await session.commit()
+
+    await realtime_publish(
+        f"gym/{user.gym_id}/photos",
+        {
+            "type": "gym.photo.removed",
+            "gymId": str(user.gym_id),
+            "photoId": str(photo_id),
+        },
+    )
 
     settings = get_settings()
     prefix = settings.media_url_prefix.rstrip("/") + "/"

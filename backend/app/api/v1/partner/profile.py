@@ -17,6 +17,7 @@ from app.api.deps import (
 from app.config import get_settings
 from app.core.exceptions import AppError, ErrorCode
 from app.db.models import User
+from app.realtime import publish as realtime_publish
 from app.schemas.gym import GymRead, GymUpdate
 from app.services.audit_service import AuditService
 from app.services.gym_service import GymService
@@ -63,6 +64,12 @@ async def update_my_gym(
         gym.id, GymUpdate.model_validate(safe), actor=authed_actor(request, user),
     )
     await session.commit()
+    # Live fan-out so any member currently on this gym's detail
+    # page (or the explore list) re-fetches without a manual pull.
+    await realtime_publish(
+        f"gym/{gym.id}",
+        {"type": "gym.updated", "gymId": str(gym.id), "slug": gym.slug},
+    )
     return GymRead.model_validate(gym)
 
 
@@ -135,6 +142,15 @@ async def upload_logo(
         except OSError:
             pass
 
+    await realtime_publish(
+        f"gym/{gym.id}",
+        {
+            "type": "gym.logo.set",
+            "gymId": str(gym.id),
+            "slug": gym.slug,
+            "logoUrl": public_url,
+        },
+    )
     return GymRead.model_validate(gym)
 
 
@@ -172,4 +188,12 @@ async def delete_logo(
         except OSError:
             pass
 
+    await realtime_publish(
+        f"gym/{gym.id}",
+        {
+            "type": "gym.logo.cleared",
+            "gymId": str(gym.id),
+            "slug": gym.slug,
+        },
+    )
     return GymRead.model_validate(gym)

@@ -55,6 +55,12 @@ dependencies:
   # Android gets the system chooser.
   share_plus: ^10.1.0
 
+  # Realtime WebSocket — the partner-portal-driven live update
+  # channel (`/api/v1/realtime/ws`). Reconnecting client lives in
+  # `core/realtime/realtime_client.dart`; the package itself is
+  # the lower-level transport.
+  web_socket_channel: ^3.0.1
+
   # Utilities
   intl: ^0.20.2
   freezed_annotation: ^2.4.4

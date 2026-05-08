@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { getServerSession } from "next-auth";
 
 import { LocaleToggle } from "@/components/LocaleToggle";
+import { RealtimeBridge } from "@/components/RealtimeBridge";
 import { Sidebar } from "@/components/Sidebar";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { authOptions } from "@/lib/auth";
@@ -56,6 +57,12 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex min-h-screen bg-ink text-paper">
+      {/* Mounted once at the dashboard shell so a single WebSocket
+          serves the whole portal. Calls router.refresh() on every
+          backend event the partner is subscribed to (their gym's
+          profile, photos, check-ins) so the UI mirrors backend
+          state without manual reloads. */}
+      <RealtimeBridge />
       <Sidebar
         gymName={gymName}
         logoUrl={logoUrl}

@@ -18,6 +18,7 @@ from app.api.v1 import me as me_router
 from app.api.v1 import notifications as notifications_router
 from app.api.v1 import pauses as pauses_router
 from app.api.v1 import payment_methods as payment_methods_router
+from app.api.v1 import realtime as realtime_router
 from app.api.v1 import referrals as referrals_router
 from app.api.v1 import subscriptions as subscriptions_router
 from app.api.v1 import tickets as tickets_router
@@ -113,6 +114,11 @@ def create_app() -> FastAPI:
     app.include_router(partner_checkins_router.router, prefix=v1_prefix)
     app.include_router(partner_payouts_router.router, prefix=v1_prefix)
     app.include_router(partner_metrics_router.router, prefix=v1_prefix)
+    # WebSocket fan-out for live updates. Lives at /api/v1/realtime/ws.
+    # Behind nginx in prod, the upgrade headers must be passed through
+    # — see nginx/conf.d/api.conf for the `proxy_set_header Upgrade`
+    # block keyed off `$http_upgrade`.
+    app.include_router(realtime_router.router, prefix=v1_prefix)
 
     media_dir = Path(settings.media_root)
     media_dir.mkdir(parents=True, exist_ok=True)

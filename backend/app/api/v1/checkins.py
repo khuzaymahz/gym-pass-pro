@@ -13,8 +13,9 @@ from app.api.deps import (
     gym_repo,
     subscription_repo,
 )
-from app.db.enums import Tier
+from app.db.enums import CheckinStatus, Tier
 from app.db.models import User
+from app.realtime import publish as realtime_publish
 from app.repositories.gym_repo import GymRepository
 from app.repositories.subscription_repo import SubscriptionRepository
 from app.schemas.checkin import CheckinHistoryItem, CheckinResult, CheckinScanRequest
@@ -44,6 +45,25 @@ async def scan(
         # that audit trail by committing the partial work before re-raising.
         await session.commit()
         raise
+
+    # Live-update the partner dashboard for this gym (recent
+    # check-ins panel) and the member's own personal channel
+    # (their checkin history). Best-effort — `realtime_publish`
+    # swallows transport errors so the HTTP response is never held
+    # up by a flaky pub/sub.
+    if checkin.status == CheckinStatus.SUCCESS:
+        await realtime_publish(
+            f"gym/{checkin.gym_id}/checkins",
+            {
+                "type": "checkin.success",
+                "checkinId": str(checkin.id),
+                "gymId": str(checkin.gym_id),
+            },
+        )
+        await realtime_publish(
+            f"user/{user.id}",
+            {"type": "checkin.created", "checkinId": str(checkin.id)},
+        )
 
     gym = await gyms.get(checkin.gym_id)
     sub = await subs.active_for_user(user.id)
