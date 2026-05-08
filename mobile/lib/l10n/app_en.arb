@@ -101,6 +101,7 @@
   "homeNoPlanBlurb": "Pick a tier to unlock gyms across the city. Your pass activates the moment checkout succeeds.",
   "homeNoPlanCta": "See plans",
   "homeNearYou": "Near you",
+  "homeNoGymsYet": "No partner gyms in the network yet. Pull to refresh.",
   "homeCategories": "Categories",
   "categoryGym": "GYM",
   "categoryCross": "CROSS",

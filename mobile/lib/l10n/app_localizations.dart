@@ -137,6 +137,7 @@ abstract class AppLocalizations {
   String get homeNoPlanBlurb;
   String get homeNoPlanCta;
   String get homeNearYou;
+  String get homeNoGymsYet;
   String get homeCategories;
   String get categoryGym;
   String get categoryCross;

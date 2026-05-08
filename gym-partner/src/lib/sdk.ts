@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
 
 import { api } from "@/lib/api";
 import { authOptions } from "@/lib/auth";
@@ -126,7 +127,17 @@ export type PartnerMe = {
 async function serviceToken(): Promise<string> {
   const session = await getServerSession(authOptions);
   const token = session?.serviceToken;
-  if (!token) throw new Error("Missing partner service token.");
+  if (!token) {
+    // No live session token — almost always means the NextAuth
+    // cookie expired (8 h `maxAge`) or the JWT callback failed to
+    // refresh the embedded service token. Either way, the right
+    // recovery is "send the partner back to /login with a clear
+    // reason banner", not a 500. `redirect()` throws the
+    // NEXT_REDIRECT signal that Next.js catches at the server-
+    // component boundary; the (dashboard)/layout.tsx catch knows
+    // not to swallow this signal.
+    redirect("/login?reason=session_expired");
+  }
   return token;
 }
 
@@ -170,6 +181,15 @@ export const PartnerSDK = {
 
   async deletePhoto(id: string): Promise<void> {
     return api(`/api/v1/partner/gym/photos/${id}`, {
+      method: "DELETE",
+      token: await serviceToken(),
+    });
+  },
+
+  /// Logo deletion. Upload uses a multipart server action that
+  /// bypasses this JSON helper (see `profile/actions.ts`).
+  async deleteLogo(): Promise<GymRead> {
+    return api(`/api/v1/partner/gym/logo`, {
       method: "DELETE",
       token: await serviceToken(),
     });

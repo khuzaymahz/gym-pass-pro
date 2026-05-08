@@ -18,5 +18,10 @@ declare module "next-auth/jwt" {
     partnerId?: string;
     phone?: string;
     gymId?: string;
+    /** True when the operator ticked "remember me" at sign-in. Drives
+     *  per-session cookie/token lifetime — short (8 h) when false,
+     *  long (30 d) when true. Stored on the token, not the session,
+     *  so the jwt callback can gate the manually-set `exp`. */
+    rememberMe?: boolean;
   }
 }

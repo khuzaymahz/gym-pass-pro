@@ -12,6 +12,11 @@
     "submit": "Continue",
     "submitting": "Signing in…",
     "invalid": "Credentials not recognised.",
+    "sessionExpired": "Your session expired. Please sign in again to continue.",
+    "rememberMe": "Keep me signed in",
+    "rememberMeHint": "(30 days on this device)",
+    "passwordShow": "Show password",
+    "passwordHide": "Hide password",
     "footer": "Members use the mobile app. This portal is for partner gyms only."
   },
   "nav": {
@@ -19,7 +24,13 @@
     "profile": "Profile",
     "photos": "Photos",
     "checkins": "Check-ins",
-    "payouts": "Payouts"
+    "payouts": "Payouts",
+    "themeLight": "Light mode",
+    "themeDark": "Dark mode",
+    "themeSwitchToLight": "Switch to light mode",
+    "themeSwitchToDark": "Switch to dark mode",
+    "localeSwitchToAr": "التبديل إلى العربية",
+    "localeSwitchToEn": "Switch to English"
   },
   "dashboard": {
     "title": "Partner Dashboard",
@@ -35,10 +46,13 @@
     "revenueTrend": "Revenue",
     "tierMix": "Tier breakdown",
     "hourMix": "Busy hours",
+    "hourMixSubtitle": "Local time, last 30 days",
     "recentCheckins": "Recent check-ins",
     "noCheckinsYet": "No check-ins yet.",
     "noData": "No data.",
-    "jod": "JOD"
+    "jod": "JOD",
+    "trendCheckinsAria": "Daily check-ins, last 14 days",
+    "trendRevenueAria": "Daily revenue, last 14 days"
   },
   "profile": {
     "title": "Gym Profile",
@@ -56,16 +70,34 @@
     "saved": "Saved.",
     "error": "Couldn't save.",
     "tier": "Required tier",
-    "tierLocked": "(managed by GymPass team)"
+    "tierLocked": "(managed by GymPass team)",
+    "logoTitle": "Gym logo",
+    "logoSubtitle": "The brand mark members see in the GymPass app and on the partner portal sidebar.",
+    "logoUpload": "Upload logo",
+    "logoReplace": "Replace logo",
+    "logoRemove": "Remove",
+    "logoUploading": "Uploading…",
+    "logoHint": "Square works best. JPEG, PNG, or WebP up to {limit}MB.",
+    "logoErrorUnsupportedType": "Unsupported file type. Use JPEG, PNG, or WebP.",
+    "logoErrorTooLarge": "File is too large — keep it under {limit}MB.",
+    "logoErrorUploadGeneric": "Logo upload failed. Please try again.",
+    "logoErrorDeleteGeneric": "Couldn't remove the logo. Please try again."
   },
   "photos": {
     "title": "Gym photos",
     "subtitle": "Upload interior, equipment, and ambience photos.",
     "upload": "Upload photo",
+    "uploading": "Uploading…",
+    "uploadHint": "JPEG, PNG, or WebP up to {limit}MB.",
     "noPhotos": "No photos yet.",
+    "noPhotosHint": "Upload up to {limit}MB JPEG, PNG, or WebP.",
     "delete": "Delete",
     "altEn": "Alt text (English)",
-    "altAr": "Alt text (Arabic)"
+    "altAr": "Alt text (Arabic)",
+    "errorUnsupportedType": "Unsupported file type. Use JPEG, PNG, or WebP.",
+    "errorTooLarge": "File is too large — keep it under {limit}MB.",
+    "errorUploadGeneric": "Upload failed. Please try again.",
+    "errorDeleteGeneric": "Delete failed. Please try again."
   },
   "checkins": {
     "title": "Member check-ins",
@@ -83,6 +115,14 @@
     "noResults": "No results.",
     "next": "Next",
     "prev": "Previous"
+  },
+  "error": {
+    "eyebrow": "Something went wrong",
+    "title": "We couldn't load this page.",
+    "body": "There was a problem talking to the GymPass server. This is usually a transient hiccup — try again, and if it keeps happening reach out to support.",
+    "retry": "Retry",
+    "goHome": "Go to dashboard",
+    "ref": "Ref"
   },
   "payouts": {
     "title": "Your payouts",

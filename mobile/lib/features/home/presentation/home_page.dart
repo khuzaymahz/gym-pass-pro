@@ -19,6 +19,7 @@ import '../../../core/widgets/wordmark_refresh.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../auth/data/user_profile.dart';
 import '../../gyms/data/gym_repository.dart';
+import '../../gyms/data/gym_summary.dart';
 import '../../gyms/presentation/gyms_filter_state.dart';
 import '../../notifications/data/notifications_repository.dart';
 import '../../subscription/data/subscription_state.dart';
@@ -61,7 +62,15 @@ class _HomePageState extends ConsumerState<HomePage> {
     final gp = context.gp;
     final sub = ref.watch(subscriptionProvider);
     final profile = ref.watch(profileProvider);
-    final nearYou = GPGym.seed.take(3).toList();
+    // Near You comes from `gymsListProvider` (backend `/api/v1/gyms`).
+    // No seed fallback — backend is the single source of truth, and a
+    // truly empty list renders the empty-state card rather than a
+    // fake "here are some gyms" sample. The provider's `valueOrNull`
+    // is non-null after the first hydrate; before that we render
+    // skeletons.
+    final gymsAsync = ref.watch(gymsListProvider);
+    final nearYou = gymsAsync.valueOrNull ?? const <GymSummary>[];
+    final isLoadingGyms = gymsAsync.isLoading && nearYou.isEmpty;
     final topInset = MediaQuery.viewPaddingOf(context).top;
     final firstName = profile.firstName?.trim();
     final greeting = (firstName != null && firstName.isNotEmpty)
@@ -164,16 +173,25 @@ class _HomePageState extends ConsumerState<HomePage> {
                 },
               ),
               const SizedBox(height: 14),
-              // Same RefreshScope trick as the plan card above —
-              // gym rows morph to SkeletonGymRows during pull-to-
-              // refresh so the whole "near you" block participates
-              // in the loading visual instead of sitting still.
+              // Three states drive what we render here:
+              //
+              //   1. cold-start hydrate (provider loading, no cached
+              //      rows yet) → skeletons
+              //   2. pull-to-refresh in flight (RefreshScope true) →
+              //      skeletons
+              //   3. data resolved → real rows from the backend's
+              //      `/api/v1/gyms` (no seed fallback)
+              //
+              // When the backend has zero rows, we render an empty-
+              // state card. That's the truthful state.
               Builder(
                 builder: (innerCtx) {
-                  if (RefreshScope.of(innerCtx)) {
+                  final showSkeleton =
+                      isLoadingGyms || RefreshScope.of(innerCtx);
+                  if (showSkeleton) {
                     return Column(
                       children: List.generate(
-                        nearYou.length.clamp(2, 4),
+                        3,
                         (_) => const Padding(
                           padding: EdgeInsets.only(bottom: 10),
                           child: SkeletonGymRow(),
@@ -181,13 +199,36 @@ class _HomePageState extends ConsumerState<HomePage> {
                       ),
                     );
                   }
+                  if (nearYou.isEmpty) {
+                    return Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: gp.bg2,
+                        borderRadius: BorderRadius.circular(GPRadius.lg),
+                        border: Border.all(color: gp.line),
+                      ),
+                      child: Text(
+                        l.homeNoGymsYet,
+                        style: GPText.body(size: 13, color: gp.mutedSoft),
+                      ),
+                    );
+                  }
+                  // Pick the first three. Future iteration: sort by
+                  // user GPS distance once we have the position
+                  // ready before this point in the build (already
+                  // tracked in `userPositionProvider`).
+                  final firstThree = nearYou.take(3).toList();
+                  final isAr = Localizations.localeOf(context)
+                          .languageCode ==
+                      'ar';
                   return Column(
-                    children: nearYou
+                    children: firstThree
                         .map(
                           (g) => Padding(
                             padding: const EdgeInsets.only(bottom: 10),
                             child: GymRow(
-                              gym: g,
+                              gym: _gymSummaryToGPGym(g, isAr: isAr),
+                              logoUrl: g.logoUrl,
                               onTap: () => innerCtx.push('/gyms/${g.slug}'),
                             ),
                           ),
@@ -554,16 +595,14 @@ class _CategoryGrid extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context);
     final gp = context.gp;
-    // Live counts from the backend, with the local seed as a fallback while
-    // the API call is in flight or has failed (offline, backend not seeded).
-    // Falling back to seed keeps the grid visible — an empty `0 clubs` tile
-    // would mislead the member into thinking the network is empty.
+    // Backend is the single source of truth — no seed fallback.
+    // Counts read off `gymsListProvider`, which fetches `/api/v1/gyms`
+    // on first read and re-fetches on pull-to-refresh. Empty live
+    // list → category tile shows "0 clubs", which is the truthful
+    // state when the backend has no rows in that category.
     final live = ref.watch(gymsListProvider).valueOrNull ?? const [];
     int categoryCount(String cat) {
-      if (live.isNotEmpty) {
-        return live.where((g) => g.category == cat).length;
-      }
-      return GPGym.seed.where((g) => g.category == cat).length;
+      return live.where((g) => g.category == cat).length;
     }
     final cats = <(String, String, Color)>[
       ('gym', l.categoryGym, GPCategory.gym),
@@ -625,4 +664,23 @@ class _CategoryGrid extends ConsumerWidget {
       }).toList(),
     );
   }
+}
+
+/// Adapt a backend `GymSummary` into the local `GPGym` shape that
+/// `GymRow` consumes. The two diverge for historical reasons (seed
+/// data was the only source when GymRow was first written); folding
+/// them into a single type is a separate cleanup. This adapter is
+/// the only place that bridge lives — every backend-driven render
+/// goes through it so we can't accidentally show a hardcoded `seed`
+/// row in a list that's supposed to be live.
+GPGym _gymSummaryToGPGym(GymSummary s, {required bool isAr}) {
+  return GPGym(
+    slug: s.slug,
+    name: isAr && s.nameAr.isNotEmpty ? s.nameAr : s.nameEn,
+    area: s.area ?? '',
+    category: s.category ?? 'gym',
+    tier: s.tier ?? 'silver',
+    lat: s.lat ?? 0,
+    lng: s.lng ?? 0,
+  );
 }

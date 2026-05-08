@@ -212,6 +212,8 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get homeNearYou => 'قريبة منك';
   @override
+  String get homeNoGymsYet => 'لا توجد أندية شريكة في الشبكة بعد. اسحب للتحديث.';
+  @override
   String get homeCategories => 'الأنواع';
   @override
   String get categoryGym => 'جيم';

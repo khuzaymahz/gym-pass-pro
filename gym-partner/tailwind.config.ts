@@ -25,6 +25,17 @@ const config: Config = {
           "system-ui",
           "sans-serif",
         ],
+        // Display face used only by the GYMPASS wordmark — Archivo
+        // Black Italic, mirroring the mobile app. Falls back to the
+        // sans stack if the font fails to load so the wordmark is
+        // never blank, just less stylised.
+        display: [
+          "var(--font-display)",
+          "Archivo",
+          "ui-sans-serif",
+          "system-ui",
+          "sans-serif",
+        ],
       },
       fontSize: {
         "2xs": ["11px", { lineHeight: "14px" }],

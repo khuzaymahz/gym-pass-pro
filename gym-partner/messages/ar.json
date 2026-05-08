@@ -12,6 +12,11 @@
     "submit": "متابعة",
     "submitting": "جارٍ تسجيل الدخول…",
     "invalid": "بيانات الدخول غير صحيحة.",
+    "sessionExpired": "انتهت جلستك. الرجاء تسجيل الدخول مجدداً للمتابعة.",
+    "rememberMe": "أبقني مسجَّلاً",
+    "rememberMeHint": "(30 يوماً على هذا الجهاز)",
+    "passwordShow": "إظهار كلمة المرور",
+    "passwordHide": "إخفاء كلمة المرور",
     "footer": "للأعضاء: استخدموا التطبيق. هذه البوابة للأندية الشريكة فقط."
   },
   "nav": {
@@ -19,7 +24,13 @@
     "profile": "الملف",
     "photos": "الصور",
     "checkins": "الزيارات",
-    "payouts": "المستحقات"
+    "payouts": "المستحقات",
+    "themeLight": "الوضع الفاتح",
+    "themeDark": "الوضع الداكن",
+    "themeSwitchToLight": "التبديل إلى الوضع الفاتح",
+    "themeSwitchToDark": "التبديل إلى الوضع الداكن",
+    "localeSwitchToAr": "التبديل إلى العربية",
+    "localeSwitchToEn": "Switch to English"
   },
   "dashboard": {
     "title": "لوحة الشريك",
@@ -35,10 +46,13 @@
     "revenueTrend": "مسار الإيراد",
     "tierMix": "توزيع الباقات",
     "hourMix": "ساعات الذروة",
+    "hourMixSubtitle": "بالتوقيت المحلي، آخر 30 يوماً",
     "recentCheckins": "أحدث الزيارات",
     "noCheckinsYet": "لا توجد زيارات بعد.",
     "noData": "لا توجد بيانات.",
-    "jod": "د.أ"
+    "jod": "د.أ",
+    "trendCheckinsAria": "الزيارات اليومية، آخر 14 يوماً",
+    "trendRevenueAria": "الإيراد اليومي، آخر 14 يوماً"
   },
   "profile": {
     "title": "ملف النادي",
@@ -56,16 +70,34 @@
     "saved": "تم الحفظ.",
     "error": "تعذّر الحفظ.",
     "tier": "الباقة المطلوبة",
-    "tierLocked": "(تتم إدارتها من فريق جيم باس)"
+    "tierLocked": "(تتم إدارتها من فريق جيم باس)",
+    "logoTitle": "شعار النادي",
+    "logoSubtitle": "العلامة التي يراها الأعضاء في تطبيق GymPass وفي شريط بوابة الشريك.",
+    "logoUpload": "رفع الشعار",
+    "logoReplace": "استبدال الشعار",
+    "logoRemove": "إزالة",
+    "logoUploading": "جارٍ الرفع…",
+    "logoHint": "يفضَّل أن يكون مربعاً. JPEG أو PNG أو WebP حتى {limit} ميجابايت.",
+    "logoErrorUnsupportedType": "نوع الملف غير مدعوم. استخدم JPEG أو PNG أو WebP.",
+    "logoErrorTooLarge": "حجم الملف كبير جداً — يجب أن يكون أقل من {limit} ميجابايت.",
+    "logoErrorUploadGeneric": "فشل رفع الشعار. الرجاء المحاولة مرة أخرى.",
+    "logoErrorDeleteGeneric": "تعذّر إزالة الشعار. الرجاء المحاولة مرة أخرى."
   },
   "photos": {
     "title": "صور النادي",
     "subtitle": "ارفع صور القاعة والتجهيزات.",
     "upload": "رفع صورة",
+    "uploading": "جارٍ الرفع…",
+    "uploadHint": "JPEG أو PNG أو WebP حتى {limit} ميجابايت.",
     "noPhotos": "لا توجد صور بعد.",
+    "noPhotosHint": "ارفع حتى {limit} ميجابايت بصيغة JPEG أو PNG أو WebP.",
     "delete": "حذف",
     "altEn": "نص بديل (إنجليزي)",
-    "altAr": "نص بديل (عربي)"
+    "altAr": "نص بديل (عربي)",
+    "errorUnsupportedType": "نوع الملف غير مدعوم. استخدم JPEG أو PNG أو WebP.",
+    "errorTooLarge": "حجم الملف كبير جداً — يجب أن يكون أقل من {limit} ميجابايت.",
+    "errorUploadGeneric": "فشل الرفع. الرجاء المحاولة مرة أخرى.",
+    "errorDeleteGeneric": "فشل الحذف. الرجاء المحاولة مرة أخرى."
   },
   "checkins": {
     "title": "زيارات الأعضاء",
@@ -83,6 +115,14 @@
     "noResults": "لا توجد نتائج.",
     "next": "التالي",
     "prev": "السابق"
+  },
+  "error": {
+    "eyebrow": "حدث خطأ",
+    "title": "تعذّر تحميل هذه الصفحة.",
+    "body": "حدث خلل أثناء التواصل مع خادم GymPass، عادةً ما يكون مؤقتاً. حاول مرة أخرى، وإذا تكررت المشكلة فتواصل مع الدعم.",
+    "retry": "إعادة المحاولة",
+    "goHome": "الذهاب إلى اللوحة",
+    "ref": "مرجع"
   },
   "payouts": {
     "title": "مستحقاتك",

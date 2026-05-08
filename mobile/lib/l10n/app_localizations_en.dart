@@ -215,6 +215,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get homeNearYou => 'Near you';
   @override
+  String get homeNoGymsYet =>
+      'No partner gyms in the network yet. Pull to refresh.';
+  @override
   String get homeCategories => 'Categories';
   @override
   String get categoryGym => 'GYM';
