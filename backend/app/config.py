@@ -57,10 +57,18 @@ class Settings(BaseSettings):
     # CORS
     admin_domain: str = "admin.gym-pass.net"
     api_domain: str = "api.gym-pass.net"
+    partner_domain: str = "partner.gym-pass.net"
 
     # Admin bootstrap
     admin_bootstrap_email: str | None = "admin@gym-pass.net"
     admin_bootstrap_password: str | None = "changeme-dev"
+
+    # Dev partner bootstrap (only used by scripts/seed.py in dev).
+    # Leave any field as None to skip seeding the demo partner.
+    partner_bootstrap_phone: str | None = None
+    partner_bootstrap_password: str | None = None
+    partner_bootstrap_gym_slug: str | None = None
+    partner_bootstrap_name: str | None = None
 
     # Shared HMAC secret for the NextAuth ↔ FastAPI admin exchange.
     # NextAuth signs `${email}|${nonce}|${epoch_seconds}` with this
@@ -164,12 +172,17 @@ class Settings(BaseSettings):
             return [
                 "http://localhost:3001",
                 "http://127.0.0.1:3001",
+                "http://localhost:3003",
+                "http://127.0.0.1:3003",
                 "http://localhost:5173",
                 "http://127.0.0.1:5173",
                 "http://localhost:8000",
                 "http://127.0.0.1:8000",
             ]
-        return [f"https://{self.admin_domain}"]
+        return [
+            f"https://{self.admin_domain}",
+            f"https://{self.partner_domain}",
+        ]
 
 
 @lru_cache

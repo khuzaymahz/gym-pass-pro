@@ -1,0 +1,386 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   Theme tokens. Two themes, one set of utility classes.
+
+   Switching is done by toggling `data-theme="light|dark"` on the
+   `<html>` element (see `ThemeToggle`). Defaults to dark so the
+   first paint matches the historical look.
+
+   Naming mirrors `tailwind.config.ts`: ink/paper are the surface
+   poles (inverted between modes), surface[-1,-2] is the elevation
+   ramp above ink, line/line-2 are borders, accent is the brand
+   amber #EAB308 with `accent-ink` as the readable foreground for
+   amber surfaces.
+   ============================================================ */
+
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --c-ink: 9 9 11;            /* near-black page background */
+  --c-paper: 250 250 250;     /* near-white primary text */
+  --c-surface: 17 17 19;
+  --c-surface-1: 22 23 26;
+  --c-surface-2: 31 32 36;
+  --c-line: 31 31 35;
+  --c-line-2: 42 42 47;
+  --c-muted: 113 113 122;
+
+  /* Brand amber — same hex as the mobile app's GP.lime. */
+  --c-accent: 234 179 8;       /* #EAB308 */
+  /* Foreground for amber surfaces — near-black for max contrast
+     since amber sits closer to a yellow-gold than a green-lime. */
+  --c-accent-ink: 9 9 11;
+
+  /* Scrollbar palette (consumed below). */
+  --c-scroll-track: transparent;
+  --c-scroll-thumb: 42 42 47;
+  --c-scroll-thumb-hover: 58 58 66;
+
+  /* Selection background — the brand amber, with near-black text
+     so the selected run is obviously highlighted. */
+  --c-select-bg: 234 179 8;
+  --c-select-fg: 9 9 11;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  /* Ink + paper invert: the page is near-white and primary text
+     is near-black, so `bg-ink text-paper` chips still read with
+     correct contrast. */
+  --c-ink: 250 250 250;       /* page background */
+  --c-paper: 24 24 27;        /* primary text */
+
+  /* Surface ramp above ink: a hair greyer per step, kept very
+     subtle so the dense data-table look isn't broken by hard
+     panel boundaries (Linear/Vercel light-mode register). */
+  --c-surface: 244 244 245;
+  --c-surface-1: 235 235 238;
+  --c-surface-2: 224 224 229;
+
+  /* Borders — soft, low-contrast in light mode so the table
+     density still reads as scannable rather than busy. */
+  --c-line: 228 228 231;
+  --c-line-2: 212 212 216;
+
+  /* Muted (secondary copy) — same hue ramp, just darker. */
+  --c-muted: 113 113 122;
+
+  /* Accent stays amber. The amber-on-light combo needs the same
+     near-black foreground; the amber chip has enough yellow that
+     white text on it would wash out. */
+  --c-accent: 234 179 8;
+  --c-accent-ink: 24 24 27;
+
+  --c-scroll-track: transparent;
+  --c-scroll-thumb: 212 212 216;
+  --c-scroll-thumb-hover: 161 161 170;
+
+  --c-select-bg: 234 179 8;
+  --c-select-fg: 24 24 27;
+}
+
+html,
+body {
+  height: 100%;
+  background: rgb(var(--c-ink));
+  color: rgb(var(--c-paper));
+  font-family: var(--font-sans), Inter, ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: "cv11", "ss01", "ss03";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  font-size: 13.5px;
+  letter-spacing: -0.005em;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ============================================================
+   Admin primitives. Density-first. Linear/Vercel/Stripe register.
+   All utility classes resolve through theme tokens so they flip
+   automatically when `data-theme` changes.
+   ============================================================ */
+
+/* --- Typography utilities ------------------------------------ */
+
+/* Small mono-ish label (still Inter, with tracking to feel technical). */
+.label {
+  @apply text-[10.5px] font-medium uppercase tracking-[0.08em] text-muted;
+}
+
+/* Tabular numerals for any numeric column. */
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Code-ish inline: same font, tighter letter-spacing + slightly smaller. */
+.code {
+  @apply text-[12px] text-muted;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Keyboard / id chip — rounded, bordered. */
+.kbd {
+  @apply inline-flex items-center rounded border border-line-2 bg-surface px-1.5 py-[1px] text-[10.5px] text-muted;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.005em;
+}
+
+/* Headings - the only three you ever need. */
+.h1 {
+  @apply text-[22px] font-semibold tracking-[-0.015em] text-paper;
+}
+
+.h2 {
+  @apply text-[15px] font-semibold tracking-[-0.01em] text-paper;
+}
+
+.h3 {
+  @apply text-[13px] font-medium text-paper;
+}
+
+/* Sidebar group label — amber chip, unmistakably differentiates sections. */
+.nav-group-label {
+  @apply mb-1.5 inline-flex items-center rounded bg-accent px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-accent-ink;
+}
+
+/* --- Buttons ------------------------------------------------- */
+
+.btn {
+  @apply inline-flex h-8 items-center justify-center gap-1.5 rounded-md px-3 text-[12.5px] font-medium transition-colors duration-150 ease-out;
+}
+
+.btn-primary {
+  @apply btn bg-accent text-accent-ink hover:bg-accent/90 active:brightness-95;
+}
+
+.btn-secondary {
+  @apply btn border border-line-2 bg-surface text-paper hover:bg-line;
+}
+
+.btn-ghost {
+  @apply btn text-muted hover:bg-surface hover:text-paper;
+}
+
+.btn-danger {
+  @apply btn border border-red-500/30 bg-red-500/10 text-red-500 hover:border-red-500/60 hover:bg-red-500/20;
+}
+
+.btn-sm {
+  @apply h-7 px-2.5 text-[12px];
+}
+
+.btn-icon {
+  @apply inline-flex h-7 w-7 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface hover:text-paper;
+}
+
+/* --- Inputs ------------------------------------------------- */
+
+.input {
+  @apply block w-full rounded-md border border-line-2 bg-ink px-3 py-1.5 text-[13px] text-paper shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] transition-colors placeholder:text-muted focus:border-accent/60 focus:outline-none focus:ring-1 focus:ring-accent/30;
+}
+
+.input-sm {
+  @apply py-1 text-[12.5px];
+}
+
+.select {
+  @apply input appearance-none bg-[url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2010%206%27%20fill%3D%27none%27%20stroke%3D%27currentColor%27%20stroke-width%3D%271.4%27%3E%3Cpath%20d%3D%27M1%201.5%20L5%205%20L9%201.5%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%2F%3E%3C%2Fsvg%3E")] bg-[right_10px_center] bg-no-repeat pr-9 text-muted;
+}
+
+/* Labelled field. */
+.field {
+  @apply flex flex-col gap-1.5;
+}
+
+.field > .field-label {
+  @apply text-[12px] font-medium text-paper;
+}
+
+.field > .field-hint {
+  @apply text-[11.5px] text-muted;
+}
+
+/* --- Surfaces ----------------------------------------------- */
+
+.card {
+  @apply rounded-xl border border-line bg-surface p-5;
+}
+
+.panel {
+  @apply rounded-lg border border-line bg-surface;
+}
+
+.divider {
+  @apply border-b border-line;
+}
+
+/* --- Page chrome (toolbar / shell) -------------------------- */
+
+/* Sticky top bar with page title + primary action. */
+.toolbar {
+  @apply sticky top-0 z-20 -mx-10 flex items-center justify-between gap-4 border-b border-line bg-ink/80 px-10 py-4 backdrop-blur;
+}
+
+.toolbar-inline {
+  @apply flex items-center justify-between gap-4 border-b border-line pb-4;
+}
+
+/* --- Stat tile (6-up dashboard grid) ----------------------- */
+
+.stat {
+  @apply flex flex-col gap-1 rounded-lg border border-line bg-surface px-4 py-3.5;
+}
+
+.stat-label {
+  @apply text-[11px] font-medium text-muted;
+}
+
+.stat-value {
+  @apply text-[22px] font-semibold tracking-[-0.02em] text-paper;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-delta {
+  @apply text-[11px] text-muted;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Table ------------------------------------------------- */
+
+.table {
+  @apply w-full border-collapse;
+}
+
+.table thead th {
+  @apply border-b border-line px-3 py-2 text-left text-[11px] font-medium uppercase tracking-[0.04em] text-muted;
+}
+
+.table tbody td {
+  @apply border-b border-line px-3 py-2.5 text-[13px] text-paper;
+  vertical-align: middle;
+}
+
+.table tbody tr:last-child td {
+  @apply border-b-0;
+}
+
+.table tbody tr {
+  @apply transition-colors;
+}
+
+.table tbody tr:hover {
+  @apply bg-line/40;
+}
+
+.table td.num,
+.table th.num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* Compact variant for dense log viewers. */
+.table-compact tbody td {
+  @apply py-1.5 text-[12px];
+}
+
+.table-compact thead th {
+  @apply py-1.5;
+}
+
+/* --- Pills (status) --------------------------------------- */
+
+.pill {
+  @apply inline-flex h-[20px] items-center gap-1 rounded-full border px-2 text-[11px] font-medium;
+  line-height: 1;
+}
+
+.pill-ok {
+  @apply border-accent/30 bg-accent/10 text-accent;
+}
+.pill-warn {
+  @apply border-amber-400/30 bg-amber-400/10 text-amber-500;
+}
+.pill-bad {
+  @apply border-red-400/30 bg-red-500/10 text-red-500;
+}
+.pill-info {
+  @apply border-sky-400/30 bg-sky-500/10 text-sky-500;
+}
+.pill-mute {
+  @apply border-line-2 bg-surface text-muted;
+}
+
+/* Compact dot indicator (for inline use inside tables). */
+.dot {
+  @apply inline-block h-1.5 w-1.5 rounded-full;
+}
+
+/* --- Segmented control (filter pills) --------------------- */
+
+.seg {
+  @apply inline-flex items-center rounded-md border border-line bg-surface p-0.5;
+}
+
+.seg a,
+.seg button {
+  @apply inline-flex h-7 items-center rounded px-2.5 text-[12px] font-medium text-muted transition-colors hover:text-paper;
+}
+
+.seg a.is-active,
+.seg button.is-active {
+  @apply bg-line text-paper shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)];
+}
+
+/* --- Animation --------------------------------------------- */
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  animation: fade-up 180ms ease both;
+  animation-delay: var(--delay, 0ms);
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.pulse { animation: pulse-dot 1.8s ease-in-out infinite; }
+
+/* --- Scrollbar --------------------------------------------- */
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--c-scroll-track); }
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--c-scroll-thumb));
+  border-radius: 999px;
+  border: 2px solid rgb(var(--c-ink));
+}
+::-webkit-scrollbar-thumb:hover { background: rgb(var(--c-scroll-thumb-hover)); }
+
+::selection {
+  background: rgb(var(--c-select-bg));
+  color: rgb(var(--c-select-fg));
+}
+
+/* --- Focus ring global ------------------------------------- */
+*:focus-visible {
+  outline: 2px solid rgb(var(--c-accent) / 0.5);
+  outline-offset: 2px;
+  border-radius: 4px;
+}

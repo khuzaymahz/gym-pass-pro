@@ -40,6 +40,19 @@ services:
       BACKEND_API_URL: http://backend:8000
       NEXTAUTH_URL: https://${ADMIN_DOMAIN:-admin.gym-pass.net}
 
+  gym-partner:
+    build:
+      context: ./gym-partner
+      target: runner
+    restart: always
+    volumes: !reset []
+    ports: !reset []
+    environment:
+      NODE_ENV: production
+      API_BASE_URL: http://backend:8000
+      NEXT_PUBLIC_API_URL: https://${API_DOMAIN:-api.gym-pass.net}
+      NEXTAUTH_URL: https://${PARTNER_DOMAIN:-partner.gym-pass.net}
+
   nginx:
     image: nginx:1.27-alpine
     restart: always
@@ -54,6 +67,7 @@ services:
     depends_on:
       - backend
       - admin
+      - gym-partner
 
   certbot:
     image: certbot/certbot:latest

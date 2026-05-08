@@ -1,0 +1,99 @@
+{
+  "app": {
+    "title": "GymPass · Partner Portal",
+    "subtitle": "Gym partner console",
+    "signOut": "Sign out"
+  },
+  "auth": {
+    "title": "Sign in",
+    "phone": "Phone",
+    "phoneHint": "+962 7X XXX XXXX",
+    "password": "Password",
+    "submit": "Continue",
+    "submitting": "Signing in…",
+    "invalid": "Credentials not recognised.",
+    "footer": "Members use the mobile app. This portal is for partner gyms only."
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "profile": "Profile",
+    "photos": "Photos",
+    "checkins": "Check-ins",
+    "payouts": "Payouts"
+  },
+  "dashboard": {
+    "title": "Partner Dashboard",
+    "subtitle": "Live overview of your gym.",
+    "checkinsToday": "Today",
+    "checkinsThisMonth": "This month",
+    "checkinsLast30": "Last 30 days",
+    "uniqueMembers": "Unique members",
+    "revenueMtd": "Revenue · MTD",
+    "pendingPayout": "Pending payout",
+    "paidPayoutMtd": "Paid · MTD",
+    "checkinsTrend": "Check-ins",
+    "revenueTrend": "Revenue",
+    "tierMix": "Tier breakdown",
+    "hourMix": "Busy hours",
+    "recentCheckins": "Recent check-ins",
+    "noCheckinsYet": "No check-ins yet.",
+    "noData": "No data.",
+    "jod": "JOD"
+  },
+  "profile": {
+    "title": "Gym Profile",
+    "subtitle": "Edit your gym's public details.",
+    "nameEn": "Name (English)",
+    "nameAr": "Name (Arabic)",
+    "addressEn": "Address (English)",
+    "addressAr": "Address (Arabic)",
+    "area": "Area",
+    "phone": "Gym phone",
+    "category": "Category",
+    "amenities": "Amenities (comma-separated)",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Saved.",
+    "error": "Couldn't save.",
+    "tier": "Required tier",
+    "tierLocked": "(managed by GymPass team)"
+  },
+  "photos": {
+    "title": "Gym photos",
+    "subtitle": "Upload interior, equipment, and ambience photos.",
+    "upload": "Upload photo",
+    "noPhotos": "No photos yet.",
+    "delete": "Delete",
+    "altEn": "Alt text (English)",
+    "altAr": "Alt text (Arabic)"
+  },
+  "checkins": {
+    "title": "Member check-ins",
+    "subtitle": "Every QR scan at your gym.",
+    "member": "Member",
+    "status": "Status",
+    "scannedAt": "Scanned",
+    "all": "All",
+    "success": "Success",
+    "tier_locked": "Tier locked",
+    "no_visits": "No visits left",
+    "expired": "Expired",
+    "invalid_qr": "Invalid QR",
+    "rate_limited": "Rate limited",
+    "noResults": "No results.",
+    "next": "Next",
+    "prev": "Previous"
+  },
+  "payouts": {
+    "title": "Your payouts",
+    "subtitle": "Monthly aggregation by payout period.",
+    "period": "Period",
+    "amount": "Amount",
+    "entries": "Entries",
+    "status": "Status",
+    "paidAt": "Paid at",
+    "pending": "Pending",
+    "paid": "Paid",
+    "noPayouts": "No payouts issued yet."
+  }
+}

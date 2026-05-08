@@ -27,6 +27,7 @@ class Category(StrEnum):
 class Role(StrEnum):
     MEMBER = "member"
     ADMIN = "admin"
+    GYM_OWNER = "gym_owner"
 
 
 class SubscriptionStatus(StrEnum):

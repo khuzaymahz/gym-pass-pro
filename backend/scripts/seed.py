@@ -218,6 +218,50 @@ async def main() -> None:
                     )
                 )
 
+        # Dev partner bootstrap. ONE demo gym-owner linked to the demo
+        # gym whose slug matches `partner_bootstrap_gym_slug`. This is
+        # the minimum needed for a developer to log into the partner
+        # portal without first creating a partner via admin. Fully
+        # opt-in — leave any of the partner_bootstrap_* env vars unset
+        # to skip. CLAUDE.md §12 rule 9: this is a *bootstrap*, not a
+        # demo-data dump. The partner sees real (initially empty)
+        # check-ins / payouts; nothing is faked downstream.
+        if (
+            settings.partner_bootstrap_phone
+            and settings.partner_bootstrap_password
+            and settings.partner_bootstrap_gym_slug
+            and settings.partner_bootstrap_name
+        ):
+            target_gym = (
+                await session.execute(
+                    select(Gym).where(
+                        Gym.slug == settings.partner_bootstrap_gym_slug
+                    )
+                )
+            ).scalar_one_or_none()
+            if target_gym is not None:
+                existing_partner = (
+                    await session.execute(
+                        select(User).where(
+                            User.phone == settings.partner_bootstrap_phone
+                        )
+                    )
+                ).scalar_one_or_none()
+                if existing_partner is None:
+                    session.add(
+                        User(
+                            id=uuid7(),
+                            phone=settings.partner_bootstrap_phone,
+                            name=settings.partner_bootstrap_name,
+                            password_hash=hash_password(
+                                settings.partner_bootstrap_password
+                            ),
+                            role=Role.GYM_OWNER,
+                            gym_id=target_gym.id,
+                            locale=Locale.AR,
+                        )
+                    )
+
         await session.commit()
         print("Seed complete.")
 

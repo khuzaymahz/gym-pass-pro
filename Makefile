@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: up down logs backend-shell db-shell migrate seed backend-test admin-install mobile-get mobile-test prod-up prod-down
+.PHONY: up down logs backend-shell db-shell migrate seed backend-test admin-install partner-install mobile-get mobile-test prod-up prod-down
 
 up:
 	docker compose up -d --build
@@ -28,6 +28,9 @@ backend-test:
 
 admin-install:
 	cd admin && npm install
+
+partner-install:
+	cd gym-partner && npm install
 
 mobile-get:
 	cd mobile && flutter pub get
