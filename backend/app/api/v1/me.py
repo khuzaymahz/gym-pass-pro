@@ -9,8 +9,9 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import auth_service, current_user, db_session, referral_service, user_repo
+from app.config import Settings, get_settings
 from app.core.exceptions import AppError, ErrorCode
-from app.core.security import hash_password
+from app.core.security import hash_password_async
 from app.db.enums import ReferralStatus
 from app.db.models import User
 from app.repositories.user_repo import UserRepository
@@ -63,7 +64,7 @@ async def update_me(
     if body.locale is not None:
         fields["locale"] = body.locale
     if body.password is not None:
-        fields["password_hash"] = hash_password(body.password)
+        fields["password_hash"] = await hash_password_async(body.password)
     if fields:
         await users.update_fields(user, **fields)
         await session.commit()
@@ -139,6 +140,7 @@ async def my_referral(
     user: Annotated[User, Depends(current_user)],
     svc: Annotated[ReferralService, Depends(referral_service)],
     session: Annotated[AsyncSession, Depends(db_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> MyReferralSummary:
     summary = await svc.summary_for(user)
     # ensure_code_for_user may have just written a code — commit it.
@@ -157,9 +159,10 @@ async def my_referral(
         )
         for referral, invited_user in rows
     ]
+    base = settings.share_base_url.rstrip("/")
     return MyReferralSummary(
         code=code,
-        shareUrl=f"https://gym-pass.net/invite/{code}",
+        shareUrl=f"{base}/invite/{code}",
         counts=counts,
         invited=invited,
     )

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from uuid import UUID
 
 from app.core.exceptions import AppError, ErrorCode
@@ -17,6 +18,21 @@ from app.utils.time import current_period_start, utcnow
 
 CHECKIN_RATE_LIMIT = 1
 CHECKIN_RATE_WINDOW_SECONDS = 30 * 60
+
+
+@dataclass(frozen=True)
+class CheckinResult:
+    """Outcome of a successful (or recorded-failure) check-in scan.
+
+    `gym` is set whenever a real `Gym` row was resolved; only the
+    invalid-QR path leaves it `None`. `remaining` is the per-period
+    visit budget after this scan — None for Diamond (unlimited)
+    and for the failure paths that don't consume a visit.
+    """
+
+    checkin: Checkin
+    gym: Gym | None
+    remaining: int | None
 
 
 class CheckinService:
@@ -46,7 +62,7 @@ class CheckinService:
         user: User,
         qr_payload: str,
         actor: Actor,
-    ) -> Checkin:
+    ) -> CheckinResult:
         gym = await self._resolve_gym(qr_payload)
 
         if gym is None or not gym.is_active or gym.deleted_at is not None:
@@ -183,7 +199,23 @@ class CheckinService:
             entity_type="checkin", entity_id=checkin.id,
             diff={"gym_id": str(gym.id)},
         )
-        return checkin
+
+        # Compute the period-remaining visit budget so the caller
+        # doesn't need to re-query. Diamond is unlimited (None);
+        # everyone else gets `monthly_visits - period_count`. The
+        # period_count derives from the same indexed `checkins`
+        # rows the budget gate above used, so the response stays
+        # coherent with the just-committed scan without re-reading
+        # the (denormalized, lifetime) `subscriptions.visits_used`.
+        remaining: int | None = None
+        if sub.tier != Tier.DIAMOND:
+            period_start = current_period_start(sub.starts_at, utcnow())
+            period_count = await self.checkins.count_success_since_for_user(
+                user.id, period_start
+            )
+            remaining = max(0, plan.monthly_visits - period_count)
+
+        return CheckinResult(checkin=checkin, gym=gym, remaining=remaining)
 
     async def history(self, user: User, *, limit: int = 20) -> list[tuple[Checkin, Gym]]:
         return await self.checkins.history_for_user(user.id, limit=limit)
@@ -214,4 +246,4 @@ class CheckinService:
         return await self.gyms.get(gym_id)
 
 
-__all__ = ["CheckinService"]
+__all__ = ["CheckinResult", "CheckinService"]

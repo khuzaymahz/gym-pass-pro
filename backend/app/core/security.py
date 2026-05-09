@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 from uuid import UUID
@@ -15,6 +16,11 @@ TokenType = Literal["access", "refresh", "service"]
 _pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 
+# Synchronous variants -- kept for tests, scripts, and any code path
+# that genuinely runs outside an event loop (e.g. `scripts/seed.py`,
+# unit tests). Production request paths must use the async wrappers
+# below; argon2 is intentionally CPU-heavy (~50-200ms) and would
+# block the FastAPI event loop for the duration of every login.
 def hash_password(plain: str) -> str:
     return _pwd_context.hash(plain)
 
@@ -29,6 +35,27 @@ def hash_otp(code: str) -> str:
 
 def verify_otp(code: str, hashed: str) -> bool:
     return _pwd_context.verify(code, hashed)
+
+
+# Async variants — offload argon2 to the default thread executor so the
+# event loop can keep serving other requests while the hash runs.
+# `asyncio.to_thread` is the right primitive here: argon2 is pure CPU
+# work with no I/O, and bouncing through a thread avoids the GIL stall
+# that would otherwise pin the loop for the duration of every hash.
+async def hash_password_async(plain: str) -> str:
+    return await asyncio.to_thread(_pwd_context.hash, plain)
+
+
+async def verify_password_async(plain: str, hashed: str) -> bool:
+    return await asyncio.to_thread(_pwd_context.verify, plain, hashed)
+
+
+async def hash_otp_async(code: str) -> str:
+    return await asyncio.to_thread(_pwd_context.hash, code)
+
+
+async def verify_otp_async(code: str, hashed: str) -> bool:
+    return await asyncio.to_thread(_pwd_context.verify, code, hashed)
 
 
 def _ttl_for(token_type: TokenType) -> int:

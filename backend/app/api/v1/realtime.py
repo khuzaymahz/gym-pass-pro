@@ -86,8 +86,16 @@ async def realtime_ws(websocket: WebSocket) -> None:
                 role = Role(role_str)
             except ValueError:
                 role = None
-        # `gym_id` is partner-only — we'll fish it out lazily on
-        # the first partner-channel subscribe attempt.
+        # `gym_id` is partner-only — embedded in the JWT extras at
+        # `issue_service_token_for_partner` time so the channel-scope
+        # check below can confirm the partner is asking about their
+        # own gym, not somebody else's.
+        gym_id_str = payload.get("gym_id")
+        if isinstance(gym_id_str, str):
+            try:
+                gym_id = UUID(gym_id_str)
+            except ValueError:
+                gym_id = None
 
         await websocket.send_json({"type": "auth.ok"})
 
@@ -139,7 +147,9 @@ async def realtime_ws(websocket: WebSocket) -> None:
             for ch in requested:
                 if not isinstance(ch, str):
                     continue
-                if _channel_allowed(ch, user_id=user_id, role=role):
+                if _channel_allowed(
+                    ch, user_id=user_id, role=role, gym_id=gym_id
+                ):
                     allowed.append(ch)
             active_channels = set(allowed)
 
@@ -176,7 +186,11 @@ async def realtime_ws(websocket: WebSocket) -> None:
 
 
 def _channel_allowed(
-    channel: str, *, user_id: UUID | None, role: Role | None
+    channel: str,
+    *,
+    user_id: UUID | None,
+    role: Role | None,
+    gym_id: UUID | None = None,
 ) -> bool:
     """Return True when this user is allowed to subscribe to this
     channel. Authoritative auth still happens at publish time
@@ -189,9 +203,14 @@ def _channel_allowed(
         - `gym/<id>`        — anyone can subscribe (public gym
                               metadata; logo / name / area)
         - `gym/<id>/photos` — same; photos are public
-        - `gym/<id>/checkins` — admin or the partner of that gym
+        - `gym/<id>/checkins` — admin or the partner of *that* gym
         - `user/<id>`       — only that user
-        - `partner/<id>`    — admin or the partner of that gym
+        - `partner/<id>`    — admin or the partner of *that* gym
+
+    Partner scoping uses the `gym_id` claim embedded in the service
+    JWT at `issue_service_token_for_partner` time. A partner whose
+    JWT doesn't have `gym_id` (legacy / misused) is refused for any
+    `partner/<id>` or `gym/<id>/checkins` request.
     """
     if user_id is None:
         return False
@@ -216,17 +235,28 @@ def _channel_allowed(
             return False
         return requested_id == user_id
 
-    # `partner/<gym_id>` and `gym/<gym_id>/checkins` — must be the
-    # partner of that gym. We don't have gym_id on the token, so
-    # we bail conservatively when role is GYM_OWNER but the gym
-    # link can't be re-checked here. The publisher side scopes
-    # checkin/payout events to the right channel; a leaked
-    # subscription would only get noise, not other gyms' data.
-    if (channel.startswith("partner/") or
-            (channel.startswith("gym/") and channel.endswith("/checkins"))):
-        # Tighter check requires a DB lookup; keep it loose here
-        # and rely on the publisher scoping. A future hardening
-        # is to thread `gym_id` into the JWT extras at issue time.
-        return role == Role.GYM_OWNER
+    # `partner/<gym_id>` — must be the partner of *that* gym.
+    if channel.startswith("partner/"):
+        if role != Role.GYM_OWNER or gym_id is None:
+            return False
+        try:
+            requested_gym = UUID(channel.split("/", 1)[1])
+        except (ValueError, IndexError):
+            return False
+        return requested_gym == gym_id
+
+    # `gym/<gym_id>/checkins` — must be the partner of that gym.
+    if channel.startswith("gym/") and channel.endswith("/checkins"):
+        if role != Role.GYM_OWNER or gym_id is None:
+            return False
+        # Channel shape: gym/<uuid>/checkins
+        parts = channel.split("/")
+        if len(parts) != 3:
+            return False
+        try:
+            requested_gym = UUID(parts[1])
+        except ValueError:
+            return False
+        return requested_gym == gym_id
 
     return False

@@ -5,12 +5,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 
-from app.api.deps import checkin_repo, current_gym_owner
+from app.api.deps import current_gym_owner, partner_checkin_read_service
 from app.db.enums import CheckinStatus
 from app.db.models import User
-from app.repositories.checkin_repo import CheckinRepository
 from app.schemas.admin import AdminCheckinListItem
 from app.schemas.common import Page
+from app.services.partner_checkin_read_service import PartnerCheckinReadService
 
 router = APIRouter(prefix="/partner/gym/checkins", tags=["partner/gym/checkins"])
 
@@ -18,7 +18,9 @@ router = APIRouter(prefix="/partner/gym/checkins", tags=["partner/gym/checkins"]
 @router.get("", response_model=Page[AdminCheckinListItem])
 async def list_checkins(
     user: Annotated[User, Depends(current_gym_owner)],
-    repo: Annotated[CheckinRepository, Depends(checkin_repo)],
+    svc: Annotated[
+        PartnerCheckinReadService, Depends(partner_checkin_read_service)
+    ],
     status: CheckinStatus | None = Query(default=None),
     since: datetime | None = Query(default=None),
     until: datetime | None = Query(default=None),
@@ -32,7 +34,7 @@ async def list_checkins(
     cross-app support tooling.
     """
     assert user.gym_id is not None
-    rows, total = await repo.list_paginated(
+    rows, total = await svc.list_for_gym(
         gym_id=user.gym_id,
         status=status,
         since=since,

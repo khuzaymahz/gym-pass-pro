@@ -6,19 +6,19 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 
-from app.api.deps import checkin_repo, current_admin
+from app.api.deps import admin_checkin_read_service, current_admin
 from app.db.enums import CheckinStatus
 from app.db.models import User
-from app.repositories.checkin_repo import CheckinRepository
 from app.schemas.admin import AdminCheckinListItem
 from app.schemas.common import Page
+from app.services.admin_checkin_read_service import AdminCheckinReadService
 
 router = APIRouter(prefix="/admin/checkins", tags=["admin/checkins"])
 
 
 @router.get("", response_model=Page[AdminCheckinListItem])
 async def list_checkins(
-    repo: Annotated[CheckinRepository, Depends(checkin_repo)],
+    svc: Annotated[AdminCheckinReadService, Depends(admin_checkin_read_service)],
     _: Annotated[User, Depends(current_admin)],
     gym_id: UUID | None = Query(default=None, alias="gymId"),
     user_id: UUID | None = Query(default=None, alias="userId"),
@@ -28,7 +28,7 @@ async def list_checkins(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100, alias="pageSize"),
 ) -> Page[AdminCheckinListItem]:
-    rows, total = await repo.list_paginated(
+    rows, total = await svc.list_paginated(
         gym_id=gym_id, user_id=user_id, status=status,
         since=since, until=until, page=page, page_size=page_size,
     )

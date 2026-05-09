@@ -5,7 +5,7 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.enums import PaymentMethod, PaymentStatus
@@ -58,3 +58,53 @@ class PaymentRepository:
         )
         rows = (await self.session.execute(stmt)).all()
         return [(p, s) for p, s in rows]
+
+    async def history_for_user(
+        self, user_id: UUID, *, limit: int = 100
+    ) -> list[tuple[Payment, Subscription]]:
+        """Admin user-detail view: the payment ledger for `user_id`.
+
+        Same shape as `list_for_user` but with a different default
+        limit so the admin detail page can show a longer trail without
+        the mobile invoice list bloating to match.
+        """
+        stmt = (
+            select(Payment, Subscription)
+            .join(Subscription, Subscription.id == Payment.subscription_id)
+            .where(Subscription.user_id == user_id)
+            .order_by(Payment.created_at.desc())
+            .limit(limit)
+        )
+        rows = (await self.session.execute(stmt)).all()
+        return [(p, s) for p, s in rows]
+
+    async def sum_succeeded_in_window(
+        self, since: datetime, until: datetime | None = None
+    ) -> Decimal:
+        """Sum of SUCCEEDED payments in [since, until). `until=None` means open."""
+        stmt = select(func.coalesce(func.sum(Payment.amount_jod), 0)).where(
+            Payment.status == PaymentStatus.SUCCEEDED,
+            Payment.created_at >= since,
+        )
+        if until is not None:
+            stmt = stmt.where(Payment.created_at < until)
+        return Decimal(str((await self.session.execute(stmt)).scalar_one()))
+
+    async def succeeded_per_day_since(
+        self, since: datetime
+    ) -> list[tuple[str, Decimal]]:
+        """Per-day SUCCEEDED revenue since `since` (inclusive)."""
+        stmt = (
+            select(
+                func.date_trunc("day", Payment.created_at).label("day"),
+                func.coalesce(func.sum(Payment.amount_jod), 0),
+            )
+            .where(
+                Payment.status == PaymentStatus.SUCCEEDED,
+                Payment.created_at >= since,
+            )
+            .group_by("day")
+            .order_by("day")
+        )
+        rows = (await self.session.execute(stmt)).all()
+        return [(d.date().isoformat(), Decimal(str(t))) for d, t in rows]

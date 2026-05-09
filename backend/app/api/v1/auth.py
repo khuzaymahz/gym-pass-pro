@@ -334,7 +334,7 @@ async def partner_exchange(
     user = await svc.users.get_by_phone(body.phone)
     if user is None or user.role != Role.GYM_OWNER or user.gym_id is None:
         raise AppError(ErrorCode.AUTH_FORBIDDEN, "Not a gym partner.")
-    token, exp = await svc.issue_service_token(user)
+    token, exp = await svc.issue_service_token_for_partner(user)
     return ServiceToken(token=token, expires_at=exp)  # type: ignore[arg-type]
 
 

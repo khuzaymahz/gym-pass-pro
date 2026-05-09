@@ -6,7 +6,6 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import AppError, ErrorCode
@@ -28,7 +27,10 @@ from app.db.models import (
     User,
 )
 from app.repositories.checkin_repo import CheckinRepository
+from app.repositories.payment_repo import PaymentRepository
 from app.repositories.referral_repo import ReferralRepository
+from app.repositories.subscription_repo import SubscriptionRepository
+from app.repositories.support_ticket_repo import SupportTicketRepository
 from app.repositories.user_repo import UserRepository
 from app.services.referral_service import ReferralService
 
@@ -80,13 +82,19 @@ class AdminUserDetailService:
         self,
         session: AsyncSession,
         users: UserRepository,
+        subs: SubscriptionRepository,
+        payments: PaymentRepository,
         checkins: CheckinRepository,
+        tickets: SupportTicketRepository,
         referrals: ReferralRepository,
         referral_svc: ReferralService,
     ) -> None:
         self.session = session
         self.users = users
+        self.subs = subs
+        self.payments = payments
         self.checkins = checkins
+        self.tickets = tickets
         self.referrals = referrals
         self.referral_svc = referral_svc
 
@@ -99,9 +107,17 @@ class AdminUserDetailService:
         if user.invited_by_user_id is not None:
             invited_by = await self.users.get(user.invited_by_user_id)
 
-        subscription_history = await self._subscription_history(user.id)
-        payment_history = await self._payment_history(user.id)
-        tickets = await self._tickets(user.id)
+        sub_rows = await self.subs.history_for_user(user.id)
+        subscription_history = [
+            SubscriptionHistoryItem(subscription=s, plan=p) for s, p in sub_rows
+        ]
+
+        payment_rows = await self.payments.history_for_user(user.id, limit=100)
+        payment_history = [
+            PaymentHistoryItem(payment=p, subscription=s) for p, s in payment_rows
+        ]
+
+        tickets = await self.tickets.history_for_user(user.id, limit=50)
         recent_checkins = await self.checkins.history_for_user(user.id, limit=25)
 
         # Referral: ensure code exists (for older members, backfilled via
@@ -130,39 +146,6 @@ class AdminUserDetailService:
             totals=totals,
             last_active_at=user.last_active_at,
         )
-
-    async def _subscription_history(
-        self, user_id: UUID
-    ) -> list[SubscriptionHistoryItem]:
-        stmt = (
-            select(Subscription, Plan)
-            .join(Plan, Plan.id == Subscription.plan_id, isouter=True)
-            .where(Subscription.user_id == user_id)
-            .order_by(Subscription.created_at.desc())
-        )
-        rows = (await self.session.execute(stmt)).all()
-        return [SubscriptionHistoryItem(subscription=s, plan=p) for s, p in rows]
-
-    async def _payment_history(self, user_id: UUID) -> list[PaymentHistoryItem]:
-        stmt = (
-            select(Payment, Subscription)
-            .join(Subscription, Subscription.id == Payment.subscription_id)
-            .where(Subscription.user_id == user_id)
-            .order_by(Payment.created_at.desc())
-            .limit(100)
-        )
-        rows = (await self.session.execute(stmt)).all()
-        return [PaymentHistoryItem(payment=p, subscription=s) for p, s in rows]
-
-    async def _tickets(self, user_id: UUID) -> list[SupportTicket]:
-        stmt = (
-            select(SupportTicket)
-            .where(SupportTicket.user_id == user_id)
-            .order_by(SupportTicket.created_at.desc())
-            .limit(50)
-        )
-        rows = (await self.session.execute(stmt)).scalars().all()
-        return list(rows)
 
 
 def _summarize_payment_methods(
@@ -245,11 +228,10 @@ def _compute_totals(
     }
 
 
-async def _count_user_payments(session: AsyncSession, user_id: UUID) -> int:
-    stmt = (
-        select(func.count())
-        .select_from(Payment)
-        .join(Subscription, Subscription.id == Payment.subscription_id)
-        .where(Subscription.user_id == user_id)
-    )
-    return int((await session.execute(stmt)).scalar_one())
+__all__ = [
+    "AdminUserDetailService",
+    "PaymentHistoryItem",
+    "ReferralItem",
+    "SubscriptionHistoryItem",
+    "UserDetail",
+]

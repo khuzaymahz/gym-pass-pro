@@ -9,9 +9,9 @@ from app.services.audit_service import Actor, AuditService
 class AdminBroadcastService:
     """Fan-out a system notification to all members matching a tier filter.
 
-    Intentionally synchronous for now: per-user rows are cheap and the admin
-    console warns if the recipient count is large. When push delivery is
-    wired in, the broadcaster hands off to a Celery task instead.
+    One bulk insert per broadcast (instead of N round-trips) — see
+    `NotificationRepository.bulk_create`. When push delivery is wired
+    in, the broadcaster hands off to a Celery task instead.
     """
 
     def __init__(
@@ -35,15 +35,15 @@ class AdminBroadcastService:
         actor: Actor,
     ) -> int:
         recipients = await self.users.list_member_ids_by_tier(target_tier)
-        for user_id in recipients:
-            await self.notifications.create(
-                user_id=user_id,
-                type=NotificationType.SYSTEM,
-                title_en=title_en,
-                title_ar=title_ar,
-                body_en=body_en,
-                body_ar=body_ar,
-            )
+        rows = NotificationRepository.build_broadcast_rows(
+            user_ids=recipients,
+            type=NotificationType.SYSTEM,
+            title_en=title_en,
+            title_ar=title_ar,
+            body_en=body_en,
+            body_ar=body_ar,
+        )
+        await self.notifications.bulk_create(rows)
         await self.audit.log(
             actor=actor,
             action="notification.broadcast",

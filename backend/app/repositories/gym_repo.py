@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.enums import Category, Tier
-from app.db.models import Gym
+from app.db.enums import Category, CheckinStatus, Tier
+from app.db.models import Checkin, Gym
 from app.utils.ids import uuid7
 
 
@@ -17,6 +18,47 @@ class GymRepository:
 
     async def get(self, gym_id: UUID) -> Gym | None:
         return await self.session.get(Gym, gym_id)
+
+    async def count_active(self) -> int:
+        """Count of gyms not soft-deleted. Used by admin overview metrics."""
+        stmt = (
+            select(func.count())
+            .select_from(Gym)
+            .where(Gym.deleted_at.is_(None))
+        )
+        return int((await self.session.execute(stmt)).scalar_one())
+
+    async def top_by_checkins_since(
+        self, since: datetime, *, limit: int = 5
+    ) -> list[dict[str, Any]]:
+        """Top gyms by SUCCESS checkins since `since`. Excludes soft-deleted gyms."""
+        stmt = (
+            select(
+                Gym.id,
+                Gym.name_en,
+                Gym.name_ar,
+                func.count(Checkin.id).label("count"),
+            )
+            .join(Checkin, Checkin.gym_id == Gym.id)
+            .where(
+                Checkin.status == CheckinStatus.SUCCESS,
+                Checkin.scanned_at >= since,
+                Gym.deleted_at.is_(None),
+            )
+            .group_by(Gym.id, Gym.name_en, Gym.name_ar)
+            .order_by(func.count(Checkin.id).desc())
+            .limit(limit)
+        )
+        rows = (await self.session.execute(stmt)).all()
+        return [
+            {
+                "gymId": str(r[0]),
+                "nameEn": r[1],
+                "nameAr": r[2],
+                "count": int(r[3]),
+            }
+            for r in rows
+        ]
 
     async def get_active(self, gym_id: UUID) -> Gym | None:
         stmt = select(Gym).where(

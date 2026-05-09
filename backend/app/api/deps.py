@@ -33,8 +33,11 @@ from app.repositories.subscription_pause_repo import SubscriptionPauseRepository
 from app.repositories.subscription_repo import SubscriptionRepository
 from app.repositories.support_ticket_repo import SupportTicketRepository
 from app.repositories.user_repo import UserRepository
+from app.services.admin_audit_service import AdminAuditService
 from app.services.admin_broadcast_service import AdminBroadcastService
+from app.services.admin_checkin_read_service import AdminCheckinReadService
 from app.services.admin_metrics_service import AdminMetricsService
+from app.services.admin_partner_service import AdminPartnerService
 from app.services.admin_payout_service import AdminPayoutService
 from app.services.admin_plan_service import AdminPlanService
 from app.services.admin_subscription_service import AdminSubscriptionService
@@ -44,6 +47,7 @@ from app.services.audit_service import Actor, AuditService
 from app.services.auth_service import AuthService
 from app.services.checkin_service import CheckinService
 from app.services.gym_service import GymService
+from app.services.partner_checkin_read_service import PartnerCheckinReadService
 from app.services.partner_metrics_service import PartnerMetricsService
 from app.services.pause_service import PauseService
 from app.services.payment_method_service import PaymentMethodService
@@ -253,11 +257,16 @@ def admin_user_service(
 def admin_user_detail_service(
     session: SessionDep,
     users: Annotated[UserRepository, Depends(user_repo)],
+    subs: Annotated[SubscriptionRepository, Depends(subscription_repo)],
+    payments: Annotated[PaymentRepository, Depends(payment_repo)],
     checkins: Annotated[CheckinRepository, Depends(checkin_repo)],
+    tickets: Annotated[SupportTicketRepository, Depends(support_ticket_repo)],
     referrals: Annotated[ReferralRepository, Depends(referral_repo)],
     ref_svc: Annotated[ReferralService, Depends(referral_service)],
 ) -> AdminUserDetailService:
-    return AdminUserDetailService(session, users, checkins, referrals, ref_svc)
+    return AdminUserDetailService(
+        session, users, subs, payments, checkins, tickets, referrals, ref_svc
+    )
 
 
 def admin_plan_service(
@@ -290,10 +299,12 @@ def admin_metrics_service(
     checkins: Annotated[CheckinRepository, Depends(checkin_repo)],
     payouts: Annotated[PayoutRepository, Depends(payout_agg_repo)],
     tickets: Annotated[SupportTicketRepository, Depends(support_ticket_repo)],
+    gyms: Annotated[GymRepository, Depends(gym_repo)],
+    payments: Annotated[PaymentRepository, Depends(payment_repo)],
     redis: Annotated[Redis, Depends(redis_client)],
 ) -> AdminMetricsService:
     return AdminMetricsService(
-        session, users, subs, checkins, payouts, tickets, redis
+        session, users, subs, checkins, payouts, tickets, gyms, payments, redis
     )
 
 
@@ -313,9 +324,37 @@ def support_ticket_service(
 
 
 def partner_metrics_service(
-    session: SessionDep,
+    checkins: Annotated[CheckinRepository, Depends(checkin_repo)],
+    ledger: Annotated[PayoutLedgerRepository, Depends(payout_repo)],
+    payouts: Annotated[PayoutRepository, Depends(payout_agg_repo)],
 ) -> PartnerMetricsService:
-    return PartnerMetricsService(session)
+    return PartnerMetricsService(checkins, ledger, payouts)
+
+
+def admin_partner_service(
+    users: Annotated[UserRepository, Depends(user_repo)],
+    gyms: Annotated[GymService, Depends(gym_service)],
+    audit: Annotated[AuditService, Depends(audit_service)],
+) -> AdminPartnerService:
+    return AdminPartnerService(users, gyms, audit)
+
+
+def admin_audit_service(
+    repo: Annotated[AuditRepository, Depends(audit_repo)],
+) -> AdminAuditService:
+    return AdminAuditService(repo)
+
+
+def admin_checkin_read_service(
+    checkins: Annotated[CheckinRepository, Depends(checkin_repo)],
+) -> AdminCheckinReadService:
+    return AdminCheckinReadService(checkins)
+
+
+def partner_checkin_read_service(
+    checkins: Annotated[CheckinRepository, Depends(checkin_repo)],
+) -> PartnerCheckinReadService:
+    return PartnerCheckinReadService(checkins)
 
 
 # ----- Auth / actor -----

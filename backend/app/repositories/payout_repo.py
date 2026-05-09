@@ -40,6 +40,39 @@ class PayoutLedgerRepository:
         )
         return Decimal(str((await self.session.execute(stmt)).scalar_one()))
 
+    async def sum_for_gym_since(
+        self, gym_id: UUID, *, since: datetime
+    ) -> Decimal:
+        """Total ledger amount accrued by `gym_id` since `since`. Used
+        by partner metrics to surface "what we owe you" earned on
+        successful checkins regardless of payout aggregation state."""
+        stmt = (
+            select(func.coalesce(func.sum(PayoutLedger.amount_jod), 0))
+            .where(
+                PayoutLedger.gym_id == gym_id,
+                PayoutLedger.created_at >= since,
+            )
+        )
+        return Decimal(str((await self.session.execute(stmt)).scalar_one()))
+
+    async def sum_per_day_for_gym_since(
+        self, gym_id: UUID, *, since: datetime
+    ) -> list[tuple[str, Decimal]]:
+        stmt = (
+            select(
+                func.date_trunc("day", PayoutLedger.created_at).label("day"),
+                func.coalesce(func.sum(PayoutLedger.amount_jod), 0),
+            )
+            .where(
+                PayoutLedger.gym_id == gym_id,
+                PayoutLedger.created_at >= since,
+            )
+            .group_by("day")
+            .order_by("day")
+        )
+        rows = (await self.session.execute(stmt)).all()
+        return [(d.date().isoformat(), Decimal(str(t))) for d, t in rows]
+
     async def aggregate_for_period(
         self, *, period_start: date, period_end: date
     ) -> list[tuple[UUID, Decimal, int]]:
@@ -145,6 +178,29 @@ class PayoutRepository:
     async def pending_total(self) -> Decimal:
         stmt = select(func.coalesce(func.sum(Payout.total_amount_jod), 0)).where(
             Payout.status == PayoutStatus.PENDING
+        )
+        return Decimal(str((await self.session.execute(stmt)).scalar_one()))
+
+    async def pending_total_for_gym(self, gym_id: UUID) -> Decimal:
+        stmt = (
+            select(func.coalesce(func.sum(Payout.total_amount_jod), 0))
+            .where(
+                Payout.gym_id == gym_id,
+                Payout.status == PayoutStatus.PENDING,
+            )
+        )
+        return Decimal(str((await self.session.execute(stmt)).scalar_one()))
+
+    async def paid_total_for_gym_since(
+        self, gym_id: UUID, *, since: datetime
+    ) -> Decimal:
+        stmt = (
+            select(func.coalesce(func.sum(Payout.total_amount_jod), 0))
+            .where(
+                Payout.gym_id == gym_id,
+                Payout.status == PayoutStatus.PAID,
+                Payout.paid_at >= since,
+            )
         )
         return Decimal(str((await self.session.execute(stmt)).scalar_one()))
 

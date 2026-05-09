@@ -85,6 +85,23 @@ class SupportTicketRepository:
         stmt = select(SupportTicket).where(SupportTicket.id == ticket_id)
         return (await self.session.execute(stmt)).scalar_one_or_none()
 
+    async def history_for_user(
+        self, user_id: UUID, *, limit: int = 50
+    ) -> list[SupportTicket]:
+        """Newest-first ticket list for the admin user-detail view.
+
+        Distinct from `list_for_user` which paginates for the mobile-side
+        list — this one trims to a fixed limit because the admin detail
+        page renders the full set inline rather than paginating."""
+        stmt = (
+            select(SupportTicket)
+            .where(SupportTicket.user_id == user_id)
+            .order_by(SupportTicket.created_at.desc())
+            .limit(limit)
+        )
+        rows = (await self.session.execute(stmt)).scalars().all()
+        return list(rows)
+
     async def list_for_user(
         self,
         user_id: UUID,

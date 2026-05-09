@@ -5,18 +5,18 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 
-from app.api.deps import audit_repo, current_admin
+from app.api.deps import admin_audit_service, current_admin
 from app.db.models import User
-from app.repositories.audit_repo import AuditRepository
 from app.schemas.admin import AdminAuditRead
 from app.schemas.common import Page
+from app.services.admin_audit_service import AdminAuditService
 
 router = APIRouter(prefix="/admin/audit", tags=["admin/audit"])
 
 
 @router.get("", response_model=Page[AdminAuditRead])
 async def list_audit(
-    repo: Annotated[AuditRepository, Depends(audit_repo)],
+    svc: Annotated[AdminAuditService, Depends(admin_audit_service)],
     _: Annotated[User, Depends(current_admin)],
     entity_type: str | None = Query(default=None, alias="entityType"),
     actor_user_id: UUID | None = Query(default=None, alias="actorUserId"),
@@ -24,7 +24,7 @@ async def list_audit(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100, alias="pageSize"),
 ) -> Page[AdminAuditRead]:
-    rows, total = await repo.list_paginated(
+    rows, total = await svc.list_paginated(
         entity_type=entity_type,
         actor_user_id=actor_user_id,
         action=action,

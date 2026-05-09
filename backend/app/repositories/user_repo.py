@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import func, or_, select
@@ -159,6 +161,46 @@ class UserRepository:
             .where(User.role == role, User.deleted_at.is_(None))
         )
         return int((await self.session.execute(stmt)).scalar_one())
+
+    async def signups_per_day_since(
+        self, since: datetime
+    ) -> list[tuple[str, int]]:
+        """Per-day count of new MEMBER rows since `since`. Used by the
+        admin overview for the signup trendline."""
+        stmt = (
+            select(
+                func.date_trunc("day", User.created_at).label("day"),
+                func.count(),
+            )
+            .where(
+                User.role == Role.MEMBER,
+                User.created_at >= since,
+            )
+            .group_by("day")
+            .order_by("day")
+        )
+        rows = (await self.session.execute(stmt)).all()
+        return [(d.date().isoformat(), int(c)) for d, c in rows]
+
+    async def recent_members(self, *, limit: int) -> list[dict[str, Any]]:
+        """Most recent (non-deleted) MEMBER signups, newest first."""
+        stmt = (
+            select(User)
+            .where(User.role == Role.MEMBER, User.deleted_at.is_(None))
+            .order_by(User.created_at.desc())
+            .limit(limit)
+        )
+        rows = (await self.session.execute(stmt)).scalars().all()
+        return [
+            {
+                "id": str(u.id),
+                "name": u.name,
+                "email": u.email,
+                "phone": u.phone,
+                "createdAt": u.created_at.isoformat(),
+            }
+            for u in rows
+        ]
 
     async def update_fields(self, user: User, **fields: object) -> User:
         for k, v in fields.items():

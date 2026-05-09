@@ -174,12 +174,25 @@ class PauseService:
         """Cron entry: auto-resume every pause whose window has ended.
         Each finalisation shifts the parent subscription's `expires_at`
         forward by the days the member actually lost. Returns the list
-        of pauses that were finalised this run for logging."""
+        of pauses that were finalised this run for logging.
+
+        Uses `subs.get_many(...)` so a sweep over N pauses runs a single
+        IN-list query instead of N point-lookups; with the cron firing
+        every minute and pause windows mostly clearing in batches
+        (members on the same monthly cycle), the previous N+1 was a
+        noticeable contributor to DB chatter.
+        """
         cutoff = now.date()
         open_rows = await self.pauses.list_open_ending_on_or_before(cutoff)
+        if not open_rows:
+            return []
+
+        sub_ids = {row.subscription_id for row in open_rows}
+        sub_map = await self.subs.get_many(sub_ids)
+
         finalised: list[SubscriptionPause] = []
         for row in open_rows:
-            sub = await self.subs.get(row.subscription_id)
+            sub = sub_map.get(row.subscription_id)
             if sub is None:
                 # Parent subscription got deleted while a pause was open.
                 # Mark the pause finalised with zero days consumed so the

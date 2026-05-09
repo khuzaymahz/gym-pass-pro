@@ -93,6 +93,13 @@ class Settings(BaseSettings):
     media_url_prefix: str = "/media"
     max_upload_mb: int = 10
 
+    # Public-facing base URL the mobile app embeds in shareable links
+    # (e.g. referral invites). Defaults to the production landing page;
+    # override via `SHARE_BASE_URL` for staging or a custom domain.
+    # Trailing slash is stripped at use-site so callers can append
+    # segments without double-slashes.
+    share_base_url: str = "https://gym-pass.net"
+
     @property
     def is_dev(self) -> bool:
         return self.app_env == "development"

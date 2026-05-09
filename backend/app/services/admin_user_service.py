@@ -3,7 +3,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from app.core.exceptions import AppError, ErrorCode
-from app.core.security import hash_password
+from app.core.security import hash_password_async
 from app.db.enums import Role
 from app.db.models import User
 from app.repositories.user_repo import UserRepository
@@ -127,7 +127,7 @@ class AdminUserService:
             )
         user = await self.users.create_admin(
             email=str(data.email),
-            password_hash=hash_password(data.password),
+            password_hash=await hash_password_async(data.password),
             name=data.name,
         )
         await self.audit.log(
@@ -148,7 +148,7 @@ class AdminUserService:
                 ErrorCode.VALIDATION_ERROR, "Target user is not an admin."
             )
         await self.users.update_fields(
-            user, password_hash=hash_password(new_password)
+            user, password_hash=await hash_password_async(new_password)
         )
         await self.audit.log(
             actor=actor,

@@ -1,13 +1,14 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.enums import SubscriptionStatus, Tier
-from app.db.models import Subscription, User
+from app.db.models import Plan, Subscription, User
 from app.utils.ids import uuid7
 
 
@@ -17,6 +18,18 @@ class SubscriptionRepository:
 
     async def get(self, sub_id: UUID) -> Subscription | None:
         return await self.session.get(Subscription, sub_id)
+
+    async def get_many(self, ids: Iterable[UUID]) -> dict[UUID, Subscription]:
+        """Bulk-load subscriptions by id. Returns a mapping for O(1) lookup
+        from a list of pause rows. Used by the pause sweep so a
+        per-row `subs.get()` doesn't fan out into N round-trips.
+        """
+        ids_list = list(ids)
+        if not ids_list:
+            return {}
+        stmt = select(Subscription).where(Subscription.id.in_(ids_list))
+        rows = (await self.session.execute(stmt)).scalars().all()
+        return {row.id: row for row in rows}
 
     async def active_for_user(self, user_id: UUID) -> Subscription | None:
         stmt = select(Subscription).where(
@@ -145,3 +158,38 @@ class SubscriptionRepository:
         )
         rows = (await self.session.execute(stmt)).all()
         return {tier.value: int(count) for tier, count in rows}
+
+    async def count_expiring_between(
+        self, *, after: datetime, before: datetime
+    ) -> int:
+        """Count of ACTIVE subscriptions expiring in [`after`, `before`).
+        Used by the admin overview to flag the at-risk set for a
+        renewal nudge."""
+        stmt = (
+            select(func.count())
+            .select_from(Subscription)
+            .where(
+                and_(
+                    Subscription.status == SubscriptionStatus.ACTIVE,
+                    Subscription.expires_at >= after,
+                    Subscription.expires_at < before,
+                )
+            )
+        )
+        return int((await self.session.execute(stmt)).scalar_one())
+
+    async def history_for_user(
+        self, user_id: UUID
+    ) -> list[tuple[Subscription, Plan | None]]:
+        """Full subscription history for a user joined with the plan
+        snapshot at the time of purchase. Outer-joined so a deleted
+        plan still surfaces the row (with `plan=None`) — admins still
+        need to see the tier history even if the plan was retired."""
+        stmt = (
+            select(Subscription, Plan)
+            .join(Plan, Plan.id == Subscription.plan_id, isouter=True)
+            .where(Subscription.user_id == user_id)
+            .order_by(Subscription.created_at.desc())
+        )
+        rows = (await self.session.execute(stmt)).all()
+        return [(s, p) for s, p in rows]

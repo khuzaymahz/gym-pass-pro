@@ -11,10 +11,10 @@ from app.config import get_settings
 from app.core.exceptions import AppError, ErrorCode
 from app.core.security import (
     encode_token,
-    hash_otp,
+    hash_otp_async,
     hash_password,
-    verify_otp,
-    verify_password,
+    verify_otp_async,
+    verify_password_async,
 )
 from app.db.enums import Role
 from app.db.models import User
@@ -52,7 +52,10 @@ DEV_OTP = "1234"
 # admin-login "user not found" path with the "wrong password" path. Without
 # this, an attacker can probe which emails are registered admins by measuring
 # response time (argon2 verification is intentionally slow). Computed lazily
-# so module import stays cheap.
+# at module import via the sync hasher (one-time, ~50ms) so request-path
+# usage stays a cheap O(1) dict lookup. The verify burns the CPU cost on the
+# request path, but that work happens via `verify_password_async` which
+# offloads to a thread so the event loop is never blocked.
 _DUMMY_PASSWORD_HASH: str | None = None
 
 
@@ -104,7 +107,7 @@ class AuthService:
 
         settings = get_settings()
         code = DEV_OTP if settings.is_dev else f"{secrets.randbelow(10000):04d}"
-        code_hash = hash_otp(code)
+        code_hash = await hash_otp_async(code)
         now = utcnow()
         await self.otps.delete_expired_for_phone(phone, now)
         await self.otps.insert(
@@ -132,7 +135,7 @@ class AuthService:
             raise AppError(ErrorCode.AUTH_OTP_EXPIRED, "OTP expired.")
         if latest.attempts >= OTP_MAX_ATTEMPTS:
             raise AppError(ErrorCode.AUTH_OTP_LOCKED, "OTP locked.")
-        if not verify_otp(code, latest.code_hash):
+        if not await verify_otp_async(code, latest.code_hash):
             await self.otps.increment_attempts(latest)
             raise AppError(ErrorCode.AUTH_OTP_INVALID, "OTP invalid.")
 
@@ -188,7 +191,7 @@ class AuthService:
 
         settings = get_settings()
         code = DEV_OTP if settings.is_dev else f"{secrets.randbelow(10000):04d}"
-        code_hash = hash_otp(code)
+        code_hash = await hash_otp_async(code)
         now = utcnow()
         await self.otps.delete_expired_for_phone(new_phone, now)
         await self.otps.insert(
@@ -215,7 +218,7 @@ class AuthService:
             raise AppError(ErrorCode.AUTH_OTP_EXPIRED, "OTP expired.")
         if latest.attempts >= OTP_MAX_ATTEMPTS:
             raise AppError(ErrorCode.AUTH_OTP_LOCKED, "OTP locked.")
-        if not verify_otp(code, latest.code_hash):
+        if not await verify_otp_async(code, latest.code_hash):
             await self.otps.increment_attempts(latest)
             raise AppError(ErrorCode.AUTH_OTP_INVALID, "OTP invalid.")
 
@@ -255,7 +258,16 @@ class AuthService:
                 await self.referrals.ensure_code_for_user(user)
                 is_new_user = True
             else:
-                user.google_sub = google_sub
+                # Existing email-only user signs in with Google for the
+                # first time — link the two by writing `google_sub`. Use
+                # the repo's update_fields so the change is flushed in
+                # the same transaction; previously we only mutated the
+                # in-memory ORM object, which never made it to the
+                # database (it would only persist on the next session
+                # commit *after* something else flushed). Now the link
+                # is durable and the next sign-in finds the row by
+                # `google_sub` directly.
+                await self.users.update_fields(user, google_sub=google_sub)
         if is_new_user and referral_code:
             await self.referrals.claim_on_signup(
                 invited_user=user, referral_code=referral_code, actor=actor,
@@ -312,11 +324,11 @@ class AuthService:
 
         user = await self.users.get_by_phone(phone)
         if user is None or not user.password_hash:
-            verify_password(password, _dummy_password_hash())
+            await verify_password_async(password, _dummy_password_hash())
             raise AppError(
                 ErrorCode.AUTH_INVALID_CREDENTIALS, "Invalid credentials."
             )
-        if not verify_password(password, user.password_hash):
+        if not await verify_password_async(password, user.password_hash):
             raise AppError(
                 ErrorCode.AUTH_INVALID_CREDENTIALS, "Invalid credentials."
             )
@@ -370,7 +382,7 @@ class AuthService:
             or not user.password_hash
             or user.gym_id is None
         ):
-            verify_password(password, _dummy_password_hash())
+            await verify_password_async(password, _dummy_password_hash())
             log.warning(
                 "partner_login_failed",
                 phone=_mask_phone(phone),
@@ -385,7 +397,7 @@ class AuthService:
             raise AppError(
                 ErrorCode.AUTH_INVALID_CREDENTIALS, "Invalid credentials."
             )
-        if not verify_password(password, user.password_hash):
+        if not await verify_password_async(password, user.password_hash):
             log.warning(
                 "partner_login_failed",
                 phone=_mask_phone(phone),
@@ -432,7 +444,7 @@ class AuthService:
 
         user = await self.users.get_by_email(email)
         if user is None or user.role != Role.ADMIN or not user.password_hash:
-            verify_password(password, _dummy_password_hash())
+            await verify_password_async(password, _dummy_password_hash())
             log.warning(
                 "admin_login_failed",
                 email=_mask_email(email),
@@ -446,7 +458,7 @@ class AuthService:
             raise AppError(
                 ErrorCode.AUTH_INVALID_CREDENTIALS, "Invalid credentials."
             )
-        if not verify_password(password, user.password_hash):
+        if not await verify_password_async(password, user.password_hash):
             log.warning(
                 "admin_login_failed",
                 email=_mask_email(email),
@@ -467,8 +479,38 @@ class AuthService:
         return user
 
     async def issue_service_token(self, user: User) -> tuple[str, object]:
+        """Mint a service-token JWT for an admin user.
+
+        Service tokens are short-lived (5 min by default) and are used
+        by the admin / partner Next.js apps when they exchange a
+        NextAuth session for a backend bearer.
+        """
+        extras: dict[str, object] = {"role": user.role.value}
         token, exp = encode_token(
-            subject=user.id, token_type="service", extra={"role": user.role.value}
+            subject=user.id, token_type="service", extra=extras
+        )
+        return token, exp
+
+    async def issue_service_token_for_partner(
+        self, user: User
+    ) -> tuple[str, object]:
+        """Service-token variant for gym-owners.
+
+        Embeds `gym_id` in the JWT extras so downstream channel-scope
+        checks (e.g. realtime ws) can confirm the partner is asking
+        about *their* gym, not someone else's. The user must already
+        be a `GYM_OWNER` with a non-null `gym_id` — callers ensure
+        this, but we re-assert here so a misuse fails loudly rather
+        than minting a partner token without scope.
+        """
+        if user.role != Role.GYM_OWNER or user.gym_id is None:
+            raise AppError(ErrorCode.AUTH_FORBIDDEN, "Not a gym partner.")
+        extras: dict[str, object] = {
+            "role": user.role.value,
+            "gym_id": str(user.gym_id),
+        }
+        token, exp = encode_token(
+            subject=user.id, token_type="service", extra=extras
         )
         return token, exp
 

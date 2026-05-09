@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.enums import CheckinStatus
-from app.db.models import Checkin, Gym, User
+from app.db.models import Checkin, Gym, Subscription, User
 from app.utils.ids import uuid7
 
 
@@ -144,6 +145,159 @@ class CheckinRepository:
         )
         rows = (await self.session.execute(stmt)).all()
         return [(d.date().isoformat(), int(c)) for d, c in rows]
+
+    async def count_per_day_since(
+        self, since: datetime
+    ) -> list[tuple[str, int]]:
+        """SUCCESS checkin counts bucketed by day, since `since` (inclusive)."""
+        stmt = (
+            select(
+                func.date_trunc("day", Checkin.scanned_at).label("day"),
+                func.count(),
+            )
+            .where(
+                Checkin.status == CheckinStatus.SUCCESS,
+                Checkin.scanned_at >= since,
+            )
+            .group_by("day")
+            .order_by("day")
+        )
+        rows = (await self.session.execute(stmt)).all()
+        return [(d.date().isoformat(), int(c)) for d, c in rows]
+
+    async def recent_with_user_and_gym(
+        self, *, limit: int
+    ) -> list[dict[str, Any]]:
+        """Most recent check-ins joined with their gym and user. Read-only
+        admin-overview shape — returns plain dicts so the service layer
+        doesn't have to know about the join."""
+        stmt = (
+            select(Checkin, Gym, User)
+            .join(Gym, Gym.id == Checkin.gym_id)
+            .join(User, User.id == Checkin.user_id)
+            .order_by(Checkin.scanned_at.desc())
+            .limit(limit)
+        )
+        rows = (await self.session.execute(stmt)).all()
+        return [
+            {
+                "id": str(c.id),
+                "userId": str(u.id),
+                "userName": u.name,
+                "gymNameEn": g.name_en,
+                "gymNameAr": g.name_ar,
+                "status": c.status.value,
+                "scannedAt": c.scanned_at.isoformat(),
+            }
+            for c, g, u in rows
+        ]
+
+    # ----- partner-scoped aggregates -----
+
+    async def count_success_for_gym_since(
+        self, gym_id: UUID, since: datetime
+    ) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(Checkin)
+            .where(
+                Checkin.gym_id == gym_id,
+                Checkin.status == CheckinStatus.SUCCESS,
+                Checkin.scanned_at >= since,
+            )
+        )
+        return int((await self.session.execute(stmt)).scalar_one())
+
+    async def count_unique_members_for_gym_since(
+        self, gym_id: UUID, since: datetime
+    ) -> int:
+        stmt = (
+            select(func.count(func.distinct(Checkin.user_id)))
+            .where(
+                Checkin.gym_id == gym_id,
+                Checkin.status == CheckinStatus.SUCCESS,
+                Checkin.scanned_at >= since,
+            )
+        )
+        return int((await self.session.execute(stmt)).scalar_one())
+
+    async def count_per_day_for_gym_since(
+        self, gym_id: UUID, since: datetime
+    ) -> list[tuple[str, int]]:
+        stmt = (
+            select(
+                func.date_trunc("day", Checkin.scanned_at).label("day"),
+                func.count(),
+            )
+            .where(
+                Checkin.gym_id == gym_id,
+                Checkin.status == CheckinStatus.SUCCESS,
+                Checkin.scanned_at >= since,
+            )
+            .group_by("day")
+            .order_by("day")
+        )
+        rows = (await self.session.execute(stmt)).all()
+        return [(d.date().isoformat(), int(c)) for d, c in rows]
+
+    async def tier_breakdown_for_gym_since(
+        self, gym_id: UUID, since: datetime
+    ) -> dict[str, int]:
+        stmt = (
+            select(Subscription.tier, func.count(Checkin.id))
+            .join(Subscription, Subscription.id == Checkin.subscription_id)
+            .where(
+                Checkin.gym_id == gym_id,
+                Checkin.status == CheckinStatus.SUCCESS,
+                Checkin.scanned_at >= since,
+            )
+            .group_by(Subscription.tier)
+        )
+        rows = (await self.session.execute(stmt)).all()
+        return {tier.value: int(count) for tier, count in rows}
+
+    async def hour_breakdown_for_gym_since(
+        self, gym_id: UUID, since: datetime
+    ) -> list[tuple[int, int]]:
+        stmt = (
+            select(
+                func.extract("hour", Checkin.scanned_at).label("hour"),
+                func.count(),
+            )
+            .where(
+                Checkin.gym_id == gym_id,
+                Checkin.status == CheckinStatus.SUCCESS,
+                Checkin.scanned_at >= since,
+            )
+            .group_by("hour")
+            .order_by("hour")
+        )
+        rows = (await self.session.execute(stmt)).all()
+        return [(int(h), int(c)) for h, c in rows]
+
+    async def recent_with_user_for_gym(
+        self, gym_id: UUID, *, limit: int
+    ) -> list[dict[str, Any]]:
+        stmt = (
+            select(Checkin, User)
+            .join(User, User.id == Checkin.user_id)
+            .where(
+                Checkin.gym_id == gym_id,
+                Checkin.status == CheckinStatus.SUCCESS,
+            )
+            .order_by(Checkin.scanned_at.desc())
+            .limit(limit)
+        )
+        rows = (await self.session.execute(stmt)).all()
+        return [
+            {
+                "id": str(c.id),
+                "userId": str(u.id),
+                "userName": u.name or u.first_name or None,
+                "scannedAt": c.scanned_at.isoformat(),
+            }
+            for c, u in rows
+        ]
 
 
 def _timedelta(*, days: int):

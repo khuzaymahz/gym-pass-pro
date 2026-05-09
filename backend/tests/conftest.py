@@ -65,6 +65,12 @@ class _FakeRedis:
     def pipeline(self) -> "_FakePipeline":
         return _FakePipeline(self)
 
+    async def get(self, key: str) -> str | None:
+        # Used by RateLimiter.peek so a UI hint can read the current
+        # counter without consuming a slot.
+        v = self.store.get(key)
+        return None if v is None else str(v)
+
 
 class _FakePipeline:
     def __init__(self, parent: _FakeRedis) -> None:
@@ -75,8 +81,14 @@ class _FakePipeline:
         self.ops.append(("incr", (key,)))
         return self
 
-    def expire(self, key: str, seconds: int) -> "_FakePipeline":
-        self.ops.append(("expire", (key, seconds)))
+    def expire(
+        self, key: str, seconds: int, *, nx: bool = False, **_: object
+    ) -> "_FakePipeline":
+        # The real RateLimiter calls `expire(..., nx=True)` so the TTL
+        # is set only on the first hit of a window. The fake doesn't
+        # need to model TTL at all (each test resets `store`); it just
+        # has to accept the kwarg without exploding.
+        self.ops.append(("expire", (key, seconds, nx)))
         return self
 
     async def execute(self) -> list:
