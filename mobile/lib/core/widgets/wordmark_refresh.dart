@@ -1,8 +1,5 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 
-import '../theme/gp_tokens.dart';
 import 'gym_loader.dart';
 
 /// Pull-to-refresh wrapper that swaps the platform spinner for a
@@ -293,18 +290,27 @@ class RefreshScope extends InheritedWidget {
       old.isRefreshing != isRefreshing;
 }
 
-/// Dumbbell loader. Lifecycle, in order:
+/// Thin wrapper that maps the WordmarkRefresh state machine onto a
+/// stock [GymLoader]. We deliberately don't own an animation
+/// controller here — the canonical loading mark is the
+/// dumbbell-build animation inside [GymLoader], and reusing it in
+/// every loading surface (button spinners, sheet content, this
+/// pull-to-refresh overlay) is the separation of concerns:
+/// [GymLoader] paints the brand mark, [WordmarkRefresh] owns the
+/// gesture state.
 ///
-///   1. **Pulling** — opacity + scale + slide-up tracks `progress`.
-///      Bar is *off-screen below* at progress=0 and at rest at
-///      progress=1. Spin period eases from slow to fast.
-///   2. **Refreshing** (`active == true`, `completion == 0`) — bar
-///      lifts and lowers continuously at full energy.
-///   3. **Completion spin** (`completion` 0 → ~0.55) — bar does a
-///      quick 360° rotation. The "rep complete" gesture.
-///   4. **Exit** (`completion` ~0.55 → 1) — opacity fades and bar
-///      slides down + scales out.
-class _DumbbellLoader extends StatefulWidget {
+/// The two state transitions we still drive locally:
+///
+///   1. **Pulling** — `progress` 0 → 1 ramps the loader's opacity
+///      so the dumbbell fades in as the member pulls past the
+///      armed-refresh threshold. Acts as the "you're getting
+///      closer" signal that previously came from the rotation
+///      acceleration.
+///   2. **Completion fade** (`completion` 0 → 1) — the loader
+///      fades out smoothly while the platform `RefreshIndicator`
+///      keeps its gap held open, giving the dumbbell time to
+///      finish leaving before the page slides closed.
+class _DumbbellLoader extends StatelessWidget {
   const _DumbbellLoader({
     required this.progress,
     required this.active,
@@ -319,111 +325,16 @@ class _DumbbellLoader extends StatefulWidget {
   final double completion;
 
   @override
-  State<_DumbbellLoader> createState() => _DumbbellLoaderState();
-}
-
-class _DumbbellLoaderState extends State<_DumbbellLoader>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-
-  static const Duration _fastPeriod = Duration(milliseconds: 950);
-  static const Duration _slowPeriod = Duration(milliseconds: 2200);
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: _periodFor(widget.progress, widget.active),
-    );
-    _ctrl.repeat();
-  }
-
-  @override
-  void didUpdateWidget(covariant _DumbbellLoader old) {
-    super.didUpdateWidget(old);
-    if (old.progress != widget.progress || old.active != widget.active) {
-      _ctrl.duration = _periodFor(widget.progress, widget.active);
-      if (!_ctrl.isAnimating) _ctrl.repeat();
-    }
-  }
-
-  Duration _periodFor(double progress, bool active) {
-    if (active) return _fastPeriod;
-    final t = progress.clamp(0.0, 1.0);
-    final ms = _slowPeriod.inMilliseconds +
-        ((_fastPeriod.inMilliseconds - _slowPeriod.inMilliseconds) * t)
-            .round();
-    return Duration(milliseconds: ms);
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final pullProgress = widget.progress.clamp(0.0, 1.0).toDouble();
-    final completion = widget.completion.clamp(0.0, 1.0).toDouble();
-
-    // Exit fade kicks in once the completion sequence starts —
-    // fade out smoothly, no separate spin phase since the dumbbell
-    // is already spinning continuously.
-    final exitProgress = widget.active && completion > 0
-        ? Curves.easeInCubic.transform(completion)
+    final pullProgress = progress.clamp(0.0, 1.0).toDouble();
+    final completionT = completion.clamp(0.0, 1.0).toDouble();
+    final exitProgress = active && completionT > 0
+        ? Curves.easeInCubic.transform(completionT)
         : 0.0;
-
-    final opacity = widget.active
-        ? (1.0 - exitProgress)
-        : pullProgress;
-
+    final opacity = active ? (1.0 - exitProgress) : pullProgress;
     return Opacity(
       opacity: opacity,
-      child: AnimatedBuilder(
-        animation: _ctrl,
-        builder: (context, _) {
-          // Continuous rotation around centre — spinning the whole
-          // way through pull, refresh, and fade-out. The dumbbell's
-          // asymmetric silhouette (long bar, plates at the ends)
-          // makes every angle visibly different.
-          final angle = _ctrl.value * math.pi * 2;
-          return Transform.rotate(
-            angle: angle,
-            child: _DumbbellPainting(active: widget.active, repaint: _ctrl),
-          );
-        },
-      ),
-    );
-  }
-}
-
-/// Thin wrapper around [GymLoaderPainter]. Same silhouette as the
-/// public [GymLoader] used everywhere else — geometry lives in
-/// [GymLoaderPainter]; this widget just sizes it for the refresh
-/// indicator's slot.
-class _DumbbellPainting extends StatelessWidget {
-  const _DumbbellPainting({
-    required this.active,
-    this.repaint,
-  });
-
-  final bool active;
-  final Listenable? repaint;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 32,
-      height: 22,
-      child: CustomPaint(
-        painter: GymLoaderPainter(
-          color: GP.lime,
-          glow: active,
-          repaint: repaint,
-        ),
-      ),
+      child: const GymLoader(size: GymLoaderSize.large),
     );
   }
 }
