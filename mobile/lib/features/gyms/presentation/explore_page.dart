@@ -125,16 +125,19 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
   static const double _sheetMax = 0.84;
 
   /// Jordan country bounds for camera constraint. Sets the hard
-  /// edges of the world the member can pan to — drag past the
-  /// border and flutter_map clamps. Slightly padded out from the
-  /// political border so regions hugging the edge (Aqaba on the
-  /// south coast, Mafraq on the east) aren't visually clipped.
+  /// edges of the world the member can pan to — drag past the edge
+  /// and flutter_map clamps. The southern edge sits ~0.5° below
+  /// Aqaba's actual border so members at the pinch-out floor get
+  /// a little extra map breathing room toward Saudi (per user
+  /// preference "give a little extra access to go more from down
+  /// map"); the labels-clip layer still hides any foreign place
+  /// names that fall in that buffer.
   ///
   /// Coordinates roughly:
-  ///   SW corner ≈ Aqaba southern tip / Saudi border
+  ///   SW corner ≈ ~50 km south of Aqaba's tip (into NW Saudi)
   ///   NE corner ≈ Northeast border with Iraq / Syria
   static final LatLngBounds _jordanBounds = LatLngBounds(
-    const LatLng(29.10, 34.85),
+    const LatLng(28.65, 34.85),
     const LatLng(33.45, 39.40),
   );
 
@@ -157,72 +160,192 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
   ///
   /// Points trace clockwise from the NW corner. Order is
   /// load-bearing: reversing it inverts hole-vs-fill regions.
+  /// ~150-point Jordan border traced clockwise from the NW corner.
+  /// At this density the polygon's segments are short enough that
+  /// the cut-out reads as a smooth curve at every zoom level we
+  /// allow (7-18) — no visible straight-line "polygon" facets.
+  ///
+  /// Verified that the Saudi border-zone towns Turayf
+  /// (31.67, 38.66) and Al-Qurayyat (31.34, 37.36) sit OUTSIDE
+  /// this outline, so their labels never appear in the clip
+  /// region. For sub-100-metre accuracy the right path is a real
+  /// Jordan GeoJSON loaded from `assets/` (~500-1000 points); this
+  /// inline list is the right intermediate fidelity for now.
   static const List<LatLng> _jordanPolygon = [
     // ===== NW — Israel/Syria triangle (Yarmouk) =====
-    LatLng(32.72, 35.55),
-    LatLng(32.71, 35.62),
-    LatLng(32.70, 35.72),
-    // ===== N — Syrian border (Daraa belt) =====
-    LatLng(32.66, 35.85),
-    LatLng(32.69, 35.96),
-    LatLng(32.74, 36.05),
-    LatLng(32.78, 36.18),
-    LatLng(32.74, 36.30),
-    LatLng(32.65, 36.42),
-    LatLng(32.55, 36.55),
-    LatLng(32.48, 36.72),
-    LatLng(32.43, 36.92),
-    // ===== NE — approach to the Iraqi panhandle =====
-    LatLng(32.40, 37.18),
-    LatLng(32.42, 37.50),
-    LatLng(32.46, 37.85),
-    LatLng(32.52, 38.20),
-    LatLng(32.60, 38.55),
-    LatLng(32.85, 38.78),
-    // ===== E — Iraqi border (north tip + east edge) =====
-    LatLng(33.37, 38.78), // sharp north tip of the panhandle
-    LatLng(33.20, 38.92),
-    LatLng(33.05, 39.05),
-    LatLng(32.85, 39.15),
-    LatLng(32.55, 39.20),
-    LatLng(32.30, 39.20),
-    // ===== SE — Saudi border (long diagonal SW) =====
-    LatLng(32.05, 39.10),
-    LatLng(31.75, 38.90),
-    LatLng(31.45, 38.65),
-    LatLng(31.15, 38.40),
-    LatLng(30.85, 38.18),
-    LatLng(30.55, 37.95),
-    LatLng(30.25, 37.75),
-    LatLng(29.95, 37.50),
-    LatLng(29.65, 37.20),
-    LatLng(29.42, 36.85),
-    LatLng(29.32, 36.45),
-    LatLng(29.25, 35.95),
-    LatLng(29.20, 35.45),
+    LatLng(32.720, 35.553),
+    LatLng(32.715, 35.595),
+    LatLng(32.708, 35.640),
+    LatLng(32.700, 35.685),
+    LatLng(32.692, 35.730),
+    LatLng(32.690, 35.780),
+    LatLng(32.700, 35.825),
+    LatLng(32.715, 35.870),
+    LatLng(32.728, 35.915),
+    LatLng(32.738, 35.960),
+    LatLng(32.745, 36.005),
+    LatLng(32.748, 36.050),
+    LatLng(32.745, 36.095),
+    LatLng(32.738, 36.145),
+    // Mafraq belt
+    LatLng(32.728, 36.200),
+    LatLng(32.715, 36.255),
+    LatLng(32.695, 36.310),
+    LatLng(32.670, 36.365),
+    LatLng(32.640, 36.420),
+    LatLng(32.605, 36.475),
+    LatLng(32.570, 36.535),
+    LatLng(32.530, 36.595),
+    LatLng(32.495, 36.660),
+    LatLng(32.465, 36.730),
+    LatLng(32.445, 36.805),
+    LatLng(32.430, 36.880),
+    LatLng(32.422, 36.960),
+    // ===== Approach to the Iraqi panhandle =====
+    LatLng(32.420, 37.050),
+    LatLng(32.422, 37.140),
+    LatLng(32.428, 37.230),
+    LatLng(32.435, 37.320),
+    LatLng(32.445, 37.410),
+    LatLng(32.460, 37.500),
+    LatLng(32.478, 37.590),
+    LatLng(32.500, 37.680),
+    LatLng(32.525, 37.770),
+    LatLng(32.555, 37.860),
+    LatLng(32.585, 37.945),
+    LatLng(32.620, 38.025),
+    LatLng(32.660, 38.105),
+    LatLng(32.705, 38.180),
+    LatLng(32.755, 38.250),
+    LatLng(32.810, 38.315),
+    LatLng(32.870, 38.375),
+    LatLng(32.935, 38.430),
+    LatLng(33.005, 38.475),
+    LatLng(33.080, 38.515),
+    LatLng(33.155, 38.550),
+    LatLng(33.225, 38.585),
+    LatLng(33.290, 38.625),
+    LatLng(33.345, 38.670),
+    LatLng(33.378, 38.730),
+    LatLng(33.380, 38.780), // sharp north tip
+    // ===== Iraqi panhandle east edge going south =====
+    LatLng(33.370, 38.825),
+    LatLng(33.345, 38.870),
+    LatLng(33.310, 38.915),
+    LatLng(33.270, 38.960),
+    LatLng(33.220, 39.005),
+    LatLng(33.160, 39.050),
+    LatLng(33.090, 39.090),
+    LatLng(33.010, 39.125),
+    LatLng(32.920, 39.155),
+    LatLng(32.820, 39.180),
+    LatLng(32.715, 39.195),
+    LatLng(32.605, 39.200),
+    LatLng(32.495, 39.190),
+    LatLng(32.385, 39.165),
+    LatLng(32.280, 39.125),
+    LatLng(32.180, 39.070),
+    LatLng(32.095, 39.000),
+    // ===== "Armpit" — sharp turn westward, Saudi border =====
+    LatLng(32.025, 38.910),
+    LatLng(31.965, 38.795),
+    LatLng(31.910, 38.665),
+    LatLng(31.855, 38.520),
+    LatLng(31.800, 38.365),
+    LatLng(31.740, 38.205),
+    LatLng(31.680, 38.040),
+    LatLng(31.615, 37.875),
+    LatLng(31.545, 37.715),
+    LatLng(31.470, 37.555),
+    LatLng(31.395, 37.405),
+    LatLng(31.320, 37.260),
+    LatLng(31.245, 37.130),
+    LatLng(31.170, 37.010),
+    LatLng(31.090, 36.905),
+    LatLng(31.005, 36.815),
+    LatLng(30.915, 36.740),
+    LatLng(30.825, 36.685),
+    LatLng(30.735, 36.640),
+    LatLng(30.640, 36.605),
+    LatLng(30.545, 36.580),
+    LatLng(30.450, 36.560),
+    LatLng(30.355, 36.550),
+    LatLng(30.260, 36.545),
+    LatLng(30.165, 36.550),
+    LatLng(30.070, 36.560),
+    LatLng(29.975, 36.580),
+    LatLng(29.880, 36.605),
+    LatLng(29.785, 36.630),
+    LatLng(29.690, 36.655),
+    LatLng(29.600, 36.675),
+    LatLng(29.515, 36.685),
+    LatLng(29.440, 36.680),
+    LatLng(29.380, 36.655),
+    LatLng(29.340, 36.605),
+    LatLng(29.315, 36.530),
+    LatLng(29.295, 36.435),
+    LatLng(29.280, 36.320),
+    LatLng(29.265, 36.180),
+    LatLng(29.250, 36.020),
+    LatLng(29.235, 35.835),
+    LatLng(29.220, 35.625),
+    LatLng(29.205, 35.395),
+    LatLng(29.193, 35.150),
     // ===== S — Aqaba southern tip =====
-    LatLng(29.18, 34.95),
-    // ===== W — Israel / West Bank border, going north =====
-    // Wadi Araba southern stretch
-    LatLng(29.45, 35.00),
-    LatLng(29.75, 35.05),
-    LatLng(30.05, 35.10),
-    LatLng(30.30, 35.15),
-    LatLng(30.55, 35.20),
-    LatLng(30.80, 35.30),
-    // Dead Sea southern + middle (eastern shore is the border)
-    LatLng(30.95, 35.38),
-    LatLng(31.10, 35.42),
-    LatLng(31.30, 35.45),
-    LatLng(31.50, 35.48),
-    LatLng(31.70, 35.50),
-    LatLng(31.80, 35.52),
+    LatLng(29.183, 34.950),
+    // ===== W — Aqaba up Wadi Araba =====
+    LatLng(29.255, 34.945),
+    LatLng(29.345, 34.945),
+    LatLng(29.440, 34.948),
+    LatLng(29.535, 34.955),
+    LatLng(29.625, 34.965),
+    LatLng(29.715, 34.978),
+    LatLng(29.800, 34.992),
+    LatLng(29.885, 35.008),
+    LatLng(29.970, 35.025),
+    LatLng(30.055, 35.045),
+    LatLng(30.140, 35.068),
+    LatLng(30.225, 35.092),
+    LatLng(30.310, 35.118),
+    LatLng(30.395, 35.145),
+    LatLng(30.480, 35.172),
+    LatLng(30.560, 35.200),
+    LatLng(30.640, 35.230),
+    LatLng(30.720, 35.265),
+    LatLng(30.795, 35.305),
+    LatLng(30.860, 35.350),
+    LatLng(30.915, 35.390),
+    // Dead Sea eastern shore
+    LatLng(30.965, 35.420),
+    LatLng(31.025, 35.435),
+    LatLng(31.090, 35.445),
+    LatLng(31.155, 35.450),
+    LatLng(31.220, 35.455),
+    LatLng(31.290, 35.460),
+    LatLng(31.360, 35.465),
+    LatLng(31.430, 35.475),
+    LatLng(31.500, 35.485),
+    LatLng(31.570, 35.495),
+    LatLng(31.640, 35.505),
+    LatLng(31.710, 35.515),
+    LatLng(31.775, 35.530),
+    LatLng(31.835, 35.545),
     // Jordan Valley going north
-    LatLng(32.00, 35.55),
-    LatLng(32.20, 35.55),
-    LatLng(32.40, 35.55),
-    LatLng(32.55, 35.55),
-    // closes back to NW corner (32.72, 35.55) automatically
+    LatLng(31.895, 35.553),
+    LatLng(31.955, 35.555),
+    LatLng(32.015, 35.555),
+    LatLng(32.075, 35.555),
+    LatLng(32.135, 35.555),
+    LatLng(32.195, 35.555),
+    LatLng(32.255, 35.555),
+    LatLng(32.315, 35.555),
+    LatLng(32.375, 35.555),
+    LatLng(32.435, 35.555),
+    LatLng(32.495, 35.555),
+    LatLng(32.555, 35.555),
+    LatLng(32.615, 35.555),
+    LatLng(32.670, 35.555),
+    // closes back to start (32.720, 35.553)
   ];
 
 
@@ -718,26 +841,30 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
                   initialCenter:
                       LatLng(region.centre.lat, region.centre.lng),
                   initialZoom: region.staticMapZoom.toDouble(),
-                  // `containCenter` (NOT `contain`) — the camera
-                  // CENTER must stay inside Jordan, but the viewport
-                  // edges can extend beyond into the dark mask area.
-                  // The stricter `contain` we tried first was so
-                  // restrictive at low zoom that members couldn't
-                  // pinch out to see the whole country — flutter_map
-                  // forces the viewport to stay inside the bounds,
-                  // which is impossible when the bounds are smaller
-                  // than the viewport. `containCenter` lets the
-                  // viewport be larger; the polygon mask handles
-                  // making the out-of-Jordan area look right.
-                  cameraConstraint: CameraConstraint.containCenter(
+                  // `contain` — the entire camera VIEWPORT must stay
+                  // within Jordan's bounding rectangle. Member can
+                  // pan freely within the box but the viewport edge
+                  // will never extend past it; pinching out beyond
+                  // what fits is auto-clamped to the viewport-equals-
+                  // bounds zoom level (≈ minZoom). This is what the
+                  // user explicitly asked for — "edge of the
+                  // farthest border of jordan, should not be out".
+                  // The bounds are a rectangle (flutter_map's API
+                  // doesn't take polygon constraints), so at the
+                  // pinch-out floor a small triangle of neighbouring
+                  // territory near the rectangle corners remains
+                  // visible — the labels-clip layer ensures it has
+                  // NO foreign place names.
+                  cameraConstraint: CameraConstraint.contain(
                     bounds: _jordanBounds,
                   ),
-                  // minZoom 6 lets members pinch out to see all of
-                  // Jordan with a small dark margin around it. 7 was
-                  // tight enough that the country only just fit a
-                  // phone width; 6 leaves enough room that the cut-
-                  // out polygon's outline reads clearly.
-                  minZoom: 6,
+                  // minZoom 7 — the user-defined "pinch-out floor"
+                  // where Jordan fits the screen with a small strip
+                  // of neighbouring terrain above and below. Below
+                  // 7 the country shrank to a tiny region in a sea
+                  // of foreign terrain, which the user explicitly
+                  // doesn't want.
+                  minZoom: 7,
                   maxZoom: 18,
                   // Disable rotation — easy to trigger by accident on
                   // touch and members never need it. Pinch zoom + pan
@@ -804,8 +931,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
                           alignment: Alignment.topCenter,
                           child: _GymPinMarker(
                             gym: g,
-                            selected:
-                                _selectedGym?.slug == g.slug,
+                            selected: _selectedGym?.slug == g.slug,
                             onTap: () => _onMarkerTap(g),
                             // Double-tap on the pin = "I know which
                             // gym I want, take me there" — skips the
@@ -886,11 +1012,18 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
 }
 
 /// Logo-as-pin marker. Renders the gym's circular logo (or
-/// initials fallback) with a tier-coloured ring + drop shadow, and
-/// a small needle below pointing at the actual lat/lng. The whole
-/// pin is a Flutter widget — pinch zoom on the map scales the
-/// ring/logo proportionally with the rest of the UI, so the result
-/// looks like part of the app rather than a foreign SDK marker.
+/// initials fallback) with a tier-coloured ring + flat drop
+/// shadow and a small needle below pointing at the actual
+/// lat/lng.
+///
+/// Selection cue is **size-only**, deliberately. The earlier
+/// implementation animated the accent-coloured box shadow (alpha
+/// + blur) on tap — that produced a brief yellow glow flash for
+/// untiered gyms and read as buggy when switching between pins.
+/// Now the only thing that animates is the pin's circle size
+/// (38 → 42 px) and ring thickness (2 → 2.5 px); the colours and
+/// the drop shadow stay constant, so the pin glides between
+/// states without a colour change or pulse.
 ///
 /// Tap behaviour:
 ///   - Single tap → [onTap] fires after the gesture-recogniser
@@ -919,8 +1052,8 @@ class _GymPinMarker extends ConsumerWidget {
     final accent = tier?.color ?? gp.accentInk;
     final apiBaseUrl = ref.watch(envProvider).apiBaseUrl;
     final initial = gymInitials(gym.nameEn);
-    final ring = selected ? 3.0 : 2.0;
-    final size = selected ? 44.0 : 36.0;
+    final size = selected ? 42.0 : 38.0;
+    final ring = selected ? 2.5 : 2.0;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
@@ -928,8 +1061,14 @@ class _GymPinMarker extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Animates the size + ring thickness over 200 ms with a
+          // soft easeOutCubic — a small, smooth scale-up that
+          // reads as "this one is selected" without any colour
+          // change. Switching between pins glides both the
+          // outgoing and incoming selection in parallel; with
+          // colours fixed there's no flash mid-switch.
           AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
+            duration: const Duration(milliseconds: 200),
             curve: Curves.easeOutCubic,
             width: size,
             height: size,
@@ -939,13 +1078,7 @@ class _GymPinMarker extends ConsumerWidget {
               border: Border.all(color: accent, width: ring),
               boxShadow: [
                 BoxShadow(
-                  color: accent.withValues(alpha: selected ? 0.50 : 0.30),
-                  blurRadius: selected ? 16 : 10,
-                  spreadRadius: selected ? -2 : -3,
-                  offset: const Offset(0, 4),
-                ),
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.35),
+                  color: Colors.black.withValues(alpha: 0.40),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
