@@ -49,10 +49,20 @@ class _HomePageState extends ConsumerState<HomePage> {
     // page: subscription (visit count, renew date), profile (name
     // / email / phone an admin may have corrected), and the gym
     // list (Near You).
-    await Future.wait([
+    //
+    // The gymsListProvider invalidate has to be awaited via
+    // `.future` rather than just `ref.invalidate(...)` — otherwise
+    // the refresh indicator stops the moment invalidate returns
+    // (synchronously) and the new gym list lands silently a few
+    // hundred ms later. Members read that as "swipe to refresh
+    // didn't update anything." Reading `.future` after invalidate
+    // triggers the new fetch and gives us a Future to await
+    // alongside the other two refreshes.
+    ref.invalidate(gymsListProvider);
+    await Future.wait<void>([
       ref.read(subscriptionProvider.notifier).refreshFromBackend(),
       ref.read(profileProvider.notifier).refreshFromBackend(),
-      Future(() => ref.invalidate(gymsListProvider)),
+      ref.read(gymsListProvider.future),
     ]);
   }
 
