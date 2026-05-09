@@ -94,12 +94,13 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
   /// Sheet snap heights, expressed as fractions of screen height.
   /// All three user-defined as of 2026-05-09:
   ///
-  /// - **Min** — ONLY the rounded top + drag handle pill peek above
-  ///   the bottom nav. The "6 GYMS" count strip and any list rows
-  ///   are completely hidden; map fills the rest of the screen.
-  ///   Tuned down from 0.055 → 0.04 because the earlier value was
-  ///   tall enough to leak the count strip into view; the handle
-  ///   row alone is 32 px (matches `_GymListSheet`'s SizedBox).
+  /// - **Min** — rounded top + drag handle pill + the "6 GYMS"
+  ///   count strip. List rows are hidden; map fills everything
+  ///   above. Tuned to 0.085 so members see how many gyms are
+  ///   available at a glance even when the sheet is collapsed —
+  ///   useful when filters change (e.g. "5 GYMS" after toggling a
+  ///   tier filter). 32 px handle row + ~30 px count row + sheet
+  ///   corner padding ≈ 70 px ÷ ~820 px body ≈ 0.085.
   /// - **Default** — sheet covers the lower ~45% — handle + "6 GYMS"
   ///   header + EXACTLY 3 list rows (Apex / Bedford / Core), with
   ///   the third card sitting just above the bottom nav and no
@@ -119,7 +120,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
   ///
   /// Snapping is ON: drag-release snaps to the nearest of these
   /// three, mirroring Uber / Apple Maps.
-  static const double _sheetMin = 0.04;
+  static const double _sheetMin = 0.066;
   static const double _sheetAutoOpen = 0.45;
   static const double _sheetMax = 0.84;
 
@@ -224,17 +225,6 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
     // closes back to NW corner (32.72, 35.55) automatically
   ];
 
-  /// Outer ring of the mask polygon — large rectangle around the
-  /// camera's reachable envelope. Doesn't need to be world-scale;
-  /// ~5° padded around Jordan keeps the polygon cheap to
-  /// triangulate while still covering the entire viewport at
-  /// every zoom level we allow.
-  static const List<LatLng> _maskOuterRect = [
-    LatLng(35.00, 30.00), // NW
-    LatLng(35.00, 45.00), // NE
-    LatLng(27.00, 45.00), // SE
-    LatLng(27.00, 30.00), // SW
-  ];
 
 
   @override
@@ -599,6 +589,28 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
 
   @override
   Widget build(BuildContext context) {
+    // Auto-clear the favourites-only filter the moment the
+    // favourites set drops to empty (e.g. member opens a gym and
+    // un-favourites it from there). Without this, the next time
+    // they open the filters sheet they'd see "Favourites only"
+    // toggled ON but with count = 0 — and because the toggle row
+    // was disabled when count = 0, the only way out was hitting
+    // Reset. The defensive change in `_FavoritesToggleRow` (allow
+    // turn-OFF when count is 0) covers the edge case where this
+    // listener somehow misses an update.
+    //
+    // Riverpod's `ref.listen` registers once per build and persists
+    // across rebuilds; the callback fires on any change to the
+    // watched provider regardless of whether the explore tab is
+    // currently in the foreground (it stays mounted under the
+    // bottom-nav shell).
+    ref.listen<Set<String>>(favoritedGymsProvider, (previous, next) {
+      if (next.isEmpty &&
+          ref.read(gymsFavoritesOnlyProvider)) {
+        ref.read(gymsFavoritesOnlyProvider.notifier).state = false;
+      }
+    });
+
     final asyncGyms = ref.watch(gymsListProvider);
     final category = ref.watch(gymsCategoryFilterProvider);
     final query = ref.watch(gymsSearchQueryProvider);
@@ -679,14 +691,24 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
           //
           // For higher volume / branded styling, swap the URL to a
           // Stadia/Mapbox style — single-line change.
-          // Labeled tile variants — labels (city names, region
-          // names, road names) render on top of every tile; the
-          // polygon mask layer below cuts everything outside
-          // Jordan's border so foreign labels never show. Jordan
-          // itself reads with full place context.
-          final tileUrl = isDark
-              ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
-              : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png';
+          // Two-layer tile strategy so foreign terrain stays
+          // visible (roads, contour, water) but foreign labels
+          // never show:
+          //   1. Base layer: `*_nolabels` — terrain rendered
+          //      everywhere, no place names anywhere.
+          //   2. Labels overlay: `*_only_labels` — text-only tile
+          //      with transparent background, clipped to Jordan's
+          //      polygon (see `_JordanLabelsLayer` below) so the
+          //      labels render INSIDE Jordan only.
+          // Result: outside Jordan shows the normal terrain map
+          // without any place names; inside Jordan shows full
+          // labeled context (Amman, Aqaba, Irbid, road names, …).
+          final tileUrlBase = isDark
+              ? 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png'
+              : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}.png';
+          final tileUrlLabels = isDark
+              ? 'https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}.png'
+              : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}.png';
           return Stack(
             children: [
               // 1. Full-screen tiled map (bottom of stack).
@@ -748,52 +770,26 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
                   },
                 ),
                 children: [
+                  // Base — terrain only, no labels, rendered globally.
+                  // Foreign countries show their roads / contours /
+                  // water without any place names.
                   TileLayer(
-                    urlTemplate: tileUrl,
+                    urlTemplate: tileUrlBase,
                     subdomains: const ['a', 'b', 'c', 'd'],
-                    // Retina off for now — CARTO's free tier serves
-                    // standard tiles reliably; @2x is patchy across
-                    // their hosts and trades a small crispness win
-                    // for failed-tile blanks. Re-enable once we move
-                    // to a paid provider with consistent retina.
                     retinaMode: false,
                     userAgentPackageName: 'net.gympass.gympass',
-                    // Surface tile failures in the debug console so a
-                    // CARTO outage / blocked CDN doesn't silently leave
-                    // the user with a grey rectangle. Without this, a
-                    // 404 / DNS / TLS error reads identically to "no
-                    // tiles configured" — extremely hard to diagnose
-                    // from a screenshot.
                     errorTileCallback: (tile, error, stackTrace) {
                       debugPrint(
-                        'TileLayer error coords=${tile.coordinates} err=$error',
+                        'TileLayer base error coords=${tile.coordinates} err=$error',
                       );
                     },
-                    // Tile cache lives in flutter_map's internal store;
-                    // re-renders the same tile from cache on subsequent
-                    // pans, so panning back to a recently-visited area
-                    // is instant and doesn't re-fetch.
                   ),
-                  // Out-of-Jordan mask. Renders a giant rectangle in
-                  // solid background colour with Jordan's border as
-                  // a hole — tiles inside the hole show through with
-                  // their labels intact; outside the hole is filled
-                  // dark, hiding all foreign tile content (roads,
-                  // labels, terrain) without affecting Jordan's
-                  // visibility. Border resolution is the dominant
-                  // factor in how clean the cut-out reads — see the
-                  // `_jordanPolygon` doc for why we use ~60 points.
-                  PolygonLayer(
-                    polygons: [
-                      Polygon(
-                        points: _maskOuterRect,
-                        holePointsList: const [_jordanPolygon],
-                        color: Colors.black,
-                        borderColor: Colors.transparent,
-                        borderStrokeWidth: 0,
-                      ),
-                    ],
-                  ),
+                  // Labels overlay — text-only tile (transparent
+                  // background) clipped to Jordan's polygon outline,
+                  // so labels render INSIDE Jordan only. Outside,
+                  // the clip eats the layer and the base no-labels
+                  // tile shows through cleanly.
+                  _JordanLabelsLayer(tileUrl: tileUrlLabels),
                   MarkerLayer(
                     markers: [
                       for (final g in markerGyms)
@@ -1778,7 +1774,13 @@ class _FavoritesToggleRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final disabled = count == 0;
+    // Disabled only when there are NO favourites AND the filter
+    // isn't currently on. If the filter is somehow stuck ON with
+    // 0 favourites (e.g. a Riverpod listener missed the update),
+    // the toggle stays tappable so the member can turn it OFF
+    // without having to hit Reset — the original bug was that
+    // `disabled = count == 0` blocked turn-off too.
+    final disabled = count == 0 && !active;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -2244,4 +2246,72 @@ class _HeroLogo extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Renders a labels-only tile layer clipped to Jordan's outline so
+/// place names ONLY appear inside the country. The base layer (no-
+/// labels) handles foreign terrain; this layer adds back the
+/// Amman/Aqaba/Irbid/road-name labels for Jordan tiles only.
+///
+/// Implementation: a `ClipPath` around the labels TileLayer, with a
+/// custom clipper that converts the (lat, lng) Jordan polygon to a
+/// `Path` in screen coordinates using the live `MapCamera`. The
+/// clipper re-runs on every camera change (pan, zoom) so the label
+/// region tracks the country's screen footprint exactly — no jank,
+/// no stale clip path.
+///
+/// Why this beats the previous polygon-mask approach: the mask had
+/// to cover everything outside Jordan with a solid colour, which
+/// meant foreign terrain disappeared too. With the clip, foreign
+/// terrain renders normally from the base no-labels tile; only the
+/// labels overlay is gated.
+class _JordanLabelsLayer extends StatelessWidget {
+  const _JordanLabelsLayer({required this.tileUrl});
+
+  final String tileUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final camera = MapCamera.of(context);
+    return ClipPath(
+      clipper: _JordanPathClipper(camera),
+      child: TileLayer(
+        urlTemplate: tileUrl,
+        subdomains: const ['a', 'b', 'c', 'd'],
+        retinaMode: false,
+        userAgentPackageName: 'net.gympass.gympass',
+        // Labels-only tiles fail noisily (404 on a CARTO outage)
+        // but the base layer below stays — no need to surface
+        // these errors as loud as the base ones.
+      ),
+    );
+  }
+}
+
+/// Custom clipper that turns the Jordan polygon (lat/lng list) into
+/// a closed Path in pixel coordinates using the current camera.
+class _JordanPathClipper extends CustomClipper<ui.Path> {
+  const _JordanPathClipper(this.camera);
+
+  final MapCamera camera;
+
+  @override
+  ui.Path getClip(Size size) {
+    final path = ui.Path();
+    const polygon = _ExplorePageState._jordanPolygon;
+    for (var i = 0; i < polygon.length; i++) {
+      final p = camera.latLngToScreenPoint(polygon[i]);
+      if (i == 0) {
+        path.moveTo(p.x, p.y);
+      } else {
+        path.lineTo(p.x, p.y);
+      }
+    }
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(covariant _JordanPathClipper old) =>
+      old.camera != camera;
 }
