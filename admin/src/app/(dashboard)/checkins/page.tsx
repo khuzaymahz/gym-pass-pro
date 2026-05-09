@@ -115,10 +115,14 @@ export default async function CheckinsPage({
       />
 
       <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-        <StatTile label={tStats("today")} value={result.items.length} />
-        <StatTile label={tStats("today")} value={successCount} tone="ok" />
+        <StatTile label={tStats("total")} value={result.items.length} />
         <StatTile
-          label={tStats("thisMonth")}
+          label={tStats("successful")}
+          value={successCount}
+          tone="ok"
+        />
+        <StatTile
+          label={tStats("denied")}
           value={deniedCount}
           tone={deniedCount > 0 ? "bad" : "default"}
         />
@@ -127,9 +131,17 @@ export default async function CheckinsPage({
           value={
             result.items.length === 0
               ? "—"
-              : `${((deniedCount / result.items.length) * 100).toFixed(0)}%`
+              : `${((successCount / result.items.length) * 100).toFixed(0)}%`
           }
-          tone={deniedCount === 0 ? "ok" : "warn"}
+          tone={
+            result.items.length === 0
+              ? "default"
+              : successCount / result.items.length >= 0.8
+                ? "ok"
+                : successCount / result.items.length >= 0.5
+                  ? "warn"
+                  : "bad"
+          }
         />
       </div>
 
@@ -158,16 +170,16 @@ export default async function CheckinsPage({
         className="flex flex-wrap items-end gap-2 rounded-lg border border-line bg-surface p-3"
       >
         <label className="field">
-          <span className="field-label">User ID</span>
+          <span className="field-label">{tFilters("userId")}</span>
           <input
             name="userId"
             defaultValue={userId ?? ""}
-            placeholder="uuid"
+            placeholder={tFilters("uuidPlaceholder")}
             className="input input-sm w-56"
           />
         </label>
         <label className="field">
-          <span className="field-label">Since</span>
+          <span className="field-label">{tFilters("since")}</span>
           <input
             name="since"
             type="date"
@@ -176,7 +188,7 @@ export default async function CheckinsPage({
           />
         </label>
         <label className="field">
-          <span className="field-label">Until</span>
+          <span className="field-label">{tFilters("until")}</span>
           <input
             name="until"
             type="date"

@@ -142,6 +142,7 @@
   "users": {
     "title": "المستخدمون",
     "description": "كل عضو ومشرف في النظام.",
+    "searchPlaceholder": "الاسم / البريد / الهاتف",
     "edit": {
       "firstName": "الاسم الأول",
       "lastName": "اسم العائلة",
@@ -409,7 +410,10 @@
     "stats": {
       "today": "اليوم",
       "thisMonth": "منذ بداية الشهر",
-      "successRate": "نسبة النجاح"
+      "successRate": "نسبة النجاح",
+      "total": "الإجمالي",
+      "successful": "ناجحة",
+      "denied": "مرفوضة"
     },
     "table": {
       "when": "متى",
@@ -424,7 +428,11 @@
     },
     "filters": {
       "allStatuses": "الكل",
-      "search": "اسم العضو / النادي / المعرّف…"
+      "search": "اسم العضو / النادي / المعرّف…",
+      "userId": "معرّف المستخدم",
+      "since": "من",
+      "until": "إلى",
+      "uuidPlaceholder": "uuid"
     }
   },
   "audit": {
@@ -436,14 +444,21 @@
       "actor": "الفاعل",
       "action": "الإجراء",
       "entity": "الكيان",
-      "diff": "الفرق"
+      "diff": "الفرق",
+      "ip": "IP"
     },
     "empty": {
       "title": "لا قيود مطابقة",
       "hint": "عدّل المرشّحات أو انتظر نشاطاً."
     },
     "filters": {
-      "search": "الفاعل / الإجراء / الكيان…"
+      "search": "الفاعل / الإجراء / الكيان…",
+      "entity": "الكيان",
+      "entityPlaceholder": "user, plan, payout…",
+      "actionPrefix": "بادئة الإجراء",
+      "actionPlaceholder": "admin.user.update",
+      "actorUuid": "معرّف الفاعل",
+      "uuidPlaceholder": "uuid"
     }
   },
   "admins": {
@@ -519,19 +534,44 @@
   "settings": {
     "title": "الإعدادات",
     "description": "إعدادات اللوحة الحالية — البيئة، المزوّدون، أوقات صلاحية JWT.",
-    "appEnv": "البيئة",
-    "apiDomain": "الواجهة البرمجية",
-    "adminDomain": "نطاق اللوحة",
-    "providers": "المزوّدون",
-    "jwtAccess": "صلاحية JWT الوصول",
-    "jwtRefresh": "صلاحية JWT التجديد",
-    "jwtService": "صلاحية JWT الخدمة",
-    "exchangeSkew": "أقصى انحراف للتبادل",
-    "health": "فحوص الصحة",
-    "maxUploadMb": "أقصى رفع (ميغابايت)",
+    "environment": "البيئة",
+    "domains": "النطاقات",
+    "api": "الواجهة البرمجية",
+    "adminLabel": "اللوحة",
+    "mediaPrefix": "بادئة الوسائط",
+    "maxUpload": "أقصى رفع",
+    "megabytes": "ميغابايت",
+    "milliseconds": "م.ث",
+    "devMode": "وضع التطوير",
+    "live": "إنتاج",
+    "devModeHint": "OTP ثابت 1234، الدفع وهمي، CORS مفتوح. لا تُحاسب الأعضاء من هذا الإصدار.",
+    "liveModeHint": "SMS فعلي ودفع فعلي و CORS مغلق. عمليات الكتابة تذهب إلى قاعدة بيانات الإنتاج.",
+    "infraHealth": "صحة البنية التحتية",
+    "infraHealthHint": "فحوصات حية للاعتمادات التي لا تعمل الواجهة البرمجية بدونها. فشل الفحص يعني أن عمليات الكتابة فاشلة في كل مكان — صعّد الأمر فوراً.",
+    "providerAdapters": "محوّلات المزوّدين",
+    "providerAdaptersHint": "أي خدمة خارجية يتحدث إليها الخادم لكل قدرة. أسماء المزوّدين تطابق القيمة في <envCode>.env</envCode>؛ التبديل يعني تعديل البيئة وإعادة النشر.",
+    "capability": "القدرة",
+    "adapter": "المحوّل",
+    "status": "الحالة",
+    "mock": "وهمي",
+    "liveAdapter": "فعلي",
     "ok": "سليم",
     "down": "متوقف",
-    "seconds": "ث"
+    "sessionPolicy": "سياسة الجلسات والتوكنات",
+    "sessionPolicyHint": "أوقات صلاحية طبقة JWT ومصافحة NextAuth ↔ FastAPI. مفيدة عند تشخيص شكوى \"تم تسجيل خروجي بسرعة\" من عضو.",
+    "accessTtl": "صلاحية توكن الوصول",
+    "accessTtlHint": "{duration} بين عمليات التحديث القسري",
+    "refreshTtl": "صلاحية توكن التجديد",
+    "refreshTtlHint": "{duration} حتى يلزم تسجيل دخول كامل",
+    "serviceTtl": "صلاحية توكن الخدمة",
+    "serviceTtlHint": "قفزة اللوحة → الخادم؛ يُولَّد لكل طلب من NextAuth",
+    "envelopeSkew": "انحراف ظرف التبادل",
+    "envelopeSkewHint": "أظرف HMAC خارج هذه النافذة تُرفض كقديمة أو مُعاد تشغيلها",
+    "secondsShort": "ث",
+    "minutesShort": "د",
+    "hoursShort": "س",
+    "daySingular": "يوم",
+    "daysPlural": "أيام"
   },
   "support": {
     "title": "الدعم",

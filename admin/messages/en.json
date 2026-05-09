@@ -142,6 +142,7 @@
   "users": {
     "title": "Users",
     "description": "Every member and admin in the system.",
+    "searchPlaceholder": "Name / email / phone",
     "edit": {
       "firstName": "First name",
       "lastName": "Last name",
@@ -409,7 +410,10 @@
     "stats": {
       "today": "Today",
       "thisMonth": "MTD",
-      "successRate": "Success rate"
+      "successRate": "Success rate",
+      "total": "Total",
+      "successful": "Successful",
+      "denied": "Denied"
     },
     "table": {
       "when": "When",
@@ -424,7 +428,11 @@
     },
     "filters": {
       "allStatuses": "All",
-      "search": "Member name / gym name / id…"
+      "search": "Member name / gym name / id…",
+      "userId": "User ID",
+      "since": "Since",
+      "until": "Until",
+      "uuidPlaceholder": "uuid"
     }
   },
   "audit": {
@@ -436,14 +444,21 @@
       "actor": "Actor",
       "action": "Action",
       "entity": "Entity",
-      "diff": "Diff"
+      "diff": "Diff",
+      "ip": "IP"
     },
     "empty": {
       "title": "No audit entries match",
       "hint": "Adjust filters or wait for activity."
     },
     "filters": {
-      "search": "actor / action / entity…"
+      "search": "actor / action / entity…",
+      "entity": "Entity",
+      "entityPlaceholder": "user, plan, payout…",
+      "actionPrefix": "Action prefix",
+      "actionPlaceholder": "admin.user.update",
+      "actorUuid": "Actor UUID",
+      "uuidPlaceholder": "uuid"
     }
   },
   "admins": {
@@ -519,19 +534,44 @@
   "settings": {
     "title": "Settings",
     "description": "Configuration of the running console — environment, providers, JWT timings.",
-    "appEnv": "Environment",
-    "apiDomain": "API",
-    "adminDomain": "Admin domain",
-    "providers": "Providers",
-    "jwtAccess": "JWT access TTL",
-    "jwtRefresh": "JWT refresh TTL",
-    "jwtService": "JWT service TTL",
-    "exchangeSkew": "Exchange max skew",
-    "health": "Health checks",
-    "maxUploadMb": "Max upload (MB)",
-    "ok": "ok",
-    "down": "down",
-    "seconds": "s"
+    "environment": "Environment",
+    "domains": "Domains",
+    "api": "API",
+    "adminLabel": "Admin",
+    "mediaPrefix": "Media prefix",
+    "maxUpload": "Max upload",
+    "megabytes": "MB",
+    "milliseconds": "ms",
+    "devMode": "DEV MODE",
+    "live": "LIVE",
+    "devModeHint": "OTP fixed to 1234, payments mocked, CORS permissive. Do NOT bill members from this build.",
+    "liveModeHint": "Real SMS, real payments, locked CORS. Mutating writes go to the production database.",
+    "infraHealth": "Infrastructure health",
+    "infraHealthHint": "Live probes against the dependencies the API can't function without. A failing probe means writes are likely failing everywhere — escalate immediately.",
+    "providerAdapters": "Provider adapters",
+    "providerAdaptersHint": "Which external service the backend talks to for each capability. Provider names match the value in <envCode>.env</envCode>; rotating one means editing the env and redeploying.",
+    "capability": "Capability",
+    "adapter": "Adapter",
+    "status": "Status",
+    "mock": "Mock",
+    "liveAdapter": "Live",
+    "ok": "OK",
+    "down": "DOWN",
+    "sessionPolicy": "Session & token policy",
+    "sessionPolicyHint": "Lifetimes the JWT layer and the NextAuth ↔ FastAPI handshake are configured for. Useful when debugging a \"signed me out too fast\" report from a member.",
+    "accessTtl": "Access token TTL",
+    "accessTtlHint": "{duration} between forced refreshes",
+    "refreshTtl": "Refresh token TTL",
+    "refreshTtlHint": "{duration} until full re-login required",
+    "serviceTtl": "Service token TTL",
+    "serviceTtlHint": "Admin → backend hop; minted per-request by NextAuth",
+    "envelopeSkew": "Exchange envelope skew",
+    "envelopeSkewHint": "HMAC envelopes outside this window are rejected as stale or replayed",
+    "secondsShort": "s",
+    "minutesShort": "min",
+    "hoursShort": "h",
+    "daySingular": "day",
+    "daysPlural": "days"
   },
   "support": {
     "title": "Support",

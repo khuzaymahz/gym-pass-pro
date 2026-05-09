@@ -116,7 +116,7 @@ export default async function UsersPage({
         <div className="ml-auto">
           <SearchInput
             defaultValue={q}
-            placeholder="Name / email / phone"
+            placeholder={t("searchPlaceholder")}
             action="/users"
             hidden={{
               role: params.role,

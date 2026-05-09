@@ -60,6 +60,7 @@ export default async function AuditPage({
   const t = await getTranslations("audit");
   const tTable = await getTranslations("audit.table");
   const tEmpty = await getTranslations("audit.empty");
+  const tFilters = await getTranslations("audit.filters");
   const tCommon = await getTranslations("common");
   const entityType = params.entityType?.trim() || undefined;
   const action = params.action?.trim() || undefined;
@@ -101,29 +102,29 @@ export default async function AuditPage({
         className="flex flex-wrap items-end gap-2 rounded-lg border border-line bg-surface p-3"
       >
         <label className="field">
-          <span className="field-label">Entity</span>
+          <span className="field-label">{tFilters("entity")}</span>
           <input
             name="entityType"
             defaultValue={entityType ?? ""}
-            placeholder="user, plan, payout…"
+            placeholder={tFilters("entityPlaceholder")}
             className="input input-sm w-40"
           />
         </label>
         <label className="field">
-          <span className="field-label">Action prefix</span>
+          <span className="field-label">{tFilters("actionPrefix")}</span>
           <input
             name="action"
             defaultValue={action ?? ""}
-            placeholder="admin.user.update"
+            placeholder={tFilters("actionPlaceholder")}
             className="input input-sm w-56"
           />
         </label>
         <label className="field">
-          <span className="field-label">Actor UUID</span>
+          <span className="field-label">{tFilters("actorUuid")}</span>
           <input
             name="actorUserId"
             defaultValue={actorUserId ?? ""}
-            placeholder="uuid"
+            placeholder={tFilters("uuidPlaceholder")}
             className="input input-sm w-60"
           />
         </label>
@@ -151,7 +152,7 @@ export default async function AuditPage({
                 <th>{tTable("action")}</th>
                 <th>{tTable("entity")}</th>
                 <th>{tTable("diff")}</th>
-                <th>IP</th>
+                <th>{tTable("ip")}</th>
               </tr>
             </thead>
             <tbody>
