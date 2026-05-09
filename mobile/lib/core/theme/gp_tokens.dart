@@ -199,6 +199,16 @@ extension GpColorsContext on BuildContext {
       Theme.of(this).extension<GpColors>() ?? GpColors.dark;
 }
 
+extension GpColorsTheme on GpColors {
+  /// True when the active palette is the light variant. Used by
+  /// tier-color resolvers (e.g. `GPTier.readableOn`) to pick the
+  /// surface-adapted brand colour instead of the dark-mode hex —
+  /// brand hexes designed for dark backgrounds (silver mid-grey,
+  /// platinum icy white-blue, diamond electric cyan) wash out on
+  /// near-white surfaces.
+  bool get isLight => bg.computeLuminance() > 0.5;
+}
+
 extension GpCardShadow on GpColors {
   /// Soft shadow stack for raised cards. Empty in dark mode (token is fully
   /// transparent); renders a layered editorial shadow in light mode.
@@ -223,7 +233,21 @@ class GPTier {
   final String key;
   final String name;
   final String glyph;
+
+  /// Brand colour optimised for **dark** surfaces. Used as-is for
+  /// the radial glow / shadow stops (transparency mutes them so
+  /// they survive on either theme), and used as the readable
+  /// foreground on dark mode. Light-mode foreground rendering
+  /// goes through [colorOnLight] instead — see [readableOn].
   final Color color;
+
+  /// Brand colour optimised for **light** surfaces. The dark-mode
+  /// hexes (silver mid-grey, platinum icy white-blue, diamond
+  /// electric cyan) drop below 3:1 contrast on near-white
+  /// backgrounds; this variant is the same chroma family pushed
+  /// toward darker / more saturated to stay legible.
+  final Color colorOnLight;
+
   final int price;
   final int visits;
   final int rank;
@@ -234,6 +258,7 @@ class GPTier {
     required this.name,
     required this.glyph,
     required this.color,
+    required this.colorOnLight,
     required this.price,
     required this.visits,
     required this.rank,
@@ -244,10 +269,10 @@ class GPTier {
   Color get color22 => color.withValues(alpha: 0.22);
   Color get color44 => color.withValues(alpha: 0.44);
 
-  /// Tier color used as text/icon on page and card backgrounds. Kept as a
-  /// method (not just `color`) so individual tiers can swap to a surface-
-  /// adaptive variant if their brand hue fails contrast on the current theme.
-  Color readableOn(GpColors gp) => color;
+  /// Tier colour for text/icon/border rendering on the active
+  /// surface. Returns [colorOnLight] in light mode, [color] in
+  /// dark — keeps the brand hue family while restoring contrast.
+  Color readableOn(GpColors gp) => gp.isLight ? colorOnLight : color;
 
   // Every tier shares the same 30-visit monthly cap. The only differentiator
   // is the gym network each tier unlocks (entry / mid / premium / full).
@@ -256,6 +281,9 @@ class GPTier {
     name: 'Silver',
     glyph: '◇',
     color: Color(0xFF9E9E9E),
+    // Slate grey — same neutral family, dark enough to read on
+    // off-white. ~6:1 contrast.
+    colorOnLight: Color(0xFF5A5F66),
     price: 25,
     visits: 30,
     rank: 1,
@@ -266,6 +294,9 @@ class GPTier {
     name: 'Gold',
     glyph: '◆',
     color: Color(0xFFF9A825),
+    // Amber already reads on white; slight darken to lift contrast
+    // for body-text uses without losing the warm hue.
+    colorOnLight: Color(0xFFC77B00),
     price: 45,
     visits: 30,
     rank: 2,
@@ -280,6 +311,9 @@ class GPTier {
     name: 'Platinum',
     glyph: '◈',
     color: Color(0xFFB8D4FF),
+    // Deeper steel-blue for light mode. Still in the "polished
+    // metal" register, ~5:1 contrast on the off-white surface.
+    colorOnLight: Color(0xFF2E5BA8),
     price: 75,
     visits: 30,
     rank: 3,
@@ -290,6 +324,10 @@ class GPTier {
     name: 'Diamond',
     glyph: '◉',
     color: Color(0xFF00E5FF),
+    // Deeper teal for light mode — keeps the cyan family but
+    // drops the lightness so text + sparkles stay legible on the
+    // off-white card surface. ~5:1 contrast.
+    colorOnLight: Color(0xFF007A8C),
     price: 110,
     visits: 30,
     rank: 4,

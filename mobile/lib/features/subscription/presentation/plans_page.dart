@@ -399,11 +399,18 @@ class _TierCard extends StatelessWidget {
           decoration: BoxDecoration(
             color: gp.bg2,
             borderRadius: BorderRadius.circular(GPRadius.xl),
+            // Border + selection ring use the readable variant so
+            // platinum / diamond / silver don't wash out on the
+            // off-white light-mode surface. Glow shadow below
+            // keeps the dark-mode hex on purpose — alpha 0.22
+            // mutes it enough that it survives on either theme
+            // and preserves the same warm/cool aura the brand
+            // colour evokes.
             border: Border.all(
               color: selected
-                  ? tier.color
+                  ? tier.readableOn(gp)
                   : isCurrent
-                      ? tier.color.withValues(alpha: 0.5)
+                      ? tier.readableOn(gp).withValues(alpha: 0.5)
                       : gp.line,
               width: selected ? 1.4 : 1,
             ),
@@ -577,7 +584,7 @@ class _TierCard extends StatelessWidget {
         if (isCurrent)
           _statusBadge(
             label: l.plansCurrentPlan,
-            tint: tier.color,
+            tint: tier.readableOn(gp),
           ),
         const Spacer(),
         _selectionIndicator(),
@@ -682,6 +689,7 @@ class _TierCard extends StatelessWidget {
   }
 
   Widget _selectionIndicator() {
+    final ringColor = tier.readableOn(gp);
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
       width: 22,
@@ -689,12 +697,24 @@ class _TierCard extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
-          color: selected ? tier.color : gp.line2,
+          color: selected ? ringColor : gp.line2,
           width: 1.4,
         ),
-        color: selected ? tier.color : Colors.transparent,
+        color: selected ? ringColor : Colors.transparent,
       ),
-      child: selected ? const Icon(Icons.check, color: GP.ink, size: 14) : null,
+      // Check ink: always paper colour on the filled ring so it
+      // pops in either theme. The ring itself carries the tier
+      // chroma; the check carries the contrast.
+      child: selected
+          ? Icon(
+              Icons.check,
+              color: ThemeData.estimateBrightnessForColor(ringColor) ==
+                      Brightness.dark
+                  ? Colors.white
+                  : GP.ink,
+              size: 14,
+            )
+          : null,
     );
   }
 

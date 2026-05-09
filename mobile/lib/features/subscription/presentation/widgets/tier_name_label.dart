@@ -76,30 +76,31 @@ class _TierNameLabelState extends State<TierNameLabel>
 
   @override
   Widget build(BuildContext context) {
+    final gp = context.gp;
     switch (widget.tier.key) {
       case 'silver':
-        return _silver();
+        return _silver(gp);
       case 'gold':
-        return _gold();
+        return _gold(gp);
       case 'platinum':
-        return _platinum();
+        return _platinum(gp);
       case 'diamond':
-        return _diamond();
+        return _diamond(gp);
       default:
-        return _silver();
+        return _silver(gp);
     }
   }
 
   /// **Silver** — plain text, low chroma, no decoration. The brief
   /// said "grey, flat, minimal"; we honour that literally — no glow,
   /// no animation, the lowest visual weight in the four-tier stack.
-  Widget _silver() {
+  Widget _silver(GpColors gp) {
     return Text(
       widget.label.toUpperCase(),
       style: GPText.mono(
         size: widget.fontSize,
         letterSpacing: widget.letterSpacing,
-        color: const Color(0xFF9E9E9E),
+        color: widget.tier.readableOn(gp),
         weight: FontWeight.w600,
       ),
     );
@@ -108,8 +109,11 @@ class _TierNameLabelState extends State<TierNameLabel>
   /// **Gold** — warm amber text with a soft bloom behind it. The
   /// bloom is a static `Stack` layer (not an animation) so the card
   /// doesn't pulse when the eye is meant to settle on price/visits.
-  Widget _gold() {
-    const goldColor = Color(0xFFF9A825);
+  Widget _gold(GpColors gp) {
+    final inkColor = widget.tier.readableOn(gp);
+    // Bloom always uses the dark-mode hex so the warm aura reads on
+    // either surface — alpha takes care of muting it on light bg.
+    const bloomColor = Color(0xFFF9A825);
     return Stack(
       alignment: Alignment.center,
       children: [
@@ -122,7 +126,7 @@ class _TierNameLabelState extends State<TierNameLabel>
             borderRadius: BorderRadius.circular(4),
             boxShadow: [
               BoxShadow(
-                color: goldColor.withValues(alpha: 0.45),
+                color: bloomColor.withValues(alpha: gp.isLight ? 0.30 : 0.45),
                 blurRadius: 14,
                 spreadRadius: -2,
               ),
@@ -134,7 +138,7 @@ class _TierNameLabelState extends State<TierNameLabel>
           style: GPText.mono(
             size: widget.fontSize,
             letterSpacing: widget.letterSpacing,
-            color: goldColor,
+            color: inkColor,
             weight: FontWeight.w800,
           ),
         ),
@@ -143,12 +147,19 @@ class _TierNameLabelState extends State<TierNameLabel>
   }
 
   /// **Platinum** — a `ShaderMask` paints the text with a sliding
-  /// linear gradient (white-blue → bright white → white-blue) that
-  /// loops over `_ctrl.value`. The gradient stops are offset by a
-  /// fraction of `t` so the bright band sweeps left-to-right across
-  /// the wordmark each cycle, reading as a polished-metal sheen
-  /// rather than a marquee scroll.
-  Widget _platinum() {
+  /// linear gradient that loops over `_ctrl.value`, sweeping a
+  /// brighter band across the wordmark each cycle. The two gradient
+  /// stops are theme-adapted: on dark we go ice-blue → white →
+  /// ice-blue (the sheen reads as polished metal under the lime/
+  /// grey page chrome); on light we go deep-blue → mid-blue →
+  /// deep-blue so the text stays legible on the near-white card
+  /// (the original gradient passed through pure white, which is
+  /// invisible on the light surface).
+  Widget _platinum(GpColors gp) {
+    final isLight = gp.isLight;
+    final stops = isLight
+        ? const [Color(0xFF2E5BA8), Color(0xFF6E8AC9), Color(0xFF2E5BA8)]
+        : const [Color(0xFFB8D4FF), Color(0xFFFFFFFF), Color(0xFFB8D4FF)];
     return AnimatedBuilder(
       animation: _ctrl,
       builder: (context, _) {
@@ -160,11 +171,7 @@ class _TierNameLabelState extends State<TierNameLabel>
             return LinearGradient(
               begin: Alignment(-1 + t * 2, -0.4),
               end: Alignment(1 + t * 2, 0.4),
-              colors: const [
-                Color(0xFFB8D4FF),
-                Color(0xFFFFFFFF),
-                Color(0xFFB8D4FF),
-              ],
+              colors: stops,
               stops: const [0.0, 0.5, 1.0],
             ).createShader(bounds);
           },
@@ -192,8 +199,8 @@ class _TierNameLabelState extends State<TierNameLabel>
   /// they twinkle in sequence (top-left → top-right → bottom). The
   /// stars are decorative only — the underlying text remains the
   /// canonical name and is what screen readers see.
-  Widget _diamond() {
-    const diamondColor = Color(0xFF00E5FF);
+  Widget _diamond(GpColors gp) {
+    final diamondColor = widget.tier.readableOn(gp);
     return AnimatedBuilder(
       animation: _ctrl,
       builder: (context, _) {
