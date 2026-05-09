@@ -47,11 +47,13 @@ export default async function DashboardLayout({
   let gymName = "—";
   let logoUrl: string | null = null;
   let logoAlignment: LogoAlignment | null = null;
+  let openingHours: Record<string, unknown> | null = null;
   try {
     const gym = await PartnerSDK.getGym();
     gymName = gym.nameEn;
     logoUrl = gym.logoUrl;
     logoAlignment = gym.logoAlignment;
+    openingHours = gym.openingHours ?? null;
   } catch (e) {
     if (isRedirectSignal(e)) throw e;
     // tolerate transient backend hiccup; sidebar shows placeholder
@@ -70,6 +72,7 @@ export default async function DashboardLayout({
         logoUrl={logoUrl}
         logoAlignment={logoAlignment}
         phone={session.phone ?? ""}
+        openingHours={openingHours}
       />
       <main className="relative flex-1 overflow-x-hidden">
         {/* Locale + theme toggles. The OUTER div carries `end-6` and

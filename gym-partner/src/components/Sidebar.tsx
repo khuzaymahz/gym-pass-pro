@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
@@ -12,6 +13,32 @@ import { DEFAULT_LOGO_ALIGNMENT, type LogoAlignment } from "@/lib/sdk";
 import { Wordmark } from "./Wordmark";
 
 type NavKey = "dashboard" | "profile" | "photos" | "checkins" | "payouts";
+
+// Opening-hours payload is opaque on the wire (`Record<string, unknown>`)
+// because the editor isn't shipped yet. The seed writes `{24_7: true}`
+// for every gym, so we recognise that and a couple of other plausible
+// shapes (`{open: "06:00", close: "24:00"}`, per-day buckets) defensively
+// — drift here downgrades the dot to "Closed", not a render error.
+type DaySpec =
+  | { open?: string; close?: string }
+  | { closed?: boolean };
+type OpeningHoursShape = {
+  // Always-on gyms set this; we early-return open without reading the
+  // clock when present.
+  "24_7"?: boolean;
+  // Older shape used in some seeds: a single open/close window.
+  open?: string;
+  close?: string;
+  // Per-day shape — keys are lowercased weekday names ("mon", "tue",
+  // ...). Values are either `{open, close}` or `{closed: true}`.
+  mon?: DaySpec;
+  tue?: DaySpec;
+  wed?: DaySpec;
+  thu?: DaySpec;
+  fri?: DaySpec;
+  sat?: DaySpec;
+  sun?: DaySpec;
+};
 
 const NAV_ITEMS: { href: string; key: NavKey }[] = [
   { href: "/", key: "dashboard" },
@@ -26,11 +53,16 @@ export function Sidebar({
   logoUrl,
   logoAlignment,
   phone,
+  openingHours,
 }: {
   gymName: string;
   logoUrl?: string | null;
   logoAlignment?: LogoAlignment | null;
   phone: string;
+  // Opaque dict from the gym-profile API — see `OpeningHoursShape`
+  // above for the shapes we accept. Falsy = treat as "unknown",
+  // which the dot renders as Closed (the safer default).
+  openingHours?: Record<string, unknown> | null;
 }) {
   const t = useTranslations("nav");
   const tApp = useTranslations("app");
@@ -58,6 +90,7 @@ export function Sidebar({
           logoUrl={resolvedLogo}
           logoAlignment={alignment}
           initials={initials}
+          openingHours={openingHours ?? null}
         />
       </div>
 
@@ -134,28 +167,35 @@ function GymStatusCard({
   logoUrl,
   logoAlignment,
   initials,
+  openingHours,
 }: {
   gymName: string;
   phone: string;
   logoUrl: string | null;
   logoAlignment: LogoAlignment;
   initials: string;
+  openingHours: Record<string, unknown> | null;
 }) {
   const tApp = useTranslations("app");
-  const isOpen = useIsOpenLocal();
+  const isOpen = useIsOpenLocal(openingHours);
   return (
     <div className="steel flex items-center gap-3 rounded-md p-2.5">
       {logoUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={logoUrl}
-          alt={gymName}
-          className="h-9 w-9 shrink-0 rounded"
-          style={{
-            objectFit: logoAlignment.fit,
-            objectPosition: `center ${logoAlignment.position}`,
-          }}
-        />
+        <div
+          className="relative h-9 w-9 shrink-0 overflow-hidden rounded"
+          aria-label={gymName}
+        >
+          <Image
+            src={logoUrl}
+            alt={gymName}
+            fill
+            sizes="36px"
+            style={{
+              objectFit: logoAlignment.fit,
+              objectPosition: `center ${logoAlignment.position}`,
+            }}
+          />
+        </div>
       ) : (
         <span
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded bg-line text-[11px] font-semibold uppercase tracking-wide text-paper"
@@ -186,23 +226,98 @@ function GymStatusCard({
   );
 }
 
-function useIsOpenLocal(): boolean {
-  const [open, setOpen] = useState<boolean>(true);
+/// Compute "is the gym open right now?" against the gym's
+/// `openingHours` payload. SSR-safe: starts at the same value the
+/// server would compute (open if 24/7 / no schedule) so hydration
+/// doesn't flicker.
+///
+/// The previous version returned a hardcoded 06:00-24:00 schedule
+/// regardless of the gym's actual hours, AND only refreshed once
+/// after the next minute boundary — meaning the dot stuck on the
+/// minute-2 reading for the rest of the session. Both bugs are
+/// fixed by recomputing each tick of a 60s interval.
+function useIsOpenLocal(
+  openingHours: Record<string, unknown> | null,
+): boolean {
+  const [open, setOpen] = useState<boolean>(() => computeIsOpen(openingHours));
   useEffect(() => {
-    const compute = (): void => {
-      const h = new Date().getHours();
-      // 06:00–23:59 local treated as open. Caller will gain a per-day
-      // schedule when the openingHours editor lands.
-      setOpen(h >= 6);
-    };
+    const compute = (): void => setOpen(computeIsOpen(openingHours));
     compute();
-    // Re-evaluate at the next minute boundary so the dot flips
-    // automatically when the clock crosses 06:00 / 24:00.
+    // Re-evaluate every minute, anchored to the next minute boundary
+    // so all gyms in the same browser tick at the same moment.
+    let interval: ReturnType<typeof setInterval> | null = null;
     const ms = 60_000 - (Date.now() % 60_000);
-    const t = setTimeout(compute, ms);
-    return () => clearTimeout(t);
-  }, []);
+    const align = setTimeout(() => {
+      compute();
+      interval = setInterval(compute, 60_000);
+    }, ms);
+    return () => {
+      clearTimeout(align);
+      if (interval) clearInterval(interval);
+    };
+  }, [openingHours]);
   return open;
+}
+
+/// "HH:MM" → minutes-since-midnight. Returns null on garbage input.
+function parseHhMm(value: unknown): number | null {
+  if (typeof value !== "string") return null;
+  const m = /^(\d{1,2}):(\d{2})$/.exec(value);
+  if (!m) return null;
+  const h = Number.parseInt(m[1], 10);
+  const min = Number.parseInt(m[2], 10);
+  if (!Number.isFinite(h) || !Number.isFinite(min)) return null;
+  // Allow `24:00` as the end-of-day sentinel (matches the convention
+  // most gym scheduling tools use to represent midnight-as-close).
+  if (h < 0 || h > 24 || min < 0 || min > 59) return null;
+  return h * 60 + min;
+}
+
+function computeIsOpen(
+  openingHours: Record<string, unknown> | null,
+): boolean {
+  if (!openingHours || typeof openingHours !== "object") {
+    // No data shipped — be optimistic. The dot is informational, not
+    // a gate; "Open" is the right default for a partner dashboard
+    // because the closed reading would shame an unconfigured profile.
+    return true;
+  }
+  const hours = openingHours as OpeningHoursShape;
+  if (hours["24_7"] === true) return true;
+
+  const now = new Date();
+  const minutes = now.getHours() * 60 + now.getMinutes();
+
+  // Per-day buckets take priority over the legacy single-window form.
+  const dayKeys = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
+  const today = hours[dayKeys[now.getDay()]];
+  if (today && typeof today === "object") {
+    if ("closed" in today && today.closed === true) return false;
+    if ("open" in today && "close" in today) {
+      const open = parseHhMm(today.open);
+      const close = parseHhMm(today.close);
+      if (open != null && close != null) {
+        // Same-day window. Cross-midnight windows (close <= open)
+        // mean "open through midnight"; we treat them as open if
+        // we're past `open` OR before `close`.
+        return close > open
+          ? minutes >= open && minutes < close
+          : minutes >= open || minutes < close;
+      }
+    }
+  }
+
+  // Legacy global window (`{open, close}` at the top level).
+  const open = parseHhMm(hours.open);
+  const close = parseHhMm(hours.close);
+  if (open != null && close != null) {
+    return close > open
+      ? minutes >= open && minutes < close
+      : minutes >= open || minutes < close;
+  }
+
+  // Unknown shape — same optimistic fallback as the no-data branch.
+  return true;
 }
 
 function NavIcon({ name, active }: { name: NavKey; active: boolean }) {

@@ -4,8 +4,7 @@ import { Toolbar } from "@/components/Toolbar";
 import { PhotosPanel } from "@/components/PhotosPanel";
 import { PartnerSDK } from "@/lib/sdk";
 
-export const dynamic = "force-dynamic";
-
+// `dynamic = "force-dynamic"` is owned by the dashboard layout.
 export default async function PhotosPage() {
   const t = await getTranslations("photos");
   const photos = await PartnerSDK.listPhotos();

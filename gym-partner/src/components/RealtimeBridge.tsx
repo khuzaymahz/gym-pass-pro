@@ -34,6 +34,13 @@ export function RealtimeBridge() {
   // a check-in spike).
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Set of channels the server told us we're subscribed to. Used to
+  // discard stray frames that don't belong to the partner's gym —
+  // the backend re-checks scope before publishing, so this is a
+  // defence-in-depth filter that also prevents wasted refreshes if
+  // a future bug ever leaks frames from a sibling channel.
+  const subscribedChannelsRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     stoppedRef.current = false;
 
@@ -67,6 +74,13 @@ export function RealtimeBridge() {
 
     const scheduleReconnect = () => {
       if (stoppedRef.current) return;
+      // While the tab is hidden we keep the socket closed entirely;
+      // the visibilitychange handler reconnects on the next focus.
+      // Re-arming the timer here would just open / close on every
+      // backoff tick.
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        return;
+      }
       if (reconnectTimer.current) return;
       const delay = backoffMsRef.current;
       backoffMsRef.current = Math.min(backoffMsRef.current * 2, 30_000);
@@ -78,6 +92,11 @@ export function RealtimeBridge() {
 
     const connect = async () => {
       if (stoppedRef.current) return;
+      // Don't pull a token / open a socket while hidden — saves
+      // backend load when the partner has 4 dashboard tabs.
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        return;
+      }
       let token: string;
       let wsUrl: string;
       let channels: string[];
@@ -102,6 +121,11 @@ export function RealtimeBridge() {
         scheduleReconnect();
         return;
       }
+
+      // Capture the partner's allowed channel set so the message
+      // handler can drop stray frames whose `channel` we never
+      // asked to subscribe to.
+      subscribedChannelsRef.current = new Set(channels);
 
       let ws: WebSocket;
       try {
@@ -154,6 +178,14 @@ export function RealtimeBridge() {
         if (typeof frame.channel !== "string" || typeof frame.type !== "string") {
           return;
         }
+        // Drop any frame whose channel isn't in the subscribed set
+        // we got from `/api/realtime/token`. Defence-in-depth: the
+        // backend already enforces scope, but guarding here means a
+        // future regression on the publish side can't cross-pollute
+        // unrelated partners' UI with a router.refresh().
+        if (!subscribedChannelsRef.current.has(frame.channel)) {
+          return;
+        }
         scheduleRefresh();
       };
 
@@ -168,10 +200,46 @@ export function RealtimeBridge() {
       };
     };
 
+    // Tab-visibility gating. When the partner backgrounds the tab
+    // (Cmd-Tab, minimised, switched to another browser tab), close
+    // the socket — server-pushed events have nowhere useful to land
+    // because `router.refresh()` won't paint until the user comes
+    // back. On re-focus, reset the backoff so the reconnect is
+    // immediate, then dial back in.
+    const onVisibility = () => {
+      if (typeof document === "undefined") return;
+      if (document.visibilityState === "hidden") {
+        if (reconnectTimer.current) {
+          clearTimeout(reconnectTimer.current);
+          reconnectTimer.current = null;
+        }
+        closeSocket();
+      } else {
+        // Coming back to foreground — drop the backoff and dial
+        // a fresh socket immediately. Cancel any pending reconnect
+        // so we don't double-up.
+        if (reconnectTimer.current) {
+          clearTimeout(reconnectTimer.current);
+          reconnectTimer.current = null;
+        }
+        backoffMsRef.current = 1000;
+        if (!wsRef.current) {
+          void connect();
+        }
+      }
+    };
+
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", onVisibility);
+    }
+
     void connect();
 
     return () => {
       stoppedRef.current = true;
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", onVisibility);
+      }
       if (reconnectTimer.current) {
         clearTimeout(reconnectTimer.current);
         reconnectTimer.current = null;

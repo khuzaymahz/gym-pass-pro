@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
@@ -178,12 +179,12 @@ export function PhotosPanel({ initial }: { initial: GymPhoto[] }) {
                 key={p.id}
                 className="panel group relative aspect-[4/5] overflow-hidden"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <Image
                   src={resolveMediaUrl(p.url)}
                   alt={p.altTextEn ?? ""}
-                  loading="lazy"
-                  className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+                  fill
+                  sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
+                  className="object-cover transition-transform duration-200 group-hover:scale-[1.02]"
                 />
                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
                 <button

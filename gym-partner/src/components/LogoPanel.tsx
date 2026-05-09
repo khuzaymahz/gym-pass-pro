@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
@@ -142,11 +143,11 @@ export function LogoPanel({
             aria-label={t("logoPreviewSidebar")}
           >
             {restingUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <Image
                 src={restingUrl}
                 alt=""
-                className="h-full w-full"
+                fill
+                sizes="96px"
                 style={{
                   objectFit: alignment.fit,
                   objectPosition: `center ${alignment.position}`,

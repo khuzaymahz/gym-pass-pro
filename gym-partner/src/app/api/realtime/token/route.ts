@@ -27,12 +27,33 @@ export async function GET() {
   }
   // Build the WS URL from the browser-facing public API URL — the
   // server-side `API_BASE_URL` is `http://backend:8000` inside Docker
-  // and unreachable from the browser.
-  const httpBase = env.PUBLIC_API_URL.replace(/\/$/, "");
-  const wsBase = httpBase.startsWith("https://")
-    ? "wss://" + httpBase.slice("https://".length)
-    : "ws://" + httpBase.slice("http://".length);
-  const wsUrl = `${wsBase}/api/v1/realtime/ws`;
+  // and unreachable from the browser. Use the URL constructor so
+  // ports, paths, and IPv6 hosts round-trip correctly; a string-slice
+  // approach silently corrupts hosts like `[::1]:8000` and any URL
+  // that doesn't start with the exact `http://` / `https://` prefix.
+  let wsUrl: string;
+  try {
+    const apiUrl = new URL(env.PUBLIC_API_URL);
+    if (apiUrl.protocol !== "http:" && apiUrl.protocol !== "https:") {
+      // Anything other than http(s) means a misconfigured deploy
+      // (e.g. someone set ws://… directly). Refuse rather than emit
+      // a frankenstein URL the browser will reject anyway.
+      return NextResponse.json(
+        { error: "invalid_public_api_url" },
+        { status: 500 },
+      );
+    }
+    apiUrl.protocol = apiUrl.protocol === "https:" ? "wss:" : "ws:";
+    apiUrl.pathname = apiUrl.pathname.replace(/\/$/, "") + "/api/v1/realtime/ws";
+    apiUrl.search = "";
+    apiUrl.hash = "";
+    wsUrl = apiUrl.toString();
+  } catch {
+    return NextResponse.json(
+      { error: "invalid_public_api_url" },
+      { status: 500 },
+    );
+  }
   const gymId = session.gymId;
   const channels = [
     `gym/${gymId}`,

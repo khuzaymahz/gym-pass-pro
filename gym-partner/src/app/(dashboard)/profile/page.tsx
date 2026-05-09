@@ -5,8 +5,7 @@ import { LogoPanel } from "@/components/LogoPanel";
 import { Toolbar } from "@/components/Toolbar";
 import { PartnerSDK } from "@/lib/sdk";
 
-export const dynamic = "force-dynamic";
-
+// `dynamic = "force-dynamic"` is owned by the dashboard layout.
 export default async function ProfilePage() {
   const t = await getTranslations("profile");
   const gym = await PartnerSDK.getGym();

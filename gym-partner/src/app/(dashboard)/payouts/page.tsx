@@ -1,20 +1,8 @@
-import { getTranslations } from "next-intl/server";
+import { getFormatter, getTranslations } from "next-intl/server";
 
 import { StatusPill } from "@/components/StatusPill";
 import { Toolbar } from "@/components/Toolbar";
 import { PartnerSDK } from "@/lib/sdk";
-
-function formatDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-  } catch {
-    return iso;
-  }
-}
 
 function formatJod(value: string): string {
   const num = Number.parseFloat(value);
@@ -25,11 +13,26 @@ function formatJod(value: string): string {
   });
 }
 
-export const dynamic = "force-dynamic";
-
+// `dynamic = "force-dynamic"` lives once at the dashboard layout,
+// so this page inherits it. `lib/api.ts` keeps every fetch on
+// `cache: "no-store"` and `RealtimeBridge` triggers `router.refresh()`
+// on backend events.
 export default async function PayoutsPage() {
   const t = await getTranslations("payouts");
   const tD = await getTranslations("dashboard");
+  // Locale-aware date formatting; previously hardcoded `en-GB`.
+  const format = await getFormatter();
+  const formatDate = (iso: string): string => {
+    try {
+      return format.dateTime(new Date(iso), {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
+    } catch {
+      return iso;
+    }
+  };
   const result = await PartnerSDK.listPayouts({ pageSize: 50 });
 
   return (

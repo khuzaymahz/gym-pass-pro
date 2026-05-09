@@ -43,11 +43,41 @@ const securityHeaders = [
   },
 ];
 
+// Hosts that next/image is allowed to optimise. The browser-facing
+// API URL (FastAPI media route) is the canonical source for gym
+// photos and logos, so it must be allow-listed or `<Image>` will
+// throw at render time. Seeded photos still use Unsplash, so that
+// host stays in the list until the seed is replaced. Production
+// adds the public `gym-pass.net` API host via the env var.
+const PUBLIC_API_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+function toRemotePattern(rawUrl) {
+  try {
+    const u = new URL(rawUrl);
+    return {
+      protocol: u.protocol.replace(":", ""),
+      hostname: u.hostname,
+      port: u.port || "",
+      pathname: "/**",
+    };
+  } catch {
+    return null;
+  }
+}
+const remotePatterns = [
+  toRemotePattern(PUBLIC_API_URL),
+  // Seed data: Unsplash photos linked at the gym/photos seed step.
+  { protocol: "https", hostname: "images.unsplash.com", pathname: "/**" },
+].filter(Boolean);
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   output: "standalone",
   poweredByHeader: false,
+  images: {
+    remotePatterns,
+  },
   experimental: {
     typedRoutes: false,
     // Next's default server-action body limit is 1 MB. Any photo

@@ -1,4 +1,4 @@
-import { getTranslations } from "next-intl/server";
+import { getFormatter, getTranslations } from "next-intl/server";
 import Link from "next/link";
 
 import { StatusPill } from "@/components/StatusPill";
@@ -26,28 +26,35 @@ const TONE: Record<CheckinStatus, "ok" | "warn" | "bad"> = {
   rate_limited: "bad",
 };
 
-function formatTime(iso: string): string {
-  try {
-    return new Date(iso).toLocaleString("en-GB", {
-      day: "2-digit",
-      month: "short",
-      year: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return iso;
-  }
-}
-
-export const dynamic = "force-dynamic";
-
+// `dynamic = "force-dynamic"` is set once at the dashboard layout
+// (see `(dashboard)/layout.tsx`); per-page redundancy here would
+// just duplicate the directive. The data is still fresh on every
+// render because `lib/api.ts` issues `cache: "no-store"` on every
+// fetch, and `RealtimeBridge` calls `router.refresh()` on every
+// WS event the partner is subscribed to.
 export default async function CheckinsPage({
   searchParams,
 }: {
   searchParams: Promise<{ status?: string; page?: string }>;
 }) {
   const t = await getTranslations("checkins");
+  // Locale-aware datetime — Arabic readers see Arabic month names
+  // and the locale-appropriate digit grouping. Previously this was
+  // hardcoded `en-GB` which forced British formatting on every user.
+  const format = await getFormatter();
+  const formatTime = (iso: string): string => {
+    try {
+      return format.dateTime(new Date(iso), {
+        day: "2-digit",
+        month: "short",
+        year: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return iso;
+    }
+  };
   const sp = await searchParams;
   const status = (sp.status === "all" ? undefined : sp.status) as
     | CheckinStatus
