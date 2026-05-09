@@ -1,12 +1,26 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.db.enums import Category, Tier
+
+
+class LogoAlignment(BaseModel):
+    """Render hint for a gym logo.
+
+    `fit` matches the CSS `object-fit` value the renderer should use.
+    `position` is the vertical anchor — useful for stacked marks
+    (icon-over-text) where the meaningful content sits at the top.
+    """
+
+    fit: Literal["cover", "contain"] = "cover"
+    position: Literal["top", "center", "bottom"] = "center"
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class GymBase(BaseModel):
@@ -45,6 +59,9 @@ class GymBase(BaseModel):
     opening_hours: dict[str, Any] = Field(alias="openingHours", default_factory=dict)
     cover_image_url: str | None = Field(alias="coverImageUrl", default=None)
     logo_url: str | None = Field(alias="logoUrl", default=None)
+    logo_alignment: LogoAlignment | None = Field(
+        alias="logoAlignment", default=None,
+    )
 
     model_config = ConfigDict(populate_by_name=True, from_attributes=True)
 
@@ -84,6 +101,9 @@ class GymUpdate(BaseModel):
     opening_hours: dict[str, Any] | None = Field(alias="openingHours", default=None)
     cover_image_url: str | None = Field(alias="coverImageUrl", default=None)
     logo_url: str | None = Field(alias="logoUrl", default=None)
+    logo_alignment: LogoAlignment | None = Field(
+        alias="logoAlignment", default=None,
+    )
     is_active: bool | None = Field(alias="isActive", default=None)
 
     model_config = ConfigDict(populate_by_name=True)

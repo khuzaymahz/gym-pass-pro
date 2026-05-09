@@ -1,16 +1,11 @@
 import { getTranslations } from "next-intl/server";
 
+import { OccupancyBar } from "@/components/OccupancyBar";
+import { QuietFloor } from "@/components/QuietFloor";
 import { StatTile } from "@/components/StatTile";
-import { Toolbar } from "@/components/Toolbar";
 import { PartnerSDK, type PartnerDashboardMetrics } from "@/lib/sdk";
 
 const TIER_ORDER = ["silver", "gold", "platinum", "diamond"] as const;
-const TIER_DOT: Record<string, string> = {
-  silver: "rgb(180 180 180)",
-  gold: "rgb(234 179 8)", // matches --c-accent
-  platinum: "rgb(184 212 255)",
-  diamond: "rgb(100 210 255)",
-};
 
 function formatJod(value: string | number, opts?: { compact?: boolean }) {
   const num = typeof value === "string" ? Number.parseFloat(value) : value;
@@ -37,12 +32,8 @@ function formatTime(iso: string): string {
   }
 }
 
-/// Week-over-week percent change, comparing the most recent 7 days
-/// in `series` against the 7 days immediately before. Returns null
-/// when we don't have at least 14 points or when the prior window
-/// summed to zero (division undefined). Caller treats null as "no
-/// comparison data yet" — the StatTile renders no delta in that
-/// case rather than a misleading 0% or +∞%.
+/// Week-over-week percent change. Returns null when there's not
+/// enough data to compare (caller renders no delta).
 function weekOverWeek(series: readonly number[]): number | null {
   if (series.length < 14) return null;
   const recent = series.slice(-7).reduce((a, b) => a + b, 0);
@@ -55,19 +46,12 @@ export default async function PartnerDashboardPage() {
   const t = await getTranslations("dashboard");
   const m = await PartnerSDK.metrics();
 
-  // Pre-compute the per-day series once so each tile + chart can
-  // reach for the same arrays. The backend already returns
-  // last-30-days arrays via `/partner/gym/metrics/overview`.
   const checkinsSeries = m.checkinsPerDay.map((d) => d.count);
   const revenueSeries = m.revenuePerDay.map((d) =>
     Number.parseFloat(d.total || "0"),
   );
   const checkinsWoW = weekOverWeek(checkinsSeries);
   const revenueWoW = weekOverWeek(revenueSeries);
-  // Today's check-ins live in `m.checkinsToday`; for the tile's
-  // delta we compare today to the *median* of the last 7 days so a
-  // single outlier (slow Sunday) doesn't pin every Monday at "huge
-  // jump". For the rest, weekly aggregates are the right window.
   const last7 = checkinsSeries.slice(-7).filter((_, i, a) => i < a.length - 1);
   const medianLast7 =
     last7.length === 0
@@ -84,18 +68,31 @@ export default async function PartnerDashboardPage() {
       ? ((m.checkinsToday - medianLast7) / medianLast7) * 100
       : null;
 
+  const peakLast30 = checkinsSeries.length === 0 ? 0 : Math.max(...checkinsSeries);
+
   return (
     <section className="flex flex-col gap-6">
-      <Toolbar title={t("title")} description={t("subtitle")} />
+      {/* Top status strip — page title on the start, live occupancy
+       *  bar on the end. The bar fills toward the 30-day peak and
+       *  flips amber past 70% so a quick glance answers "are we
+       *  busy right now?". */}
+      <header className="flex flex-col gap-4 border-b border-line pb-5">
+        <div className="flex items-baseline justify-between gap-4">
+          <div>
+            <h1 className="gauge text-[36px] text-paper">{t("title")}</h1>
+            <p className="text-[13px] text-muted">{t("subtitle")}</p>
+          </div>
+        </div>
+        <OccupancyBar today={m.checkinsToday} peakLast30={peakLast30} />
+      </header>
 
-      {/* KPI grid — last-14-day sparklines + WoW deltas added to
-          the four "movement" tiles. Static / cumulative tiles
-          (uniqueMembers, payouts) skip the sparkline since their
-          shape isn't a meaningful trend. */}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-7">
+      {/* KPI grid — gauge readouts. Static / cumulative tiles skip
+       *  the sparkline and progress rail since their shape isn't a
+       *  meaningful trend. */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-7">
         <StatTile
           label={t("checkinsToday")}
-          value={m.checkinsToday.toLocaleString()}
+          value={m.checkinsToday}
           delta={todayDelta}
           trend={{
             points: checkinsSeries.slice(-14),
@@ -104,7 +101,7 @@ export default async function PartnerDashboardPage() {
         />
         <StatTile
           label={t("checkinsThisMonth")}
-          value={m.checkinsThisMonth.toLocaleString()}
+          value={m.checkinsThisMonth}
           delta={checkinsWoW}
           trend={{
             points: checkinsSeries.slice(-14),
@@ -113,7 +110,7 @@ export default async function PartnerDashboardPage() {
         />
         <StatTile
           label={t("checkinsLast30")}
-          value={m.checkinsLast30Days.toLocaleString()}
+          value={m.checkinsLast30Days}
           delta={checkinsWoW}
           trend={{
             points: checkinsSeries.slice(-14),
@@ -122,7 +119,7 @@ export default async function PartnerDashboardPage() {
         />
         <StatTile
           label={t("uniqueMembers")}
-          value={m.uniqueMembersLast30Days.toLocaleString()}
+          value={m.uniqueMembersLast30Days}
         />
         <StatTile
           label={t("revenueMtd")}
@@ -148,7 +145,8 @@ export default async function PartnerDashboardPage() {
         />
       </div>
 
-      {/* Trend charts */}
+      {/* Trend charts — oscilloscope-style: lane-grid background +
+       *  single luminous accent stroke, no gradient fill. */}
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <ChartPanel
           title={t("checkinsTrend")}
@@ -156,10 +154,10 @@ export default async function PartnerDashboardPage() {
           total={m.checkinsLast30Days.toLocaleString()}
           delta={checkinsWoW}
         >
-          <AreaChart
+          <LaneChart
             points={checkinsSeries}
             labels={m.checkinsPerDay.map((d) => d.day)}
-            empty={t("noData")}
+            empty={t("noDataCheckins")}
             ariaLabel={t("trendCheckinsAria")}
           />
         </ChartPanel>
@@ -173,10 +171,10 @@ export default async function PartnerDashboardPage() {
           unit={t("jod")}
           delta={revenueWoW}
         >
-          <AreaChart
+          <LaneChart
             points={revenueSeries}
             labels={m.revenuePerDay.map((d) => d.day)}
-            empty={t("noData")}
+            empty={t("noDataRevenue")}
             ariaLabel={t("trendRevenueAria")}
           />
         </ChartPanel>
@@ -188,17 +186,15 @@ export default async function PartnerDashboardPage() {
           <TierBreakdown
             tiers={m.tierBreakdown}
             total={m.checkinsLast30Days}
-            empty={t("noData")}
+            empty={t("noDataTiers")}
           />
         </Panel>
         <Panel title={t("hourMix")} subtitle={t("hourMixSubtitle")}>
-          <HourStrip hours={m.hourBreakdown} empty={t("noData")} />
+          <HourStrip hours={m.hourBreakdown} empty={t("noDataHours")} />
         </Panel>
         <Panel title={t("recentCheckins")}>
           {m.recentCheckins.length === 0 ? (
-            <p className="py-4 text-center text-[12px] text-muted">
-              {t("noCheckinsYet")}
-            </p>
+            <QuietFloor message={t("noCheckinsYet")} small />
           ) : (
             <ul className="-mx-1 flex flex-col">
               {m.recentCheckins.map((c) => (
@@ -210,7 +206,7 @@ export default async function PartnerDashboardPage() {
                   <span className="min-w-0 flex-1 truncate text-[13px] text-paper">
                     {c.userName ?? c.userId.slice(0, 8)}
                   </span>
-                  <span className="num shrink-0 text-[11px] text-muted">
+                  <span className="num shrink-0 text-[10.5px] text-muted">
                     {formatTime(c.scannedAt)}
                   </span>
                 </li>
@@ -233,11 +229,11 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="panel p-4">
-      <header className="mb-3">
-        <h2 className="h2">{title}</h2>
+    <section className="steel rounded-lg p-5">
+      <header className="mb-4">
+        <h2 className="tracked text-[11.5px] text-muted">{title}</h2>
         {subtitle ? (
-          <p className="mt-0.5 text-[11px] text-muted">{subtitle}</p>
+          <p className="mt-1 text-[12px] text-muted">{subtitle}</p>
         ) : null}
       </header>
       {children}
@@ -261,24 +257,20 @@ function ChartPanel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="panel p-4">
-      <header className="mb-3 flex items-baseline justify-between gap-2">
+    <section className="steel rounded-lg p-5">
+      <header className="mb-4 flex items-baseline justify-between gap-2">
         <div>
-          <h2 className="h2">{title}</h2>
+          <h2 className="tracked text-[11.5px] text-muted">{title}</h2>
           {subtitle ? (
-            <p className="mt-0.5 text-[11.5px] text-muted">{subtitle}</p>
+            <p className="mt-1 text-[12px] text-muted">{subtitle}</p>
           ) : null}
         </div>
-        <div className="flex items-baseline gap-2">
+        <div className="flex items-baseline gap-3">
           {delta != null ? <ChartDelta delta={delta} /> : null}
           <div className="flex items-baseline gap-1">
-            <span className="num text-[18px] font-semibold text-paper">
-              {total}
-            </span>
+            <span className="gauge text-[28px] text-paper">{total}</span>
             {unit ? (
-              <span className="text-[10.5px] font-medium uppercase text-muted">
-                {unit}
-              </span>
+              <span className="tracked text-[11px] text-muted">{unit}</span>
             ) : null}
           </div>
         </div>
@@ -290,26 +282,25 @@ function ChartPanel({
 
 function ChartDelta({ delta }: { delta: number }) {
   const abs = Math.abs(delta);
-  const colorClass =
-    abs < 1
-      ? "text-muted"
-      : delta > 0
-        ? "text-emerald-400"
-        : "text-red-400";
-  const sign = delta > 0 ? "+" : delta < 0 ? "−" : "";
+  const flat = abs < 1;
+  const color = flat
+    ? "text-muted"
+    : delta > 0
+      ? "text-accent"
+      : "text-red-400";
+  const arrow = flat ? "—" : delta > 0 ? "▲" : "▼";
   return (
-    <span className={`num text-[10.5px] font-medium ${colorClass}`}>
-      {sign}
-      {abs.toFixed(abs < 10 ? 1 : 0)}%
+    <span className={`num text-[11px] font-medium ${color}`}>
+      {arrow} {flat ? "—" : `${abs.toFixed(abs < 10 ? 1 : 0)}%`}
     </span>
   );
 }
 
-/// Bigger area chart with axis labels, a min/max band, and a
-/// hover-able value row. Kept as raw SVG (no chart lib) — the
-/// dashboard renders three of these per page, and shipping a chart
-/// runtime per panel would dwarf the data they show.
-function AreaChart({
+/// Oscilloscope-style chart. Lane-grid background, single luminous
+/// accent stroke, no gradient fill. A thin "now" tick on the last
+/// data point gives the eye an anchor without competing with the
+/// stroke for attention.
+function LaneChart({
   points,
   labels,
   empty,
@@ -323,7 +314,7 @@ function AreaChart({
   if (points.length === 0) {
     return (
       <div className="flex h-36 items-center justify-center rounded-md border border-dashed border-line">
-        <p className="label">{empty}</p>
+        <QuietFloor message={empty} small />
       </div>
     );
   }
@@ -344,82 +335,50 @@ function AreaChart({
   const line = coords
     .map((c, i) => `${i === 0 ? "M" : "L"}${c.x.toFixed(1)},${c.y.toFixed(1)}`)
     .join(" ");
-  const area = `${line} L${w - pad},${h - pad} L${pad},${h - pad} Z`;
-  const peakIdx = points.indexOf(max);
-  const peak = coords[peakIdx];
+  const last = coords[coords.length - 1];
   return (
     <div>
-      <svg
-        viewBox={`0 0 ${w} ${h}`}
-        className="h-32 w-full"
-        preserveAspectRatio="none"
-        role={ariaLabel ? "img" : "presentation"}
-        aria-label={ariaLabel}
-      >
-        <defs>
-          <linearGradient id="partnerAreaFill" x1="0" y1="0" x2="0" y2="1">
-            <stop
-              offset="0%"
-              stopColor="rgb(var(--c-accent))"
-              stopOpacity="0.28"
-            />
-            <stop
-              offset="100%"
-              stopColor="rgb(var(--c-accent))"
-              stopOpacity="0"
-            />
-          </linearGradient>
-        </defs>
-        {/* Subtle gridlines at quarter, half, three-quarter heights. */}
-        {[0.25, 0.5, 0.75].map((f) => (
-          <line
-            key={f}
-            x1={pad}
-            x2={w - pad}
-            y1={h * f}
-            y2={h * f}
-            stroke="rgb(var(--c-line))"
-            strokeWidth="1"
-            strokeDasharray="2 4"
-            opacity="0.55"
+      <div className="lane-grid h-32 w-full overflow-hidden rounded-md border border-line/60">
+        <svg
+          viewBox={`0 0 ${w} ${h}`}
+          className="h-full w-full"
+          preserveAspectRatio="none"
+          role={ariaLabel ? "img" : "presentation"}
+          aria-label={ariaLabel}
+        >
+          <path
+            d={line}
+            fill="none"
+            stroke="rgb(var(--c-accent))"
+            strokeWidth="1.75"
+            strokeLinejoin="round"
+            strokeLinecap="round"
           />
-        ))}
-        <path d={area} fill="url(#partnerAreaFill)" />
-        <path
-          d={line}
-          fill="none"
-          stroke="rgb(var(--c-accent))"
-          strokeWidth="1.75"
-          strokeLinejoin="round"
-          strokeLinecap="round"
-        />
-        {/* Peak marker — gives the eye an anchor point on what
-            otherwise reads as a continuous wave. */}
-        {Number.isFinite(peak.x) && peak.x > 0 ? (
-          <>
-            <line
-              x1={peak.x}
-              x2={peak.x}
-              y1={peak.y}
-              y2={h - pad}
-              stroke="rgb(var(--c-accent))"
-              strokeWidth="1"
-              strokeDasharray="1 3"
-              opacity="0.5"
-            />
-            <circle
-              cx={peak.x}
-              cy={peak.y}
-              r="2.5"
-              fill="rgb(var(--c-accent))"
-              stroke="rgb(var(--c-ink))"
-              strokeWidth="1.5"
-            />
-          </>
-        ) : null}
-      </svg>
-      {/* Three-tick axis: first day, midpoint, last day. Kept
-          monospace so the digit columns line up across panels. */}
+          {/* Now-tick on the most recent point. */}
+          {Number.isFinite(last.x) ? (
+            <>
+              <line
+                x1={last.x}
+                x2={last.x}
+                y1={pad}
+                y2={h - pad}
+                stroke="rgb(var(--c-accent))"
+                strokeWidth="1"
+                strokeDasharray="1 3"
+                opacity="0.4"
+              />
+              <circle
+                cx={last.x}
+                cy={last.y}
+                r="2.5"
+                fill="rgb(var(--c-accent))"
+                stroke="rgb(var(--c-ink))"
+                strokeWidth="1.5"
+              />
+            </>
+          ) : null}
+        </svg>
+      </div>
       <div className="num mt-2 flex justify-between text-[10.5px] text-muted">
         <span>{labels[0]?.slice(5)}</span>
         <span>{labels[Math.floor(labels.length / 2)]?.slice(5)}</span>
@@ -440,9 +399,7 @@ function TierBreakdown({
 }) {
   const sum = Object.values(tiers).reduce((a, b) => a + b, 0);
   if (sum === 0) {
-    return (
-      <p className="py-4 text-center text-[12px] text-muted">{empty}</p>
-    );
+    return <QuietFloor message={empty} small />;
   }
   const denom = total > 0 ? total : sum;
   return (
@@ -452,25 +409,15 @@ function TierBreakdown({
         const pct = denom > 0 ? (count / denom) * 100 : 0;
         return (
           <li key={tier} className="flex items-center gap-3 text-[12px]">
-            <span className="flex w-16 items-center gap-1.5">
-              <span
-                className="h-2 w-2 rounded-full"
-                style={{ backgroundColor: TIER_DOT[tier] }}
-                aria-hidden
-              />
-              <span className="capitalize text-muted">{tier}</span>
-            </span>
+            <span className="tracked w-16 text-[10px] text-muted">{tier}</span>
             <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-line">
               <div
-                className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-500 ease-out"
-                style={{
-                  width: `${pct}%`,
-                  backgroundColor: TIER_DOT[tier],
-                }}
+                className="absolute inset-y-0 left-0 rounded-full bg-paper/45 transition-[width] duration-700 ease-out"
+                style={{ width: `${pct}%` }}
               />
             </div>
             <span className="num w-10 text-right text-paper">{count}</span>
-            <span className="num w-10 text-right text-[11px] text-muted">
+            <span className="num w-10 text-right text-[10.5px] text-muted">
               {pct.toFixed(0)}%
             </span>
           </li>
@@ -480,16 +427,7 @@ function TierBreakdown({
   );
 }
 
-/// Hour-of-day strip styled as a heat row: each cell is a fixed
-/// 24th of the width, the saturation of the accent colour scales
-/// with the bucket count, and the active hour (current local time)
-/// gets a thin marker. Replaces the previous bar-histogram which
-/// read as a chart but was actually a 24-cell legend in disguise —
-/// this version makes the "look at this hour vs that hour"
-/// affordance literal.
-///
-/// Backend returns UTC hours; Jordan sits at UTC+3 year-round (no
-/// DST), so a single +3 shift gives the partner a local-clock view.
+/// Hour-of-day strip styled as a heat row.
 function HourStrip({
   hours,
   empty,
@@ -498,7 +436,7 @@ function HourStrip({
   empty: string;
 }) {
   if (hours.length === 0) {
-    return <p className="py-4 text-center text-[12px] text-muted">{empty}</p>;
+    return <QuietFloor message={empty} small />;
   }
   const buckets = new Array<number>(24).fill(0);
   for (const { hour, count } of hours) {
@@ -508,9 +446,9 @@ function HourStrip({
   const max = Math.max(...buckets, 1);
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex h-9 items-stretch overflow-hidden rounded-md border border-line">
+      <div className="flex h-9 items-stretch overflow-hidden rounded-md border border-line/60">
         {buckets.map((v, i) => {
-          const intensity = v === 0 ? 0 : 0.15 + (v / max) * 0.85;
+          const intensity = v === 0 ? 0 : 0.18 + (v / max) * 0.82;
           return (
             <div
               key={i}
@@ -534,10 +472,6 @@ function HourStrip({
   );
 }
 
-/// Live indicator dot on the recent-check-ins list. Pulses gently
-/// while the scan is genuinely fresh (≤ 60 s), goes solid for
-/// "today" rows, fades for older. Gives a partner glancing at the
-/// list a second-channel cue beyond the timestamp.
 function RecencyDot({ scannedAt }: { scannedAt: string }) {
   const ageMs = Date.now() - new Date(scannedAt).getTime();
   if (!Number.isFinite(ageMs)) {

@@ -22,6 +22,15 @@ export type CheckinStatus =
   | "rate_limited";
 export type PayoutStatus = "pending" | "paid";
 
+export type LogoFit = "cover" | "contain";
+export type LogoPosition = "top" | "center" | "bottom";
+export type LogoAlignment = { fit: LogoFit; position: LogoPosition };
+
+export const DEFAULT_LOGO_ALIGNMENT: LogoAlignment = {
+  fit: "cover",
+  position: "center",
+};
+
 export type GymRead = {
   id: string;
   slug: string;
@@ -40,6 +49,7 @@ export type GymRead = {
   openingHours: Record<string, unknown>;
   coverImageUrl: string | null;
   logoUrl: string | null;
+  logoAlignment: LogoAlignment | null;
   rating: string | null;
   reviewCount: number;
   photoCount: number;
@@ -59,6 +69,7 @@ export type GymUpdateBody = Partial<{
   amenities: string[];
   openingHours: Record<string, unknown>;
   coverImageUrl: string | null;
+  logoAlignment: LogoAlignment | null;
 }>;
 
 export type GymPhoto = {

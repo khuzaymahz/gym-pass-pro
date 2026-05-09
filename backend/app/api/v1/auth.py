@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import hashlib
+import hmac
+import time
 from typing import TYPE_CHECKING, Annotated
 
 from fastapi import APIRouter, Depends, Request
@@ -9,8 +12,9 @@ from app.api.deps import auth_service, client_actor, db_session, redis_client
 
 if TYPE_CHECKING:
     from redis.asyncio import Redis
-from app.config import get_settings
+from app.config import Settings, get_settings
 from app.core.exceptions import AppError, ErrorCode
+from app.db.enums import Role
 from app.schemas.auth import (
     AdminExchangeRequest,
     AdminLoginRequest,
@@ -32,6 +36,72 @@ from app.services.audit_service import Actor
 from app.services.auth_service import AuthService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+# Service-token exchange — see `_enforce_exchange_envelope` below.
+# History on the limit: 5/5min → 30/5min → 120/5min. The current
+# ceiling accommodates a Next.js dashboard render that fans out to
+# several server-component data calls each calling `getServerSession`
+# concurrently. The HMAC + nonce are the actual security boundary;
+# the rate-limit is purely a safety net against a buggy NextAuth
+# side spinning out requests.
+_EXCHANGE_RATE_LIMIT = 120
+_EXCHANGE_RATE_WINDOW_SECONDS = 300
+
+
+async def _enforce_exchange_envelope(
+    *,
+    svc: AuthService,
+    redis: "Redis",
+    settings: Settings,
+    rate_limit_key: str,
+    nonce_key: str,
+    signed_payload: str,
+    signature: str,
+    signed_at: int,
+) -> None:
+    """Validate an exchange envelope: rate-limit, skew, HMAC, nonce.
+
+    Raises `AppError` on any failure. Returns `None` on success —
+    the caller proceeds to load the subject and mint the service
+    token. Shared by `admin_exchange` and `partner_exchange` so the
+    two endpoints can never drift on what counts as a valid
+    envelope.
+    """
+    if not await svc.rate_limiter.allow(
+        rate_limit_key,
+        limit=_EXCHANGE_RATE_LIMIT,
+        window_seconds=_EXCHANGE_RATE_WINDOW_SECONDS,
+    ):
+        raise AppError(
+            ErrorCode.RATE_LIMITED,
+            "Too many exchange requests. Try again in a few minutes.",
+        )
+
+    skew = settings.admin_exchange_max_skew_seconds
+    if abs(int(time.time()) - signed_at) > skew:
+        raise AppError(
+            ErrorCode.AUTH_FORBIDDEN,
+            "Exchange envelope expired or clock-skewed.",
+        )
+
+    expected = hmac.new(
+        settings.admin_exchange_secret.encode("utf-8"),
+        signed_payload.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    # Constant-time compare — `hmac.compare_digest` doesn't early-
+    # return on length mismatch, so a wrong signature burns the
+    # same time as a right one.
+    if not hmac.compare_digest(expected, signature.lower()):
+        raise AppError(ErrorCode.AUTH_FORBIDDEN, "Invalid exchange signature.")
+
+    # Nonce single-use enforcement. Key TTL == skew window so the
+    # entry ages out the same instant the signature would have
+    # anyway. `set nx ex` is atomic — if the nonce was already
+    # parked, we got `False` back and treat it as a replay.
+    set_ok = await redis.set(nonce_key, "1", nx=True, ex=skew)
+    if not set_ok:
+        raise AppError(ErrorCode.AUTH_FORBIDDEN, "Exchange envelope replayed.")
 
 
 @router.post("/phone/start", status_code=204)
@@ -197,70 +267,24 @@ async def admin_exchange(
     svc: Annotated[AuthService, Depends(auth_service)],
     redis: Annotated["Redis", Depends(redis_client)],
 ) -> ServiceToken:
-    """NextAuth → backend service-token exchange.
+    """NextAuth (admin app) → backend service-token exchange.
 
-    The previous version trusted any caller who could reach this
-    endpoint with the admin's email — the only "protection" was the
-    nginx Origin restriction, which a header-spoof or direct
-    container hit defeats. Now NextAuth must HMAC-sign the envelope
-    with `ADMIN_EXCHANGE_SECRET` (shared out of band) and the
-    backend verifies before minting a service token.
-
-    Replay guard: every accepted nonce is parked in Redis for the
-    skew window so the same signed envelope can't be re-played even
-    inside its valid timestamp range.
-
-    Rate-limit guard: defence in depth on top of the HMAC + nonce.
-    If the shared secret ever leaks, the rate limit caps a flood
-    attack at 5 service-token mints per email per 5 minutes — long
-    enough for ops to rotate the secret before the attacker mints
-    a useful number of tokens.
+    NextAuth HMAC-signs the envelope with `ADMIN_EXCHANGE_SECRET`
+    (shared out of band) and we verify before minting a service
+    token. Replay-protected via a single-use nonce in Redis;
+    rate-limited per-email as defence in depth.
     """
-    import hashlib
-    import hmac
-    import time
-
-    from app.config import get_settings
-    from app.core.exceptions import AppError, ErrorCode
-    from app.db.enums import Role
-
-    rl_key = f"admin:exchange:{body.email.lower()}"
-    # See partner_exchange below for the why on the bump from 5 → 30.
-    # Same reasoning applies: HMAC envelope is the actual defense,
-    # the rate-limit is a safety net that was too tight for a
-    # legitimate active session.
-    if not await svc.rate_limiter.allow(
-        rl_key, limit=30, window_seconds=300,
-    ):
-        raise AppError(
-            ErrorCode.RATE_LIMITED,
-            "Too many exchange requests. Try again in a few minutes.",
-        )
-
-    settings = get_settings()
-    now = int(time.time())
-    skew = settings.admin_exchange_max_skew_seconds
-    if abs(now - body.signed_at) > skew:
-        raise AppError(
-            ErrorCode.AUTH_FORBIDDEN,
-            "Exchange envelope expired or clock-skewed.",
-        )
-    expected = hmac.new(
-        settings.admin_exchange_secret.encode("utf-8"),
-        f"{body.email}|{body.nonce}|{body.signed_at}".encode("utf-8"),
-        hashlib.sha256,
-    ).hexdigest()
-    if not hmac.compare_digest(expected, body.signature.lower()):
-        # Constant-time compare — no early return on length mismatch
-        # in `hmac.compare_digest`. Burns the same time on a wrong
-        # signature as on a right one.
-        raise AppError(ErrorCode.AUTH_FORBIDDEN, "Invalid exchange signature.")
-    # Nonce single-use enforcement. Key TTL == skew so the entry
-    # ages out the same instant the signature would have anyway.
-    nonce_key = f"admin:exchange:nonce:{body.nonce}"
-    set_ok = await redis.set(nonce_key, "1", nx=True, ex=skew)
-    if not set_ok:
-        raise AppError(ErrorCode.AUTH_FORBIDDEN, "Exchange envelope replayed.")
+    email = body.email.lower()
+    await _enforce_exchange_envelope(
+        svc=svc,
+        redis=redis,
+        settings=get_settings(),
+        rate_limit_key=f"admin:exchange:{email}",
+        nonce_key=f"admin:exchange:nonce:{body.nonce}",
+        signed_payload=f"{body.email}|{body.nonce}|{body.signed_at}",
+        signature=body.signature,
+        signed_at=body.signed_at,
+    )
 
     user = await svc.users.get_by_email(body.email)
     if user is None or user.role != Role.ADMIN:
@@ -292,65 +316,23 @@ async def partner_exchange(
     Mirrors `/auth/admin/exchange`: signed envelope (phone | nonce |
     signed_at) HMAC'd with the shared secret, single-use nonce in
     Redis, rate-limit cap. Mints a service JWT scoped to the
-    partner's user id; backend `current_gym_owner` re-checks the
-    role and gym-link on every request, so a leaked token can only
-    act as the partner it was issued for.
+    partner's user id; `current_gym_owner` re-checks the role and
+    gym-link on every request, so a leaked token can only act as
+    the partner it was issued for.
     """
-    import hashlib
-    import hmac
-    import time
-
-    from app.config import get_settings
-    from app.core.exceptions import AppError, ErrorCode
-    from app.db.enums import Role
-
-    # The exchange endpoint is gated by an HMAC envelope tied to a
-    # shared secret only the partner portal holds, plus a single-use
-    # nonce. Anyone who can produce a valid request is, by definition,
-    # the legitimate caller — the rate-limiter is purely defensive
-    # against a buggy NextAuth side spinning out requests, not against
-    # an attacker. 5/5min was tight enough that a normal active session
-    # (one mint on sign-in + one refresh near the 5-min service-token
-    # expiry per active tab) regularly tripped it, surfacing as the
-    # very misleading "Credentials not recognised" on /login. Bumped
-    # generously and gated by a more robust check on the calling side
-    # (NextAuth coalesces concurrent refreshes so a render storm only
-    # produces a single exchange call).
-    rl_key = f"partner:exchange:{body.phone}"
-    if not await svc.rate_limiter.allow(
-        rl_key, limit=30, window_seconds=300,
-    ):
-        raise AppError(
-            ErrorCode.RATE_LIMITED,
-            "Too many exchange requests. Try again in a few minutes.",
-        )
-
-    settings = get_settings()
-    now = int(time.time())
-    skew = settings.admin_exchange_max_skew_seconds
-    if abs(now - body.signed_at) > skew:
-        raise AppError(
-            ErrorCode.AUTH_FORBIDDEN,
-            "Exchange envelope expired or clock-skewed.",
-        )
-    expected = hmac.new(
-        settings.admin_exchange_secret.encode("utf-8"),
-        f"{body.phone}|{body.nonce}|{body.signed_at}".encode("utf-8"),
-        hashlib.sha256,
-    ).hexdigest()
-    if not hmac.compare_digest(expected, body.signature.lower()):
-        raise AppError(ErrorCode.AUTH_FORBIDDEN, "Invalid exchange signature.")
-    nonce_key = f"partner:exchange:nonce:{body.nonce}"
-    set_ok = await redis.set(nonce_key, "1", nx=True, ex=skew)
-    if not set_ok:
-        raise AppError(ErrorCode.AUTH_FORBIDDEN, "Exchange envelope replayed.")
+    await _enforce_exchange_envelope(
+        svc=svc,
+        redis=redis,
+        settings=get_settings(),
+        rate_limit_key=f"partner:exchange:{body.phone}",
+        nonce_key=f"partner:exchange:nonce:{body.nonce}",
+        signed_payload=f"{body.phone}|{body.nonce}|{body.signed_at}",
+        signature=body.signature,
+        signed_at=body.signed_at,
+    )
 
     user = await svc.users.get_by_phone(body.phone)
-    if (
-        user is None
-        or user.role != Role.GYM_OWNER
-        or user.gym_id is None
-    ):
+    if user is None or user.role != Role.GYM_OWNER or user.gym_id is None:
         raise AppError(ErrorCode.AUTH_FORBIDDEN, "Not a gym partner.")
     token, exp = await svc.issue_service_token(user)
     return ServiceToken(token=token, expires_at=exp)  # type: ignore[arg-type]

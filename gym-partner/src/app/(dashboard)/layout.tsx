@@ -7,7 +7,7 @@ import { RealtimeBridge } from "@/components/RealtimeBridge";
 import { Sidebar } from "@/components/Sidebar";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { authOptions } from "@/lib/auth";
-import { PartnerSDK } from "@/lib/sdk";
+import { PartnerSDK, type LogoAlignment } from "@/lib/sdk";
 
 export const dynamic = "force-dynamic";
 
@@ -46,10 +46,12 @@ export default async function DashboardLayout({
   // with a stale token.
   let gymName = "—";
   let logoUrl: string | null = null;
+  let logoAlignment: LogoAlignment | null = null;
   try {
     const gym = await PartnerSDK.getGym();
     gymName = gym.nameEn;
     logoUrl = gym.logoUrl;
+    logoAlignment = gym.logoAlignment;
   } catch (e) {
     if (isRedirectSignal(e)) throw e;
     // tolerate transient backend hiccup; sidebar shows placeholder
@@ -66,6 +68,7 @@ export default async function DashboardLayout({
       <Sidebar
         gymName={gymName}
         logoUrl={logoUrl}
+        logoAlignment={logoAlignment}
         phone={session.phone ?? ""}
       />
       <main className="relative flex-1 overflow-x-hidden">

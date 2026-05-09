@@ -2,7 +2,9 @@
   "app": {
     "title": "بوابة الشركاء · جيم باس",
     "subtitle": "لوحة شريك النادي",
-    "signOut": "تسجيل الخروج"
+    "signOut": "تسجيل الخروج",
+    "statusOpen": "مفتوح",
+    "statusClosed": "مغلق"
   },
   "auth": {
     "title": "تسجيل الدخول",
@@ -33,22 +35,28 @@
     "localeSwitchToEn": "Switch to English"
   },
   "dashboard": {
-    "title": "لوحة الشريك",
-    "subtitle": "نظرة عامة على نشاط ناديك.",
-    "checkinsToday": "زيارات اليوم",
-    "checkinsThisMonth": "زيارات الشهر",
-    "checkinsLast30": "آخر 30 يوماً",
-    "uniqueMembers": "أعضاء فريدون",
+    "title": "صالة التدريب",
+    "subtitle": "نظرة حية على نشاط ناديك.",
+    "occupancy": "إشغال الصالة",
+    "occupancyAria": "زيارات اليوم كنسبة من أكثر يوم ازدحاماً خلال الشهر الماضي.",
+    "checkinsToday": "زيارات · اليوم",
+    "checkinsThisMonth": "زيارات · الشهر",
+    "checkinsLast30": "زيارات · 30 يوماً",
+    "uniqueMembers": "أعضاء · 30 يوماً",
     "revenueMtd": "الإيراد · الشهر",
     "pendingPayout": "مستحقات قيد الصرف",
     "paidPayoutMtd": "مدفوع هذا الشهر",
-    "checkinsTrend": "مسار الزيارات",
-    "revenueTrend": "مسار الإيراد",
+    "checkinsTrend": "إيقاع الزيارات",
+    "revenueTrend": "خط الإيراد",
     "tierMix": "توزيع الباقات",
     "hourMix": "ساعات الذروة",
     "hourMixSubtitle": "بالتوقيت المحلي، آخر 30 يوماً",
-    "recentCheckins": "أحدث الزيارات",
-    "noCheckinsYet": "لا توجد زيارات بعد.",
+    "recentCheckins": "آخر من دخل الصالة",
+    "noCheckinsYet": "لا تكرارات مسجَّلة بعد — صالتك هادئة.",
+    "noDataCheckins": "لا توجد زيارات لرسمها بعد.",
+    "noDataRevenue": "لا يوجد إيراد لرسمه بعد.",
+    "noDataTiers": "لا يوجد توزيع باقات بعد.",
+    "noDataHours": "لا يوجد نمط ساعات بعد.",
     "noData": "لا توجد بيانات.",
     "jod": "د.أ",
     "trendCheckinsAria": "الزيارات اليومية، آخر 14 يوماً",
@@ -93,7 +101,35 @@
     "logoErrorUnsupportedType": "نوع الملف غير مدعوم. استخدم JPEG أو PNG أو WebP.",
     "logoErrorTooLarge": "حجم الملف كبير جداً — يجب أن يكون أقل من {limit} ميجابايت.",
     "logoErrorUploadGeneric": "فشل رفع الشعار. الرجاء المحاولة مرة أخرى.",
-    "logoErrorDeleteGeneric": "تعذّر إزالة الشعار. الرجاء المحاولة مرة أخرى."
+    "logoErrorDeleteGeneric": "تعذّر إزالة الشعار. الرجاء المحاولة مرة أخرى.",
+    "logoApply": "تطبيق",
+    "logoCancel": "إلغاء",
+    "logoStaging": "معاينة · لم يُحفظ",
+    "logoCropTitle": "اقتصاص ومحاذاة الشعار",
+    "logoCropSubtitle": "حدّد موضع العلامة داخل المربع. اختر كيف تملأ الدائرة وأي حافة تبقى ظاهرة عند الاقتصاص.",
+    "logoCropFillHint": "اسحب الصورة لتحديد موضعها. استخدم الشريط أو عجلة التمرير للتقريب وضبط الاقتصاص.",
+    "logoCropContainHint": "تظهر الصورة كاملة — مفيد للعلامات بخلفية شفافة. لا يتم تطبيق أي اقتصاص.",
+    "logoCropPreview": "كيف ستظهر",
+    "logoCropSnap": "محاذاة سريعة",
+    "logoCropReset": "إعادة الضبط",
+    "logoCropProcessing": "جارٍ الاقتصاص…",
+    "logoZoom": "تكبير",
+    "logoZoomIn": "تكبير",
+    "logoZoomOut": "تصغير",
+    "logoPreviewSidebar": "الشريط الجانبي",
+    "logoPreviewCard": "بطاقة العضو",
+    "logoPreviewDetail": "صفحة النادي",
+    "logoFit": "الملاءمة",
+    "logoFitOption": {
+      "cover": "ملء",
+      "contain": "احتواء"
+    },
+    "logoPosition": "المحاذاة",
+    "logoPositionOption": {
+      "top": "أعلى",
+      "center": "وسط",
+      "bottom": "أسفل"
+    }
   },
   "amenities": {
     "label": "ما هو متاح",
@@ -143,7 +179,9 @@
     "errorUnsupportedType": "نوع الملف غير مدعوم. استخدم JPEG أو PNG أو WebP.",
     "errorTooLarge": "حجم الملف كبير جداً — يجب أن يكون أقل من {limit} ميجابايت.",
     "errorUploadGeneric": "فشل الرفع. الرجاء المحاولة مرة أخرى.",
-    "errorDeleteGeneric": "فشل الحذف. الرجاء المحاولة مرة أخرى."
+    "errorDeleteGeneric": "فشل الحذف. الرجاء المحاولة مرة أخرى.",
+    "cropTitle": "اقتصاص الصورة",
+    "cropSubtitle": "اسحب الصورة لتحديد موضعها داخل الإطار واستخدم الشريط للتكبير. هذا ما سيراه الأعضاء تماماً في صفحة النادي."
   },
   "checkins": {
     "title": "زيارات الأعضاء",

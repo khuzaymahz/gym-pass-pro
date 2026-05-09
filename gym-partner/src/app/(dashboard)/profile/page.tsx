@@ -16,7 +16,11 @@ export default async function ProfilePage() {
       {/* Logo first — it's the asset most likely to be unset on
           first sign-in, so partners shouldn't have to scroll past
           the long profile form to set it. */}
-      <LogoPanel initialLogoUrl={gym.logoUrl} gymName={gym.nameEn} />
+      <LogoPanel
+        initialLogoUrl={gym.logoUrl}
+        initialAlignment={gym.logoAlignment}
+        gymName={gym.nameEn}
+      />
       <GymProfileForm gym={gym} />
     </section>
   );
