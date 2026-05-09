@@ -982,10 +982,20 @@ class _DurationCard extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
+              // FittedBox so a four-digit total (1-year Diamond:
+              // 1122 JOD) doesn't overflow the 104-px duration card.
+              // `scaleDown` is no-op for 2- and 3-digit totals so
+              // the Silver / 1-month / etc. prices keep their full
+              // display-24 size; only the longest strings shrink
+              // imperceptibly to fit.
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: AlignmentDirectional.centerStart,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
                   Text(
                     '$total',
                     style: GPText.display(
@@ -1007,7 +1017,8 @@ class _DurationCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                ],
+                  ],
+                ),
               ),
               const SizedBox(height: 4),
               if (showsPerMonth)
