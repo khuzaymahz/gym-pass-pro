@@ -7,7 +7,7 @@ import { RealtimeBridge } from "@/components/RealtimeBridge";
 import { Sidebar } from "@/components/Sidebar";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { authOptions } from "@/lib/auth";
-import { PartnerSDK } from "@/lib/sdk";
+import { PartnerSDK, type LogoAlignment } from "@/lib/sdk";
 
 export const dynamic = "force-dynamic";
 
@@ -46,10 +46,12 @@ export default async function DashboardLayout({
   // with a stale token.
   let gymName = "—";
   let logoUrl: string | null = null;
+  let logoAlignment: LogoAlignment | null = null;
   try {
     const gym = await PartnerSDK.getGym();
     gymName = gym.nameEn;
     logoUrl = gym.logoUrl;
+    logoAlignment = gym.logoAlignment;
   } catch (e) {
     if (isRedirectSignal(e)) throw e;
     // tolerate transient backend hiccup; sidebar shows placeholder
@@ -66,20 +68,24 @@ export default async function DashboardLayout({
       <Sidebar
         gymName={gymName}
         logoUrl={logoUrl}
+        logoAlignment={logoAlignment}
         phone={session.phone ?? ""}
       />
       <main className="relative flex-1 overflow-x-hidden">
-        {/* System chrome cluster — locale + theme toggles as a
-            single tight pair at the top-end of every dashboard
-            page. Both render as 36×36 chips so the row reads as
-            one control group instead of two competing affordances.
-            `end-6` flips correctly under RTL so Arabic operators
-            see the cluster on the left side where their eye lands
-            first. The login page renders its own copy in the same
-            position for visual continuity before sign-in. */}
-        <div className="absolute end-6 top-6 z-10 flex items-center gap-2">
-          <LocaleToggle />
-          <ThemeToggle />
+        {/* Locale + theme toggles. The OUTER div carries `end-6` and
+            inherits the page's writing direction so the cluster
+            sits on the inline-end — top-right in LTR, top-left in
+            RTL. The INNER div locks `dir="ltr"` to keep the two
+            buttons in the same internal order (locale, then
+            theme) regardless of the page's direction. Splitting
+            the two roles is necessary because `end-6` on an
+            element with its own `dir="ltr"` would always resolve
+            to the right edge, defeating the flip. */}
+        <div className="absolute end-6 top-6 z-10">
+          <div dir="ltr" className="flex items-center gap-2">
+            <LocaleToggle />
+            <ThemeToggle />
+          </div>
         </div>
         <div className="mx-auto w-full max-w-[1280px] px-10 py-8">
           {children}

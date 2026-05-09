@@ -26,12 +26,21 @@ const config: Config = {
           "sans-serif",
         ],
         // Display face used only by the GYMPASS wordmark — Archivo
-        // Black Italic, mirroring the mobile app. Falls back to the
-        // sans stack if the font fails to load so the wordmark is
-        // never blank, just less stylised.
+        // Black Italic, mirroring the mobile app.
         display: [
           "var(--font-display)",
           "Archivo",
+          "ui-sans-serif",
+          "system-ui",
+          "sans-serif",
+        ],
+        // Gauge face — Space Grotesk, used for stat numbers and
+        // headline metrics. Geometric and mechanical-feeling, but
+        // proportional and clearly legible at every size — easier to
+        // scan than a condensed all-caps face for short numerals.
+        gauge: [
+          "var(--font-gauge)",
+          "Space Grotesk",
           "ui-sans-serif",
           "system-ui",
           "sans-serif",

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, File, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import (
@@ -18,10 +18,13 @@ from app.config import get_settings
 from app.core.exceptions import AppError, ErrorCode
 from app.db.models import User
 from app.realtime import publish as realtime_publish
-from app.schemas.gym import GymRead, GymUpdate
+from app.schemas.gym import GymRead, GymUpdate, LogoAlignment
 from app.services.audit_service import AuditService
 from app.services.gym_service import GymService
 from app.utils.image_sniff import sniff_image
+
+LogoFit = Literal["cover", "contain"]
+LogoPosition = Literal["top", "center", "bottom"]
 
 router = APIRouter(prefix="/partner/gym", tags=["partner/gym"])
 
@@ -81,6 +84,8 @@ async def upload_logo(
     audit: Annotated[AuditService, Depends(audit_service)],
     session: Annotated[AsyncSession, Depends(db_session)],
     file: Annotated[UploadFile, File()],
+    fit: Annotated[LogoFit | None, Form()] = None,
+    position: Annotated[LogoPosition | None, Form()] = None,
 ) -> GymRead:
     assert user.gym_id is not None
     gym = await svc.get(user.gym_id)
@@ -117,6 +122,15 @@ async def upload_logo(
     prefix = settings.media_url_prefix.rstrip("/") + "/"
     previous_url = gym.logo_url
     gym.logo_url = public_url
+    # Persist alignment alongside the URL when the partner sent one;
+    # falling back to the existing alignment (or None for first
+    # upload) keeps the column representative of the latest choice.
+    if fit is not None or position is not None:
+        alignment = LogoAlignment(
+            fit=fit or "cover",
+            position=position or "center",
+        )
+        gym.logo_alignment = alignment.model_dump()
     await session.flush()
 
     await audit.log(
@@ -169,14 +183,22 @@ async def delete_logo(
     if previous_url is None:
         return GymRead.model_validate(gym)
 
+    previous_alignment = gym.logo_alignment
     gym.logo_url = None
+    gym.logo_alignment = None
     await session.flush()
     await audit.log(
         actor=authed_actor(request, user),
         action="gym.logo.clear",
         entity_type="gym",
         entity_id=gym.id,
-        diff={"before": {"logo_url": previous_url}, "after": {"logo_url": None}},
+        diff={
+            "before": {
+                "logo_url": previous_url,
+                "logo_alignment": previous_alignment,
+            },
+            "after": {"logo_url": None, "logo_alignment": None},
+        },
     )
     await session.commit()
 

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Archivo, Inter } from "next/font/google";
+import { Archivo, Inter, Space_Grotesk } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
@@ -12,18 +12,25 @@ const inter = Inter({
   display: "swap",
 });
 
-// Archivo Black Italic for the GYMPASS wordmark only — mirrors the
-// mobile app's brand mark (`mobile/lib/core/widgets/wordmark.dart`).
-// The operator-tool register is "one font for body" (CLAUDE.md
-// memory) but the brand wordmark is a logo, not body copy, so a
-// distinct face is correct here. Loaded once via next/font so the
-// FOUT is bounded and the file is self-hosted (no runtime
-// google-fonts call from the browser at request time).
+// Archivo Black Italic for the GYMPASS wordmark only — same face the
+// mobile app uses (`mobile/lib/core/widgets/wordmark.dart`).
 const archivo = Archivo({
   subsets: ["latin"],
   weight: ["900"],
   style: ["italic"],
   variable: "--font-display",
+  display: "swap",
+});
+
+// Space Grotesk is the "gauge" face: stat numbers and metric
+// headlines. Geometric, mechanical-feeling, but proportional and
+// crisply legible at every size — easier to scan than a condensed
+// all-caps display face when a stat is the number "0" or "12k".
+// Bold weight so the digits sit with authority next to body copy.
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  weight: ["500", "700"],
+  variable: "--font-gauge",
   display: "swap",
 });
 
@@ -48,7 +55,7 @@ export default async function RootLayout({
     <html
       lang={locale}
       dir={dir}
-      className={`${inter.variable} ${archivo.variable}`}
+      className={`${inter.variable} ${archivo.variable} ${spaceGrotesk.variable}`}
       // `data-theme` defaults to "dark" for first paint so the page
       // never flashes the wrong mode. The blocking inline script in
       // <head> below replaces it with the user's saved choice

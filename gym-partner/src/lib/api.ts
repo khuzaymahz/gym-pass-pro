@@ -1,8 +1,45 @@
-import { createHmac, randomBytes } from "node:crypto";
-
 import { redirect } from "next/navigation";
 
 import { env } from "@/lib/env";
+
+// Web Crypto API — works identically in Node 20+ and the browser, no
+// `node:crypto` import. The previous `import { createHmac, randomBytes
+// } from "node:crypto"` blew up the production webpack bundle with
+// `UnhandledSchemeError: Reading from "node:crypto" is not handled by
+// plugins` because the module graph reaches `api.ts` via paths that
+// webpack treats as client-bundled. Web Crypto sidesteps the
+// `node:` scheme entirely.
+const cryptoApi: Crypto =
+  typeof globalThis !== "undefined" && globalThis.crypto
+    ? globalThis.crypto
+    : (() => {
+        throw new Error("Web Crypto API not available in this runtime");
+      })();
+
+function bytesToHex(bytes: Uint8Array): string {
+  let out = "";
+  for (let i = 0; i < bytes.length; i++) {
+    out += bytes[i].toString(16).padStart(2, "0");
+  }
+  return out;
+}
+
+async function hmacSha256Hex(secret: string, data: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const key = await cryptoApi.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const sig = await cryptoApi.subtle.sign(
+    "HMAC",
+    key,
+    encoder.encode(data),
+  );
+  return bytesToHex(new Uint8Array(sig));
+}
 
 export class ApiError extends Error {
   constructor(
@@ -90,10 +127,11 @@ export async function exchangePartnerToken(phone: string): Promise<{
   // identifier (gym-owners may not have an email on file). Backend
   // verifies signature + skew + nonce single-use before minting.
   const signedAt = Math.floor(Date.now() / 1000);
-  const nonce = randomBytes(16).toString("hex");
-  const signature = createHmac("sha256", env.ADMIN_EXCHANGE_SECRET)
-    .update(`${phone}|${nonce}|${signedAt}`)
-    .digest("hex");
+  const nonce = bytesToHex(cryptoApi.getRandomValues(new Uint8Array(16)));
+  const signature = await hmacSha256Hex(
+    env.ADMIN_EXCHANGE_SECRET,
+    `${phone}|${nonce}|${signedAt}`,
+  );
   return api("/api/v1/auth/partner/exchange", {
     method: "POST",
     body: JSON.stringify({ phone, signedAt, nonce, signature }),

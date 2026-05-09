@@ -49,6 +49,13 @@ class Gym(Base):
     )
     cover_image_url: Mapped[str | None] = mapped_column(nullable=True)
     logo_url: Mapped[str | None] = mapped_column(nullable=True)
+    # Optional render hints for the logo. Shape:
+    #   {"fit": "cover" | "contain", "position": "top" | "center" | "bottom"}
+    # NULL = use the default ({fit:"cover", position:"center"}). See
+    # migration 0015 for the rationale.
+    logo_alignment: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONB, nullable=True
+    )
     amenities: Mapped[list[str]] = mapped_column(
         JSONB, nullable=False, server_default=text("'[]'::jsonb")
     )
