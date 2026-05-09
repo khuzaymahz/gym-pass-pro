@@ -26,8 +26,9 @@ class CheckinResult:
 
     `gym` is set whenever a real `Gym` row was resolved; only the
     invalid-QR path leaves it `None`. `remaining` is the per-period
-    visit budget after this scan — None for Diamond (unlimited)
-    and for the failure paths that don't consume a visit.
+    visit budget after this scan — None for the failure paths that
+    don't consume a visit; otherwise `monthly_visits - period_count`,
+    floored at zero, the same shape for every tier.
     """
 
     checkin: Checkin
@@ -158,30 +159,37 @@ class CheckinService:
                          "userTier": sub.tier.value},
             )
 
-        # Visit budget — Diamond bypasses. The cap is *per billing period*,
-        # not lifetime: counting from `current_period_start` means a
-        # 12-month plan resets every 30 days without a cron, and the
-        # answer is always derivable from immutable check-in rows.
+        # Visit budget — same per-period cap for every tier. The cap is
+        # *per billing period*, not lifetime: counting from
+        # `current_period_start` means a 12-month plan resets every 30
+        # days without a cron, and the answer is always derivable from
+        # immutable check-in rows.
+        #
+        # Per business model: tier gates the gym network (Silver = entry
+        # gyms, Diamond = full partner network), not the visit count.
+        # Every plan in the catalog seeds with `monthly_visits = 30`, and
+        # the gate applies uniformly. The earlier `if sub.tier !=
+        # Tier.DIAMOND` bypass was a model leak — it let Diamond members
+        # scan past the cap their plan was actually selling.
         plan = await self.plans.get(sub.plan_id)
         if plan is None:
             raise AppError(ErrorCode.PLAN_NOT_FOUND, "Plan missing for subscription.")
-        if sub.tier != Tier.DIAMOND:
-            period_start = current_period_start(sub.starts_at, utcnow())
-            current_period_visits = (
-                await self.checkins.count_success_since_for_user(
-                    user.id, period_start
-                )
+        period_start = current_period_start(sub.starts_at, utcnow())
+        current_period_visits = (
+            await self.checkins.count_success_since_for_user(
+                user.id, period_start
             )
-            if current_period_visits >= plan.monthly_visits:
-                await self.checkins.create(
-                    user_id=user.id, gym_id=gym.id, subscription_id=sub.id,
-                    status=CheckinStatus.NO_VISITS,
-                    failure_reason="visits_exhausted",
-                    ip_address=actor.ip_address, user_agent=actor.user_agent,
-                )
-                raise AppError(
-                    ErrorCode.CHECKIN_NO_VISITS, "Visit budget exhausted."
-                )
+        )
+        if current_period_visits >= plan.monthly_visits:
+            await self.checkins.create(
+                user_id=user.id, gym_id=gym.id, subscription_id=sub.id,
+                status=CheckinStatus.NO_VISITS,
+                failure_reason="visits_exhausted",
+                ip_address=actor.ip_address, user_agent=actor.user_agent,
+            )
+            raise AppError(
+                ErrorCode.CHECKIN_NO_VISITS, "Visit budget exhausted."
+            )
 
         # Success path.
         checkin = await self.checkins.create(
@@ -189,8 +197,7 @@ class CheckinService:
             status=CheckinStatus.SUCCESS,
             ip_address=actor.ip_address, user_agent=actor.user_agent,
         )
-        if sub.tier != Tier.DIAMOND:
-            await self.subs.increment_visits(sub.id)
+        await self.subs.increment_visits(sub.id)
         await self.ledger.record(
             gym_id=gym.id, checkin_id=checkin.id, rate=gym.per_visit_rate_jod
         )
@@ -201,19 +208,13 @@ class CheckinService:
         )
 
         # Compute the period-remaining visit budget so the caller
-        # doesn't need to re-query. Diamond is unlimited (None);
-        # everyone else gets `monthly_visits - period_count`. The
-        # period_count derives from the same indexed `checkins`
+        # doesn't need to re-query. Reuses the same indexed `checkins`
         # rows the budget gate above used, so the response stays
         # coherent with the just-committed scan without re-reading
         # the (denormalized, lifetime) `subscriptions.visits_used`.
-        remaining: int | None = None
-        if sub.tier != Tier.DIAMOND:
-            period_start = current_period_start(sub.starts_at, utcnow())
-            period_count = await self.checkins.count_success_since_for_user(
-                user.id, period_start
-            )
-            remaining = max(0, plan.monthly_visits - period_count)
+        # Same shape for every tier: `monthly_visits - period_count`,
+        # floored at zero.
+        remaining = max(0, plan.monthly_visits - (current_period_visits + 1))
 
         return CheckinResult(checkin=checkin, gym=gym, remaining=remaining)
 

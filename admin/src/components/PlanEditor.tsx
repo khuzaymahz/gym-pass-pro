@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
+import PendingButton from "@/components/PendingButton";
 import StatusPill from "@/components/StatusPill";
 import type { ActionResult } from "@/lib/action-result";
 import type { PlanRead, PlanUpdate } from "@/lib/sdk";
@@ -161,9 +162,11 @@ export default function PlanEditor({ plan, action }: Props) {
         ) : (
           <span className="text-[12px] text-muted">{t("footerHint")}</span>
         )}
-        <button className="btn-primary btn-sm" disabled={pending}>
-          {pending ? tCommon("saving") : tCommon("save")}
-        </button>
+        <PendingButton
+          pending={pending}
+          pendingLabel={tCommon("saving")}
+          idleLabel={tCommon("save")}
+        />
       </footer>
     </form>
   );

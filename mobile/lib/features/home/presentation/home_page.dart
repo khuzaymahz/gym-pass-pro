@@ -351,12 +351,11 @@ class _PlanCard extends StatelessWidget {
     // The previous `total == 0` only handled the first case, so a Diamond
     // member tapping into Home hit `used.clamp(0, -1)` and crashed
     // ("Invalid argument(s): 0", because `lo > hi`).
-    // `total == 0` only — every tier shares the same 30-visit
-    // monthly cap, so the only "no denominator" case is the brief
-    // window before the subscription has hydrated from the backend.
-    // The earlier `total <= 0` guard existed because Diamond used a
-    // `-1` "unlimited" sentinel; that sentinel is gone (see
-    // `SubscriptionState.termTotalVisits`).
+    // Defend against the brief window before the subscription has
+    // hydrated from the backend, where `total == 0` and clamp
+    // would do the wrong thing. Every tier shares the same monthly
+    // cap (tier gates the gym network, not the visit count) so we
+    // don't need a separate "unlimited" path.
     final shownUsed = total == 0 ? used : used.clamp(0, total);
     final percent = total == 0 ? 0.0 : (shownUsed / total).clamp(0.0, 1.0);
     final remaining = total == 0 ? 0 : (total - shownUsed).clamp(0, total);

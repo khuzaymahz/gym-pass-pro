@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 
+import PendingButton from "@/components/PendingButton";
 import type { ActionResult } from "@/lib/action-result";
 import type { BroadcastBody, Tier } from "@/lib/sdk";
 
@@ -123,9 +124,11 @@ export default function BroadcastForm({ action }: Props) {
         ) : (
           <span className="text-[12px] text-muted">{t("footerHint")}</span>
         )}
-        <button className="btn-primary btn-sm" disabled={pending}>
-          {pending ? t("sending") : t("send")}
-        </button>
+        <PendingButton
+          pending={pending}
+          pendingLabel={t("sending")}
+          idleLabel={t("send")}
+        />
       </footer>
     </form>
   );

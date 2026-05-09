@@ -44,14 +44,14 @@ class SubscriptionService:
         anchored at `current_period_start(sub.starts_at, now)` — independent
         of the stored `subscriptions.visits_used` counter, which is the
         denormalized lifetime total. `remaining_visits` is `monthly_visits -
-        current_period_visits`, floored at zero. Diamond returns `None` for
-        both since its budget is unlimited.
+        current_period_visits`, floored at zero. Same shape for every tier
+        — tier gates the gym network, not the visit count.
         """
         sub = await self.subs.active_for_user(user.id)
         if sub is None:
             return None, None, None, None
         plan = await self.plans.get(sub.plan_id)
-        if plan is None or sub.tier.value == "diamond":
+        if plan is None:
             return sub, None, None, plan
         period_start = current_period_start(sub.starts_at, utcnow())
         period_visits = await self.checkins.count_success_since_for_user(

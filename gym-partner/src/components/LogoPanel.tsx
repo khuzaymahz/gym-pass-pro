@@ -9,6 +9,7 @@ import {
   deleteLogoAction,
   uploadLogoAction,
 } from "@/app/(dashboard)/profile/actions";
+import GymLoader from "@/components/GymLoader";
 import { resolveMediaUrl } from "@/lib/media";
 import {
   DEFAULT_LOGO_ALIGNMENT,
@@ -161,9 +162,10 @@ export function LogoPanel({
             )}
             {pending ? (
               <span
-                className="absolute inset-0 flex items-center justify-center bg-ink/55 text-[10px] font-medium uppercase tracking-wider text-paper"
+                className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-ink/55 text-[10px] font-medium uppercase tracking-wider text-paper"
                 aria-busy
               >
+                <GymLoader size="md" ariaLabel={t("logoUploading")} />
                 {t("logoUploading")}
               </span>
             ) : null}

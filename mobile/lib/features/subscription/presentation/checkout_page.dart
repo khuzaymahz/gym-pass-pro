@@ -137,7 +137,15 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
               child: Row(
                 children: [
-                  const BackBtn(),
+                  // BackBtn is hidden mid-payment — `PopScope` blocks the
+                  // system-back gesture but the visible widget calls
+                  // `Navigator.pop()` directly, which would skip the gate
+                  // and leave the page mid-charge. Replacing it with an
+                  // empty 40-px spacer keeps the title row balanced.
+                  if (_isPaying)
+                    const SizedBox(width: 40)
+                  else
+                    const BackBtn(),
                   const Spacer(),
                   Overline(l.checkoutOverline),
                   const Spacer(),

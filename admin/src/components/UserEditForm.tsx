@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
+import PendingButton from "@/components/PendingButton";
 import type { ActionResult } from "@/lib/action-result";
 import type { AdminUser, AdminUserUpdate, Gender } from "@/lib/sdk";
 
@@ -171,9 +172,11 @@ export default function UserEditForm({ user, action }: Props) {
         ) : (
           <p className="text-[11px] text-muted">{t("footerHint")}</p>
         )}
-        <button className="btn-primary btn-sm" disabled={pending}>
-          {pending ? tCommon("saving") : t("save")}
-        </button>
+        <PendingButton
+          pending={pending}
+          pendingLabel={tCommon("saving")}
+          idleLabel={t("save")}
+        />
       </div>
     </form>
   );

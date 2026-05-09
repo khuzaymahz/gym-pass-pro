@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
+import PendingButton from "@/components/PendingButton";
 import type { ActionResult } from "@/lib/action-result";
 
 type Props = {
@@ -32,14 +33,14 @@ export default function CancelSubscriptionButton({ action }: Props) {
 
   return (
     <div className="flex flex-col items-end gap-1">
-      <button
+      <PendingButton
         type="button"
         onClick={onClick}
-        disabled={pending}
+        pending={pending}
+        pendingLabel={tCommon("loading")}
+        idleLabel={t("cancel")}
         className="btn-danger btn-sm disabled:opacity-50"
-      >
-        {pending ? tCommon("loading") : t("cancel")}
-      </button>
+      />
       {error ? <span className="text-[11px] text-red-300">{error}</span> : null}
     </div>
   );

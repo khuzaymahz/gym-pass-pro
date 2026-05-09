@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
+import PendingButton from "@/components/PendingButton";
 import type { ActionResult } from "@/lib/action-result";
 import type { AdminPayout } from "@/lib/sdk";
 
@@ -81,9 +82,11 @@ export default function GeneratePayoutsForm({ action }: Props) {
           onChange={(e) => setPeriodEnd(e.target.value)}
         />
       </label>
-      <button className="btn-primary btn-sm" disabled={pending}>
-        {pending ? t("submitting") : t("submit")}
-      </button>
+      <PendingButton
+        pending={pending}
+        pendingLabel={t("submitting")}
+        idleLabel={t("submit")}
+      />
       {message ? (
         <p
           className={`w-full text-[12px] ${

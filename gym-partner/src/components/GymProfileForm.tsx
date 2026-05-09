@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import type { GymRead, GymUpdateBody } from "@/lib/sdk-types";
 import { saveGymAction } from "@/app/(dashboard)/profile/actions";
+import PendingButton from "@/components/PendingButton";
 
 import { AmenitiesPicker } from "./AmenitiesPicker";
 
@@ -184,13 +185,11 @@ export function GymProfileForm({ gym }: { gym: GymRead }) {
             {errorMsg ?? t("error")}
           </span>
         ) : null}
-        <button
-          type="submit"
-          className="btn-primary btn-sm"
-          disabled={saving}
-        >
-          {saving ? t("saving") : t("save")}
-        </button>
+        <PendingButton
+          pending={saving}
+          pendingLabel={t("saving")}
+          idleLabel={t("save")}
+        />
       </div>
     </form>
   );

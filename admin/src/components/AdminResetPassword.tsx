@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 
+import PendingButton from "@/components/PendingButton";
 import type { ActionResult } from "@/lib/action-result";
 
 type Props = {
@@ -59,13 +60,11 @@ export default function AdminResetPassword({ action }: Props) {
         value={password}
         onChange={(e) => setPassword(e.target.value)}
       />
-      <button
-        type="submit"
-        disabled={pending}
-        className="btn-primary btn-sm"
-      >
-        {pending ? t("submitting") : tCommon("save")}
-      </button>
+      <PendingButton
+        pending={pending}
+        pendingLabel={t("submitting")}
+        idleLabel={tCommon("save")}
+      />
       <button
         type="button"
         onClick={() => {

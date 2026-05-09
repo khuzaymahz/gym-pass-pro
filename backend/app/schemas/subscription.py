@@ -40,14 +40,15 @@ class SubscriptionRead(BaseModel):
 class CurrentSubscription(BaseModel):
     subscription: SubscriptionRead | None = None
     # Visits consumed in the current 30-day period anchored to
-    # `subscription.starts_at`. None when there is no subscription, or for
-    # Diamond tier (unlimited).
+    # `subscription.starts_at`. None when there is no subscription.
+    # Same shape for every tier — tier gates the gym network, not the
+    # visit count.
     current_period_visits: int | None = Field(
         alias="currentPeriodVisits", default=None
     )
-    # `plan.monthly_visits - current_period_visits`, floored at zero. None
-    # when there is no subscription or for Diamond. Mobile reads this for
-    # the "X visits left" pill so it never has to do the subtraction.
+    # `plan.monthly_visits - current_period_visits`, floored at zero.
+    # None when there is no subscription. Mobile reads this for the
+    # "X visits left" pill so it never has to do the subtraction.
     remaining_visits: int | None = Field(alias="remainingVisits", default=None)
 
     model_config = ConfigDict(populate_by_name=True)

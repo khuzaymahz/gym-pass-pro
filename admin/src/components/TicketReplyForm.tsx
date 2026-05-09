@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
+import PendingButton from "@/components/PendingButton";
 import type { ActionResult } from "@/lib/action-result";
 import type { SupportTicketMessage, TicketReplyBody } from "@/lib/sdk";
 
@@ -72,16 +73,13 @@ export default function TicketReplyForm({ action }: Props) {
             {message.text}
           </span>
         ) : null}
-        <button
+        <PendingButton
+          pending={pending}
+          disabled={!body.trim()}
+          pendingLabel={t("submitting")}
+          idleLabel={isInternalNote ? t("internalSubmit") : t("submit")}
           className="btn-primary btn-sm ml-auto"
-          disabled={pending || !body.trim()}
-        >
-          {pending
-            ? t("submitting")
-            : isInternalNote
-              ? t("internalSubmit")
-              : t("submit")}
-        </button>
+        />
       </div>
     </form>
   );

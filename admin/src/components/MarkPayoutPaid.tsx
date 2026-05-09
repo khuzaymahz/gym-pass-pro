@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
+import PendingButton from "@/components/PendingButton";
 import type { ActionResult } from "@/lib/action-result";
 import type { AdminPayout } from "@/lib/sdk";
 
@@ -55,13 +56,11 @@ export default function MarkPayoutPaid({ action }: Props) {
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
       />
-      <button
-        type="submit"
-        disabled={pending}
-        className="btn-primary btn-sm"
-      >
-        {pending ? t("marking") : tCommon("save")}
-      </button>
+      <PendingButton
+        pending={pending}
+        pendingLabel={t("marking")}
+        idleLabel={tCommon("save")}
+      />
       <button
         type="button"
         onClick={() => {
