@@ -40,4 +40,14 @@ class Checkin(Base):
             "status",
             postgresql_where=text("status <> 'success'"),
         ),
+        # Partial composite for the partner-dashboard aggregates
+        # (count_today / count_mtd / per_day / hour_breakdown /
+        # tier_breakdown). Mirror of `ix_checkins_success_user_scanned_at`
+        # but keyed on gym_id. See migration 0014 for the rationale.
+        Index(
+            "ix_checkins_gym_success_scanned",
+            "gym_id",
+            "scanned_at",
+            postgresql_where=text("status = 'success'"),
+        ),
     )

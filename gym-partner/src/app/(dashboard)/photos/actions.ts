@@ -27,11 +27,14 @@ export async function uploadPhotoAction(
     },
   );
   if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
-    return {
-      ok: false,
-      error: body?.error?.message ?? response.statusText,
-    };
+    const body = (await response.json().catch(() => null)) as
+      | { error?: { message?: unknown } }
+      | null;
+    const raw = body?.error?.message;
+    const message = typeof raw === "string" && raw.length > 0
+      ? raw
+      : response.statusText || "Photo upload failed.";
+    return { ok: false, error: message };
   }
   return { ok: true };
 }

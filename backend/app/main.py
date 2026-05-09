@@ -4,11 +4,18 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import AsyncIterator
 
+import structlog
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
 from starlette.exceptions import HTTPException as StarletteHTTPException
+
+from app.core.redis_client import get_redis
+from app.db.session import get_engine
 
 from app.api.v1 import auth as auth_router
 from app.api.v1 import checkins as checkins_router
@@ -71,6 +78,13 @@ def create_app() -> FastAPI:
     )
 
     app.add_middleware(RequestContextMiddleware)
+    # GZip on responses ≥ 500 bytes. Most JSON list endpoints
+    # (admin checkins, partner metrics) compress to ~20% of their
+    # raw size; the CPU cost on the API side is dwarfed by the
+    # transfer-time win on slow mobile networks. The 500-byte
+    # floor avoids spending cycles on tiny payloads where the
+    # gzip header itself can be larger than the saving.
+    app.add_middleware(GZipMiddleware, minimum_size=500)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins(),
@@ -128,9 +142,53 @@ def create_app() -> FastAPI:
         name="media",
     )
 
+    log = structlog.get_logger("health")
+
     @app.get("/health", tags=["health"])
     async def health() -> dict[str, str]:
+        """Liveness probe — process is up.
+
+        Deliberately does NOT touch DB or Redis. Liveness asks
+        "is this container worth keeping alive"; flipping it on a
+        transient DB blip would cause the orchestrator to restart
+        the pod and amplify a downstream incident into a rolling
+        outage. Use `/readyz` for the deps-aware check.
+        """
         return {"status": "ok"}
+
+    @app.get("/readyz", tags=["health"])
+    async def readyz() -> JSONResponse:
+        """Readiness probe — every backing dep responsive.
+
+        Returns 200 only when the DB accepts a `SELECT 1` and Redis
+        responds to PING. Fails closed (503) on either side so the
+        orchestrator pulls the pod out of rotation while it can't
+        serve real traffic. Each check is wrapped in its own
+        try/except so we can report which side is broken instead of
+        a generic "not ready".
+        """
+        checks: dict[str, str] = {}
+        ok = True
+        try:
+            async with get_engine().connect() as conn:
+                await conn.execute(text("SELECT 1"))
+            checks["db"] = "ok"
+        except Exception as exc:
+            ok = False
+            checks["db"] = "error"
+            log.error("readyz_db_failed", error=str(exc))
+        try:
+            pong = await get_redis().ping()
+            checks["redis"] = "ok" if pong else "error"
+            ok = ok and bool(pong)
+        except Exception as exc:
+            ok = False
+            checks["redis"] = "error"
+            log.error("readyz_redis_failed", error=str(exc))
+        return JSONResponse(
+            status_code=200 if ok else 503,
+            content={"status": "ok" if ok else "degraded", "checks": checks},
+        )
 
     return app
 

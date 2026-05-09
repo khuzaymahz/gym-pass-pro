@@ -46,6 +46,7 @@ export default function AdminCreateForm({ action }: Props) {
           className="input input-sm w-56"
           type="email"
           required
+          maxLength={254}
           placeholder="name@domain"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -56,6 +57,7 @@ export default function AdminCreateForm({ action }: Props) {
         <input
           className="input input-sm w-52"
           required
+          maxLength={128}
           placeholder="First Last"
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -63,12 +65,18 @@ export default function AdminCreateForm({ action }: Props) {
       </label>
       <label className="field">
         <span className="field-label">Password</span>
+        {/* Backend `AdminCreate.password` requires 12–128 chars plus
+          * the complexity rules in `_validate_admin_password`. The
+          * old minLength={8} accepted shorter strings client-side
+          * and the user only learned about the real rule via a 422
+          * response — confusing and slower. */}
         <input
           className="input input-sm w-52"
           type="password"
           required
-          minLength={8}
-          placeholder="≥ 8 chars"
+          minLength={12}
+          maxLength={128}
+          placeholder="≥ 12 chars · upper, lower, digit, symbol"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />

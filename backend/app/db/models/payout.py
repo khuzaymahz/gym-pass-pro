@@ -39,6 +39,12 @@ class PayoutLedger(Base):
     __table_args__ = (
         UniqueConstraint("checkin_id", name="uq_payout_ledger_checkin_id"),
         Index("ix_payout_ledger_gym_payout", "gym_id", "payout_id"),
+        # Drives the partner-dashboard revenue aggregates
+        # (`_success_payout_sum`, `_revenue_per_day_since`) which
+        # filter by (gym_id, created_at >= since). The other composite
+        # indexes the (gym_id, payout_id) pairing for batch lookups
+        # but doesn't help a time-bounded sum. See migration 0014.
+        Index("ix_payout_ledger_gym_created", "gym_id", "created_at"),
     )
 
 
