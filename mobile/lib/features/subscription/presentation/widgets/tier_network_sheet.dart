@@ -1,17 +1,32 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/di/providers.dart';
 import '../../../../core/theme/gp_text.dart';
 import '../../../../core/theme/gp_tokens.dart';
 import '../../../../core/widgets/gym_logo.dart';
 import '../../../../core/widgets/overline.dart';
 import '../../../../core/widgets/pill_button.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../gyms/data/gym_summary.dart';
+import '../../../gyms/data/media_url.dart';
 
-/// Gyms currently unlocked for `tier`. A higher-ranked tier implicitly
-/// includes every lower tier — Silver rank 1 is accessible to everyone;
-/// Diamond rank 4 is reserved for Diamond members only.
-List<GPGym> gymsInTierNetwork(GPTier tier) =>
-    GPGym.seed.where((g) => g.tierObj.rank <= tier.rank).toList();
+/// Filter the live-backend gym list down to the network unlocked
+/// for `tier`. A higher-ranked tier implicitly includes every
+/// lower tier — Silver rank 1 is accessible to everyone; Diamond
+/// rank 4 is reserved for Diamond members only.
+///
+/// Gyms whose `tier` slug doesn't decode (null, empty, unknown
+/// string) fall through to Silver-rank treatment so they still
+/// surface — better than the gym disappearing because the partner
+/// hasn't filled in `requiredTier` yet.
+List<GymSummary> filterGymsForTier(List<GymSummary> all, GPTier tier) {
+  return all.where((g) {
+    final key = g.tier;
+    if (key == null || key.isEmpty) return tier.rank >= 1;
+    return GPTier.byKey(key).rank <= tier.rank;
+  }).toList();
+}
 
 class TierNetworkSheet {
   const TierNetworkSheet._();
@@ -20,6 +35,7 @@ class TierNetworkSheet {
     required BuildContext context,
     required GPTier tier,
     required String localizedTierName,
+    required List<GymSummary> gyms,
   }) {
     final gp = context.gp;
     return showModalBottomSheet<void>(
@@ -33,25 +49,28 @@ class TierNetworkSheet {
       builder: (sheetCtx) => _TierNetworkBody(
         tier: tier,
         localizedTierName: localizedTierName,
+        gyms: gyms,
       ),
     );
   }
 }
 
-class _TierNetworkBody extends StatelessWidget {
+class _TierNetworkBody extends ConsumerWidget {
   const _TierNetworkBody({
     required this.tier,
     required this.localizedTierName,
+    required this.gyms,
   });
 
   final GPTier tier;
   final String localizedTierName;
+  final List<GymSummary> gyms;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final gp = context.gp;
     final l = AppLocalizations.of(context);
-    final gyms = gymsInTierNetwork(tier);
+    final apiBaseUrl = ref.watch(envProvider).apiBaseUrl;
     final accent = tier.readableOn(gp);
 
     return DraggableScrollableSheet(
@@ -125,6 +144,7 @@ class _TierNetworkBody extends StatelessWidget {
                         gym: gyms[i],
                         accent: accent,
                         gp: gp,
+                        apiBaseUrl: apiBaseUrl,
                         badgeLabel: l.plansNetworkVisitsBadge,
                       ),
                     ),
@@ -148,16 +168,23 @@ class _GymRow extends StatelessWidget {
     required this.gym,
     required this.accent,
     required this.gp,
+    required this.apiBaseUrl,
     required this.badgeLabel,
   });
 
-  final GPGym gym;
+  final GymSummary gym;
   final Color accent;
   final GpColors gp;
+  final String apiBaseUrl;
   final String badgeLabel;
 
   @override
   Widget build(BuildContext context) {
+    final isAr = Localizations.localeOf(context).languageCode == 'ar';
+    final displayName = isAr && gym.nameAr.isNotEmpty ? gym.nameAr : gym.nameEn;
+    final logoUrl = gym.logoUrl;
+    final resolvedLogo =
+        logoUrl == null || logoUrl.isEmpty ? null : resolveMediaUrl(apiBaseUrl, logoUrl);
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
       decoration: BoxDecoration(
@@ -167,14 +194,19 @@ class _GymRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          GymLogo(gym: gym, size: 44, shape: GymLogoShape.circle),
+          GymLogo.fromSummary(
+            gym,
+            resolvedLogoUrl: resolvedLogo,
+            size: 44,
+            shape: GymLogoShape.circle,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  gym.name,
+                  displayName,
                   style: GPText.body(
                     size: 14,
                     color: gp.fg,
@@ -184,14 +216,15 @@ class _GymRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  gym.area,
-                  style: GPText.mono(
-                    size: 10,
-                    letterSpacing: 1.2,
-                    color: gp.muted,
+                if ((gym.area ?? '').isNotEmpty)
+                  Text(
+                    gym.area!,
+                    style: GPText.mono(
+                      size: 10,
+                      letterSpacing: 1.2,
+                      color: gp.muted,
+                    ),
                   ),
-                ),
               ],
             ),
           ),

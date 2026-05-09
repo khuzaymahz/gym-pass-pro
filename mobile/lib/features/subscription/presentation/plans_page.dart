@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/di/providers.dart';
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
 import '../../../core/widgets/icon_btn.dart';
@@ -10,6 +11,9 @@ import '../../../core/widgets/overline.dart';
 import '../../../core/widgets/pill_button.dart';
 import '../../../core/widgets/top_bounce_physics.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../gyms/data/gym_repository.dart';
+import '../../gyms/data/gym_summary.dart';
+import '../../gyms/data/media_url.dart';
 import '../data/plan_pricing.dart';
 import '../data/subscription_state.dart';
 import 'widgets/tier_name_label.dart';
@@ -135,6 +139,14 @@ class _PlansPageState extends ConsumerState<PlansPage> {
     final currentTier = sub.tier;
     final selectedKey = ref.watch(selectedTierProvider);
     final selectedDuration = ref.watch(selectedDurationProvider);
+    // Live network — same `/api/v1/gyms` payload the home and explore pages
+    // read. While the future is in flight the list is empty, which collapses
+    // the per-card avatar stack to "0 GYMS" cleanly rather than flashing
+    // stale seed names. Re-fetched whenever Riverpod invalidates the provider
+    // (e.g. when the home page pulls to refresh).
+    final allGyms =
+        ref.watch(gymsListProvider).valueOrNull ?? const <GymSummary>[];
+    final apiBaseUrl = ref.watch(envProvider).apiBaseUrl;
     // When nothing is selected and the user has no current tier, fall back
     // to the first tier so the CTA still has something to operate on.
     final selectedTier = selectedKey != null
@@ -216,6 +228,8 @@ class _PlansPageState extends ConsumerState<PlansPage> {
                       onTap: () => _onSelectTier(t),
                       selectedDuration: selectedDuration,
                       onDurationChanged: _onSelectDuration,
+                      allGyms: allGyms,
+                      apiBaseUrl: apiBaseUrl,
                     ),
                   );
                 }).toList(),
@@ -342,6 +356,18 @@ class _TierCard extends StatelessWidget {
   final int selectedDuration;
   final ValueChanged<int> onDurationChanged;
 
+  /// Authoritative network — live `/api/v1/gyms` payload, the same list the
+  /// home and explore surfaces read. Each card filters this down to the
+  /// gyms its tier rank unlocks; when the future is still loading the list
+  /// is empty and the preview collapses to "0 GYMS" rather than flashing
+  /// stale seed data.
+  final List<GymSummary> allGyms;
+
+  /// Base URL the live image proxy serves logos from. Forwarded into
+  /// `_MiniAvatar` so it can resolve relative `logoUrl` paths the same
+  /// way the gym detail header and the explore tile do.
+  final String apiBaseUrl;
+
   const _TierCard({
     required this.tier,
     required this.selected,
@@ -351,6 +377,8 @@ class _TierCard extends StatelessWidget {
     required this.l,
     required this.selectedDuration,
     required this.onDurationChanged,
+    required this.allGyms,
+    required this.apiBaseUrl,
   });
 
   String get _localizedTierName {
@@ -377,7 +405,7 @@ class _TierCard extends StatelessWidget {
     // Lowest monthly rate across all durations, used for the collapsed
     // "FROM X JOD/MO" teaser so the discount is visible before a user expands.
     final lowestPerMonth = _lowestEffectivePerMonth(tier.price);
-    final networkGyms = gymsInTierNetwork(tier);
+    final networkGyms = filterGymsForTier(allGyms, tier);
     final features = baseFeatures;
 
     return Material(
@@ -459,11 +487,13 @@ class _TierCard extends StatelessWidget {
                       gyms: networkGyms,
                       accent: accent,
                       gp: gp,
+                      apiBaseUrl: apiBaseUrl,
                       countLabel: l.plansNetworkCount(networkGyms.length),
                       onTap: () => TierNetworkSheet.show(
                         context: context,
                         tier: tier,
                         localizedTierName: _localizedTierName,
+                        gyms: networkGyms,
                       ),
                     ),
                     SizedBox(height: selected ? 14 : 10),
@@ -1024,10 +1054,18 @@ class _DurationCard extends StatelessWidget {
 /// the full network list in a bottom sheet. Renders inline on every card
 /// (selected or not) because network scale is the first thing a user
 /// compares across tiers.
+///
+/// The avatars are real partner logos pulled from the backend — when a
+/// partner uploads a wordmark in the gym-partner portal it shows up here
+/// the next time `gymsListProvider` refreshes. Gyms without an uploaded
+/// logo fall back to a tier-coloured initial disc (same monogram rule the
+/// gym detail header and explore-map pin popup use), so the preview is
+/// never blank.
 class _NetworkPreview extends StatelessWidget {
-  final List<GPGym> gyms;
+  final List<GymSummary> gyms;
   final Color accent;
   final GpColors gp;
+  final String apiBaseUrl;
   final String countLabel;
   final VoidCallback onTap;
 
@@ -1035,6 +1073,7 @@ class _NetworkPreview extends StatelessWidget {
     required this.gyms,
     required this.accent,
     required this.gp,
+    required this.apiBaseUrl,
     required this.countLabel,
     required this.onTap,
   });
@@ -1072,6 +1111,7 @@ class _NetworkPreview extends StatelessWidget {
                             gym: preview[i],
                             accent: accent,
                             bg: gp.bg2,
+                            apiBaseUrl: apiBaseUrl,
                           ),
                         ),
                     ],
@@ -1097,36 +1137,77 @@ class _NetworkPreview extends StatelessWidget {
   }
 }
 
+/// 22px overlapping disc that previews one gym in the tier-card pill.
+/// When the backend record carries a `logoUrl` we render it through
+/// `Image.network` (resolved against the live image proxy), otherwise
+/// we fall back to the tier-coloured single-letter monogram. The outer
+/// border uses the card surface so the stacked discs read as separated
+/// even when they overlap by 14px.
 class _MiniAvatar extends StatelessWidget {
-  final GPGym gym;
+  final GymSummary gym;
   final Color accent;
   final Color bg;
+  final String apiBaseUrl;
 
   const _MiniAvatar({
     required this.gym,
     required this.accent,
     required this.bg,
+    required this.apiBaseUrl,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isAr = Localizations.localeOf(context).languageCode == 'ar';
+    final displayName =
+        isAr && gym.nameAr.isNotEmpty ? gym.nameAr : gym.nameEn;
     // `.characters.first` avoids slicing a multi-byte grapheme (matters for
     // AR gym names where one displayed letter spans multiple code units).
-    final initial =
-        gym.name.isEmpty ? '·' : gym.name.characters.first.toUpperCase();
+    final initial = displayName.isEmpty
+        ? '·'
+        : displayName.characters.first.toUpperCase();
+    final logoUrl = gym.logoUrl;
+    final hasLogo = logoUrl != null && logoUrl.isNotEmpty;
+    final resolved = hasLogo ? resolveMediaUrl(apiBaseUrl, logoUrl) : null;
     return Container(
       width: 22,
       height: 22,
       alignment: Alignment.center,
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: accent.withValues(alpha: 0.22),
         border: Border.all(color: bg, width: 2),
       ),
-      child: Text(
-        initial,
-        style: GPText.display(11, color: accent, height: 1.0),
-      ),
+      child: hasLogo
+          ? Image.network(
+              resolved!,
+              fit: BoxFit.cover,
+              width: 22,
+              height: 22,
+              // Image errors land us back on the monogram so the preview
+              // never collapses to a blank disc.
+              errorBuilder: (_, __, ___) => _MonogramText(
+                initial: initial,
+                color: accent,
+              ),
+            )
+          : _MonogramText(initial: initial, color: accent),
+    );
+  }
+}
+
+class _MonogramText extends StatelessWidget {
+  const _MonogramText({required this.initial, required this.color});
+
+  final String initial;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      initial,
+      style: GPText.display(11, color: color, height: 1.0),
     );
   }
 }

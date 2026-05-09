@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../features/gyms/data/gym_initials.dart';
+import '../../features/gyms/data/gym_summary.dart';
 import '../theme/gp_text.dart';
 import '../theme/gp_tokens.dart';
 
@@ -23,6 +24,41 @@ class GymLogo extends StatelessWidget {
     this.size = 54,
     this.shape = GymLogoShape.rounded,
   });
+
+  /// Adapter for the real backend `GymSummary` payload — used by
+  /// the plans-page network sheet, the explore list, and any other
+  /// surface that fetches gyms from `/api/v1/gyms`. Maps the
+  /// summary's tier slug + name + logoUrl onto the same widget the
+  /// seed-driven sites use, so a single visual mark renders
+  /// regardless of whether the gym data came from the seed
+  /// fixture or the live backend.
+  static Widget fromSummary(
+    GymSummary summary, {
+    required String? resolvedLogoUrl,
+    double size = 54,
+    GymLogoShape shape = GymLogoShape.rounded,
+  }) {
+    // Build a minimal `GPGym` shim so the inner painter doesn't
+    // need to learn two data shapes. The logo widget only reads
+    // `name` + `tierObj.color`; the rest of the GPGym fields are
+    // satisfied with safe defaults.
+    final tierKey = summary.tier ?? 'silver';
+    final shim = GPGym(
+      slug: summary.slug,
+      name: summary.nameEn.isNotEmpty ? summary.nameEn : summary.nameAr,
+      area: summary.area ?? '',
+      category: summary.category ?? 'gym',
+      tier: tierKey,
+      lat: summary.lat ?? 0,
+      lng: summary.lng ?? 0,
+    );
+    return GymLogo(
+      gym: shim,
+      logoUrl: resolvedLogoUrl,
+      size: size,
+      shape: shape,
+    );
+  }
 
   final GPGym gym;
   final String? logoUrl;
