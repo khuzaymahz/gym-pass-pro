@@ -331,19 +331,6 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 }
 
-/// Plan card shown on Home when a member has an active subscription.
-/// The card's chrome is **tier-aware** — Silver reads as the entry tier
-/// (flat, low-chroma), Gold adds a warm corner bloom, Platinum picks up
-/// a cool ice gradient + slightly stronger ring, and Diamond lights up
-/// with a cyan halo + sparkle accents and swaps the visit fraction for
-/// an UNLIMITED treatment. Same content footprint as before so the page
-/// layout doesn't shift between tiers; only the decoration + visit
-/// readout change.
-///
-/// All four variants are theme-aware: backgrounds blend the tier accent
-/// into `gp.bg2` at a higher alpha on light mode (where pure brand
-/// chroma washes out) and a lower alpha on dark mode (where the accent
-/// already pops against the deep canvas).
 class _PlanCard extends StatelessWidget {
   const _PlanCard({required this.sub});
   final SubscriptionState sub;
@@ -358,18 +345,17 @@ class _PlanCard extends StatelessWidget {
     }
     final used = sub.visitsUsed;
     final total = sub.termTotalVisits;
-    // `total < 0` is the unlimited sentinel (Diamond). `total == 0` is
-    // the not-yet-hydrated case. Neither admits a denominator — the
-    // unlimited path swaps the fraction readout entirely, the
-    // unhydrated path treats it as "0 of 0" for one frame.
-    final isUnlimited = total < 0;
+    // `total <= 0` covers two distinct cases:
+    //   - 0  → cycle hasn't materialised yet (subscription mid-hydrate).
+    //   - -1 → unlimited tier (Diamond) — no cap to clamp against.
+    // The previous `total == 0` only handled the first case, so a Diamond
+    // member tapping into Home hit `used.clamp(0, -1)` and crashed
+    // ("Invalid argument(s): 0", because `lo > hi`).
     final shownUsed = total <= 0 ? used : used.clamp(0, total);
     final percent = total <= 0 ? 0.0 : (shownUsed / total).clamp(0.0, 1.0);
     final remaining = total <= 0 ? 0 : (total - shownUsed).clamp(0, total);
-    final accent = tier.readableOn(gp);
-
     final card = Material(
-      color: Colors.transparent,
+      color: gp.bg2,
       borderRadius: BorderRadius.circular(GPRadius.xl),
       child: InkWell(
         borderRadius: BorderRadius.circular(GPRadius.xl),
@@ -378,75 +364,125 @@ class _PlanCard extends StatelessWidget {
           context.push('/subscription');
         },
         child: Ink(
-          decoration: _tierDecoration(tier, gp, accent),
-          child: ClipRRect(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(GPRadius.xl),
-            child: Stack(
-              children: [
-                // Large faint glyph watermark in the back corner —
-                // the tier's brand mark embedded into the card itself
-                // so each tier reads as its own surface, not just its
-                // own colour. Alpha is bumped on light mode where a
-                // 0.06 wash disappears against the warm-paper canvas.
-                Positioned(
-                  top: -28,
-                  right: -28,
-                  child: Text(
-                    tier.glyph,
-                    style: TextStyle(
-                      fontSize: 160,
-                      height: 1,
-                      color: accent.withValues(
-                        alpha: gp.isLight ? 0.10 : 0.12,
+            border: Border.all(color: gp.line),
+            boxShadow: gp.cardShadows,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  TierChip(tier: tier),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: gp.accent.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(GPRadius.sm),
+                      border: Border.all(color: gp.accent.withValues(alpha: 0.55)),
+                    ),
+                    child: Text(
+                      l.homeActive,
+                      style: GPText.mono(
+                        size: 9,
+                        letterSpacing: 1.6,
+                        color: gp.accentInk,
+                        weight: FontWeight.w600,
                       ),
                     ),
                   ),
-                ),
-                // Tier-specific extra accents (e.g. Diamond's
-                // sparkles). Empty list for tiers that don't need
-                // anything beyond the base decoration.
-                ..._tierAccents(tier, gp, accent),
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _header(l, gp, tier),
-                      const SizedBox(height: 18),
-                      _visitsRow(
-                        l: l,
-                        gp: gp,
-                        accent: accent,
-                        shownUsed: shownUsed,
-                        total: total,
-                        isUnlimited: isUnlimited,
-                      ),
-                      const SizedBox(height: 18),
-                      if (isUnlimited)
-                        _unlimitedRow(l, gp, accent)
-                      else
-                        _progressBar(tier, gp, percent),
-                      const SizedBox(height: 14),
-                      _footerRow(
-                        l: l,
-                        gp: gp,
-                        remaining: remaining,
-                        isUnlimited: isUnlimited,
-                      ),
-                      // Multi-month plans need a "where am I in the
-                      // term" hint — the cycle counter alone can't tell
-                      // a 3-month member that they're on month 1 of 3.
-                      // For 1-month plans this row would just say
-                      // "MONTH 1 OF 1" so we skip it.
-                      if ((sub.durationMonths ?? 1) > 1) ...[
-                        const SizedBox(height: 6),
-                        _TermProgressLine(sub: sub),
-                      ],
-                    ],
+                ],
+              ),
+              const SizedBox(height: 18),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(
+                    '$shownUsed',
+                    style: GPText.display(44, color: gp.fg, height: 0.9),
                   ),
-                ),
+                  const SizedBox(width: 6),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(
+                      '/$total',
+                      style: GPText.display(20, color: gp.muted, height: 0.9),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: SerifAccent(l.homeVisits, size: 26),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              Stack(
+                children: [
+                  Container(
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: gp.bg3,
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                  FractionallySizedBox(
+                    widthFactor: percent,
+                    child: Container(
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: tier.color,
+                        borderRadius: BorderRadius.circular(3),
+                        boxShadow: [
+                          BoxShadow(
+                            color: tier.color.withValues(alpha: 0.55),
+                            blurRadius: 10,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Text(
+                    l.homeLeftThisCycle(remaining),
+                    style: GPText.mono(
+                      size: 10,
+                      letterSpacing: 1.5,
+                      color: gp.mutedSoft,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    l.homeManage,
+                    style: GPText.mono(
+                      size: 10,
+                      letterSpacing: 1.5,
+                      color: gp.accentInk,
+                      weight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(Icons.arrow_forward, size: 12, color: gp.accentInk),
+                ],
+              ),
+              // Multi-month plans need a "where am I in the term" hint —
+              // the cycle counter alone can't tell a 3-month silver
+              // member that they're on month 1 of 3 with 90 total
+              // visits in the bank. For 1-month plans this row would
+              // just say "MONTH 1 OF 1" so we skip it.
+              if ((sub.durationMonths ?? 1) > 1) ...[
+                const SizedBox(height: 6),
+                _TermProgressLine(sub: sub),
               ],
-            ),
+            ],
           ),
         ),
       ),
@@ -465,392 +501,6 @@ class _PlanCard extends StatelessWidget {
       child: card,
     );
   }
-
-  /// Tier-specific card surface. Each tier picks a different recipe
-  /// for background, border, and shadow so the cards read as four
-  /// different *materials* without competing with each other for the
-  /// same affordance:
-  ///
-  ///   - **Silver** — flat `gp.bg2`, neutral hairline border, default
-  ///     card shadow. Reads as the entry tier — no glow, no chroma
-  ///     wash, just clean chrome.
-  ///   - **Gold** — diagonal gradient adding a warm wash, accent
-  ///     border at 35% alpha, soft amber glow shadow. Feels warm
-  ///     without being loud.
-  ///   - **Platinum** — reverse-diagonal cool gradient with a
-  ///     stronger blue-toned wash, accent border at 40%, blue glow.
-  ///     Polished-metal register.
-  ///   - **Diamond** — top-right radial gradient (most dramatic),
-  ///     accent border at 50%, deepest cyan halo shadow. The most
-  ///     visually-energetic tier; the eye lands here first.
-  BoxDecoration _tierDecoration(GPTier tier, GpColors gp, Color accent) {
-    final r = BorderRadius.circular(GPRadius.xl);
-    switch (tier.key) {
-      case 'gold':
-        return BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              gp.bg2,
-              Color.alphaBlend(
-                accent.withValues(alpha: gp.isLight ? 0.07 : 0.10),
-                gp.bg2,
-              ),
-            ],
-          ),
-          borderRadius: r,
-          border: Border.all(color: accent.withValues(alpha: 0.35)),
-          boxShadow: [
-            BoxShadow(
-              color: tier.color.withValues(alpha: 0.18),
-              blurRadius: 24,
-              spreadRadius: -8,
-              offset: const Offset(0, 8),
-            ),
-            ...gp.cardShadows,
-          ],
-        );
-      case 'platinum':
-        return BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topRight,
-            end: Alignment.bottomLeft,
-            colors: [
-              Color.alphaBlend(
-                accent.withValues(alpha: gp.isLight ? 0.10 : 0.13),
-                gp.bg2,
-              ),
-              gp.bg2,
-            ],
-          ),
-          borderRadius: r,
-          border: Border.all(color: accent.withValues(alpha: 0.40)),
-          boxShadow: [
-            BoxShadow(
-              color: tier.color.withValues(alpha: 0.22),
-              blurRadius: 28,
-              spreadRadius: -8,
-              offset: const Offset(0, 10),
-            ),
-            ...gp.cardShadows,
-          ],
-        );
-      case 'diamond':
-        return BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment.topRight,
-            radius: 1.4,
-            colors: [
-              Color.alphaBlend(
-                accent.withValues(alpha: gp.isLight ? 0.14 : 0.18),
-                gp.bg2,
-              ),
-              gp.bg2,
-            ],
-          ),
-          borderRadius: r,
-          border: Border.all(color: accent.withValues(alpha: 0.50)),
-          boxShadow: [
-            BoxShadow(
-              color: tier.color.withValues(alpha: 0.30),
-              blurRadius: 36,
-              spreadRadius: -10,
-              offset: const Offset(0, 12),
-            ),
-            ...gp.cardShadows,
-          ],
-        );
-      case 'silver':
-      default:
-        return BoxDecoration(
-          color: gp.bg2,
-          borderRadius: r,
-          border: Border.all(color: gp.line),
-          boxShadow: gp.cardShadows,
-        );
-    }
-  }
-
-  /// Layered accents that sit on top of the gradient but under the
-  /// content column. Currently only Diamond gets sparkle stars; the
-  /// other tiers carry their identity entirely in the gradient + glyph
-  /// watermark.
-  List<Widget> _tierAccents(GPTier tier, GpColors gp, Color accent) {
-    if (tier.key != 'diamond') return const [];
-    return [
-      Positioned(
-        top: 18,
-        right: 70,
-        child: _Sparkle(color: accent, size: 10),
-      ),
-      Positioned(
-        top: 96,
-        right: 26,
-        child: _Sparkle(color: accent, size: 6),
-      ),
-      Positioned(
-        top: 56,
-        right: 130,
-        child: _Sparkle(color: accent, size: 7),
-      ),
-    ];
-  }
-
-  Widget _header(AppLocalizations l, GpColors gp, GPTier tier) {
-    return Row(
-      children: [
-        TierChip(tier: tier),
-        const Spacer(),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: gp.accent.withValues(alpha: 0.18),
-            borderRadius: BorderRadius.circular(GPRadius.sm),
-            border: Border.all(color: gp.accent.withValues(alpha: 0.55)),
-          ),
-          child: Text(
-            l.homeActive,
-            style: GPText.mono(
-              size: 9,
-              letterSpacing: 1.6,
-              color: gp.accentInk,
-              weight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Visits readout. Finite tiers show `used / total visits`; the
-  /// unlimited tier (Diamond) drops the fraction entirely and surfaces
-  /// the consumption count + an `UNLIMITED` chip — `0 / -1` was the
-  /// previous bug behaviour, where the sentinel value rendered
-  /// literally and members saw a meaningless "-1" beside their count.
-  Widget _visitsRow({
-    required AppLocalizations l,
-    required GpColors gp,
-    required Color accent,
-    required int shownUsed,
-    required int total,
-    required bool isUnlimited,
-  }) {
-    if (isUnlimited) {
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.baseline,
-        textBaseline: TextBaseline.alphabetic,
-        children: [
-          Text(
-            '$shownUsed',
-            style: GPText.display(44, color: gp.fg, height: 0.9),
-          ),
-          const SizedBox(width: 10),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: SerifAccent(l.homeVisits, size: 26),
-          ),
-          const Spacer(),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.18),
-                borderRadius: BorderRadius.circular(GPRadius.sm),
-                border: Border.all(color: accent.withValues(alpha: 0.55)),
-              ),
-              child: Text(
-                l.homeUnlimited,
-                style: GPText.mono(
-                  size: 9,
-                  letterSpacing: 1.6,
-                  color: accent,
-                  weight: FontWeight.w800,
-                ),
-              ),
-            ),
-          ),
-        ],
-      );
-    }
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.baseline,
-      textBaseline: TextBaseline.alphabetic,
-      children: [
-        Text(
-          '$shownUsed',
-          style: GPText.display(44, color: gp.fg, height: 0.9),
-        ),
-        const SizedBox(width: 6),
-        Padding(
-          padding: const EdgeInsets.only(bottom: 4),
-          child: Text(
-            '/$total',
-            style: GPText.display(20, color: gp.muted, height: 0.9),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Padding(
-          padding: const EdgeInsets.only(bottom: 4),
-          child: SerifAccent(l.homeVisits, size: 26),
-        ),
-      ],
-    );
-  }
-
-  Widget _progressBar(GPTier tier, GpColors gp, double percent) {
-    return Stack(
-      children: [
-        Container(
-          height: 6,
-          decoration: BoxDecoration(
-            color: gp.bg3,
-            borderRadius: BorderRadius.circular(3),
-          ),
-        ),
-        FractionallySizedBox(
-          widthFactor: percent,
-          child: Container(
-            height: 6,
-            decoration: BoxDecoration(
-              color: tier.color,
-              borderRadius: BorderRadius.circular(3),
-              boxShadow: [
-                BoxShadow(
-                  color: tier.color.withValues(alpha: 0.55),
-                  blurRadius: 10,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Replaces the progress bar for the unlimited tier. Drawing a
-  /// "0 %" or "100 %" bar for Diamond would lie about the cap the
-  /// member doesn't have; the infinity glyph + caption is the honest
-  /// version. Sits in the same vertical slot as the bar so the layout
-  /// height is identical across tiers.
-  Widget _unlimitedRow(AppLocalizations l, GpColors gp, Color accent) {
-    return Row(
-      children: [
-        Container(
-          width: 28,
-          height: 28,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: accent.withValues(alpha: 0.14),
-            shape: BoxShape.circle,
-            border: Border.all(color: accent.withValues(alpha: 0.50)),
-          ),
-          child: Icon(Icons.all_inclusive, size: 16, color: accent),
-        ),
-        const SizedBox(width: 10),
-        Text(
-          l.homeUnlimitedThisCycle,
-          style: GPText.mono(
-            size: 11,
-            letterSpacing: 1.6,
-            color: accent,
-            weight: FontWeight.w700,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _footerRow({
-    required AppLocalizations l,
-    required GpColors gp,
-    required int remaining,
-    required bool isUnlimited,
-  }) {
-    return Row(
-      children: [
-        if (!isUnlimited)
-          Text(
-            l.homeLeftThisCycle(remaining),
-            style: GPText.mono(
-              size: 10,
-              letterSpacing: 1.5,
-              color: gp.mutedSoft,
-            ),
-          ),
-        const Spacer(),
-        Text(
-          l.homeManage,
-          style: GPText.mono(
-            size: 10,
-            letterSpacing: 1.5,
-            color: gp.accentInk,
-            weight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(width: 4),
-        Icon(Icons.arrow_forward, size: 12, color: gp.accentInk),
-      ],
-    );
-  }
-}
-
-/// Decorative 4-pointed sparkle used as a Diamond-tier accent. Pure
-/// paint, no asset dependency — scales cleanly down to 5 px without
-/// the aliasing a small PNG would carry. Mirrors the sparkle in the
-/// plan-page Diamond name treatment so the brand cue reads
-/// consistently across surfaces.
-class _Sparkle extends StatelessWidget {
-  const _Sparkle({required this.color, required this.size});
-  final Color color;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: size,
-      height: size,
-      child: CustomPaint(
-        painter: _SparklePainter(color: color),
-      ),
-    );
-  }
-}
-
-class _SparklePainter extends CustomPainter {
-  _SparklePainter({required this.color});
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-    final cx = size.width / 2;
-    final cy = size.height / 2;
-    final hw = size.width / 2;
-    final hh = size.height / 2;
-    // Pinch the side arms inward so the star reads as a 4-point
-    // star rather than a square diamond — matches the diamond glyph
-    // silhouette and gives a crisper "twinkle" shape.
-    const pinch = 0.18;
-    final path = Path()
-      ..moveTo(cx, 0)
-      ..lineTo(cx + hw * pinch, cy - hh * pinch)
-      ..lineTo(size.width, cy)
-      ..lineTo(cx + hw * pinch, cy + hh * pinch)
-      ..lineTo(cx, size.height)
-      ..lineTo(cx - hw * pinch, cy + hh * pinch)
-      ..lineTo(0, cy)
-      ..lineTo(cx - hw * pinch, cy - hh * pinch)
-      ..close();
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(_SparklePainter old) => old.color != color;
 }
 
 /// Sub-line under the per-cycle visit count: "MONTH 2 OF 3 · CYCLE

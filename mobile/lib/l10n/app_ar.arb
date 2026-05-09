@@ -92,8 +92,6 @@
   "homeVisits": "زيارات",
   "homeLeftThisCycle": "ضل لك {n} زيارة",
   "@homeLeftThisCycle": {"placeholders": {"n": {"type": "int"}}},
-  "homeUnlimited": "غير محدود",
-  "homeUnlimitedThisCycle": "بدون حد لهذه الدورة",
   "homeCycleProgress": "الشهر {cycle} من {total} · تجديد الدورة بعد {days} يوم",
   "@homeCycleProgress": {"placeholders": {"cycle": {"type": "int"}, "total": {"type": "int"}, "days": {"type": "int"}}},
   "homeTermEndsIn": "تجديد الاشتراك بعد {days} يوم",

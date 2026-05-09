@@ -196,10 +196,6 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String homeLeftThisCycle(int n) => 'ضل لك $n زيارة';
   @override
-  String get homeUnlimited => 'غير محدود';
-  @override
-  String get homeUnlimitedThisCycle => 'بدون حد لهذه الدورة';
-  @override
   String homeCycleProgress(int cycle, int total, int days) =>
       'الشهر $cycle من $total · تجديد الدورة بعد $days يوم';
   @override

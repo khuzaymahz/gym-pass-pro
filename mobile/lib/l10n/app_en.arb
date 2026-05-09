@@ -92,8 +92,6 @@
   "homeVisits": "visits",
   "homeLeftThisCycle": "{n} LEFT THIS CYCLE",
   "@homeLeftThisCycle": {"placeholders": {"n": {"type": "int"}}},
-  "homeUnlimited": "UNLIMITED",
-  "homeUnlimitedThisCycle": "NO CAP THIS CYCLE",
   "homeCycleProgress": "MONTH {cycle} OF {total} · CYCLE RESETS IN {days}D",
   "@homeCycleProgress": {"placeholders": {"cycle": {"type": "int"}, "total": {"type": "int"}, "days": {"type": "int"}}},
   "homeTermEndsIn": "TERM RENEWS IN {days}D",
