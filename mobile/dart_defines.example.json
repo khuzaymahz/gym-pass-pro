@@ -1,0 +1,14 @@
+{
+  "_comment_1": "Build-time configuration for the Flutter app. Copy this file to dart_defines.json (gitignored) and fill in the real values. Then run: flutter run --dart-define-from-file=dart_defines.json",
+  "_comment_2": "These keys are baked into the compiled app at build time. Changing a value here means rebuilding (not hot-reloading) the app to pick it up.",
+
+  "API_BASE_URL": "http://10.0.2.2:8000",
+  "WEB_BASE_URL": "https://gym-pass.net",
+  "APP_ENV": "development",
+
+  "_GOOGLE_MAPS_KEY_help": "Google Cloud project API key with Static Maps API enabled. Used by the Explore page for the static-map preview. Without it, the page shows a placeholder card.",
+  "GOOGLE_MAPS_KEY": "AIza__paste_your_static_maps_api_key_here__",
+
+  "_GOOGLE_OAUTH_CLIENT_ID_help": "OAuth 2.0 Web client id (NOT Android client id). The backend's JWKS verifier accepts ID tokens minted by this client. Leave blank to disable Google Sign-In on Android.",
+  "GOOGLE_OAUTH_CLIENT_ID": ""
+}

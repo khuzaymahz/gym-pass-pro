@@ -516,10 +516,17 @@ class _RealtimeBridge extends ConsumerStatefulWidget {
 class _RealtimeBridgeState extends ConsumerState<_RealtimeBridge> {
   StreamSubscription<RealtimeEvent>? _sub;
   String? _activeGymId;
+  // Cache the client at initState so dispose() doesn't have to touch
+  // `ref` — Riverpod throws "Cannot use ref after the widget was
+  // disposed" if a late-arriving stream event or our own dispose()
+  // accesses ref after super.dispose has run. Holding the client
+  // directly sidesteps that whole class of races.
+  RealtimeClient? _client;
 
   @override
   void initState() {
     super.initState();
+    _client = ref.read(realtimeClientProvider);
     _refreshSubscription();
   }
 
@@ -539,9 +546,17 @@ class _RealtimeBridgeState extends ConsumerState<_RealtimeBridge> {
     _sub = null;
     if (id == null) return;
 
-    final client = ref.read(realtimeClientProvider);
+    final client = _client;
+    if (client == null) return;
     client.setChannels(['gym/$id', 'gym/$id/photos']);
     _sub = client.events.listen((event) {
+      // Stream events can land mid-teardown — the subscription
+      // cancel is async, so an event already in flight will still
+      // fire its listener. Without the `mounted` guard we'd hit
+      // "Cannot use ref after the widget was disposed" the moment
+      // a partner edited their gym while a member was navigating
+      // away. Cheap check, eliminates the race entirely.
+      if (!mounted) return;
       if (!event.channel.startsWith('gym/$id')) return;
       // Any of the published gym events (`gym.updated`,
       // `gym.logo.set`, `gym.logo.cleared`, `gym.photo.added`,
@@ -558,11 +573,13 @@ class _RealtimeBridgeState extends ConsumerState<_RealtimeBridge> {
   @override
   void dispose() {
     _sub?.cancel();
+    _sub = null;
+    // Use the cached client instead of ref — see the field comment.
     // Keep the realtimeClient alive (other pages might subscribe
     // next), but clear its channel set so we're not paying for an
     // event stream we no longer consume.
-    final client = ref.read(realtimeClientProvider);
-    client.setChannels(const []);
+    _client?.setChannels(const []);
+    _client = null;
     super.dispose();
   }
 

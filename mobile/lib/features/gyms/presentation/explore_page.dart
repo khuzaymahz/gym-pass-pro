@@ -3,8 +3,10 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../../core/di/providers.dart';
 import '../../../core/theme/gp_text.dart';
@@ -18,27 +20,32 @@ import '../data/home_region_store.dart';
 import '../data/jordan_regions.dart';
 import '../data/location_service.dart';
 import '../data/media_url.dart';
-import '../data/static_map_url.dart';
-import '../../../core/widgets/top_bounce_physics.dart';
 import 'gym_detail_page.dart' show favoritedGymsProvider;
 import 'gyms_filter_state.dart';
 
-/// Explore tab — **list-first**. The previous version embedded a full
-/// `GoogleMap` widget; we replaced it with a static-image preview at
-/// the top because gyms don't move and the live SDK was overkill for
-/// "where are the gyms in my city". The static map loads in one HTTP
-/// round-trip (Google Static Maps API), costs ~7× less per render on
-/// the Maps Platform bill, and lets the rest of the page be a plain
-/// scroll view — no platform-view lag, no marker bitmap factory, no
-/// camera state machine to keep in sync with the list.
+/// Explore tab — **map-first**, Uber/Careem layout.
 ///
-/// Layout from top to bottom:
-///   - Floating top bar (search pill + filter button), unchanged.
-///   - Static map preview card showing the member's region with a pin
-///     per visible gym; tapping it expands the same image fullscreen.
-///   - Count strip ("12 GYMS").
-///   - Vertical list of gyms, sorted by distance when GPS is available,
-///     by name otherwise. Each row pushes `/gyms/<slug>` on tap.
+/// Layout (z-order, bottom up):
+///   1. Full-screen [FlutterMap] as the hero surface. Tile renderer
+///      is pure Flutter (no platform view, no native SDK init); tiles
+///      come from CARTO basemaps — Voyager for light, Dark Matter for
+///      dark — both designed for app UIs in a low-saturation,
+///      Linear/Stripe register that doesn't fight the brand.
+///   2. Tap-to-show gym card — when a logo pin is tapped, a profile
+///      card slides up just above the bottom sheet's resting handle.
+///      Tap the card → push gym detail. Tap anywhere else dismisses.
+///   3. Locate-me FAB + custom zoom (+/-) on the trailing edge —
+///      both stay in fixed positions relative to the viewport.
+///   4. Top chrome — search pill + filter button, glass-blurred over
+///      the map.
+///   5. [DraggableScrollableSheet] at the bottom — minimized by
+///      default (handle peek only); tap or drag to expand.
+///
+/// The earlier `google_maps_flutter` build is gone — see
+/// `memory/project_explorer_map_requirements.md` for why we swapped
+/// (logo pins are Flutter widgets here, not BitmapDescriptor work;
+/// custom palette match is built into the tile style; no recurring
+/// billing risk; lighter on cold start).
 class ExplorePage extends ConsumerStatefulWidget {
   const ExplorePage({super.key});
 
@@ -50,10 +57,50 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
   final TextEditingController _searchCtrl = TextEditingController();
   final FocusNode _searchFocus = FocusNode();
 
+  /// Map controller — flutter_map's controller is a plain object
+  /// (no platform-view init, no Completer needed). Drives camera
+  /// moves for locate-me and tap-to-pan-to-gym, plus the +/- zoom
+  /// buttons.
+  final MapController _mapCtrl = MapController();
+
+  /// Currently-tapped gym, drives the floating profile card. Null
+  /// when no pin is selected (card hidden). Updates on pin tap; map
+  /// taps clear it.
+  GymSummary? _selectedGym;
+
   /// Member's last-known position. Null until GPS resolves or the
-  /// stored value is read. Drives distance pills + region selection
-  /// for the static map.
+  /// stored value is read. Drives distance pills + the locate-me
+  /// camera target.
   GeoPoint? _userPosition;
+
+  /// Debounce timer for the search box. Without it, every keystroke
+  /// pushes a new query into the Riverpod state, which rebuilds the
+  /// page → re-filters all gyms → recomputes the marker Set → and
+  /// makes the platform-view diff its markers. Cheap individually,
+  /// noticeable on a hot keyboard. 180 ms is below the threshold
+  /// where typing feels laggy but high enough to coalesce a fast
+  /// burst into a single recompute.
+  Timer? _searchDebounce;
+  static const _searchDebounceDuration = Duration(milliseconds: 180);
+
+  /// Controller for the bottom sheet so a tap on the handle can
+  /// programmatically expand it. The sheet starts at the smallest
+  /// snap (handle peek only) so the map is the dominant surface;
+  /// the user opens the list with either a tap or a drag.
+  final DraggableScrollableController _sheetCtrl =
+      DraggableScrollableController();
+
+  /// Sheet snap heights, expressed as fractions of screen height.
+  /// `_sheetMin` shows ONLY the drag handle — nothing else peeks
+  /// above the bottom edge; the map is fully visible. ~0.045 is
+  /// enough on a 700–900 px phone for the 32 px handle row plus a
+  /// few pixels of breathing room (rounded sheet corner clip);
+  /// _sheetHalf is the working size where ~3 list rows are visible
+  /// alongside the map; _sheetMax covers most of the screen for
+  /// full-list browsing.
+  static const double _sheetMin = 0.045;
+  static const double _sheetHalf = 0.55;
+  static const double _sheetMax = 0.92;
 
   @override
   void initState() {
@@ -68,15 +115,40 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
   }
 
   void _onSearchTextChanged() {
-    ref.read(gymsSearchQueryProvider.notifier).state = _searchCtrl.text;
+    _searchDebounce?.cancel();
+    final text = _searchCtrl.text;
+    _searchDebounce = Timer(_searchDebounceDuration, () {
+      if (!mounted) return;
+      ref.read(gymsSearchQueryProvider.notifier).state = text;
+    });
   }
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchFocus.dispose();
     _searchCtrl.removeListener(_onSearchTextChanged);
     _searchCtrl.dispose();
+    _sheetCtrl.dispose();
     super.dispose();
+  }
+
+  /// Pop the sheet open to the half-height snap. Wired to a tap on
+  /// the sheet's handle so the operator can open the list without
+  /// dragging — drag is for "I want a specific size", tap is for
+  /// "just show me the list".
+  Future<void> _expandSheet() async {
+    if (!_sheetCtrl.isAttached) return;
+    final current = _sheetCtrl.size;
+    // If the sheet is already up, a tap closes it back to the peek;
+    // otherwise it opens to half. Mirrors the affordance of a
+    // pull-tab — tap to toggle.
+    final target = current > _sheetMin + 0.05 ? _sheetMin : _sheetHalf;
+    await _sheetCtrl.animateTo(
+      target,
+      duration: const Duration(milliseconds: 240),
+      curve: Curves.easeOutCubic,
+    );
   }
 
   /// Hydrate the user's last home location from secure storage (so
@@ -84,7 +156,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
   /// the background. The fresh read updates the cross-app
   /// `userPositionProvider` so distance-aware widgets elsewhere
   /// (home, gym detail) see it too.
-  Future<void> _locateUser() async {
+  Future<void> _locateUser({bool panMap = false}) async {
     final regionStore = ref.read(homeRegionStoreProvider);
     final service = ref.read(locationServiceProvider);
 
@@ -106,6 +178,54 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
     ref.read(userPositionProvider.notifier).state =
         HomeLocation(lat: pos.latitude, lng: pos.longitude);
     unawaited(regionStore.write(pos.latitude, pos.longitude));
+
+    if (panMap) {
+      _moveCameraTo(LatLng(pos.latitude, pos.longitude), zoom: 14);
+    }
+  }
+
+  /// Move the camera to a target. flutter_map's `move` is sync and
+  /// safe to call immediately; we use it for locate-me + tap-to-pan
+  /// to a list row.
+  void _moveCameraTo(LatLng target, {double zoom = 13}) {
+    _mapCtrl.move(target, zoom);
+  }
+
+  /// Locate-me handler — pans to the cached GPS position, or kicks
+  /// off a fresh permission + GPS read on first tap.
+  Future<void> _onLocateMe() async {
+    HapticFeedback.selectionClick();
+    final cached = _userPosition;
+    if (cached != null) {
+      _moveCameraTo(LatLng(cached.lat, cached.lng), zoom: 14);
+      return;
+    }
+    await _locateUser(panMap: true);
+  }
+
+  /// Step zoom one level. Bounded by the tile provider's range
+  /// (CARTO supports 1–19); flutter_map clamps anyway.
+  void _zoomIn() {
+    HapticFeedback.selectionClick();
+    final z = _mapCtrl.camera.zoom;
+    _mapCtrl.move(_mapCtrl.camera.center, z + 1);
+  }
+
+  void _zoomOut() {
+    HapticFeedback.selectionClick();
+    final z = _mapCtrl.camera.zoom;
+    _mapCtrl.move(_mapCtrl.camera.center, z - 1);
+  }
+
+  /// Marker tap handler — pans the camera to centre the gym, opens
+  /// its profile card, and gives a short haptic so the tap registers
+  /// even when the camera move is small.
+  void _onMarkerTap(GymSummary gym) {
+    HapticFeedback.selectionClick();
+    if (gym.lat != null && gym.lng != null) {
+      _moveCameraTo(LatLng(gym.lat!, gym.lng!), zoom: 15);
+    }
+    setState(() => _selectedGym = gym);
   }
 
   bool _matches(
@@ -174,8 +294,6 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
 
   @override
   Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context);
-    final gp = context.gp;
     final asyncGyms = ref.watch(gymsListProvider);
     final category = ref.watch(gymsCategoryFilterProvider);
     final query = ref.watch(gymsSearchQueryProvider);
@@ -184,34 +302,35 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
     final favorites = ref.watch(favoritedGymsProvider);
     final activeFilterCount =
         _activeFilterCount(category, tiers, favoritesOnly);
-    final topInset = MediaQuery.viewPaddingOf(context).top;
 
-    // Member's region (Amman / Zarqa / Aqaba / ...) drives the static
-    // map's centre + zoom. Falls back to Amman until GPS resolves so
-    // the preview never renders an empty country-wide overview.
+    // Member's region (Amman / Zarqa / Aqaba / ...) drives the map's
+    // initial camera. Falls back to Amman until GPS resolves so the
+    // first paint never centres on the wider region or null island.
     final user = _userPosition;
     final region = user == null
         ? jordanRegions.first
         : regionForPosition(user.lat, user.lng);
 
+    // Resolve gyms to a concrete list, regardless of Riverpod's
+    // async state. We deliberately render the map even while gyms
+    // are still loading so the platform-view boots in parallel with
+    // the network — the alternative (full-screen loader) wastes
+    // ~300 ms on a cold open. Errors collapse to "no gyms"; the
+    // bottom sheet's count strip surfaces them.
+    final gyms = asyncGyms.maybeWhen(
+      data: (g) => g,
+      orElse: () => const <GymSummary>[],
+    );
+    final isLoadingGyms = asyncGyms.isLoading && gyms.isEmpty;
+    final hasError = asyncGyms.hasError && gyms.isEmpty;
+
     return Scaffold(
-      body: asyncGyms.when(
-        loading: () => Container(
-          color: gp.bg,
-          alignment: Alignment.center,
-          child: const GymLoader(size: GymLoaderSize.large),
-        ),
-        error: (e, _) => Container(
-          color: gp.bg,
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          alignment: Alignment.center,
-          child: Text(
-            l.snackErrorGeneric,
-            textAlign: TextAlign.center,
-            style: GPText.body(size: 14, color: gp.muted),
-          ),
-        ),
-        data: (gyms) {
+      // The map is the body; bottom sheet floats over it. Edge-to-
+      // edge so the map runs under the system status bar — chrome
+      // is glass-blurred, so legibility is preserved.
+      extendBodyBehindAppBar: true,
+      body: Builder(
+        builder: (context) {
           final visible = gyms
               .where(
                 (g) => _matches(
@@ -234,105 +353,184 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
               if (db == null) return -1;
               return da.compareTo(db);
             });
-          // Map markers come from the *visible* set (after filters)
-          // so toggling a category visibly thins the preview's pins
-          // — same affordance the live map provided.
-          final mapMarkers = visible
-              .where((g) => g.lat != null && g.lng != null)
-              .map(
-                (g) => StaticMapMarker(
-                  lat: g.lat!,
-                  lng: g.lng!,
-                  colorHex: _colorHexForGym(g),
-                ),
-              )
-              .toList();
+          // Pins come from the *visible* set (after filters) so
+          // toggling a category visibly thins the map — same
+          // affordance every step of the way.
+          final markerGyms =
+              visible.where((g) => g.lat != null && g.lng != null).toList();
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          // CARTO basemaps — Voyager (light) and Dark Matter (dark).
+          // Both are designed for app UIs in a low-saturation register.
+          // Free under CC-BY 3.0 with the attribution rendered at the
+          // bottom-leading corner.
+          //
+          // Path notes (load-bearing):
+          //   - Voyager lives under `rastertiles/voyager` — a bare
+          //     `/voyager/{z}/{x}/{y}.png` 404s on every CARTO host.
+          //   - Dark Matter is at `/dark_all/{z}/{x}/{y}.png` — no
+          //     prefix.
+          //   - Light Positron is at `/light_all/...` if we ever want
+          //     a higher-contrast light style.
+          //
+          // For higher volume / branded styling, swap the URL to a
+          // Stadia/Mapbox style — single-line change.
+          final tileUrl = isDark
+              ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
+              : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png';
           return Stack(
             children: [
-              // Plain scroll view — no DraggableScrollableSheet, no
-              // platform map underneath, just a standard list.
-              CustomScrollView(
-                physics: const AlwaysScrollableScrollPhysics(
-                  parent: TopBouncePhysics(),
+              // 1. Full-screen tiled map (bottom of stack).
+              FlutterMap(
+                mapController: _mapCtrl,
+                options: MapOptions(
+                  initialCenter:
+                      LatLng(region.centre.lat, region.centre.lng),
+                  initialZoom: region.staticMapZoom.toDouble(),
+                  minZoom: 4,
+                  maxZoom: 18,
+                  // Disable rotation — easy to trigger by accident on
+                  // touch and members never need it. Pinch zoom + pan
+                  // stay on by default.
+                  interactionOptions: const InteractionOptions(
+                    flags: InteractiveFlag.pinchZoom |
+                        InteractiveFlag.drag |
+                        InteractiveFlag.doubleTapZoom |
+                        InteractiveFlag.flingAnimation |
+                        InteractiveFlag.scrollWheelZoom,
+                  ),
+                  onTap: (_, __) {
+                    // Tap on empty map dismisses the gym card +
+                    // keyboard. Tap on a marker is captured by the
+                    // marker's own GestureDetector first.
+                    if (_selectedGym != null) {
+                      setState(() => _selectedGym = null);
+                    }
+                    FocusScope.of(context).unfocus();
+                  },
                 ),
-                slivers: [
-                  // Top inset + chrome height so the static map starts
-                  // below the floating search bar.
-                  SliverToBoxAdapter(
-                    child: SizedBox(height: topInset + 72),
+                children: [
+                  TileLayer(
+                    urlTemplate: tileUrl,
+                    subdomains: const ['a', 'b', 'c', 'd'],
+                    // Retina off for now — CARTO's free tier serves
+                    // standard tiles reliably; @2x is patchy across
+                    // their hosts and trades a small crispness win
+                    // for failed-tile blanks. Re-enable once we move
+                    // to a paid provider with consistent retina.
+                    retinaMode: false,
+                    userAgentPackageName: 'net.gympass.gympass',
+                    // Surface tile failures in the debug console so a
+                    // CARTO outage / blocked CDN doesn't silently leave
+                    // the user with a grey rectangle. Without this, a
+                    // 404 / DNS / TLS error reads identically to "no
+                    // tiles configured" — extremely hard to diagnose
+                    // from a screenshot.
+                    errorTileCallback: (tile, error, stackTrace) {
+                      debugPrint(
+                        'TileLayer error coords=${tile.coordinates} err=$error',
+                      );
+                    },
+                    // Tile cache lives in flutter_map's internal store;
+                    // re-renders the same tile from cache on subsequent
+                    // pans, so panning back to a recently-visited area
+                    // is instant and doesn't re-fetch.
                   ),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
-                      child: _StaticMapPreview(
-                        region: region,
-                        markers: mapMarkers,
-                        userPosition: user,
-                      ),
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 6, 20, 10),
-                      child: Row(
-                        children: [
-                          Text(
-                            visible.length == 1
-                                ? l.exploreOneGymCount
-                                : l.exploreGymCount(visible.length),
-                            style: GPText.mono(
-                              size: 11,
-                              letterSpacing: 1.4,
-                              color: gp.muted,
-                              weight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  if (visible.isEmpty)
-                    SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 60,
-                        ),
-                        child: Center(
-                          child: Text(
-                            l.exploreNoMatches,
-                            textAlign: TextAlign.center,
-                            style: GPText.body(size: 14, color: gp.muted),
+                  MarkerLayer(
+                    markers: [
+                      for (final g in markerGyms)
+                        Marker(
+                          point: LatLng(g.lat!, g.lng!),
+                          width: 56,
+                          height: 56,
+                          // Anchor the bottom of the marker on the
+                          // exact lat/lng — feels like a pin standing
+                          // at the location, not a circle hovering at
+                          // its centre.
+                          alignment: Alignment.topCenter,
+                          child: _GymPinMarker(
+                            gym: g,
+                            selected:
+                                _selectedGym?.slug == g.slug,
+                            onTap: () => _onMarkerTap(g),
                           ),
                         ),
+                    ],
+                  ),
+                  // Required by CARTO's CC-BY 3.0 licence — small,
+                  // unobtrusive, bottom-trailing corner.
+                  const RichAttributionWidget(
+                    alignment: AttributionAlignment.bottomLeft,
+                    attributions: [
+                      TextSourceAttribution(
+                        '© OpenStreetMap, © CARTO',
+                        prependCopyright: false,
                       ),
-                    )
-                  else
-                    SliverList.builder(
-                      itemCount: visible.length,
-                      itemBuilder: (context, i) {
-                        final gym = visible[i];
-                        return _GymListRow(
-                          gym: gym,
-                          distanceMeters: _distanceToGym(gym),
-                          query: query,
-                          onTap: () => context.push('/gyms/${gym.slug}'),
-                        );
-                      },
-                    ),
-                  SliverToBoxAdapter(
-                    child: SizedBox(
-                      height: 24 + MediaQuery.viewPaddingOf(context).bottom,
-                    ),
+                    ],
                   ),
                 ],
               ),
+              // 2. Locate-me FAB — fixed position above the minimized
+              //    sheet, just under the zoom controls.
+              PositionedDirectional(
+                bottom: MediaQuery.sizeOf(context).height * _sheetMin + 12,
+                end: 16,
+                child: _LocateMeButton(onTap: _onLocateMe),
+              ),
+              // 3. Custom +/- zoom controls — flutter_map has no
+              //    built-in. Stacked above the locate-me button so the
+              //    trailing edge reads as one cluster.
+              PositionedDirectional(
+                bottom:
+                    MediaQuery.sizeOf(context).height * _sheetMin + 70,
+                end: 16,
+                child: _ZoomControls(
+                  onZoomIn: _zoomIn,
+                  onZoomOut: _zoomOut,
+                ),
+              ),
+              // 4. Selected-gym profile card — slides up from above
+              //    the bottom sheet when a pin is tapped. Tapping it
+              //    pushes the gym detail; tapping the map area
+              //    dismisses (handled by MapOptions.onTap).
+              if (_selectedGym != null)
+                PositionedDirectional(
+                  start: 12,
+                  end: 12,
+                  bottom: MediaQuery.sizeOf(context).height * _sheetMin + 12,
+                  child: _SelectedGymCard(
+                    gym: _selectedGym!,
+                    distanceMeters: _distanceToGym(_selectedGym!),
+                    onTap: () =>
+                        context.push('/gyms/${_selectedGym!.slug}'),
+                    onClose: () => setState(() => _selectedGym = null),
+                  ),
+                ),
+              // 5. Top chrome — search + filter, glass-blurred over
+              //    the live map.
               _ExploreTopBar(
                 searchCtrl: _searchCtrl,
                 searchFocus: _searchFocus,
                 activeFilterCount: activeFilterCount,
                 onOpenFilters: () => _openFiltersSheet(context),
+              ),
+              // 6. Bottom sheet — the "slider" with the gym list.
+              _GymListSheet(
+                controller: _sheetCtrl,
+                onTapHandle: _expandSheet,
+                gyms: visible,
+                query: query,
+                isLoading: isLoadingGyms,
+                hasError: hasError,
+                onGymTap: (gym) => context.push('/gyms/${gym.slug}'),
+                onGymHover: (gym) async {
+                  // Tapping a row pans the map to that gym AND opens
+                  // its profile card — feels like the list and the
+                  // map are one thing.
+                  if (gym.lat == null || gym.lng == null) return;
+                  _moveCameraTo(LatLng(gym.lat!, gym.lng!), zoom: 15);
+                  setState(() => _selectedGym = gym);
+                },
+                distanceFor: _distanceToGym,
               ),
             ],
           );
@@ -342,195 +540,94 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
   }
 }
 
-/// Pull a 6-digit hex (no `#`) from a gym's tier so its pin on the
-/// static map matches the row's tier ring. Falls back to the brand
-/// lime when the gym has no tier yet.
-String _colorHexForGym(GymSummary gym) {
-  final tierKey = gym.tier;
-  if (tierKey == null) return 'c8ff00';
-  final colour = GPTier.byKey(tierKey).color;
-  return _argbToHex6(colour);
-}
-
-String _argbToHex6(Color c) {
-  // Color stores channels as 0–1 doubles in Flutter 3.27+; round to int.
-  final r = (c.r * 255).round() & 0xff;
-  final g = (c.g * 255).round() & 0xff;
-  final b = (c.b * 255).round() & 0xff;
-  return '${r.toRadixString(16).padLeft(2, '0')}'
-      '${g.toRadixString(16).padLeft(2, '0')}'
-      '${b.toRadixString(16).padLeft(2, '0')}';
-}
-
-class GeoPoint {
-  const GeoPoint({required this.lat, required this.lng});
-  final double lat;
-  final double lng;
-}
-
-/// Static-map preview card. Renders a single Google Static Maps PNG
-/// for the member's region with one pin per visible gym. Tapping it
-/// pops a fullscreen viewer (same image, larger). Replaces the live
-/// `GoogleMap` widget — see the page-level docstring for why.
-class _StaticMapPreview extends ConsumerWidget {
-  const _StaticMapPreview({
-    required this.region,
-    required this.markers,
-    required this.userPosition,
+/// Logo-as-pin marker. Renders the gym's circular logo (or
+/// initials fallback) with a tier-coloured ring + drop shadow, and
+/// a small needle below pointing at the actual lat/lng. The whole
+/// pin is a Flutter widget — pinch zoom on the map scales the
+/// ring/logo proportionally with the rest of the UI, so the result
+/// looks like part of the app rather than a foreign SDK marker.
+class _GymPinMarker extends ConsumerWidget {
+  const _GymPinMarker({
+    required this.gym,
+    required this.selected,
+    required this.onTap,
   });
 
-  final JordanRegion region;
-  final List<StaticMapMarker> markers;
-  final GeoPoint? userPosition;
-
-  /// Card height in logical pixels. Roughly 16:9 on a typical phone
-  /// width — wide enough that pins are legible, short enough that
-  /// the gym list below is the dominant surface.
-  static const double _height = 180;
+  final GymSummary gym;
+  final bool selected;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final gp = context.gp;
-    final apiKey = ref.watch(envProvider).googleMapsKey;
-    final localeTag = Localizations.localeOf(context).languageCode;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(GPRadius.lg),
-      child: Container(
-        height: _height,
-        decoration: BoxDecoration(
-          color: gp.bg2,
-          borderRadius: BorderRadius.circular(GPRadius.lg),
-          border: Border.all(color: gp.line),
-        ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            if (apiKey.isEmpty) {
-              return _ConfigPlaceholder(region: region, gp: gp);
-            }
-            final dpr = MediaQuery.devicePixelRatioOf(context);
-            final url = StaticMapUrl.build(
-              centre: (lat: region.centre.lat, lng: region.centre.lng),
-              zoom: region.staticMapZoom,
-              size: Size(constraints.maxWidth, _height),
-              devicePixelRatio: dpr,
-              markers: markers,
-              apiKey: apiKey,
-              language: localeTag == 'ar' ? 'ar' : 'en',
-            );
-            return Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () => _openFullScreen(context, url),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Image.network(
-                      url.toString(),
-                      fit: BoxFit.cover,
-                      gaplessPlayback: true,
-                      loadingBuilder: (ctx, child, progress) {
-                        if (progress == null) return child;
-                        return Container(
-                          color: gp.bg2,
-                          alignment: Alignment.center,
-                          child: const GymLoader(size: GymLoaderSize.small),
-                        );
-                      },
-                      errorBuilder: (_, __, ___) => Container(
-                        color: gp.bg2,
-                        alignment: Alignment.center,
-                        child: Icon(
-                          Icons.map_outlined,
-                          size: 32,
-                          color: gp.mutedSoft,
-                        ),
-                      ),
-                    ),
-                    // Region label ribbon. Sits over the bottom-left
-                    // of the map so the eye lands on "this is YOUR
-                    // city" without searching the map for a label.
-                    PositionedDirectional(
-                      bottom: 10,
-                      start: 10,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.55),
-                          borderRadius:
-                              BorderRadius.circular(GPRadius.pill),
-                        ),
-                        child: Text(
-                          localeTag == 'ar' ? region.nameAr : region.nameEn,
-                          style: GPText.mono(
-                            size: 10,
-                            letterSpacing: 1.4,
-                            color: Colors.white,
-                            weight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  void _openFullScreen(BuildContext context, Uri url) {
-    HapticFeedback.selectionClick();
-    Navigator.of(context).push(
-      PageRouteBuilder<void>(
-        opaque: false,
-        barrierColor: Colors.black.withValues(alpha: 0.78),
-        transitionDuration: const Duration(milliseconds: 220),
-        pageBuilder: (_, anim, __) {
-          return FadeTransition(
-            opacity: anim,
-            child: _FullScreenMapView(url: url),
-          );
-        },
-      ),
-    );
-  }
-}
-
-/// Placeholder card shown when `GOOGLE_MAPS_KEY` isn't passed via
-/// `--dart-define`. Keeps the page from rendering a broken image
-/// during scaffolding/CI; in normal builds the key is set and this
-/// branch never fires.
-class _ConfigPlaceholder extends StatelessWidget {
-  const _ConfigPlaceholder({required this.region, required this.gp});
-
-  final JordanRegion region;
-  final GpColors gp;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
+    final tier = gym.tier == null ? null : GPTier.byKey(gym.tier!);
+    final accent = tier?.color ?? gp.accentInk;
+    final apiBaseUrl = ref.watch(envProvider).apiBaseUrl;
+    final initial = gymInitials(gym.nameEn);
+    final ring = selected ? 3.0 : 2.0;
+    final size = selected ? 44.0 : 36.0;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.map_outlined, size: 28, color: gp.mutedSoft),
-          const SizedBox(height: 8),
-          Text(
-            region.nameEn,
-            style: GPText.body(
-              size: 14,
-              color: gp.fg,
-              weight: FontWeight.w700,
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            curve: Curves.easeOutCubic,
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: gp.bg2,
+              border: Border.all(color: accent, width: ring),
+              boxShadow: [
+                BoxShadow(
+                  color: accent.withValues(alpha: selected ? 0.50 : 0.30),
+                  blurRadius: selected ? 16 : 10,
+                  spreadRadius: selected ? -2 : -3,
+                  offset: const Offset(0, 4),
+                ),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.35),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
+            clipBehavior: Clip.antiAlias,
+            child: gym.logoUrl != null && gym.logoUrl!.isNotEmpty
+                ? Image.network(
+                    resolveMediaUrl(apiBaseUrl, gym.logoUrl!),
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Center(
+                      child: Text(
+                        initial,
+                        style: GPText.display(
+                          initial.characters.length >= 2 ? 12.0 : 16.0,
+                          color: accent,
+                          height: 1.0,
+                        ),
+                      ),
+                    ),
+                  )
+                : Center(
+                    child: Text(
+                      initial,
+                      style: GPText.display(
+                        initial.characters.length >= 2 ? 12.0 : 16.0,
+                        color: accent,
+                        height: 1.0,
+                      ),
+                    ),
+                  ),
           ),
-          const SizedBox(height: 2),
-          Text(
-            'Map preview unavailable',
-            style: GPText.body(size: 11, color: gp.mutedSoft),
+          // Pin needle — a small tier-coloured triangle pointing at
+          // the lat/lng under the logo. Just enough to read as a
+          // pin instead of a floating circle.
+          CustomPaint(
+            size: const Size(10, 8),
+            painter: _PinNeedlePainter(color: accent),
           ),
         ],
       ),
@@ -538,59 +635,210 @@ class _ConfigPlaceholder extends StatelessWidget {
   }
 }
 
-/// Fullscreen viewer the preview pushes when tapped. Re-fetches the
-/// static image at near-screen size so pins are crisp; the preview's
-/// smaller image is kept separately because re-using it would stretch
-/// blurry. A close button + tap-to-dismiss handle the only two ways
-/// out — no zoom controls, no pan; if the member needs that, the
-/// "Open in Maps" button on the gym detail page handles it.
-class _FullScreenMapView extends ConsumerWidget {
-  const _FullScreenMapView({required this.url});
+class _PinNeedlePainter extends CustomPainter {
+  _PinNeedlePainter({required this.color});
 
-  final Uri url;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color;
+    // Qualified `ui.Path` because flutter_map exports its own
+    // `Path<LatLng>` from `flutter_map.dart` which collides with
+    // `dart:ui`'s drawing Path. Using the alias is unambiguous.
+    final path = ui.Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width, 0)
+      ..lineTo(size.width / 2, size.height)
+      ..close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _PinNeedlePainter old) =>
+      old.color != color;
+}
+
+/// Floating profile card shown when a marker is tapped. Slides in
+/// just above the bottom sheet's resting handle, dismissed by
+/// tapping the map (handled by MapOptions.onTap) or the close X.
+class _SelectedGymCard extends ConsumerWidget {
+  const _SelectedGymCard({
+    required this.gym,
+    required this.distanceMeters,
+    required this.onTap,
+    required this.onClose,
+  });
+
+  final GymSummary gym;
+  final double? distanceMeters;
+  final VoidCallback onTap;
+  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final gp = context.gp;
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: GestureDetector(
-        onTap: () => Navigator.of(context).pop(),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(GPRadius.lg),
-                  child: Image.network(
-                    url.toString(),
-                    fit: BoxFit.contain,
-                    gaplessPlayback: true,
-                    errorBuilder: (_, __, ___) => Container(
-                      color: gp.bg2,
-                      alignment: Alignment.center,
-                      child: Icon(
-                        Icons.map_outlined,
-                        size: 40,
-                        color: gp.mutedSoft,
+    final isAr = Localizations.localeOf(context).languageCode == 'ar';
+    final name = isAr && gym.nameAr.isNotEmpty ? gym.nameAr : gym.nameEn;
+    final tier = gym.tier == null ? null : GPTier.byKey(gym.tier!);
+    final accent = tier?.color ?? gp.accentInk;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      builder: (context, t, child) {
+        // Slide in from below + fade. Captures the "card popped up
+        // from the marker" feel.
+        return Opacity(
+          opacity: t,
+          child: Transform.translate(
+            offset: Offset(0, (1 - t) * 24),
+            child: child,
+          ),
+        );
+      },
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(GPRadius.lg),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+            decoration: BoxDecoration(
+              color: gp.bg2.withValues(alpha: 0.96),
+              borderRadius: BorderRadius.circular(GPRadius.lg),
+              border: Border.all(color: gp.line),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.45),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        name,
+                        style: GPText.body(
+                          size: 16,
+                          color: gp.fg,
+                          weight: FontWeight.w700,
+                          height: 1.1,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          if (distanceMeters != null) ...[
+                            Icon(Icons.directions_walk,
+                                size: 13, color: gp.mutedSoft,),
+                            const SizedBox(width: 4),
+                            Text(
+                              _formatDistance(distanceMeters!, l),
+                              style: GPText.body(
+                                size: 12,
+                                color: gp.mutedSoft,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                          ],
+                          if (gym.area != null && gym.area!.isNotEmpty) ...[
+                            Icon(Icons.place_outlined,
+                                size: 13, color: gp.mutedSoft,),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                gym.area!,
+                                style: GPText.body(
+                                  size: 12,
+                                  color: gp.mutedSoft,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      if (gym.category != null &&
+                          gym.category!.isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          _localizedCategory(l, gym.category!),
+                          style: GPText.body(size: 12, color: gp.mutedSoft),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
+                const SizedBox(width: 8),
+                _HeroLogo(gym: gym, gp: gp, accent: accent),
+                IconButton(
+                  iconSize: 18,
+                  splashRadius: 18,
+                  visualDensity: VisualDensity.compact,
+                  onPressed: onClose,
+                  icon: Icon(Icons.close, color: gp.muted),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Stacked +/- zoom buttons. flutter_map has no built-in zoom UI —
+/// these mirror the pair Google Maps shows and use the same
+/// glass-blur + circular shape as the locate-me FAB so the trailing
+/// cluster reads as one design system.
+class _ZoomControls extends StatelessWidget {
+  const _ZoomControls({required this.onZoomIn, required this.onZoomOut});
+
+  final VoidCallback onZoomIn;
+  final VoidCallback onZoomOut;
+
+  @override
+  Widget build(BuildContext context) {
+    final gp = context.gp;
+    return Material(
+      color: gp.bg2.withValues(alpha: 0.92),
+      borderRadius: BorderRadius.circular(GPRadius.lg),
+      elevation: 6,
+      shadowColor: Colors.black.withValues(alpha: 0.4),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(GPRadius.lg),
+          border: Border.all(color: gp.line),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _zoomButton(
+              context: context,
+              icon: Icons.add,
+              onTap: onZoomIn,
+              radius: const BorderRadius.vertical(
+                top: Radius.circular(GPRadius.lg),
               ),
             ),
-            PositionedDirectional(
-              top: MediaQuery.viewPaddingOf(context).top + 12,
-              end: 12,
-              child: Material(
-                color: Colors.black.withValues(alpha: 0.55),
-                shape: const CircleBorder(),
-                child: IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
+            Container(height: 1, color: gp.line),
+            _zoomButton(
+              context: context,
+              icon: Icons.remove,
+              onTap: onZoomOut,
+              radius: const BorderRadius.vertical(
+                bottom: Radius.circular(GPRadius.lg),
               ),
             ),
           ],
@@ -598,6 +846,252 @@ class _FullScreenMapView extends ConsumerWidget {
       ),
     );
   }
+
+  Widget _zoomButton({
+    required BuildContext context,
+    required IconData icon,
+    required VoidCallback onTap,
+    required BorderRadius radius,
+  }) {
+    final gp = context.gp;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: radius,
+      child: SizedBox(
+        width: 46,
+        height: 40,
+        child: Icon(icon, size: 18, color: gp.fg),
+      ),
+    );
+  }
+}
+
+/// Locate-me FAB. Sits over the map's trailing edge; hits
+/// [_ExplorePageState._onLocateMe] which pans the camera to the
+/// member's GPS position (or kicks off a fresh permission request +
+/// GPS read on first tap).
+class _LocateMeButton extends StatelessWidget {
+  const _LocateMeButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final gp = context.gp;
+    return Material(
+      color: gp.bg2.withValues(alpha: 0.92),
+      shape: const CircleBorder(),
+      elevation: 6,
+      shadowColor: Colors.black.withValues(alpha: 0.4),
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: Container(
+          width: 46,
+          height: 46,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: gp.line),
+          ),
+          child: Icon(Icons.my_location, size: 20, color: gp.fg),
+        ),
+      ),
+    );
+  }
+}
+
+/// Bottom sheet — the "slider" that holds the gym list. Floats over
+/// the live map; drags between [minChildSize] (sheet just shows the
+/// handle + count) and [maxChildSize] (sheet covers most of the map
+/// for full-list browsing). Sheet content is the same gym list rows
+/// the previous list-first explore page rendered, so all the
+/// search-highlight + distance + tier-ring affordances carry over.
+class _GymListSheet extends ConsumerWidget {
+  const _GymListSheet({
+    required this.controller,
+    required this.onTapHandle,
+    required this.gyms,
+    required this.query,
+    required this.isLoading,
+    required this.hasError,
+    required this.onGymTap,
+    required this.onGymHover,
+    required this.distanceFor,
+  });
+
+  /// Drives programmatic snap animations from outside (e.g. tapping
+  /// the handle to open the sheet without dragging).
+  final DraggableScrollableController controller;
+  final VoidCallback onTapHandle;
+  final List<GymSummary> gyms;
+  final String query;
+  final bool isLoading;
+  final bool hasError;
+  final ValueChanged<GymSummary> onGymTap;
+  final Future<void> Function(GymSummary) onGymHover;
+  final double? Function(GymSummary) distanceFor;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
+    final gp = context.gp;
+    return DraggableScrollableSheet(
+      controller: controller,
+      // Default state: minimized — only the handle peeks above the
+      // bottom edge. Operator sees the map first; opens the list with
+      // a tap on the handle or a drag.
+      initialChildSize: _ExplorePageState._sheetMin,
+      // Lower bound — the handle stays reachable so the sheet never
+      // disappears under the bottom nav.
+      minChildSize: _ExplorePageState._sheetMin,
+      // Upper bound — leaves the search bar visible at the very top
+      // even at full height so the operator can always type.
+      maxChildSize: _ExplorePageState._sheetMax,
+      snap: true,
+      snapSizes: const [
+        _ExplorePageState._sheetMin,
+        _ExplorePageState._sheetHalf,
+        _ExplorePageState._sheetMax,
+      ],
+      builder: (context, scrollCtrl) {
+        return ClipRRect(
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(28),
+          ),
+          child: BackdropFilter(
+            filter: ui.ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+            child: Container(
+              decoration: BoxDecoration(
+                color: gp.bg2.withValues(alpha: 0.92),
+                border: Border(top: BorderSide(color: gp.line, width: 0.5)),
+              ),
+              child: CustomScrollView(
+                controller: scrollCtrl,
+                physics: const ClampingScrollPhysics(),
+                slivers: [
+                  // Tappable handle row — gives the operator a fast
+                  // affordance to open the sheet without dragging.
+                  // The pill graphic gets a wider hit-target around
+                  // it (the whole 32-px tall row) so a thumb tap on
+                  // the general area registers; tap toggles between
+                  // peek and half-open snaps.
+                  SliverToBoxAdapter(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: onTapHandle,
+                      child: SizedBox(
+                        height: 32,
+                        child: Center(
+                          child: Container(
+                            width: 44,
+                            height: 5,
+                            decoration: BoxDecoration(
+                              color: gp.line2,
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (!isLoading)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 2, 20, 10),
+                        child: Text(
+                          gyms.length == 1
+                              ? l.exploreOneGymCount
+                              : l.exploreGymCount(gyms.length),
+                          style: GPText.mono(
+                            size: 11,
+                            letterSpacing: 1.4,
+                            color: gp.muted,
+                            weight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (isLoading)
+                    const SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 40),
+                        child: Center(
+                          child: GymLoader(size: GymLoaderSize.regular),
+                        ),
+                      ),
+                    )
+                  else if (hasError)
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 40,
+                        ),
+                        child: Center(
+                          child: Text(
+                            l.snackErrorGeneric,
+                            textAlign: TextAlign.center,
+                            style: GPText.body(size: 14, color: gp.muted),
+                          ),
+                        ),
+                      ),
+                    )
+                  else if (gyms.isEmpty)
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 40,
+                        ),
+                        child: Center(
+                          child: Text(
+                            l.exploreNoMatches,
+                            textAlign: TextAlign.center,
+                            style:
+                                GPText.body(size: 14, color: gp.muted),
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    SliverList.builder(
+                      itemCount: gyms.length,
+                      itemBuilder: (context, i) {
+                        final gym = gyms[i];
+                        return _GymListRow(
+                          gym: gym,
+                          distanceMeters: distanceFor(gym),
+                          query: query,
+                          onTap: () {
+                            unawaited(onGymHover(gym));
+                            onGymTap(gym);
+                          },
+                        );
+                      },
+                    ),
+                  SliverToBoxAdapter(
+                    child: SizedBox(
+                      height: 16 + MediaQuery.viewPaddingOf(context).bottom,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class GeoPoint {
+  const GeoPoint({required this.lat, required this.lng});
+  final double lat;
+  final double lng;
 }
 
 /// Floating top chrome — search pill on the left, filter button on
@@ -704,9 +1198,11 @@ class _SearchField extends ConsumerWidget {
                   hintStyle: GPText.body(size: 14, color: gp.muted),
                 ),
                 textInputAction: TextInputAction.search,
-                onChanged: (value) {
-                  ref.read(gymsSearchQueryProvider.notifier).state = value;
-                },
+                // No `onChanged` here — the controller listener in
+                // `_ExplorePageState._onSearchTextChanged` already
+                // pushes (debounced) into the search-query provider.
+                // Wiring both fires the same update twice per
+                // keystroke and doubles the rebuild work.
               ),
             ),
             if (controller.text.isNotEmpty)

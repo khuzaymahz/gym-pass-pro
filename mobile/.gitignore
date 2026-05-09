@@ -43,3 +43,9 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Build-time secrets (Google Maps key, Google OAuth client id, …).
+# `dart_defines.example.json` is the committed template; the real
+# `dart_defines.json` lives only on developer machines and is
+# referenced via `--dart-define-from-file=dart_defines.json`.
+dart_defines.json

@@ -61,6 +61,23 @@ dependencies:
   # the lower-level transport.
   web_socket_channel: ^3.0.1
 
+  # Interactive map — pure-Flutter renderer over a tile provider's
+  # raster tiles. Picked over `google_maps_flutter` because:
+  #   - Markers are real Flutter widgets, so we render the gym's
+  #     logo + tier ring directly (vs. building a circular bitmap
+  #     and converting to BitmapDescriptor on every gym).
+  #   - Lighter: no platform view, no native SDK init, ~5× faster
+  #     cold start, ~20× smaller APK contribution.
+  #   - Free: tiles served by CARTO basemaps (no API key required
+  #     at our scale; Stadia/Mapbox is a one-line swap for higher
+  #     volume).
+  #   - Custom-styled tiles match the app's dark/light palette out
+  #     of the box (Voyager / Dark Matter — designed for app UIs).
+  # `latlong2` is flutter_map's coordinate type; small dep, just
+  # the LatLng class.
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+
   # Utilities
   intl: ^0.20.2
   freezed_annotation: ^2.4.4
