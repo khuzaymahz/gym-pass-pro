@@ -42,20 +42,20 @@ class GymLoader extends StatefulWidget {
 /// sizes drop plates from the design rather than try to cram three
 /// of them into a 24-px slot.
 enum GymLoaderSize {
-  /// 24 × 16 — fits inside a button or compact pill. Single plate
+  /// 28 × 18 — fits inside a button or compact pill. Single plate
   /// per side: the drop sequence still reads but the dumbbell stays
   /// uncluttered at button size.
   small,
 
-  /// 32 × 22 — default. Two plates per side; the relative-size
+  /// 38 × 24 — default. Two plates per side; the relative-size
   /// difference signals weight without requiring three elements at
   /// regular text-line height.
   regular,
 
-  /// 48 × 32 — page-level loaders, empty-state cards. Full
-  /// three-plate composition matching the hero design — outer plate
-  /// is largest, inner-most is smallest; same shape every gym in
-  /// the brand uses.
+  /// 56 × 36 — page-level loaders, empty-state cards, pull-to-
+  /// refresh overlay. Full three-plate composition matching the
+  /// hero design — outer plate is largest, inner-most is smallest;
+  /// same shape every gym in the brand uses.
   large,
 }
 
@@ -89,11 +89,11 @@ class _GymLoaderState extends State<GymLoader>
   Size get _dimensions {
     switch (widget.size) {
       case GymLoaderSize.small:
-        return const Size(24, 16);
+        return const Size(28, 18);
       case GymLoaderSize.regular:
-        return const Size(32, 22);
+        return const Size(38, 24);
       case GymLoaderSize.large:
-        return const Size(48, 32);
+        return const Size(56, 36);
     }
   }
 
@@ -284,13 +284,16 @@ class _DumbbellBuildPainter extends CustomPainter {
           Radius.circular(unit * 0.04),
         );
 
-        // Glow snap once the plate is essentially fully formed —
-        // mirrors the React `drop-shadow` appearing at e > 0.92. A
-        // separate blurred draw underneath the solid fill simulates
-        // CSS's drop-shadow without bleeding the fill itself.
+        // Soft glow snap once the plate is essentially fully formed
+        // — marks the moment the plate "lands" without bleeding a
+        // bright halo around it. Alpha 0.16 is half the original;
+        // the previous 0.32 read as a yellow-orange aura that
+        // pulled focus from the plate edge itself. A separate
+        // blurred draw underneath the solid fill simulates CSS's
+        // drop-shadow without softening the fill.
         if (e > 0.92 && unit >= 12) {
           final glowPaint = Paint()
-            ..color = plateColor.withValues(alpha: 0.32)
+            ..color = plateColor.withValues(alpha: 0.16)
             ..maskFilter = MaskFilter.blur(BlurStyle.normal, unit * 0.10);
           canvas.drawRRect(plateRRect, glowPaint);
         }

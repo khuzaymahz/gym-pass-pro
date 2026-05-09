@@ -19,9 +19,9 @@ import * as React from "react";
  * propagates without touching this file.
  *
  * Sizes follow the mobile contract:
- *   - `sm` (24×16) — single plate per side, fits inside a button.
- *   - `md` (32×22) — two plates per side, default for inline content.
- *   - `lg` (48×32) — full three-plate composition for hero spots.
+ *   - `sm` (28×18) — single plate per side, fits inside a button.
+ *   - `md` (38×24) — two plates per side, default for inline content.
+ *   - `lg` (56×36) — full three-plate composition for hero spots.
  */
 export type GymLoaderSize = "sm" | "md" | "lg";
 
@@ -38,9 +38,9 @@ const SIZE_TABLE: Record<
   GymLoaderSize,
   { width: number; height: number; plates: number }
 > = {
-  sm: { width: 24, height: 16, plates: 1 },
-  md: { width: 32, height: 22, plates: 2 },
-  lg: { width: 48, height: 32, plates: 3 },
+  sm: { width: 28, height: 18, plates: 1 },
+  md: { width: 38, height: 24, plates: 2 },
+  lg: { width: 56, height: 36, plates: 3 },
 };
 
 /** Plate geometry in unit-fractions, outer → inner. Sliced by plate count. */
@@ -204,12 +204,15 @@ export function GymLoader({
                 if (e <= 0) return null;
                 const dropOffset = (1 - e) * unit * 0.25;
                 const yPos = cy - ph / 2 + dropOffset;
-                // Glow snap once the plate is essentially fully formed
-                // — mirrors the React reference's drop-shadow appearing
-                // at e > 0.92, marking the moment the plate "lands".
+                // Soft glow snap once the plate is essentially fully
+                // formed — marks the "landing" without bleeding a
+                // bright halo around the plate edge. Was 0.45 alpha;
+                // halved to 0.22 because the brighter halo pulled
+                // focus from the plate itself and read as a yellow
+                // bloom rather than a subtle settle cue.
                 const glow =
                   e > 0.92 && unit >= 12
-                    ? `drop-shadow(0 0 ${unit * 0.1}px rgb(var(--c-accent) / 0.45))`
+                    ? `drop-shadow(0 0 ${unit * 0.1}px rgb(var(--c-accent) / 0.22))`
                     : "none";
                 // Plate alpha floors at 0.55 so each plate is
                 // already legibly visible the moment its drop
