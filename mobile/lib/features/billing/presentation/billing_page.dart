@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
@@ -74,10 +75,15 @@ class BillingPage extends ConsumerWidget {
                 style: GPText.body(size: 14, color: gp.mutedSoft),
               ),
               const SizedBox(height: 22),
-              NextChargeCard(
-                renewIso: sub.renewIso!,
-                amountJod: sub.tier!.price,
-              ),
+              if (sub.hasSubscription &&
+                  sub.renewIso != null &&
+                  sub.tier != null)
+                NextChargeCard(
+                  renewIso: sub.renewIso!,
+                  amountJod: sub.tier!.price,
+                )
+              else
+                _NoActiveSubscriptionCard(),
               const SizedBox(height: 22),
               _SectionLabel(l.billingMethodsLabel),
               const SizedBox(height: 10),
@@ -167,6 +173,52 @@ class BillingPage extends ConsumerWidget {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+/// Empty-state card shown on Billing when the member has no active
+/// subscription. Replaces the [NextChargeCard] (which would otherwise
+/// dereference null `renewIso` / `tier`). Saved methods + invoice
+/// history below still render normally — a member can keep cards on
+/// file even without a live subscription.
+class _NoActiveSubscriptionCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final gp = context.gp;
+    final l = AppLocalizations.of(context);
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: gp.bg2,
+        borderRadius: BorderRadius.circular(GPRadius.lg),
+        border: Border.all(color: gp.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l.billingNoSubscriptionTitle,
+            style: GPText.body(
+              size: 15,
+              color: gp.fg,
+              weight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            l.billingNoSubscriptionBlurb,
+            style: GPText.body(size: 13, color: gp.mutedSoft, height: 1.4),
+          ),
+          const SizedBox(height: 14),
+          PillButton(
+            label: l.billingNoSubscriptionCta,
+            trailingIcon: Icons.arrow_forward,
+            variant: PillVariant.secondary,
+            onPressed: () => context.push('/subscription'),
+          ),
+        ],
+      ),
+    );
   }
 }
 

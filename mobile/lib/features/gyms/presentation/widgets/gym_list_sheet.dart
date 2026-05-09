@@ -1,0 +1,459 @@
+import 'dart:ui' as ui;
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../core/di/providers.dart';
+import '../../../../core/theme/gp_text.dart';
+import '../../../../core/theme/gp_tokens.dart';
+import '../../../../core/widgets/gym_loader.dart';
+import '../../../../l10n/app_localizations.dart';
+import '../../data/gym_initials.dart';
+import '../../data/gym_summary.dart';
+import '../../data/media_url.dart';
+import 'explore_format.dart';
+
+/// Snap heights for the explore bottom sheet (fractions of screen
+/// height). Kept here so [GymListSheet] is self-contained — the
+/// caller passes in a controller and these constants drive the snap
+/// behaviour. See `ExplorePage` for the full design rationale.
+const double exploreSheetMin = 0.066;
+const double exploreSheetAutoOpen = 0.45;
+const double exploreSheetMax = 0.84;
+
+/// Bottom sheet — the "slider" that holds the gym list. Floats over
+/// the live map; drags between [exploreSheetMin] (sheet just shows
+/// the handle + count) and [exploreSheetMax] (sheet covers most of
+/// the map for full-list browsing). Sheet content is the same gym
+/// list rows the previous list-first explore page rendered, so all
+/// the search-highlight + distance + tier-ring affordances carry
+/// over.
+class GymListSheet extends ConsumerWidget {
+  const GymListSheet({
+    super.key,
+    required this.controller,
+    required this.onTapHandle,
+    required this.gyms,
+    required this.query,
+    required this.isLoading,
+    required this.hasError,
+    required this.onGymSelect,
+    required this.distanceFor,
+  });
+
+  /// Drives programmatic snap animations from outside (e.g. tapping
+  /// the handle to open the sheet without dragging).
+  final DraggableScrollableController controller;
+  final VoidCallback onTapHandle;
+  final List<GymSummary> gyms;
+  final String query;
+  final bool isLoading;
+  final bool hasError;
+
+  /// Called when a row is tapped. The parent decides what "select"
+  /// means (animate camera, raise the floating profile card, snap the
+  /// sheet down) — the row itself just reports the intent.
+  final ValueChanged<GymSummary> onGymSelect;
+  final double? Function(GymSummary) distanceFor;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
+    final gp = context.gp;
+    return DraggableScrollableSheet(
+      controller: controller,
+      // Initial state: minimized — only the handle peeks above the
+      // bottom nav. Member sees the map first; opens the list with a
+      // tap on the handle, a drag, or by interacting with the search
+      // field / filter button (auto-open in those paths).
+      initialChildSize: exploreSheetMin,
+      minChildSize: exploreSheetMin,
+      maxChildSize: exploreSheetMax,
+      // Snap to the three user-defined sizes — drag-release lands on
+      // whichever of min / default / max is closest, never an in-
+      // between awkward size. Same affordance as Uber / Apple Maps'
+      // bottom panel.
+      snap: true,
+      snapSizes: const [
+        exploreSheetMin,
+        exploreSheetAutoOpen,
+        exploreSheetMax,
+      ],
+      builder: (context, scrollCtrl) {
+        return ClipRRect(
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(28),
+          ),
+          child: BackdropFilter(
+            filter: ui.ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+            child: Container(
+              decoration: BoxDecoration(
+                color: gp.bg2.withValues(alpha: 0.92),
+                border: Border(top: BorderSide(color: gp.line, width: 0.5)),
+              ),
+              child: CustomScrollView(
+                controller: scrollCtrl,
+                physics: const ClampingScrollPhysics(),
+                slivers: [
+                  // Tappable handle row — gives the operator a fast
+                  // affordance to open the sheet without dragging.
+                  // The pill graphic gets a wider hit-target around
+                  // it (the whole 32-px tall row) so a thumb tap on
+                  // the general area registers; tap toggles between
+                  // peek and half-open snaps.
+                  SliverToBoxAdapter(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: onTapHandle,
+                      child: SizedBox(
+                        height: 32,
+                        child: Center(
+                          child: Container(
+                            width: 44,
+                            height: 5,
+                            decoration: BoxDecoration(
+                              color: gp.line2,
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (!isLoading)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 2, 20, 10),
+                        child: Text(
+                          gyms.length == 1
+                              ? l.exploreOneGymCount
+                              : l.exploreGymCount(gyms.length),
+                          style: GPText.mono(
+                            size: 11,
+                            letterSpacing: 1.4,
+                            color: gp.muted,
+                            weight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (isLoading)
+                    const SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 40),
+                        child: Center(
+                          child: GymLoader(size: GymLoaderSize.regular),
+                        ),
+                      ),
+                    )
+                  else if (hasError)
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 40,
+                        ),
+                        child: Center(
+                          child: Text(
+                            l.snackErrorGeneric,
+                            textAlign: TextAlign.center,
+                            style: GPText.body(size: 14, color: gp.muted),
+                          ),
+                        ),
+                      ),
+                    )
+                  else if (gyms.isEmpty)
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 40,
+                        ),
+                        child: Center(
+                          child: Text(
+                            l.exploreNoMatches,
+                            textAlign: TextAlign.center,
+                            style: GPText.body(size: 14, color: gp.muted),
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    SliverList.builder(
+                      itemCount: gyms.length,
+                      itemBuilder: (context, i) {
+                        final gym = gyms[i];
+                        return _GymListRow(
+                          gym: gym,
+                          distanceMeters: distanceFor(gym),
+                          query: query,
+                          // Tap selects the gym (camera move + card
+                          // overlay + sheet collapse) — same end state
+                          // as tapping the gym's pin on the map. The
+                          // card itself routes to detail.
+                          onTap: () => onGymSelect(gym),
+                        );
+                      },
+                    ),
+                  SliverToBoxAdapter(
+                    child: SizedBox(
+                      height: 16 + MediaQuery.viewPaddingOf(context).bottom,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Single row in the explore list. Tier-ringed logo on the trailing
+/// edge, name + meta on the leading. Tap = push gym detail.
+class _GymListRow extends ConsumerWidget {
+  const _GymListRow({
+    required this.gym,
+    required this.distanceMeters,
+    required this.onTap,
+    required this.query,
+  });
+
+  final GymSummary gym;
+  final double? distanceMeters;
+  final VoidCallback onTap;
+
+  /// Active search query. When non-empty, the matching substring
+  /// inside the gym name is painted in the brand accent.
+  final String query;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
+    final gp = context.gp;
+    final isAr = Localizations.localeOf(context).languageCode == 'ar';
+    final name = isAr && gym.nameAr.isNotEmpty ? gym.nameAr : gym.nameEn;
+    final tier = gym.tier == null ? null : GPTier.byKey(gym.tier!);
+    final accent = tier?.color ?? gp.accentInk;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(GPRadius.lg),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+            decoration: BoxDecoration(
+              color: gp.bg3.withValues(alpha: 0.45),
+              borderRadius: BorderRadius.circular(GPRadius.lg),
+              border: Border.all(color: gp.line),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: HighlightedName(
+                              text: name,
+                              query: query,
+                              base: GPText.body(
+                                size: 16,
+                                color: gp.fg,
+                                weight: FontWeight.w700,
+                                height: 1.1,
+                              ),
+                              highlight: GPText.body(
+                                size: 16,
+                                color: gp.accentInk,
+                                weight: FontWeight.w800,
+                                height: 1.1,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(Icons.chevron_right,
+                              size: 16, color: gp.muted,),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          if (distanceMeters != null) ...[
+                            Icon(Icons.directions_walk,
+                                size: 13, color: gp.mutedSoft,),
+                            const SizedBox(width: 4),
+                            Text(
+                              formatDistance(distanceMeters!, l),
+                              style: GPText.body(
+                                size: 12,
+                                color: gp.mutedSoft,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                          ],
+                          if (gym.area != null && gym.area!.isNotEmpty) ...[
+                            Icon(Icons.place_outlined,
+                                size: 13, color: gp.mutedSoft,),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                gym.area!,
+                                style: GPText.body(
+                                  size: 12,
+                                  color: gp.mutedSoft,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      if (gym.category != null &&
+                          gym.category!.isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          localizedCategory(l, gym.category!),
+                          style: GPText.body(size: 12, color: gp.mutedSoft),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                HeroLogo(gym: gym, gp: gp, accent: accent),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Renders the gym name with the active search query highlighted in
+/// the brand accent. Empty query falls back to a plain Text widget.
+class HighlightedName extends StatelessWidget {
+  const HighlightedName({
+    super.key,
+    required this.text,
+    required this.query,
+    required this.base,
+    required this.highlight,
+  });
+
+  final String text;
+  final String query;
+  final TextStyle base;
+  final TextStyle highlight;
+
+  @override
+  Widget build(BuildContext context) {
+    final q = query.trim();
+    if (q.isEmpty) {
+      return Text(
+        text,
+        style: base,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      );
+    }
+    final lower = text.toLowerCase();
+    final lowerQ = q.toLowerCase();
+    final spans = <TextSpan>[];
+    var cursor = 0;
+    while (cursor < text.length) {
+      final hit = lower.indexOf(lowerQ, cursor);
+      if (hit < 0) {
+        spans.add(TextSpan(text: text.substring(cursor), style: base));
+        break;
+      }
+      if (hit > cursor) {
+        spans.add(TextSpan(text: text.substring(cursor, hit), style: base));
+      }
+      spans.add(
+        TextSpan(
+          text: text.substring(hit, hit + q.length),
+          style: highlight,
+        ),
+      );
+      cursor = hit + q.length;
+    }
+    return RichText(
+      text: TextSpan(children: spans),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+}
+
+/// Tier-ringed circular logo with a soft accent glow shadow. Used by
+/// both the floating selected-gym card (above the sheet) and the
+/// list rows inside the sheet, so the same affordance reads at every
+/// surface.
+class HeroLogo extends ConsumerWidget {
+  const HeroLogo({
+    super.key,
+    required this.gym,
+    required this.gp,
+    required this.accent,
+  });
+
+  final GymSummary gym;
+  final GpColors gp;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final initial = gymInitials(gym.nameEn);
+    final apiBaseUrl = ref.watch(envProvider).apiBaseUrl;
+    return Container(
+      width: 72,
+      height: 72,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: gp.bg3,
+        border: Border.all(color: accent, width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: accent.withValues(alpha: 0.22),
+            blurRadius: 26,
+            spreadRadius: -8,
+            offset: const Offset(0, 10),
+          ),
+          ...gp.cardShadows,
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: gym.logoUrl != null && gym.logoUrl!.isNotEmpty
+          ? Image.network(
+              resolveMediaUrl(apiBaseUrl, gym.logoUrl!),
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => _initialFallback(initial, accent),
+            )
+          : _initialFallback(initial, accent),
+    );
+  }
+
+  Widget _initialFallback(String initial, Color accent) {
+    final size = initial.characters.length >= 2 ? 24.0 : 32.0;
+    return Center(
+      child: Text(
+        initial,
+        style: GPText.display(size, color: accent, height: 1.0),
+      ),
+    );
+  }
+}

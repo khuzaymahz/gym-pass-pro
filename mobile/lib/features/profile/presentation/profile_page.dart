@@ -178,7 +178,11 @@ class ProfilePage extends ConsumerWidget {
 
   Widget _ringGauge(BuildContext context, AppLocalizations l, GpColors gp,
       {required int used, required int total,}) {
-    final percent = used / total;
+    // Defend against `total == 0` — happens when a member opens Profile
+    // before their subscription has hydrated, or when the backend
+    // returns a zero-visit plan. Without this guard the ring crashes
+    // with NaN and CustomPaint emits a layout error.
+    final percent = total == 0 ? 0.0 : used / total;
     return SizedBox(
       height: 140,
       child: Stack(

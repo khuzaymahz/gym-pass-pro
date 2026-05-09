@@ -47,11 +47,12 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     _emailCtrl.text = profile.email ?? '';
     _gender = profile.gender;
     _birthdate = profile.birthdate;
-    _firstNameCtrl.addListener(() => setState(() {}));
-    _lastNameCtrl.addListener(() => setState(() {}));
-    _emailCtrl.addListener(() => setState(() {}));
-    _passwordCtrl.addListener(() => setState(() {}));
-    _confirmCtrl.addListener(() => setState(() {}));
+    // No per-controller listeners — the Form below uses
+    // `onChanged: () => setState(...)` so a single rebuild covers
+    // every field. The previous shape (five anonymous addListener
+    // closures) fired the rebuild once per field per keystroke and
+    // had no detach in dispose, leaking listeners across hot
+    // restarts.
   }
 
   @override
@@ -201,6 +202,12 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
               child: Form(
                 key: _formKey,
                 autovalidateMode: AutovalidateMode.onUserInteraction,
+                // Single rebuild per change across every field —
+                // drives the CTA's enabled/disabled state and the
+                // password match check.
+                onChanged: () {
+                  if (mounted) setState(() {});
+                },
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

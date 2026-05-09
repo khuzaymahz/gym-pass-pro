@@ -712,6 +712,7 @@ class _NotFound extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final gp = context.gp;
+    final l = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: gp.bg,
       body: SafeArea(
@@ -725,19 +726,19 @@ class _NotFound extends StatelessWidget {
                   Icon(Icons.location_off_outlined, size: 56, color: gp.muted),
                   const SizedBox(height: 16),
                   Text(
-                    'Gym not found',
+                    l.gymNotFoundTitle,
                     textAlign: TextAlign.center,
                     style: GPText.display(24, color: gp.fg, height: 1.0),
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'We could not find a gym matching "$slug". It may have been removed.',
+                    l.gymNotFoundBody(slug),
                     textAlign: TextAlign.center,
                     style: GPText.body(size: 14, color: gp.mutedSoft, height: 1.5),
                   ),
                   const SizedBox(height: 22),
                   PillButton(
-                    label: 'Back to explore',
+                    label: l.gymNotFoundBackToExplore,
                     trailingIcon: Icons.arrow_forward,
                     onPressed: () => context.go('/explore'),
                   ),

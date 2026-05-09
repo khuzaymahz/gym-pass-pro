@@ -55,6 +55,7 @@ abstract class AppLocalizations {
   String get errorInvalidInput;
   String get errorPasswordSignInRequired;
   String get errorOtpLocked;
+  String get errorOtpInvalid;
   String get errorNetwork;
   String get orDivider;
   String get phoneCountryPrefix;
@@ -748,6 +749,12 @@ abstract class AppLocalizations {
   String get biometricDisabled;
   String get biometricCancelled;
   String get biometricGenericLabel;
+  String get billingNoSubscriptionTitle;
+  String get billingNoSubscriptionBlurb;
+  String get billingNoSubscriptionCta;
+  String get gymNotFoundTitle;
+  String gymNotFoundBody(String slug);
+  String get gymNotFoundBackToExplore;
 }
 
 class _AppLocalizationsDelegate

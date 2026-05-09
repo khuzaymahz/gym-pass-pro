@@ -20,6 +20,7 @@
   "errorInvalidInput": "بعض الحقول غير صحيحة. تحقق وحاول مجدداً.",
   "errorPasswordSignInRequired": "أدخل كلمة المرور",
   "errorOtpLocked": "محاولات كثيرة. حاول بعد دقيقة.",
+  "errorOtpInvalid": "الرمز غير صحيح. حاول مجدداً.",
   "errorNetwork": "خطأ في الشبكة. تحقق من اتصالك وحاول مجدداً.",
   "orDivider": "أو",
   "phoneCountryPrefix": "+962",
@@ -640,5 +641,14 @@
   "biometricEnabled": "تم تفعيل الدخول بالبصمة.",
   "biometricDisabled": "تم إيقاف الدخول بالبصمة.",
   "biometricCancelled": "تم إلغاء طلب البصمة.",
-  "biometricGenericLabel": "البصمة"
+  "biometricGenericLabel": "البصمة",
+
+  "billingNoSubscriptionTitle": "لا يوجد اشتراك فعّال",
+  "billingNoSubscriptionBlurb": "ليست لديك خطة حالياً، لذلك لا توجد أي رسوم مجدولة. اختر فئة لتبدأ بمسح الصالات الشريكة.",
+  "billingNoSubscriptionCta": "تصفّح الخطط",
+
+  "gymNotFoundTitle": "الصالة غير موجودة",
+  "gymNotFoundBody": "تعذّر العثور على صالة بالاسم \"{slug}\". ربما تمت إزالتها.",
+  "@gymNotFoundBody": { "placeholders": { "slug": { "type": "String" } } },
+  "gymNotFoundBackToExplore": "العودة إلى الاستكشاف"
 }

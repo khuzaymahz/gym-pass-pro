@@ -1,0 +1,147 @@
+import 'dart:ui' as ui;
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../core/di/providers.dart';
+import '../../../../core/theme/gp_text.dart';
+import '../../../../core/theme/gp_tokens.dart';
+import '../../data/gym_initials.dart';
+import '../../data/gym_summary.dart';
+import '../../data/media_url.dart';
+
+/// Logo-as-pin marker. Renders the gym's circular logo (or initials
+/// fallback) with a tier-coloured ring + flat drop shadow and a small
+/// needle below pointing at the actual lat/lng.
+///
+/// Selection cue is **size-only**, deliberately. The earlier
+/// implementation animated the accent-coloured box shadow (alpha +
+/// blur) on tap — that produced a brief yellow glow flash for
+/// untiered gyms and read as buggy when switching between pins. Now
+/// the only thing that animates is the pin's circle size (38 → 42 px)
+/// and ring thickness (2 → 2.5 px); the colours and the drop shadow
+/// stay constant, so the pin glides between states without a colour
+/// change or pulse.
+///
+/// Tap behaviour:
+///   - Single tap → [onTap] fires after the gesture-recogniser
+///     resolves single vs double (~250 ms). Parent uses this to
+///     show the floating profile card.
+///   - Double tap → [onDoubleTap] fires immediately on the second
+///     tap. Parent uses this to navigate straight to the gym
+///     detail page (skipping the card overlay).
+class GymPinMarker extends ConsumerWidget {
+  const GymPinMarker({
+    super.key,
+    required this.gym,
+    required this.selected,
+    required this.onTap,
+    required this.onDoubleTap,
+  });
+
+  final GymSummary gym;
+  final bool selected;
+  final VoidCallback onTap;
+  final VoidCallback onDoubleTap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final gp = context.gp;
+    final tier = gym.tier == null ? null : GPTier.byKey(gym.tier!);
+    final accent = tier?.color ?? gp.accentInk;
+    final apiBaseUrl = ref.watch(envProvider).apiBaseUrl;
+    final initial = gymInitials(gym.nameEn);
+    final size = selected ? 42.0 : 38.0;
+    final ring = selected ? 2.5 : 2.0;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      onDoubleTap: onDoubleTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Animates the size + ring thickness over 200 ms with a
+          // soft easeOutCubic — a small, smooth scale-up that reads
+          // as "this one is selected" without any colour change.
+          // Switching between pins glides both the outgoing and
+          // incoming selection in parallel; with colours fixed there's
+          // no flash mid-switch.
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOutCubic,
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: gp.bg2,
+              border: Border.all(color: accent, width: ring),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.40),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: gym.logoUrl != null && gym.logoUrl!.isNotEmpty
+                ? Image.network(
+                    resolveMediaUrl(apiBaseUrl, gym.logoUrl!),
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Center(
+                      child: Text(
+                        initial,
+                        style: GPText.display(
+                          initial.characters.length >= 2 ? 12.0 : 16.0,
+                          color: accent,
+                          height: 1.0,
+                        ),
+                      ),
+                    ),
+                  )
+                : Center(
+                    child: Text(
+                      initial,
+                      style: GPText.display(
+                        initial.characters.length >= 2 ? 12.0 : 16.0,
+                        color: accent,
+                        height: 1.0,
+                      ),
+                    ),
+                  ),
+          ),
+          // Pin needle — a small tier-coloured triangle pointing at
+          // the lat/lng under the logo. Just enough to read as a pin
+          // instead of a floating circle.
+          CustomPaint(
+            size: const Size(10, 8),
+            painter: _PinNeedlePainter(color: accent),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PinNeedlePainter extends CustomPainter {
+  _PinNeedlePainter({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color;
+    // Qualified `ui.Path` because flutter_map exports its own
+    // `Path<LatLng>` from `flutter_map.dart` which collides with
+    // `dart:ui`'s drawing Path. Using the alias is unambiguous.
+    final path = ui.Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width, 0)
+      ..lineTo(size.width / 2, size.height)
+      ..close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _PinNeedlePainter old) => old.color != color;
+}

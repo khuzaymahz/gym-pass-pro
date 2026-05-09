@@ -49,6 +49,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get errorOtpLocked =>
       'Too many attempts. Try again in 1 minute.';
   @override
+  String get errorOtpInvalid => 'Wrong code. Try again.';
+  @override
   String get errorNetwork =>
       'Network error. Check your connection and try again.';
   @override
@@ -1503,4 +1505,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get biometricCancelled => 'Biometric prompt cancelled.';
   @override
   String get biometricGenericLabel => 'biometrics';
+
+  @override
+  String get billingNoSubscriptionTitle => 'No active subscription';
+  @override
+  String get billingNoSubscriptionBlurb =>
+      "You don't have a plan right now, so there's nothing scheduled to charge. Pick a tier to start scanning into partner gyms.";
+  @override
+  String get billingNoSubscriptionCta => 'Browse plans';
+
+  @override
+  String get gymNotFoundTitle => 'Gym not found';
+  @override
+  String gymNotFoundBody(String slug) =>
+      'We could not find a gym matching "$slug". It may have been removed.';
+  @override
+  String get gymNotFoundBackToExplore => 'Back to explore';
 }

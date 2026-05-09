@@ -68,11 +68,35 @@ class _OtpPageState extends ConsumerState<OtpPage> {
     }
   }
 
+  /// Translates the raw error from `verifyOtp` (an `e.toString()` of
+  /// either an ApiException or a transport-level DioException) into a
+  /// friendly localized message. Mirrors `sign_in_page._resolveError`
+  /// — unknown codes fall back to the generic snack so we never leak
+  /// raw `DioException [unknown]: null` noise at users.
+  String? _resolveError(AuthState state, AppLocalizations l) {
+    final raw = state.error;
+    if (raw == null) return null;
+    if (raw.contains('AUTH_OTP_LOCKED')) return l.errorOtpLocked;
+    if (raw.contains('AUTH_OTP_INVALID') ||
+        raw.contains('AUTH_INVALID_CREDENTIALS')) {
+      return l.errorOtpInvalid;
+    }
+    if (raw.contains('SocketException') ||
+        raw.contains('connectionError') ||
+        raw.contains('connectionTimeout') ||
+        raw.contains('Connection refused') ||
+        raw.contains('Failed host lookup')) {
+      return l.errorNetwork;
+    }
+    return l.snackErrorGeneric;
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(authControllerProvider);
     final l = AppLocalizations.of(context);
     final gp = context.gp;
+    final errorMessage = _resolveError(state, l);
 
     ref.listen<AuthState>(authControllerProvider, (prev, next) {
       // Router redirect decides destination (profile gate — /register or /home).
@@ -198,10 +222,10 @@ class _OtpPageState extends ConsumerState<OtpPage> {
                               ),
                             ],
                           ),
-                          if (state.error != null) ...[
+                          if (errorMessage != null) ...[
                             const SizedBox(height: 12),
                             Text(
-                              state.error!,
+                              errorMessage,
                               style: GPText.body(size: 13, color: GP.danger),
                             ),
                           ],

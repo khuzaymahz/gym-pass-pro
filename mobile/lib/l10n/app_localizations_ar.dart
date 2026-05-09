@@ -49,6 +49,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get errorOtpLocked =>
       'محاولات كثيرة. حاول بعد دقيقة.';
   @override
+  String get errorOtpInvalid => 'الرمز غير صحيح. حاول مجدداً.';
+  @override
   String get errorNetwork => 'خطأ في الشبكة. تحقق من اتصالك وحاول مجدداً.';
   @override
   String get orDivider => 'أو';
@@ -1498,4 +1500,20 @@ class AppLocalizationsAr extends AppLocalizations {
   String get biometricCancelled => 'تم إلغاء طلب البصمة.';
   @override
   String get biometricGenericLabel => 'البصمة';
+
+  @override
+  String get billingNoSubscriptionTitle => 'لا يوجد اشتراك فعّال';
+  @override
+  String get billingNoSubscriptionBlurb =>
+      'ليست لديك خطة حالياً، لذلك لا توجد أي رسوم مجدولة. اختر فئة لتبدأ بمسح الصالات الشريكة.';
+  @override
+  String get billingNoSubscriptionCta => 'تصفّح الخطط';
+
+  @override
+  String get gymNotFoundTitle => 'الصالة غير موجودة';
+  @override
+  String gymNotFoundBody(String slug) =>
+      'تعذّر العثور على صالة بالاسم "$slug". ربما تمت إزالتها.';
+  @override
+  String get gymNotFoundBackToExplore => 'العودة إلى الاستكشاف';
 }

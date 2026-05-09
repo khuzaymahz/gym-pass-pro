@@ -53,14 +53,32 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
   @override
   void initState() {
     super.initState();
-    _codeCtrl.addListener(() => setState(() {}));
-    _passwordCtrl.addListener(() => setState(() {}));
-    _confirmCtrl.addListener(() => setState(() {}));
+    // The code, password, and confirm fields drive the CTA's
+    // enabled/disabled state and the password match check, so each
+    // keystroke needs a rebuild. The previous shape — three anonymous
+    // `addListener(() => setState(() {}))` closures — is the listener-
+    // storm pattern: every controller fires on EVERY mutation
+    // (including programmatic clears), three times per keystroke.
+    // Replaced with a single named handler so we can detach cleanly
+    // in dispose, and the password fields rebuild via Form(
+    // autovalidateMode: onUserInteraction) further down. The code
+    // field still drives the CTA, hence the listener.
+    _codeCtrl.addListener(_onCtrlChange);
+    _passwordCtrl.addListener(_onCtrlChange);
+    _confirmCtrl.addListener(_onCtrlChange);
     _lookupAccount();
+  }
+
+  void _onCtrlChange() {
+    if (!mounted) return;
+    setState(() {});
   }
 
   @override
   void dispose() {
+    _codeCtrl.removeListener(_onCtrlChange);
+    _passwordCtrl.removeListener(_onCtrlChange);
+    _confirmCtrl.removeListener(_onCtrlChange);
     _codeCtrl.dispose();
     _passwordCtrl.dispose();
     _confirmCtrl.dispose();

@@ -20,6 +20,7 @@
   "errorInvalidInput": "Some fields look wrong. Check and try again.",
   "errorPasswordSignInRequired": "Enter your password",
   "errorOtpLocked": "Too many attempts. Try again in 1 minute.",
+  "errorOtpInvalid": "Wrong code. Try again.",
   "errorNetwork": "Network error. Check your connection and try again.",
   "orDivider": "OR",
   "phoneCountryPrefix": "+962",
@@ -643,5 +644,14 @@
   "biometricEnabled": "Biometric sign-in is on.",
   "biometricDisabled": "Biometric sign-in is off.",
   "biometricCancelled": "Biometric prompt cancelled.",
-  "biometricGenericLabel": "biometrics"
+  "biometricGenericLabel": "biometrics",
+
+  "billingNoSubscriptionTitle": "No active subscription",
+  "billingNoSubscriptionBlurb": "You don't have a plan right now, so there's nothing scheduled to charge. Pick a tier to start scanning into partner gyms.",
+  "billingNoSubscriptionCta": "Browse plans",
+
+  "gymNotFoundTitle": "Gym not found",
+  "gymNotFoundBody": "We could not find a gym matching \"{slug}\". It may have been removed.",
+  "@gymNotFoundBody": { "placeholders": { "slug": { "type": "String" } } },
+  "gymNotFoundBackToExplore": "Back to explore"
 }
