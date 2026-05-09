@@ -172,17 +172,32 @@ export default function LoginPage() {
   const tApp = useTranslations("app");
   return (
     <main className="relative flex min-h-screen items-center justify-center bg-ink p-6 text-paper">
-      {/* System chrome cluster — same locale + theme pair the
-          dashboard layout renders. Operators on the login page
-          can flip language or mode before signing in. */}
-      <div className="absolute end-6 top-6 flex items-center gap-2">
+      {/* Logo locked to the top-left physical corner. `left-6`
+          (not `start-6`) so the wordmark sits in the same screen
+          position whether the locale is LTR or RTL — the operator
+          who toggles to Arabic should see the brand mark in the
+          same place, not flipped to the right. The Wordmark itself
+          is `dir="ltr"` internally so the letters never reorder. */}
+      <div className="absolute left-6 top-6 z-10">
+        <Wordmark size={28} />
+      </div>
+      {/* Locale + theme toggles pinned top-right in screen space.
+          `right-6` (not `end-6`) so the cluster stays put across
+          RTL. `dir="ltr"` on the wrapper keeps the two buttons in
+          the same internal order (locale, then theme) regardless
+          of the page's writing direction — without it, RTL flex
+          would render theme-then-locale and the operator would see
+          the buttons swap positions when toggling to Arabic. */}
+      <div
+        dir="ltr"
+        className="absolute right-6 top-6 z-10 flex items-center gap-2"
+      >
         <LocaleToggle />
         <ThemeToggle />
       </div>
       <div className="w-full max-w-sm">
         <div className="mb-5 flex items-end justify-between">
           <div className="flex flex-col gap-2">
-            <Wordmark size={28} />
             <p className="label">{tApp("title")}</p>
             <h1 className="mt-1 h2">{t("title")}</h1>
           </div>

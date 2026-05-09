@@ -41,18 +41,11 @@ export function Sidebar({
 
   return (
     <aside className="sticky top-0 flex h-screen w-[240px] shrink-0 flex-col border-e border-line bg-ink">
-      <div className="flex flex-col gap-3 px-5 py-6">
-        {/* Brand wordmark — same shape as the mobile app's
-            header, anchored visually-left in both LTR and RTL so
-            the logo never reads as "PASSGYM" in Arabic. */}
-        <Wordmark size={22} />
-        {/* Gym identity row: the partner's brand mark sits next
-            to their gym name so a glance at the sidebar says
-            "this is your gym" instead of "this is GymPass for
-            partners, generic". Falls back to initials on a
-            surface chip when no logo has been uploaded — the
-            profile page's LogoPanel is one click away. */}
-        <div className="mt-1 flex items-center gap-3">
+      <div className="flex flex-col gap-4 px-5 py-6">
+        <div className="flex justify-center">
+          <Wordmark size={22} />
+        </div>
+        <div className="flex items-center gap-3">
           {resolvedLogo ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -69,11 +62,13 @@ export function Sidebar({
             </span>
           )}
           <div className="flex min-w-0 flex-1 flex-col">
-            <span className="nav-group-label">{tApp("subtitle")}</span>
-            <p className="h2 truncate" title={gymName}>
+            <p
+              className="truncate text-[14px] font-semibold leading-tight text-paper"
+              title={gymName}
+            >
               {gymName}
             </p>
-            <p className="num text-[11.5px] text-muted" dir="ltr">
+            <p className="num text-[11.5px] leading-tight text-muted" dir="ltr">
               {phone}
             </p>
           </div>
