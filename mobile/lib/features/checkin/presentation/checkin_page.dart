@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import '../../../core/router/app_router.dart' show checkinBranchKey;
+
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
 import '../../../core/widgets/gym_loader.dart';
@@ -23,7 +25,7 @@ class CheckinPage extends ConsumerStatefulWidget {
 }
 
 class _CheckinPageState extends ConsumerState<CheckinPage>
-    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver, RouteAware {
   final _controller = MobileScannerController(
     detectionSpeed: DetectionSpeed.noDuplicates,
     facing: CameraFacing.back,
@@ -33,6 +35,17 @@ class _CheckinPageState extends ConsumerState<CheckinPage>
     vsync: this,
     duration: const Duration(milliseconds: 2200),
   )..repeat();
+
+  /// True when our branch is the active one in the bottom-nav
+  /// `IndexedStack`. Updated each build via `RouteAware` and via
+  /// post-frame inspection of the shell's current index — used to
+  /// gate `_controller.start()`/`stop()` so the camera only runs
+  /// when this tab is actually visible. With the State alive across
+  /// tab switches (StatefulShellRoute.indexedStack) this is what
+  /// keeps battery + MLKit cost down: the State stays mounted, but
+  /// the camera goes idle when the user is on Home / Explore /
+  /// Profile.
+  bool _branchVisible = true;
 
   @override
   void initState() {
@@ -48,22 +61,31 @@ class _CheckinPageState extends ConsumerState<CheckinPage>
     super.dispose();
   }
 
-  // Pause the scan line + camera when the app is backgrounded or covered by
-  // a system dialog — both drain battery and neither is visible to the user.
+  /// Apply the desired camera state given (a) app lifecycle state,
+  /// (b) whether our branch is the visible tab, (c) whether a pending
+  /// confirmation is on screen (camera widget swapped out for the
+  /// validation card). Stop is idempotent on `mobile_scanner`, so
+  /// calling it from multiple lifecycle paths is safe.
+  void _syncCamera() {
+    final pending =
+        ref.read(checkinControllerProvider).pendingGym != null;
+    final shouldRun = _branchVisible && !pending;
+    if (shouldRun) {
+      if (!_scan.isAnimating) _scan.repeat();
+      _controller.start();
+    } else {
+      _scan.stop();
+      _controller.stop();
+    }
+  }
+
+  // App backgrounded → release the camera + ML pipeline so we don't
+  // hold the device's only camera while invisible. Coming back to
+  // foreground re-syncs based on the active tab.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final active = state == AppLifecycleState.resumed;
-    if (active) {
-      if (!_scan.isAnimating) _scan.repeat();
-      // Only revive the camera if the scanner is actually on screen. During
-      // a pending confirmation the MobileScanner widget is replaced by a
-      // validation card, so resuming its controller would spin the preview
-      // behind nothing.
-      final pending =
-          ref.read(checkinControllerProvider).pendingGym != null;
-      if (!pending) {
-        _controller.start();
-      }
+    if (state == AppLifecycleState.resumed) {
+      _syncCamera();
     } else {
       _scan.stop();
       _controller.stop();
@@ -78,12 +100,39 @@ class _CheckinPageState extends ConsumerState<CheckinPage>
     final hasSubscription =
         ref.watch(subscriptionProvider.select((s) => s.hasSubscription));
 
+    // Visibility within the bottom-nav IndexedStack + within our own
+    // branch's navigator stack. Two ways the page can be invisible
+    // even though State stays mounted:
+    //   1. Another tab is selected → branch != currentIndex.
+    //   2. The unsubscribed-scan flow pushed /gyms/<slug> on top of
+    //      /checkin in the same branch → CheckinPage is in the route
+    //      stack but not the topmost route, so not painted.
+    // `ModalRoute.isCurrent` covers (2); the shell index check
+    // covers (1).
+    final shell = StatefulNavigationShell.maybeOf(context);
+    final onActiveBranch = shell == null ||
+        shell.currentIndex ==
+            shell.route.branches.indexWhere(
+              (b) => b.navigatorKey == checkinBranchKey,
+            );
+    final isCurrentRoute = ModalRoute.of(context)?.isCurrent ?? true;
+    final visibleNow = onActiveBranch && isCurrentRoute;
+    if (visibleNow != _branchVisible) {
+      _branchVisible = visibleNow;
+      // Defer the camera flip until after the build completes —
+      // `MobileScannerController.start()` calls into platform code
+      // and shouldn't run during widget build.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _syncCamera();
+      });
+    }
+
     ref.listen(checkinControllerProvider, (prev, next) {
-      if (prev?.scanning == true && next.scanning == false) {
-        _controller.stop();
-      }
-      if (prev?.scanning == false && next.scanning == true) {
-        _controller.start();
+      // Pending confirmation toggles the camera widget out for a
+      // confirmation card. Re-sync so the camera stops while the card
+      // is visible and starts again on cancel.
+      if (prev?.pendingGym != next.pendingGym) {
+        _syncCamera();
       }
       if (next.result?.status == 'success') {
         context.go('/checkin/success');
@@ -95,6 +144,13 @@ class _CheckinPageState extends ConsumerState<CheckinPage>
       if (prev?.redirectGymSlug != next.redirectGymSlug &&
           next.redirectGymSlug != null) {
         ref.read(checkinControllerProvider.notifier).reset();
+        // The push leaves CheckinPage's State alive but covered by
+        // /gyms/<slug>; mark ourselves invisible and stop the camera
+        // *before* the push so the platform view tears down its
+        // capture session immediately rather than running invisibly
+        // until a subsequent rebuild notices `isCurrent == false`.
+        _branchVisible = false;
+        _syncCamera();
         context.push('/gyms/${next.redirectGymSlug}');
       }
       // Pause-resume nudge previously fired here. Pause is now a planned

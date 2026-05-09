@@ -2,84 +2,104 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/router/app_router.dart' show shellNavigatorKey;
+import '../../../core/router/app_router.dart' show branchNavigatorKeys;
 import '../../../core/widgets/gp_tab_bar.dart';
+
+/// Bottom-nav scaffold for the four tab branches. Receives a
+/// [StatefulNavigationShell] from `StatefulShellRoute.indexedStack` —
+/// the shell IS the body widget (it renders an `IndexedStack` of all
+/// branch navigators internally), so each tab keeps its State alive
+/// when the member switches tabs. That preserves:
+///
+///   - the QR scanner's Camera2 + MLKit barcode + TFLite XNNPACK
+///     state (re-init takes ~200 ms + ~3 MB GC churn each time);
+///   - the explore-map's camera position, tile cache, and selected
+///     pin;
+///   - per-tab scroll offsets.
+///
+/// Pages that are inside the shell but visibility-sensitive (camera
+/// preview, GPS) should still pause work when their branch isn't
+/// active — the State is alive but the user isn't looking at it. See
+/// `CheckinPage` for the visibility-driven start/stop hookup.
 class HomeShell extends ConsumerWidget {
-  const HomeShell({super.key, required this.child});
+  const HomeShell({super.key, required this.navigationShell});
 
-  final Widget child;
+  final StatefulNavigationShell navigationShell;
 
-  static const _tabs = <String>['home', 'explore', 'scan', 'profile'];
+  /// Branch indexes in tab order. Mirrors the order in
+  /// `appRouterProvider`'s `StatefulShellRoute.branches` list.
+  static const int _homeIndex = 0;
+  static const int _exploreIndex = 1;
+  static const int _scanIndex = 2;
+  static const int _profileIndex = 3;
 
-  static String _currentKey(BuildContext context) {
-    final location = GoRouterState.of(context).uri.path;
-    // `/explore` is the map view (formerly `/gyms` list). The
-    // `/gyms/<slug>` profile route is *not* part of the explore tab —
-    // it pushes on top of any tab — so we don't match the prefix
-    // here. Members landing on a profile page see the tab they came
-    // from highlighted, not Explore.
-    if (location.startsWith('/explore')) return 'explore';
-    if (location.startsWith('/profile')) return 'profile';
-    if (location.startsWith('/checkin')) return 'scan';
-    return 'home';
-  }
-
-  static String _routeFor(String key) {
+  /// Tab-key to branch-index mapping. Kept in one place so the bottom
+  /// bar callbacks and the swipe handler agree.
+  static int _branchIndexFor(String key) {
     switch (key) {
       case 'explore':
-        return '/explore';
+        return _exploreIndex;
       case 'scan':
-        return '/checkin';
+        return _scanIndex;
       case 'profile':
-        return '/profile';
+        return _profileIndex;
       case 'home':
       default:
-        return '/home';
+        return _homeIndex;
     }
   }
 
-  /// Moves one tab forward (+1) or backward (-1). Exposed so individual
-  /// shell pages can claim the horizontal-drag arena inside regions where
-  /// a platform view (e.g. MobileScanner's camera preview on CheckinPage)
-  /// would otherwise swallow the gesture before it bubbles up here.
+  static String _keyForBranch(int idx) {
+    switch (idx) {
+      case _exploreIndex:
+        return 'explore';
+      case _scanIndex:
+        return 'scan';
+      case _profileIndex:
+        return 'profile';
+      case _homeIndex:
+      default:
+        return 'home';
+    }
+  }
+
+  /// Moves one tab forward (+1) or backward (-1). Exposed so
+  /// individual shell pages (notably CheckinPage, where the
+  /// MobileScanner camera preview otherwise swallows horizontal
+  /// drags before the shell sees them) can claim the gesture and
+  /// route the swipe back through here for consistent thresholding.
   static void swipeToAdjacentTab(BuildContext context, int direction) {
-    final current = _currentKey(context);
-    final idx = _tabs.indexOf(current);
-    if (idx == -1) return;
-    final target = idx + direction;
-    if (target < 0 || target >= _tabs.length) return;
-    // Belt-and-suspenders: if anything else triggers a swipe (deep
-    // link, programmatic), close any popup first so it doesn't leak
-    // onto the next tab. The primary guard is in
-    // `handleHorizontalDragEndVelocity` below.
-    _dismissOpenPopups(context);
-    context.go(_routeFor(_tabs[target]));
+    final shell = StatefulNavigationShell.maybeOf(context);
+    if (shell == null) return;
+    final target = shell.currentIndex + direction;
+    if (target < 0 || target >= 4) return;
+    _dismissOpenPopups();
+    shell.goBranch(target);
   }
 
   /// True when a modal popup (e.g. filters sheet, dialog) is sitting
-  /// on top of the current tab page. Used to suppress tab-swipe —
-  /// when the member is interacting with a popup, a horizontal drag
-  /// should be theirs to dismiss the sheet (or pan a child scroller),
-  /// not the shell's to swap tabs.
+  /// on top of any branch — used to suppress tab-swipe so the
+  /// gesture is the user's to dismiss the sheet, not the shell's
+  /// to swap tabs.
   static bool _hasPopupOnTop() {
-    final navState = shellNavigatorKey.currentState;
-    if (navState == null) return false;
-    var found = false;
-    // `popUntil` walks the stack top-down. Returning `true` short-
-    // circuits without popping, so we use it as a read-only inspect.
-    navState.popUntil((route) {
-      if (route is PopupRoute) found = true;
-      return true;
-    });
-    return found;
+    for (final key in branchNavigatorKeys) {
+      final navState = key.currentState;
+      if (navState == null) continue;
+      var found = false;
+      // popUntil walks top-down. Returning `true` short-circuits
+      // without popping anything; we use it as a read-only inspect.
+      navState.popUntil((route) {
+        if (route is PopupRoute) found = true;
+        return true;
+      });
+      if (found) return true;
+    }
+    return false;
   }
 
-  /// Interprets a horizontal-drag primary velocity in the caller's locale
-  /// and navigates to the adjacent tab. Centralized here so the shell and
-  /// individual pages apply the exact same threshold + RTL handling.
-  ///
-  /// Suppressed when a modal popup (filters sheet, dialog) sits on top
-  /// of the current tab — see [_hasPopupOnTop].
+  /// Interprets a horizontal-drag primary velocity and navigates to
+  /// the adjacent tab. Suppressed when a modal popup is open (the
+  /// drag belongs to the popup, not the shell).
   static void handleHorizontalDragEndVelocity(
     BuildContext context,
     WidgetRef ref,
@@ -94,13 +114,26 @@ class HomeShell extends ConsumerWidget {
     swipeToAdjacentTab(context, goPrev ? -1 : 1);
   }
 
+  void _switchTo(int branchIndex) {
+    _dismissOpenPopups();
+    // `initialLocation: true` resets the branch to its root route
+    // when re-tapping the active tab — matches the iOS bottom-bar
+    // convention where re-tapping pops a tab to its base. For
+    // *different* tab indexes it's a no-op; the branch already
+    // shows whatever route it last had.
+    navigationShell.goBranch(
+      branchIndex,
+      initialLocation: branchIndex == navigationShell.currentIndex,
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       body: GestureDetector(
-        // HorizontalDragEnd fires only when no child (e.g. a horizontally
-        // scrollable ListView) claimed the gesture via the arena — so this
-        // won't interfere with inner horizontal scrollers.
+        // HorizontalDragEnd fires only when no child claimed the
+        // gesture via the arena, so this won't interfere with inner
+        // horizontal scrollers.
         behavior: HitTestBehavior.translucent,
         onHorizontalDragEnd: (details) {
           handleHorizontalDragEndVelocity(
@@ -109,40 +142,22 @@ class HomeShell extends ConsumerWidget {
             details.primaryVelocity ?? 0,
           );
         },
-        child: child,
+        // The `StatefulNavigationShell` widget renders the
+        // IndexedStack of branch navigators directly, so it IS our
+        // body — no `child` indirection.
+        child: navigationShell,
       ),
       // Bottom nav is locked to LTR in every locale — the tab order
-      // (home · gyms · scan · profile) is a fixed product shape, not
-      // directional content. Mirroring it in Arabic made the familiar
-      // layout feel upside-down without adding any reading benefit.
+      // (home · gyms · scan · profile) is a fixed product shape,
+      // not directional content. Mirroring it in Arabic made the
+      // familiar layout feel upside-down without adding any
+      // reading benefit.
       bottomNavigationBar: Directionality(
         textDirection: TextDirection.ltr,
         child: GpTabBar(
-          active: _currentKey(context),
-          onTab: (k) {
-            // Dismiss any open modal popup (gym profile sheet, filters
-            // sheet, dialog) BEFORE the tab swap. go_router's shell
-            // navigator doesn't know about PopupRoutes, so without this
-            // a sheet would keep painting over the new tab's content.
-            // PageRoutes (e.g. /gyms/<slug> pushed on top of explore)
-            // are left alone — go_router's own pop handles those.
-            _dismissOpenPopups(context);
-            switch (k) {
-              case 'home':
-                context.go('/home');
-                break;
-              case 'explore':
-                context.go('/explore');
-                break;
-              case 'profile':
-                context.go('/profile');
-                break;
-            }
-          },
-          onScan: () {
-            _dismissOpenPopups(context);
-            context.go('/checkin');
-          },
+          active: _keyForBranch(navigationShell.currentIndex),
+          onTab: (k) => _switchTo(_branchIndexFor(k)),
+          onScan: () => _switchTo(_scanIndex),
         ),
       ),
     );
@@ -150,25 +165,21 @@ class HomeShell extends ConsumerWidget {
 }
 
 /// Pop every `PopupRoute` (modal bottom sheets, dialogs, route-level
-/// menus) on the shell's navigator stack while leaving `PageRoute`s
-/// untouched — those are owned by go_router and the tab swap will
-/// replace them automatically.
+/// menus) on every branch navigator. PageRoutes (e.g. /gyms/<slug>
+/// pushed on top of explore) are left alone — those are owned by
+/// go_router and survive tab swaps as expected.
 ///
-/// Why this lives here: the bottom-nav handler is the single point
-/// where every cross-tab navigation happens, so wiring the dismiss
-/// here covers gym profile sheets opened from /explore, the filters
-/// sheet, and any future bottom-sheet without each caller having to
-/// know about it.
-///
-/// Uses [shellNavigatorKey] rather than `Navigator.of(context)` —
-/// HomeShell sits *above* the shell's navigator in the widget tree
-/// (it's built by ShellRoute and wraps the child navigator), so a
-/// context lookup from here resolves to the root navigator, not the
-/// shell's. Modals pushed from /explore live one level deeper, so a
-/// root-level popUntil never sees them.
-void _dismissOpenPopups(BuildContext context) {
-  final shellNav = shellNavigatorKey.currentState;
-  if (shellNav != null) {
-    shellNav.popUntil((route) => route is! PopupRoute);
+/// Walks all four branch keys because, with `IndexedStack`, a sheet
+/// pushed on /explore stays alive while the user is on /home (the
+/// /explore branch is just hidden, not torn down). When the user
+/// swaps back to /explore the sheet would still be there. The
+/// bottom-nav handler runs this on every tap so any tab swap leaves
+/// the shell sheet-free.
+void _dismissOpenPopups() {
+  for (final key in branchNavigatorKeys) {
+    final nav = key.currentState;
+    if (nav != null) {
+      nav.popUntil((route) => route is! PopupRoute);
+    }
   }
 }

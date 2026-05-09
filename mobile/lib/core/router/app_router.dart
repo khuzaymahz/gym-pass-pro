@@ -31,14 +31,30 @@ import '../../features/support/presentation/faq_page.dart';
 import '../../features/support/presentation/help_page.dart';
 import '../../features/support/presentation/report_issue_page.dart';
 
-/// Key on the inner shell navigator (the one that owns /home /explore /scan
-/// /profile and any modal sheets pushed from those pages). Exported so
-/// HomeShell can dismiss open bottom sheets on tab swap without depending
-/// on `Navigator.of(context)` — which would resolve to the *root* navigator
-/// from HomeShell's context and miss anything one level deeper.
-final shellNavigatorKey = GlobalKey<NavigatorState>(
-  debugLabel: 'shellNavigator',
-);
+/// Per-branch navigator keys for the bottom-nav `StatefulShellRoute`.
+/// Each tab gets its own navigator so its state — including expensive
+/// resources like the explore-map camera position and the QR scanner's
+/// MLKit barcode handler + Camera2 session — stays alive when the
+/// member switches tabs. `HomeShell` keeps a reference to all four to
+/// dismiss any modal bottom sheets sitting on top of any tab before a
+/// swap (otherwise an open sheet would keep painting over the new tab's
+/// content because the IndexedStack just hides the previous branch
+/// without disturbing its modals).
+final homeBranchKey = GlobalKey<NavigatorState>(debugLabel: 'home');
+final exploreBranchKey = GlobalKey<NavigatorState>(debugLabel: 'explore');
+final checkinBranchKey = GlobalKey<NavigatorState>(debugLabel: 'checkin');
+final profileBranchKey = GlobalKey<NavigatorState>(debugLabel: 'profile');
+
+/// All four branch keys, in tab order. Exposed so `HomeShell` can sweep
+/// across every branch when dismissing popups — a sheet pushed on
+/// /explore must still be reachable while the user is on /home so the
+/// "switch tabs and clean up" path closes it.
+final branchNavigatorKeys = <GlobalKey<NavigatorState>>[
+  homeBranchKey,
+  exploreBranchKey,
+  checkinBranchKey,
+  profileBranchKey,
+];
 
 /// Short, snappy cross-page transition used everywhere. Material's default is
 /// ~300ms with a heavy elevation curve — too sluggish for the interaction
@@ -224,22 +240,53 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/checkin/success',
         pageBuilder: (_, __) => _fastPage(const CheckinSuccessPage()),
       ),
-      ShellRoute(
-        // Anchor a key on the inner shell navigator so HomeShell can
-        // pop modal bottom sheets (gym profile card, filters sheet)
-        // before swapping tabs. Without this, `Navigator.of(...)` from
-        // HomeShell's bottom-nav context returns the *root* navigator
-        // — and any modal pushed from inside the shell (e.g. the
-        // floating gym card on /explore) lives on a navigator one
-        // level deeper, so it'd survive the tab swap and keep
-        // painting over the new tab's content.
-        navigatorKey: shellNavigatorKey,
-        builder: (_, __, child) => HomeShell(child: child),
-        routes: [
-          GoRoute(path: '/home', pageBuilder: (_, __) => _fastPage(const HomePage())),
-          GoRoute(path: '/explore', pageBuilder: (_, __) => _fastPage(const ExplorePage())),
-          GoRoute(path: '/checkin', pageBuilder: (_, __) => _fastPage(const CheckinPage())),
-          GoRoute(path: '/profile', pageBuilder: (_, __) => _fastPage(const ProfilePage())),
+      // Bottom-nav tabs. `StatefulShellRoute.indexedStack` keeps every
+      // branch's State alive across tab switches — previously each tab
+      // was disposed on swap, so re-entering /checkin paid the full
+      // Camera2 + MLKit barcode dynamite + TFLite XNNPACK delegate
+      // re-init each time, and the explore-map lost its camera
+      // position. With indexedStack the camera, the map tiles, and
+      // each tab's scroll offsets all persist between visits.
+      StatefulShellRoute.indexedStack(
+        builder: (_, __, navigationShell) =>
+            HomeShell(navigationShell: navigationShell),
+        branches: [
+          StatefulShellBranch(
+            navigatorKey: homeBranchKey,
+            routes: [
+              GoRoute(
+                path: '/home',
+                pageBuilder: (_, __) => _fastPage(const HomePage()),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            navigatorKey: exploreBranchKey,
+            routes: [
+              GoRoute(
+                path: '/explore',
+                pageBuilder: (_, __) => _fastPage(const ExplorePage()),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            navigatorKey: checkinBranchKey,
+            routes: [
+              GoRoute(
+                path: '/checkin',
+                pageBuilder: (_, __) => _fastPage(const CheckinPage()),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            navigatorKey: profileBranchKey,
+            routes: [
+              GoRoute(
+                path: '/profile',
+                pageBuilder: (_, __) => _fastPage(const ProfilePage()),
+              ),
+            ],
+          ),
         ],
       ),
     ],
