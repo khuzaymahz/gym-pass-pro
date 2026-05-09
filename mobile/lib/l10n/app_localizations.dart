@@ -130,6 +130,8 @@ abstract class AppLocalizations {
   String get homeActive;
   String get homeVisits;
   String homeLeftThisCycle(int n);
+  String get homeUnlimited;
+  String get homeUnlimitedThisCycle;
   String homeCycleProgress(int cycle, int total, int days);
   String homeTermEndsIn(int days);
   String get homeManage;

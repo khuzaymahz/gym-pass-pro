@@ -199,6 +199,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String homeLeftThisCycle(int n) => '$n LEFT THIS CYCLE';
   @override
+  String get homeUnlimited => 'UNLIMITED';
+  @override
+  String get homeUnlimitedThisCycle => 'NO CAP THIS CYCLE';
+  @override
   String homeCycleProgress(int cycle, int total, int days) =>
       'MONTH $cycle OF $total · CYCLE RESETS IN ${days}D';
   @override
