@@ -351,6 +351,12 @@ class _PlanCard extends StatelessWidget {
     // The previous `total == 0` only handled the first case, so a Diamond
     // member tapping into Home hit `used.clamp(0, -1)` and crashed
     // ("Invalid argument(s): 0", because `lo > hi`).
+    // `total < 0` is the unlimited sentinel (Diamond). Used to gate
+    // the fraction + "X left" copy — both lie when the cap doesn't
+    // exist. The card was rendering "0 / -1 visits" and "0 LEFT THIS
+    // CYCLE" verbatim, which is what makes `-1` show up on the
+    // screen.
+    final isUnlimited = total < 0;
     final shownUsed = total <= 0 ? used : used.clamp(0, total);
     final percent = total <= 0 ? 0.0 : (shownUsed / total).clamp(0.0, 1.0);
     final remaining = total <= 0 ? 0 : (total - shownUsed).clamp(0, total);
@@ -405,14 +411,21 @@ class _PlanCard extends StatelessWidget {
                     '$shownUsed',
                     style: GPText.display(44, color: gp.fg, height: 0.9),
                   ),
-                  const SizedBox(width: 6),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Text(
-                      '/$total',
-                      style: GPText.display(20, color: gp.muted, height: 0.9),
+                  // Finite tiers show the cap; unlimited (Diamond)
+                  // skips the "/total" slot entirely. `∞` was an
+                  // option here but the bare count + "visits" reads
+                  // cleaner — the unlimited nature surfaces on the
+                  // bottom row instead.
+                  if (!isUnlimited) ...[
+                    const SizedBox(width: 6),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text(
+                        '/$total',
+                        style: GPText.display(20, color: gp.muted, height: 0.9),
+                      ),
                     ),
-                  ),
+                  ],
                   const SizedBox(width: 10),
                   Padding(
                     padding: const EdgeInsets.only(bottom: 4),
@@ -451,14 +464,41 @@ class _PlanCard extends StatelessWidget {
               const SizedBox(height: 14),
               Row(
                 children: [
-                  Text(
-                    l.homeLeftThisCycle(remaining),
-                    style: GPText.mono(
-                      size: 10,
-                      letterSpacing: 1.5,
-                      color: gp.mutedSoft,
+                  if (isUnlimited)
+                    // Unlimited tier — `homeLeftThisCycle(0)` would
+                    // print "0 LEFT THIS CYCLE" which lies (Diamond
+                    // never runs out). Use the infinity glyph + the
+                    // existing "visits" word so the row stays
+                    // typographically aligned with the finite tiers.
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.all_inclusive,
+                          size: 12,
+                          color: tier.readableOn(gp),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          l.homeVisits.toUpperCase(),
+                          style: GPText.mono(
+                            size: 10,
+                            letterSpacing: 1.5,
+                            color: tier.readableOn(gp),
+                            weight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    )
+                  else
+                    Text(
+                      l.homeLeftThisCycle(remaining),
+                      style: GPText.mono(
+                        size: 10,
+                        letterSpacing: 1.5,
+                        color: gp.mutedSoft,
+                      ),
                     ),
-                  ),
                   const Spacer(),
                   Text(
                     l.homeManage,
