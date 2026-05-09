@@ -186,7 +186,14 @@ class ProfilePage extends ConsumerWidget {
         children: [
           CustomPaint(
             size: const Size(130, 130),
-            painter: _RingPainter(percent, gp.bg3, gp.accentHi, gp.accentInk),
+            // Track colour is `line2` (white at 24% alpha) instead of
+            // `bg3` (#17181A — near-black). The dark track was nearly
+            // invisible against the page background and made the
+            // empty portion of the ring read as "missing" rather than
+            // "remaining". A faint white tone lets the ring read as a
+            // gauge: filled progress on top, soft track underneath.
+            painter:
+                _RingPainter(percent, gp.line2, gp.accentHi, gp.accentInk),
           ),
           Column(
             mainAxisSize: MainAxisSize.min,
@@ -196,7 +203,8 @@ class ProfilePage extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.baseline,
                 textBaseline: TextBaseline.alphabetic,
                 children: [
-                  Text('$used', style: GPText.display(40, color: gp.fg, height: 0.9)),
+                  Text('$used',
+                      style: GPText.display(40, color: gp.fg, height: 0.9),),
                   const SizedBox(width: 4),
                   Text('/$total',
                       style: GPText.display(18, color: gp.muted, height: 0.9),),
@@ -204,7 +212,11 @@ class ProfilePage extends ConsumerWidget {
               ),
               const SizedBox(height: 6),
               Text(l.profileVisitsThisMo,
-                  style: GPText.mono(size: 9, letterSpacing: 1.6, color: gp.muted),),
+                  style: GPText.mono(
+                    size: 9,
+                    letterSpacing: 1.6,
+                    color: gp.muted,
+                  ),),
             ],
           ),
         ],
@@ -505,24 +517,42 @@ class _ProfileStatsSkeleton extends StatelessWidget {
     return Column(
       children: [
         if (includeRing) ...[
-          // Ring placeholder — circle of the same diameter as the
-          // live gauge so the layout doesn't jump.
-          Container(
-            width: 180,
-            height: 180,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: gp.bg2,
-              border: Border.all(color: gp.line),
-            ),
-            alignment: Alignment.center,
-            child: const Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SkeletonBox(height: 32, width: 80),
-                SizedBox(height: 8),
-                SkeletonBox(height: 10, width: 60),
-              ],
+          // Ring placeholder — must match the live `_ringGauge`'s
+          // dimensions exactly so the layout doesn't shift when the
+          // skeleton is replaced by the real ring on refresh
+          // resolve. Earlier this circle was 180×180 (live is
+          // 130×130), so the skeleton looked dramatically larger
+          // than the actual figure it stood in for, reading as
+          // "still loading" even after the data had arrived.
+          //
+          // Outer SizedBox height = 140 to mirror the live gauge's
+          // own SizedBox; the circle itself is 130×130 painted
+          // matching the live ring's CustomPaint size. Inner
+          // SkeletonBox sizes match the live text block (a 40-pt
+          // number row + 9-pt label) so the skeleton scans as the
+          // same shape, not a same-coloured-but-wrong placeholder.
+          SizedBox(
+            height: 140,
+            child: Center(
+              child: Container(
+                width: 130,
+                height: 130,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: gp.bg2,
+                  border: Border.all(color: gp.line),
+                ),
+                alignment: Alignment.center,
+                child: const Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SkeletonBox(height: 28, width: 64),
+                    SizedBox(height: 6),
+                    SkeletonBox(height: 9, width: 54),
+                  ],
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 24),

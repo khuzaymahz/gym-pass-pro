@@ -91,22 +91,46 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
       DraggableScrollableController();
 
   /// Sheet snap heights, expressed as fractions of screen height.
-  /// `_sheetMin` shows ONLY the drag handle — nothing else peeks
-  /// above the bottom edge; the map is fully visible. ~0.045 is
-  /// enough on a 700–900 px phone for the 32 px handle row plus a
-  /// few pixels of breathing room (rounded sheet corner clip);
-  /// _sheetHalf is the working size where ~3 list rows are visible
-  /// alongside the map; _sheetMax covers most of the screen for
-  /// full-list browsing.
-  static const double _sheetMin = 0.045;
-  static const double _sheetHalf = 0.55;
-  static const double _sheetMax = 0.92;
+  /// All three user-defined as of 2026-05-09:
+  ///
+  /// - **Min** — ONLY the rounded top + drag handle pill peek above
+  ///   the bottom nav. The "6 GYMS" count strip and any list rows
+  ///   are completely hidden; map fills the rest of the screen.
+  ///   Tuned down from 0.055 → 0.04 because the earlier value was
+  ///   tall enough to leak the count strip into view; the handle
+  ///   row alone is 32 px (matches `_GymListSheet`'s SizedBox).
+  /// - **Default** — sheet covers the lower ~45% — handle + "6 GYMS"
+  ///   header + EXACTLY 3 list rows (Apex / Bedford / Core), with
+  ///   the third card sitting just above the bottom nav and no
+  ///   peek of a fourth card. Tuned down from 0.50 → 0.45 because
+  ///   0.50 was tall enough to leak the fourth card's title into
+  ///   the visible band, breaking the "exactly 3 cards" intent.
+  ///   The auto-open triggers (search-field focus, search-text
+  ///   typed, filter button tapped, handle tapped) animate here.
+  /// - **Max** — sheet leaves a clear strip of map visible BELOW
+  ///   the floating search bar (search bar floats over the map; a
+  ///   ~30-40 px band of tiles + place labels reads between the
+  ///   search bar's bottom edge and the sheet's top edge). Tuned
+  ///   down from 0.88 → 0.84 because 0.88 had the sheet sitting
+  ///   right under the search bar — the chrome read as one welded
+  ///   block instead of "search bar floating over a map with the
+  ///   list peeking up from below". Six cards still fit comfortably.
+  ///
+  /// Snapping is ON: drag-release snaps to the nearest of these
+  /// three, mirroring Uber / Apple Maps.
+  static const double _sheetMin = 0.04;
+  static const double _sheetAutoOpen = 0.45;
+  static const double _sheetMax = 0.84;
 
   @override
   void initState() {
     super.initState();
     _searchCtrl.text = ref.read(gymsSearchQueryProvider);
     _searchCtrl.addListener(_onSearchTextChanged);
+    // Auto-open the sheet when the search field gets focus — the
+    // member is asking to see results, so the list should already
+    // be in front of them by the time they finish typing.
+    _searchFocus.addListener(_onSearchFocusChanged);
     // Defer the GPS request past the first frame so the page paints
     // its skeleton before iOS's permission prompt fires — members see
     // the page appear, then the prompt, instead of a flash of grey
@@ -121,11 +145,38 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
       if (!mounted) return;
       ref.read(gymsSearchQueryProvider.notifier).state = text;
     });
+    // Any non-empty query is a clear intent to see filtered
+    // results — surface the list without making the member drag
+    // the sheet up themselves.
+    if (text.isNotEmpty) {
+      _autoOpenSheet();
+    }
+  }
+
+  void _onSearchFocusChanged() {
+    if (_searchFocus.hasFocus) {
+      _autoOpenSheet();
+    }
+  }
+
+  /// Animate the sheet open when search / filter activity implies
+  /// the member wants to see the gym list. No-op if the sheet is
+  /// already at or above the auto-open size — never *closes* the
+  /// sheet from this path, only opens it.
+  void _autoOpenSheet() {
+    if (!_sheetCtrl.isAttached) return;
+    if (_sheetCtrl.size >= _sheetAutoOpen - 0.02) return;
+    _sheetCtrl.animateTo(
+      _sheetAutoOpen,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+    );
   }
 
   @override
   void dispose() {
     _searchDebounce?.cancel();
+    _searchFocus.removeListener(_onSearchFocusChanged);
     _searchFocus.dispose();
     _searchCtrl.removeListener(_onSearchTextChanged);
     _searchCtrl.dispose();
@@ -133,17 +184,14 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
     super.dispose();
   }
 
-  /// Pop the sheet open to the half-height snap. Wired to a tap on
-  /// the sheet's handle so the operator can open the list without
-  /// dragging — drag is for "I want a specific size", tap is for
-  /// "just show me the list".
+  /// Tap on the handle toggles the sheet — drag is for "specific
+  /// size", tap is for "open / close". Open target is the same one
+  /// search / filter triggers use, so the affordances feel unified.
   Future<void> _expandSheet() async {
     if (!_sheetCtrl.isAttached) return;
     final current = _sheetCtrl.size;
-    // If the sheet is already up, a tap closes it back to the peek;
-    // otherwise it opens to half. Mirrors the affordance of a
-    // pull-tab — tap to toggle.
-    final target = current > _sheetMin + 0.05 ? _sheetMin : _sheetHalf;
+    final target =
+        current > _sheetMin + 0.05 ? _sheetMin : _sheetAutoOpen;
     await _sheetCtrl.animateTo(
       target,
       duration: const Duration(milliseconds: 240),
@@ -201,20 +249,6 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
       return;
     }
     await _locateUser(panMap: true);
-  }
-
-  /// Step zoom one level. Bounded by the tile provider's range
-  /// (CARTO supports 1–19); flutter_map clamps anyway.
-  void _zoomIn() {
-    HapticFeedback.selectionClick();
-    final z = _mapCtrl.camera.zoom;
-    _mapCtrl.move(_mapCtrl.camera.center, z + 1);
-  }
-
-  void _zoomOut() {
-    HapticFeedback.selectionClick();
-    final z = _mapCtrl.camera.zoom;
-    _mapCtrl.move(_mapCtrl.camera.center, z - 1);
   }
 
   /// Marker tap handler — pans the camera to centre the gym, opens
@@ -277,6 +311,11 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
 
   Future<void> _openFiltersSheet(BuildContext context) async {
     HapticFeedback.selectionClick();
+    // Tapping the filter button is a clear "I want to see and refine
+    // results" intent — pop the gym-list sheet open in the background
+    // so when the filter modal closes the member is looking at the
+    // filtered list instead of having to drag the sheet up themselves.
+    _autoOpenSheet();
     final controller = AnimationController(
       vsync: Navigator.of(context),
       duration: const Duration(milliseconds: 380),
@@ -392,9 +431,19 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                   // touch and members never need it. Pinch zoom + pan
                   // stay on by default.
                   interactionOptions: const InteractionOptions(
+                    // pinchZoom = two-finger pinch
+                    // doubleTapZoom = double-tap → step zoom in
+                    // doubleTapDragZoom = double-tap-hold then drag
+                    //   up/down to scrub zoom (Google Maps style)
+                    // drag = single-finger pan
+                    // flingAnimation = inertia after pan
+                    // scrollWheelZoom = trackpad / web
+                    // No rotation (members never need it; easy to
+                    // trigger by accident on touch).
                     flags: InteractiveFlag.pinchZoom |
                         InteractiveFlag.drag |
                         InteractiveFlag.doubleTapZoom |
+                        InteractiveFlag.doubleTapDragZoom |
                         InteractiveFlag.flingAnimation |
                         InteractiveFlag.scrollWheelZoom,
                   ),
@@ -470,25 +519,17 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                 ],
               ),
               // 2. Locate-me FAB — fixed position above the minimized
-              //    sheet, just under the zoom controls.
+              //    sheet. Single-button trailing cluster: members
+              //    zoom by pinching (two fingers) or by double-tap-
+              //    and-drag (one finger up = zoom in, down = zoom
+              //    out), so explicit `+/-` controls were redundant
+              //    UI weight and were dropped.
               PositionedDirectional(
                 bottom: MediaQuery.sizeOf(context).height * _sheetMin + 12,
                 end: 16,
                 child: _LocateMeButton(onTap: _onLocateMe),
               ),
-              // 3. Custom +/- zoom controls — flutter_map has no
-              //    built-in. Stacked above the locate-me button so the
-              //    trailing edge reads as one cluster.
-              PositionedDirectional(
-                bottom:
-                    MediaQuery.sizeOf(context).height * _sheetMin + 70,
-                end: 16,
-                child: _ZoomControls(
-                  onZoomIn: _zoomIn,
-                  onZoomOut: _zoomOut,
-                ),
-              ),
-              // 4. Selected-gym profile card — slides up from above
+              // 3. Selected-gym profile card — slides up from above
               //    the bottom sheet when a pin is tapped. Tapping it
               //    pushes the gym detail; tapping the map area
               //    dismisses (handled by MapOptions.onTap).
@@ -798,74 +839,6 @@ class _SelectedGymCard extends ConsumerWidget {
   }
 }
 
-/// Stacked +/- zoom buttons. flutter_map has no built-in zoom UI —
-/// these mirror the pair Google Maps shows and use the same
-/// glass-blur + circular shape as the locate-me FAB so the trailing
-/// cluster reads as one design system.
-class _ZoomControls extends StatelessWidget {
-  const _ZoomControls({required this.onZoomIn, required this.onZoomOut});
-
-  final VoidCallback onZoomIn;
-  final VoidCallback onZoomOut;
-
-  @override
-  Widget build(BuildContext context) {
-    final gp = context.gp;
-    return Material(
-      color: gp.bg2.withValues(alpha: 0.92),
-      borderRadius: BorderRadius.circular(GPRadius.lg),
-      elevation: 6,
-      shadowColor: Colors.black.withValues(alpha: 0.4),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(GPRadius.lg),
-          border: Border.all(color: gp.line),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _zoomButton(
-              context: context,
-              icon: Icons.add,
-              onTap: onZoomIn,
-              radius: const BorderRadius.vertical(
-                top: Radius.circular(GPRadius.lg),
-              ),
-            ),
-            Container(height: 1, color: gp.line),
-            _zoomButton(
-              context: context,
-              icon: Icons.remove,
-              onTap: onZoomOut,
-              radius: const BorderRadius.vertical(
-                bottom: Radius.circular(GPRadius.lg),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _zoomButton({
-    required BuildContext context,
-    required IconData icon,
-    required VoidCallback onTap,
-    required BorderRadius radius,
-  }) {
-    final gp = context.gp;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: radius,
-      child: SizedBox(
-        width: 46,
-        height: 40,
-        child: Icon(icon, size: 18, color: gp.fg),
-      ),
-    );
-  }
-}
-
 /// Locate-me FAB. Sits over the map's trailing edge; hits
 /// [_ExplorePageState._onLocateMe] which pans the camera to the
 /// member's GPS position (or kicks off a fresh permission request +
@@ -938,20 +911,21 @@ class _GymListSheet extends ConsumerWidget {
     final gp = context.gp;
     return DraggableScrollableSheet(
       controller: controller,
-      // Default state: minimized — only the handle peeks above the
-      // bottom edge. Operator sees the map first; opens the list with
-      // a tap on the handle or a drag.
+      // Initial state: minimized — only the handle peeks above the
+      // bottom nav. Member sees the map first; opens the list with
+      // a tap on the handle, a drag, or by interacting with the
+      // search field / filter button (auto-open in those paths).
       initialChildSize: _ExplorePageState._sheetMin,
-      // Lower bound — the handle stays reachable so the sheet never
-      // disappears under the bottom nav.
       minChildSize: _ExplorePageState._sheetMin,
-      // Upper bound — leaves the search bar visible at the very top
-      // even at full height so the operator can always type.
       maxChildSize: _ExplorePageState._sheetMax,
+      // Snap to the three user-defined sizes — drag-release lands
+      // on whichever of min / default / max is closest, never an
+      // in-between awkward size. Same affordance as Uber / Apple
+      // Maps' bottom panel.
       snap: true,
       snapSizes: const [
         _ExplorePageState._sheetMin,
-        _ExplorePageState._sheetHalf,
+        _ExplorePageState._sheetAutoOpen,
         _ExplorePageState._sheetMax,
       ],
       builder: (context, scrollCtrl) {
