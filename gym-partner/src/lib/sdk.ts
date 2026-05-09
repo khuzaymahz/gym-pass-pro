@@ -1,139 +1,48 @@
+import "server-only";
+
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 
 import { api } from "@/lib/api";
 import { authOptions } from "@/lib/auth";
 
-export type Page<T> = {
-  items: T[];
-  total: number;
-  page: number;
-  pageSize: number;
-};
+// Re-export every type + constant from `sdk-types.ts` so existing
+// `import { ... } from "@/lib/sdk"` call sites in **server**
+// components keep working unchanged. Client components must import
+// from `@/lib/sdk-types` directly — `import "server-only"` above
+// makes any client-bundle import here fail the build with a clear
+// message rather than crashing in the browser.
+export type {
+  Page,
+  Tier,
+  Category,
+  CheckinStatus,
+  PayoutStatus,
+  LogoFit,
+  LogoPosition,
+  LogoAlignment,
+  GymRead,
+  GymUpdateBody,
+  GymPhoto,
+  PartnerCheckin,
+  PartnerPayout,
+  PartnerDashboardMetrics,
+  PartnerMe,
+} from "@/lib/sdk-types";
+export { DEFAULT_LOGO_ALIGNMENT } from "@/lib/sdk-types";
 
-export type Tier = "silver" | "gold" | "platinum" | "diamond";
-export type Category = "gym" | "crossfit" | "martial" | "yoga";
-export type CheckinStatus =
-  | "success"
-  | "tier_locked"
-  | "no_visits"
-  | "expired"
-  | "invalid_qr"
-  | "rate_limited";
-export type PayoutStatus = "pending" | "paid";
-
-export type LogoFit = "cover" | "contain";
-export type LogoPosition = "top" | "center" | "bottom";
-export type LogoAlignment = { fit: LogoFit; position: LogoPosition };
-
-export const DEFAULT_LOGO_ALIGNMENT: LogoAlignment = {
-  fit: "cover",
-  position: "center",
-};
-
-export type GymRead = {
-  id: string;
-  slug: string;
-  nameEn: string;
-  nameAr: string;
-  addressEn: string;
-  addressAr: string;
-  area: string;
-  lat: string | number;
-  lng: string | number;
-  phone: string | null;
-  category: Category;
-  requiredTier: Tier;
-  perVisitRateJod: string;
-  amenities: string[];
-  openingHours: Record<string, unknown>;
-  coverImageUrl: string | null;
-  logoUrl: string | null;
-  logoAlignment: LogoAlignment | null;
-  rating: string | null;
-  reviewCount: number;
-  photoCount: number;
-  isActive: boolean;
-};
-
-export type GymUpdateBody = Partial<{
-  nameEn: string;
-  nameAr: string;
-  addressEn: string;
-  addressAr: string;
-  area: string;
-  lat: number;
-  lng: number;
-  phone: string | null;
-  category: Category;
-  amenities: string[];
-  openingHours: Record<string, unknown>;
-  coverImageUrl: string | null;
-  logoAlignment: LogoAlignment | null;
-}>;
-
-export type GymPhoto = {
-  id: string;
-  gymId: string;
-  url: string;
-  sortOrder: number;
-  altTextEn: string | null;
-  altTextAr: string | null;
-};
-
-export type PartnerCheckin = {
-  id: string;
-  userId: string;
-  userName: string | null;
-  userPhone: string | null;
-  gymId: string;
-  gymNameEn: string;
-  gymNameAr: string;
-  status: CheckinStatus;
-  scannedAt: string;
-  failureReason: string | null;
-};
-
-export type PartnerPayout = {
-  id: string;
-  gymId: string;
-  gymNameEn: string;
-  periodStart: string;
-  periodEnd: string;
-  totalAmountJod: string;
-  entryCount: number;
-  status: PayoutStatus;
-  paidAt: string | null;
-  notes: string | null;
-};
-
-export type PartnerDashboardMetrics = {
-  checkinsToday: number;
-  checkinsThisMonth: number;
-  checkinsLast30Days: number;
-  uniqueMembersLast30Days: number;
-  revenueMtdJod: string;
-  pendingPayoutTotalJod: string;
-  paidPayoutMtdJod: string;
-  checkinsPerDay: { day: string; count: number }[];
-  revenuePerDay: { day: string; total: string }[];
-  tierBreakdown: Record<string, number>;
-  hourBreakdown: { hour: number; count: number }[];
-  recentCheckins: {
-    id: string;
-    userId: string;
-    userName: string | null;
-    scannedAt: string;
-  }[];
-};
-
-export type PartnerMe = {
-  id: string;
-  phone: string;
-  name: string | null;
-  role: "gym_owner";
-  gymId: string;
-};
+import type {
+  Page,
+  CheckinStatus,
+  PayoutStatus,
+  GymRead,
+  GymUpdateBody,
+  GymPhoto,
+  PartnerCheckin,
+  PartnerPayout,
+  PartnerDashboardMetrics,
+  PartnerMe,
+} from "@/lib/sdk-types";
 
 async function serviceToken(): Promise<string> {
   const session = await getServerSession(authOptions);

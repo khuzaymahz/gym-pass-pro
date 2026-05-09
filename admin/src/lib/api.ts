@@ -1,3 +1,5 @@
+import "server-only";
+
 import { env } from "@/lib/env";
 
 // Web Crypto API — works in both Node 20+ and the browser, no

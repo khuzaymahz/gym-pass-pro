@@ -1,8 +1,10 @@
+import "server-only";
+
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 
 import { api, exchangePartnerToken } from "@/lib/api";
-import { env } from "@/lib/env";
+import { serverEnv } from "@/lib/env.server";
 
 type LoginResp = {
   id: string;
@@ -53,7 +55,7 @@ export const authOptions: NextAuthOptions = {
   // in; short-session signins still expire on schedule because we
   // override `token.exp` to a closer timestamp.
   session: { strategy: "jwt", maxAge: LONG_SESSION_SECONDS },
-  secret: env.NEXTAUTH_SECRET,
+  secret: serverEnv.NEXTAUTH_SECRET,
   providers: [
     CredentialsProvider({
       name: "Partner Credentials",

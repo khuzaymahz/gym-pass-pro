@@ -8,7 +8,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import { resolveMediaUrl } from "@/lib/media";
-import { DEFAULT_LOGO_ALIGNMENT, type LogoAlignment } from "@/lib/sdk";
+import { DEFAULT_LOGO_ALIGNMENT, type LogoAlignment } from "@/lib/sdk-types";
 
 import { Wordmark } from "./Wordmark";
 

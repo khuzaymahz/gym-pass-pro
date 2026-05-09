@@ -10,7 +10,7 @@ import {
   uploadPhotoAction,
 } from "@/app/(dashboard)/photos/actions";
 import { resolveMediaUrl } from "@/lib/media";
-import type { GymPhoto } from "@/lib/sdk";
+import type { GymPhoto } from "@/lib/sdk-types";
 import {
   ACCEPTED_IMAGE_TYPES_ATTR,
   MAX_UPLOAD_MB,

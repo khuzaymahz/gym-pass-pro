@@ -15,7 +15,7 @@ import {
 import {
   DEFAULT_LOGO_ALIGNMENT,
   type LogoAlignment,
-} from "@/lib/sdk";
+} from "@/lib/sdk-types";
 
 /// Output target for a saved logo. The largest surface that renders
 /// the logo today is the gym detail page (~200pt round); 512×512

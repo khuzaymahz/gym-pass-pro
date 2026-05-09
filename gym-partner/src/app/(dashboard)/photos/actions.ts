@@ -5,7 +5,7 @@ import { getServerSession } from "next-auth";
 
 import { ApiError } from "@/lib/api";
 import { authOptions } from "@/lib/auth";
-import { env } from "@/lib/env";
+import { serverEnv } from "@/lib/env.server";
 import { PartnerSDK } from "@/lib/sdk";
 
 /// On 401 / 403 we redirect to /login like the JSON `api()` helper
@@ -22,7 +22,7 @@ export async function uploadPhotoAction(
   }
   // Multipart upload — bypasses our JSON `api()` helper.
   const response = await fetch(
-    `${env.API_BASE_URL}/api/v1/partner/gym/photos`,
+    `${serverEnv.API_BASE_URL}/api/v1/partner/gym/photos`,
     {
       method: "POST",
       headers: {

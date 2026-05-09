@@ -5,7 +5,7 @@ import { getServerSession } from "next-auth";
 
 import { ApiError } from "@/lib/api";
 import { authOptions } from "@/lib/auth";
-import { env } from "@/lib/env";
+import { serverEnv } from "@/lib/env.server";
 import { PartnerSDK, type GymUpdateBody } from "@/lib/sdk";
 
 export async function saveGymAction(
@@ -44,7 +44,7 @@ export async function uploadLogoAction(
     redirect("/login?reason=session_expired");
   }
   const response = await fetch(
-    `${env.API_BASE_URL}/api/v1/partner/gym/logo`,
+    `${serverEnv.API_BASE_URL}/api/v1/partner/gym/logo`,
     {
       method: "POST",
       headers: {

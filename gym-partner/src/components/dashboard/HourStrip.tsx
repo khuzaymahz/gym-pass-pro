@@ -1,5 +1,5 @@
 import { QuietFloor } from "@/components/QuietFloor";
-import type { PartnerDashboardMetrics } from "@/lib/sdk";
+import type { PartnerDashboardMetrics } from "@/lib/sdk-types";
 
 /// Hour-of-day strip styled as a heat row. Backend returns hours in
 /// UTC; we shift to Asia/Amman (UTC+3, no DST) so the strip lines up

@@ -1,3 +1,5 @@
+import "server-only";
+
 import { z } from "zod";
 
 // Schema is the single source of truth. Required secrets have NO

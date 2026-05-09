@@ -13,7 +13,7 @@ import { resolveMediaUrl } from "@/lib/media";
 import {
   DEFAULT_LOGO_ALIGNMENT,
   type LogoAlignment,
-} from "@/lib/sdk";
+} from "@/lib/sdk-types";
 import {
   ACCEPTED_IMAGE_TYPES_ATTR,
   MAX_UPLOAD_MB,

@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-import type { GymRead, GymUpdateBody } from "@/lib/sdk";
+import type { GymRead, GymUpdateBody } from "@/lib/sdk-types";
 import { saveGymAction } from "@/app/(dashboard)/profile/actions";
 
 import { AmenitiesPicker } from "./AmenitiesPicker";
