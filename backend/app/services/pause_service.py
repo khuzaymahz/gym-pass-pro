@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.core.exceptions import AppError, ErrorCode
 from app.db.models import Subscription, SubscriptionPause
+from app.realtime import publish as realtime_publish
 from app.repositories.plan_repo import PlanRepository
 from app.repositories.subscription_pause_repo import SubscriptionPauseRepository
 from app.repositories.subscription_repo import SubscriptionRepository
@@ -144,6 +145,18 @@ class PauseService:
                 }
             },
         )
+        # Live fan-out — the My Subscription card on another open tab
+        # flips to "paused" without a manual reload.
+        await realtime_publish(
+            f"user/{subscription.user_id}",
+            {
+                "type": "subscription.paused",
+                "subscriptionId": str(subscription.id),
+                "pauseId": str(row.id),
+                "startsOn": starts_on.isoformat(),
+                "endsOn": ends_on.isoformat(),
+            },
+        )
         return row
 
     async def resume(
@@ -252,6 +265,19 @@ class PauseService:
                     "ended_at": now.isoformat(),
                     "new_expires_at": subscription.expires_at.isoformat(),
                 },
+            },
+        )
+        # Live fan-out — covers both manual-resume and auto-resume
+        # paths; subscribers re-fetch /me/subscription and the pause
+        # banner clears without a manual reload.
+        await realtime_publish(
+            f"user/{subscription.user_id}",
+            {
+                "type": "subscription.resumed",
+                "subscriptionId": str(subscription.id),
+                "pauseId": str(finalised.id),
+                "daysConsumed": days_consumed,
+                "reason": reason,
             },
         )
         return finalised

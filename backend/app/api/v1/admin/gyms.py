@@ -18,6 +18,7 @@ from app.api.deps import (
 from app.config import get_settings
 from app.core.exceptions import AppError, ErrorCode
 from app.db.models import User
+from app.realtime import publish as realtime_publish
 from app.repositories.gym_photo_repo import GymPhotoRepository
 from app.schemas.common import Page
 from app.schemas.gym import GymCreate, GymRead, GymUpdate
@@ -88,6 +89,13 @@ async def update(
 ) -> GymRead:
     gym = await svc.update(gym_id, body, actor=authed_actor(request, admin))
     await session.commit()
+    # Mirror the partner/profile.py publish so members on the gym
+    # detail page (or the explore list) re-fetch immediately when an
+    # admin edits the gym record.
+    await realtime_publish(
+        f"gym/{gym.id}",
+        {"type": "gym.updated", "gymId": str(gym.id), "slug": gym.slug},
+    )
     return GymRead.model_validate(gym)
 
 

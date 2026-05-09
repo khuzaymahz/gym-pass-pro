@@ -6,6 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 
 from app.api.deps import current_gym_owner, partner_checkin_read_service
+from app.core.exceptions import AppError, ErrorCode
 from app.db.enums import CheckinStatus
 from app.db.models import User
 from app.schemas.admin import AdminCheckinListItem
@@ -33,7 +34,11 @@ async def list_checkins(
     SDK exactly for the same row — useful when we eventually add
     cross-app support tooling.
     """
-    assert user.gym_id is not None
+    if user.gym_id is None:
+        raise AppError(
+            ErrorCode.AUTH_FORBIDDEN,
+            "Partner account not linked to a gym.",
+        )
     rows, total = await svc.list_for_gym(
         gym_id=user.gym_id,
         status=status,

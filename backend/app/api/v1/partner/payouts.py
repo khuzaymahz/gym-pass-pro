@@ -5,6 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 
 from app.api.deps import current_gym_owner, payout_agg_repo
+from app.core.exceptions import AppError, ErrorCode
 from app.db.enums import PayoutStatus
 from app.db.models import User
 from app.repositories.payout_repo import PayoutRepository
@@ -22,7 +23,11 @@ async def list_my_payouts(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100, alias="pageSize"),
 ) -> Page[AdminPayoutRead]:
-    assert user.gym_id is not None
+    if user.gym_id is None:
+        raise AppError(
+            ErrorCode.AUTH_FORBIDDEN,
+            "Partner account not linked to a gym.",
+        )
     rows, total = await repo.list_paginated(
         status=status,
         gym_id=user.gym_id,

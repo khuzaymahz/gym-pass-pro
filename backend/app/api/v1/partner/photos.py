@@ -33,7 +33,11 @@ async def list_photos(
     user: Annotated[User, Depends(current_gym_owner)],
     photos: Annotated[GymPhotoRepository, Depends(gym_photo_repo)],
 ) -> list[GymPhotoRead]:
-    assert user.gym_id is not None
+    if user.gym_id is None:
+        raise AppError(
+            ErrorCode.AUTH_FORBIDDEN,
+            "Partner account not linked to a gym.",
+        )
     rows = await photos.list_by_gym_id(user.gym_id)
     return [GymPhotoRead.model_validate(p) for p in rows]
 
@@ -51,7 +55,11 @@ async def upload_photo(
     alt_text_ar: Annotated[str | None, Form(alias="altTextAr")] = None,
     sort_order: Annotated[int | None, Form(alias="sortOrder")] = None,
 ) -> GymPhotoRead:
-    assert user.gym_id is not None
+    if user.gym_id is None:
+        raise AppError(
+            ErrorCode.AUTH_FORBIDDEN,
+            "Partner account not linked to a gym.",
+        )
     gym = await svc.get(user.gym_id)
     settings = get_settings()
 
@@ -137,7 +145,11 @@ async def update_photo(
     audit: Annotated[AuditService, Depends(audit_service)],
     session: Annotated[AsyncSession, Depends(db_session)],
 ) -> GymPhotoRead:
-    assert user.gym_id is not None
+    if user.gym_id is None:
+        raise AppError(
+            ErrorCode.AUTH_FORBIDDEN,
+            "Partner account not linked to a gym.",
+        )
     photo = await photos.get(photo_id)
     # Tenant guard: a partner can only edit photos that belong to
     # their gym. NOT_FOUND (not FORBIDDEN) so we don't leak whether
@@ -171,7 +183,11 @@ async def delete_photo(
     audit: Annotated[AuditService, Depends(audit_service)],
     session: Annotated[AsyncSession, Depends(db_session)],
 ) -> None:
-    assert user.gym_id is not None
+    if user.gym_id is None:
+        raise AppError(
+            ErrorCode.AUTH_FORBIDDEN,
+            "Partner account not linked to a gym.",
+        )
     photo = await photos.get(photo_id)
     if photo is None or photo.gym_id != user.gym_id:
         raise AppError(ErrorCode.NOT_FOUND, "Photo not found.")

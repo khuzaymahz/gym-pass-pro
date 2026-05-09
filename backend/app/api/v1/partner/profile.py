@@ -34,7 +34,11 @@ async def get_my_gym(
     user: Annotated[User, Depends(current_gym_owner)],
     svc: Annotated[GymService, Depends(gym_service)],
 ) -> GymRead:
-    assert user.gym_id is not None  # current_gym_owner guarantees this
+    if user.gym_id is None:
+        raise AppError(
+            ErrorCode.AUTH_FORBIDDEN,
+            "Partner account not linked to a gym.",
+        )
     gym = await svc.get(user.gym_id)
     return GymRead.model_validate(gym)
 
@@ -57,7 +61,11 @@ async def update_my_gym(
     current value if the partner sends them — we don't 400 because
     NextAuth-authored forms commonly re-post the full record.
     """
-    assert user.gym_id is not None
+    if user.gym_id is None:
+        raise AppError(
+            ErrorCode.AUTH_FORBIDDEN,
+            "Partner account not linked to a gym.",
+        )
     gym = await svc.get(user.gym_id)
     safe = body.model_dump(by_alias=False, exclude_unset=True)
     safe.pop("required_tier", None)
@@ -87,7 +95,11 @@ async def upload_logo(
     fit: Annotated[LogoFit | None, Form()] = None,
     position: Annotated[LogoPosition | None, Form()] = None,
 ) -> GymRead:
-    assert user.gym_id is not None
+    if user.gym_id is None:
+        raise AppError(
+            ErrorCode.AUTH_FORBIDDEN,
+            "Partner account not linked to a gym.",
+        )
     gym = await svc.get(user.gym_id)
     settings = get_settings()
 
@@ -176,7 +188,11 @@ async def delete_logo(
     audit: Annotated[AuditService, Depends(audit_service)],
     session: Annotated[AsyncSession, Depends(db_session)],
 ) -> GymRead:
-    assert user.gym_id is not None
+    if user.gym_id is None:
+        raise AppError(
+            ErrorCode.AUTH_FORBIDDEN,
+            "Partner account not linked to a gym.",
+        )
     gym = await svc.get(user.gym_id)
     settings = get_settings()
     previous_url = gym.logo_url

@@ -7,6 +7,7 @@ from uuid import UUID
 from app.core.exceptions import AppError, ErrorCode
 from app.db.enums import PayoutStatus
 from app.db.models import Gym, Payout
+from app.realtime import publish as realtime_publish
 from app.repositories.payout_repo import PayoutLedgerRepository, PayoutRepository
 from app.repositories.gym_repo import GymRepository
 from app.services.audit_service import Actor, AuditService
@@ -105,6 +106,19 @@ class AdminPayoutService:
             entity_type="payout",
             entity_id=payout.id,
             diff={"after": {"notes": notes}},
+        )
+        # Live fan-out — partner dashboard's payouts list re-fetches
+        # so the row flips from "Pending" to "Paid" without a manual
+        # reload. `partner/<gym_id>` is where partners listen (vs
+        # `user/<user_id>`) so the event shape matches the rest of
+        # the partner-only stream.
+        await realtime_publish(
+            f"partner/{payout.gym_id}",
+            {
+                "type": "payout.paid",
+                "payoutId": str(payout.id),
+                "gymId": str(payout.gym_id),
+            },
         )
         return payout
 

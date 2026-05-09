@@ -69,6 +69,36 @@ class SubscriptionRepository:
         sub.cancelled_at = now
         await self.session.flush()
 
+    async def list_expired_active(
+        self, *, now: datetime, limit: int
+    ) -> list[Subscription]:
+        """Return ACTIVE subscriptions whose `expires_at` is in the past.
+
+        Used by the `expire_subscriptions` Celery beat task. The `limit`
+        keeps a single sweep bounded; the beat schedule re-fires on a
+        regular cadence so a backlog drains across multiple invocations
+        rather than one giant transaction. Ordered by `expires_at` so
+        the longest-overdue rows are flipped first.
+        """
+        stmt = (
+            select(Subscription)
+            .where(
+                Subscription.status == SubscriptionStatus.ACTIVE,
+                Subscription.expires_at < now,
+            )
+            .order_by(Subscription.expires_at.asc())
+            .limit(limit)
+        )
+        rows = (await self.session.execute(stmt)).scalars().all()
+        return list(rows)
+
+    async def expire(self, sub: Subscription) -> None:
+        """Flip an ACTIVE subscription to EXPIRED. Caller is responsible
+        for the audit-log entry and the surrounding transaction commit.
+        """
+        sub.status = SubscriptionStatus.EXPIRED
+        await self.session.flush()
+
     async def shift_expiry(
         self, sub: Subscription, new_expires_at: datetime
     ) -> None:

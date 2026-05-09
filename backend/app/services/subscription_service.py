@@ -6,6 +6,7 @@ from app.core.exceptions import AppError, ErrorCode
 from app.db.enums import PaymentStatus, SubscriptionStatus
 from app.db.models import Plan, Subscription, User
 from app.providers.payments import PaymentProvider
+from app.realtime import publish as realtime_publish
 from app.repositories.payment_repo import PaymentRepository
 from app.repositories.plan_repo import PlanRepository
 from app.repositories.subscription_repo import SubscriptionRepository
@@ -127,6 +128,17 @@ class SubscriptionService:
             # Convert any pending referral on the invited user's first paid
             # subscription. Safe to call unconditionally — no-op if no row.
             await self.referrals.mark_converted_if_pending(user.id)
+            # Live fan-out so any other tab/device the member has open
+            # re-fetches /me/subscription instead of waiting for a
+            # manual pull.
+            await realtime_publish(
+                f"user/{user.id}",
+                {
+                    "type": "subscription.created",
+                    "subscriptionId": str(sub.id),
+                    "tier": plan.tier.value,
+                },
+            )
             return sub
         raise AppError(ErrorCode.PAYMENT_DECLINED, "Payment declined.")
 
@@ -140,6 +152,13 @@ class SubscriptionService:
         await self.audit.log(
             actor=actor, action="subscription.cancel",
             entity_type="subscription", entity_id=sub.id,
+        )
+        await realtime_publish(
+            f"user/{user.id}",
+            {
+                "type": "subscription.canceled",
+                "subscriptionId": str(sub.id),
+            },
         )
         return sub
 

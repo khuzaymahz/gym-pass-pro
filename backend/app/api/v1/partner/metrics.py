@@ -5,6 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 
 from app.api.deps import current_gym_owner, partner_metrics_service
+from app.core.exceptions import AppError, ErrorCode
 from app.db.models import User
 from app.schemas.partner import PartnerDashboardMetrics
 from app.services.partner_metrics_service import PartnerMetricsService
@@ -17,7 +18,11 @@ async def overview(
     user: Annotated[User, Depends(current_gym_owner)],
     svc: Annotated[PartnerMetricsService, Depends(partner_metrics_service)],
 ) -> PartnerDashboardMetrics:
-    assert user.gym_id is not None
+    if user.gym_id is None:
+        raise AppError(
+            ErrorCode.AUTH_FORBIDDEN,
+            "Partner account not linked to a gym.",
+        )
     data = await svc.overview(user.gym_id)
     return PartnerDashboardMetrics(
         checkinsToday=data["checkinsToday"],
