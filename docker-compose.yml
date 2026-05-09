@@ -28,6 +28,28 @@ services:
       timeout: 3s
       retries: 10
 
+  # Adminer — single-PHP-file DB browser. Reachable at
+  # http://localhost:8080 once `docker compose up -d adminer` has
+  # run. Login form prefills via `ADMINER_DEFAULT_SERVER=db`; use
+  # the same `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB`
+  # from `.env` to log in. Profile-only — not part of any prod
+  # compose; if you ever publish the dev compose to a server, drop
+  # this service first.
+  adminer:
+    image: adminer:4-standalone
+    restart: unless-stopped
+    environment:
+      ADMINER_DEFAULT_SERVER: db
+      # `pepa-linha-dark` is the cleanest dark theme that ships with
+      # the official image; matches the rest of the dev tooling so
+      # the eye doesn't switch register.
+      ADMINER_DESIGN: pepa-linha-dark
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
   backend:
     build:
       context: ./backend
