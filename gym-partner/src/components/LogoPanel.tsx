@@ -148,6 +148,7 @@ export function LogoPanel({
                 alt=""
                 fill
                 sizes="96px"
+                unoptimized
                 style={{
                   objectFit: alignment.fit,
                   objectPosition: `center ${alignment.position}`,

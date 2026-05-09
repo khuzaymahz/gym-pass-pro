@@ -184,6 +184,7 @@ export function PhotosPanel({ initial }: { initial: GymPhoto[] }) {
                   alt={p.altTextEn ?? ""}
                   fill
                   sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
+                  unoptimized
                   className="object-cover transition-transform duration-200 group-hover:scale-[1.02]"
                 />
                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />

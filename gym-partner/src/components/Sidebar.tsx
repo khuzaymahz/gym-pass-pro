@@ -190,6 +190,13 @@ function GymStatusCard({
             alt={gymName}
             fill
             sizes="36px"
+            // `unoptimized` because Next's image proxy runs server-
+            // side and tries to fetch the absolute backend URL from
+            // inside the container, where `localhost:8000` is the
+            // container's own loopback (nothing listening). With
+            // `unoptimized` Next emits a plain <img> and the browser
+            // fetches directly via the host's port mapping.
+            unoptimized
             style={{
               objectFit: logoAlignment.fit,
               objectPosition: `center ${logoAlignment.position}`,
