@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
+import GymLoader from "@/components/GymLoader";
 import type { ActionResult } from "@/lib/action-result";
 import type { AdminCreateBody, AdminUser } from "@/lib/sdk";
 
@@ -80,7 +81,11 @@ export default function AdminCreateForm({ action }: Props) {
           onChange={(e) => setPassword(e.target.value)}
         />
       </label>
-      <button className="btn-primary btn-sm" disabled={pending}>
+      <button
+        className="btn-primary btn-sm inline-flex items-center gap-2"
+        disabled={pending}
+      >
+        {pending ? <GymLoader size="sm" /> : null}
         {pending ? t("submitting") : t("submit")}
       </button>
       {error ? (

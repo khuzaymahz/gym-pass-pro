@@ -9,6 +9,7 @@ import {
   deletePhotoAction,
   uploadPhotoAction,
 } from "@/app/(dashboard)/photos/actions";
+import GymLoader from "@/components/GymLoader";
 import { resolveMediaUrl } from "@/lib/media";
 import type { GymPhoto } from "@/lib/sdk-types";
 import {
@@ -117,19 +118,23 @@ export function PhotosPanel({ initial }: { initial: GymPhoto[] }) {
               }`}
               aria-busy={pending}
             >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden
-              >
-                <path d="M12 5v14M5 12h14" />
-              </svg>
+              {pending ? (
+                <GymLoader size="sm" />
+              ) : (
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+              )}
               <span>{pending ? t("uploading") : t("upload")}</span>
             </label>
             <span className="text-[11.5px] text-muted">
