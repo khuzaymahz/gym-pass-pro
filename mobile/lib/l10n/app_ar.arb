@@ -333,6 +333,7 @@
   "@subscriptionRenewsOn": {"placeholders": {"date": {"type": "String"}}},
   "subscriptionUpgradeTo": "ترقية إلى {tier}",
   "@subscriptionUpgradeTo": {"placeholders": {"tier": {"type": "String"}}},
+  "subscriptionChangePlan": "تغيير الباقة",
   "subscriptionPerks": "ما الذي تحصل عليه",
   "subscriptionEmptyOverline": "لا توجد خطة بعد",
   "subscriptionEmptyTitle": "ابدأ اشتراكك",

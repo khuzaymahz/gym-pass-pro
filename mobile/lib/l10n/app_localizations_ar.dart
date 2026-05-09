@@ -647,6 +647,8 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String subscriptionUpgradeTo(String tier) => 'ترقية إلى $tier';
   @override
+  String get subscriptionChangePlan => 'تغيير الباقة';
+  @override
   String get subscriptionPerks => 'ما الذي تحصل عليه';
   @override
   String get subscriptionEmptyOverline => 'لا توجد خطة بعد';

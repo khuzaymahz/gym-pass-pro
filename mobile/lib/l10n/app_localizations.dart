@@ -323,6 +323,7 @@ abstract class AppLocalizations {
   String get subscriptionTitleAccent;
   String subscriptionRenewsOn(String date);
   String subscriptionUpgradeTo(String tier);
+  String get subscriptionChangePlan;
   String get subscriptionPerks;
   String get subscriptionEmptyOverline;
   String get subscriptionEmptyTitle;

@@ -645,6 +645,8 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String subscriptionUpgradeTo(String tier) => 'Upgrade to $tier';
   @override
+  String get subscriptionChangePlan => 'Change plan';
+  @override
   String get subscriptionPerks => 'WHAT YOU GET';
   @override
   String get subscriptionEmptyOverline => 'No plan yet';

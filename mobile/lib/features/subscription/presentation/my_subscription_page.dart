@@ -167,10 +167,27 @@ class MySubscriptionPage extends ConsumerWidget {
         ),
         const SizedBox(height: 10),
       ],
+      // Path to /plans, regardless of tier. For Silver / Gold /
+      // Platinum we frame it as "Upgrade to <next>" — a clearer
+      // growth-path nudge than a neutral "Change plan." For
+      // Diamond there's no higher tier to upgrade into, so the
+      // copy collapses to "Change plan" — the route still has
+      // value (downgrade, switch duration, compare what they're
+      // paying for) but framing it as an upgrade would lie.
+      // Without this fallback Diamond members had no entry into
+      // /plans from the dashboard at all, since the upgrade
+      // button was the only link.
       if (hasUpgrade)
         PillButton(
           label: l.subscriptionUpgradeTo(_tierName(l, next.key)),
           trailingIcon: Icons.arrow_upward,
+          onPressed: () => context.push('/plans'),
+        )
+      else
+        PillButton(
+          label: l.subscriptionChangePlan,
+          trailingIcon: Icons.swap_horiz,
+          variant: PillVariant.ghost,
           onPressed: () => context.push('/plans'),
         ),
       // Recent-visits feed requires a backend visit-log endpoint. Hiding the

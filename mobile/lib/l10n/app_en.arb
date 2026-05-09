@@ -333,6 +333,7 @@
   "@subscriptionRenewsOn": {"placeholders": {"date": {"type": "String"}}},
   "subscriptionUpgradeTo": "Upgrade to {tier}",
   "@subscriptionUpgradeTo": {"placeholders": {"tier": {"type": "String"}}},
+  "subscriptionChangePlan": "Change plan",
   "subscriptionPerks": "WHAT YOU GET",
   "subscriptionEmptyOverline": "No plan yet",
   "subscriptionEmptyTitle": "Start your pass",
