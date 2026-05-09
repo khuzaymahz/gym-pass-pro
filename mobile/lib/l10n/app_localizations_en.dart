@@ -338,6 +338,38 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get gymAmenityLockers => 'LOCKERS';
   @override
+  String get gymAmenityChangingRooms => 'CHANGING';
+  @override
+  String get gymAmenityTowels => 'TOWELS';
+  @override
+  String get gymAmenityWaterFountain => 'WATER';
+  @override
+  String get gymAmenityAc => 'AIR CON';
+  @override
+  String get gymAmenityFreeWeights => 'WEIGHTS';
+  @override
+  String get gymAmenityCardioMachines => 'CARDIO';
+  @override
+  String get gymAmenitySauna => 'SAUNA';
+  @override
+  String get gymAmenityPool => 'POOL';
+  @override
+  String get gymAmenitySteamRoom => 'STEAM';
+  @override
+  String get gymAmenityGroupClasses => 'CLASSES';
+  @override
+  String get gymAmenityPersonalTraining => 'PT';
+  @override
+  String get gymAmenityKidsArea => 'KIDS';
+  @override
+  String get gymAmenityWomenOnlyArea => 'WOMEN';
+  @override
+  String get gymAmenityPrayerRoom => 'PRAYER';
+  @override
+  String get gymAmenityJuiceBar => 'JUICE BAR';
+  @override
+  String get gymAmenityWheelchairAccess => 'ACCESS';
+  @override
   String get gymCheckInHere => 'Check in here';
   @override
   String get gymCheckedInRecently => 'Checked in · pass active';

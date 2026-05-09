@@ -15,6 +15,15 @@ class GymSummary {
   final double? lat;
   final double? lng;
 
+  /// Amenity slugs the partner ticked in the gym-partner profile
+  /// editor (`wifi`, `parking`, `showers`, `lockers`, `pool`,
+  /// `sauna`, …). Same slug vocabulary the partner portal's
+  /// `AmenitiesPicker` writes; mobile maps each slug to an icon +
+  /// localized label in `gym_detail_page._amenityGrid`. Empty for
+  /// gyms that haven't filled the field yet — the detail page
+  /// hides the amenities row in that case.
+  final List<String> amenities;
+
   const GymSummary({
     required this.id,
     required this.slug,
@@ -26,6 +35,7 @@ class GymSummary {
     this.area,
     this.lat,
     this.lng,
+    this.amenities = const <String>[],
   });
 
   factory GymSummary.fromJson(Map<String, dynamic> json) {
@@ -40,8 +50,16 @@ class GymSummary {
       area: json['area'] as String?,
       lat: _toDouble(json['lat']),
       lng: _toDouble(json['lng']),
+      amenities: _toStringList(json['amenities']),
     );
   }
+}
+
+List<String> _toStringList(dynamic raw) {
+  if (raw is List) {
+    return raw.whereType<String>().toList(growable: false);
+  }
+  return const <String>[];
 }
 
 /// Pydantic `Decimal` serialises to JSON as a string by default; older

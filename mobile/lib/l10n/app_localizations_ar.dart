@@ -337,6 +337,38 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get gymAmenityLockers => 'خزائن';
   @override
+  String get gymAmenityChangingRooms => 'غرف تغيير';
+  @override
+  String get gymAmenityTowels => 'مناشف';
+  @override
+  String get gymAmenityWaterFountain => 'ماء';
+  @override
+  String get gymAmenityAc => 'تكييف';
+  @override
+  String get gymAmenityFreeWeights => 'أوزان';
+  @override
+  String get gymAmenityCardioMachines => 'كارديو';
+  @override
+  String get gymAmenitySauna => 'ساونا';
+  @override
+  String get gymAmenityPool => 'مسبح';
+  @override
+  String get gymAmenitySteamRoom => 'بخار';
+  @override
+  String get gymAmenityGroupClasses => 'حصص';
+  @override
+  String get gymAmenityPersonalTraining => 'مدرّب';
+  @override
+  String get gymAmenityKidsArea => 'أطفال';
+  @override
+  String get gymAmenityWomenOnlyArea => 'للنساء';
+  @override
+  String get gymAmenityPrayerRoom => 'مصلّى';
+  @override
+  String get gymAmenityJuiceBar => 'بار عصائر';
+  @override
+  String get gymAmenityWheelchairAccess => 'وصول';
+  @override
   String get gymCheckInHere => 'سجّل حضورك هنا';
   @override
   String get gymCheckedInRecently => 'تم تسجيل الحضور · الباس فعّال';

@@ -243,7 +243,12 @@ class GymDetailPage extends ConsumerWidget {
                         const SizedBox(height: 18),
                         _accessBanner(context, l, gp, gym, included),
                         const SizedBox(height: 18),
-                        _amenityGrid(context, l, gp),
+                        _amenityGrid(
+                          context,
+                          l,
+                          gp,
+                          gymSummary?.amenities ?? const <String>[],
+                        ),
                         const SizedBox(height: 18),
                         Text(l.gymAbout.toUpperCase(),
                             style: GPText.mono(size: 10, letterSpacing: 1.8, color: gp.muted),),
@@ -442,41 +447,114 @@ class GymDetailPage extends ConsumerWidget {
     );
   }
 
-  Widget _amenityGrid(BuildContext context, AppLocalizations l, GpColors gp) {
-    final items = [
-      (Icons.wifi, l.gymAmenityWifi),
-      (Icons.local_parking, l.gymAmenityParking),
-      (Icons.shower, l.gymAmenityShowers),
-      (Icons.lock, l.gymAmenityLockers),
-    ];
-    return Row(
+  /// Renders the gym's amenities as a wrapping grid of icon + label
+  /// tiles. Driven by `gym.amenities` from the backend (`/api/v1/
+  /// gyms/by-slug/{slug}` → `GymRead.amenities`). Slugs come from the
+  /// partner portal's `AmenitiesPicker` preset list (`wifi`,
+  /// `parking`, `showers`, `lockers`, `pool`, `sauna`, …); each
+  /// known slug maps to a Material icon + an ARB-localised label.
+  /// Unknown slugs (custom entries the partner typed in) render with
+  /// a generic check icon and the slug as the label fallback.
+  ///
+  /// Empty list → entire section is skipped (no header, no padding)
+  /// so a freshly-seeded gym with no amenities filled out doesn't
+  /// render an empty box.
+  Widget _amenityGrid(
+    BuildContext context,
+    AppLocalizations l,
+    GpColors gp,
+    List<String> amenities,
+  ) {
+    if (amenities.isEmpty) return const SizedBox.shrink();
+    final items = amenities.map((slug) => _amenityFor(slug, l)).toList();
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
       children: items
           .map(
-            (it) => Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  decoration: BoxDecoration(
-                    color: gp.bg2,
-                    borderRadius: BorderRadius.circular(GPRadius.md),
-                    border: Border.all(color: gp.line),
-                    boxShadow: gp.cardShadows,
+            (it) => Container(
+              width: (MediaQuery.sizeOf(context).width - 40 - 24) / 4,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              decoration: BoxDecoration(
+                color: gp.bg2,
+                borderRadius: BorderRadius.circular(GPRadius.md),
+                border: Border.all(color: gp.line),
+                boxShadow: gp.cardShadows,
+              ),
+              child: Column(
+                children: [
+                  Icon(it.$1, color: gp.fg, size: 18),
+                  const SizedBox(height: 8),
+                  Text(
+                    it.$2,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GPText.mono(
+                      size: 8.5,
+                      letterSpacing: 1.4,
+                      color: gp.mutedSoft,
+                    ),
                   ),
-                  child: Column(
-                    children: [
-                      Icon(it.$1, color: gp.fg, size: 18),
-                      const SizedBox(height: 8),
-                      Text(it.$2,
-                          style: GPText.mono(size: 8.5, letterSpacing: 1.4, color: gp.mutedSoft),),
-                    ],
-                  ),
-                ),
+                ],
               ),
             ),
           )
           .toList(),
     );
+  }
+
+  /// Map a backend amenity slug to (icon, localised label). Slug
+  /// vocabulary mirrors `gym-partner/src/components/AmenitiesPicker.tsx`
+  /// — keep the two in sync when adding new presets.
+  (IconData, String) _amenityFor(String slug, AppLocalizations l) {
+    switch (slug) {
+      case 'wifi':
+        return (Icons.wifi, l.gymAmenityWifi);
+      case 'parking':
+        return (Icons.local_parking, l.gymAmenityParking);
+      case 'showers':
+        return (Icons.shower, l.gymAmenityShowers);
+      case 'lockers':
+        return (Icons.lock_outline, l.gymAmenityLockers);
+      case 'changing_rooms':
+        return (Icons.checkroom, l.gymAmenityChangingRooms);
+      case 'towels':
+        return (Icons.dry_cleaning, l.gymAmenityTowels);
+      case 'water_fountain':
+        return (Icons.water_drop_outlined, l.gymAmenityWaterFountain);
+      case 'ac':
+        return (Icons.ac_unit, l.gymAmenityAc);
+      case 'free_weights':
+        return (Icons.fitness_center, l.gymAmenityFreeWeights);
+      case 'cardio_machines':
+        return (Icons.directions_run, l.gymAmenityCardioMachines);
+      case 'sauna':
+        return (Icons.hot_tub, l.gymAmenitySauna);
+      case 'pool':
+        return (Icons.pool, l.gymAmenityPool);
+      case 'steam_room':
+        return (Icons.cloud, l.gymAmenitySteamRoom);
+      case 'group_classes':
+        return (Icons.groups, l.gymAmenityGroupClasses);
+      case 'personal_training':
+        return (Icons.person, l.gymAmenityPersonalTraining);
+      case 'kids_area':
+        return (Icons.child_care, l.gymAmenityKidsArea);
+      case 'women_only_area':
+        return (Icons.female, l.gymAmenityWomenOnlyArea);
+      case 'prayer_room':
+        return (Icons.mosque, l.gymAmenityPrayerRoom);
+      case 'juice_bar':
+        return (Icons.local_drink_outlined, l.gymAmenityJuiceBar);
+      case 'wheelchair_access':
+        return (Icons.accessible, l.gymAmenityWheelchairAccess);
+      default:
+        // Unknown / custom slug — partner typed something in the
+        // free-form box. Show the slug as-is (uppercase) with a
+        // generic check icon. Better than hiding it; partner's
+        // intent shipped, mobile renders it.
+        return (Icons.check_circle_outline, slug.toUpperCase());
+    }
   }
 }
 
