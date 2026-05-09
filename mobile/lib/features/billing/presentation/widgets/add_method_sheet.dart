@@ -1,9 +1,11 @@
 import 'dart:io' show Platform;
 
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/api/api_exception.dart';
 import '../../../../core/theme/gp_text.dart';
 import '../../../../core/theme/gp_tokens.dart';
 import '../../../../core/widgets/overline.dart';
@@ -15,6 +17,36 @@ import 'method_forms/apple_pay_form.dart';
 import 'method_forms/card_form.dart';
 import 'method_forms/cliq_form.dart';
 import 'method_forms/google_pay_form.dart';
+
+/// Translates a thrown error from the billing layer into a localized,
+/// user-friendly snackbar message. Mirrors the resolver in
+/// `sign_in_page.dart` so every async failure surfaces the same shape:
+///   * transport-level failures → l.errorNetwork
+///   * everything else (server validation, gateway reject, etc.) →
+///     l.snackErrorGeneric so we never leak `DioException [unknown]: null`.
+String _resolveError(Object e, AppLocalizations l) {
+  if (e is DioException) {
+    final inner = e.error;
+    if (inner is ApiException) {
+      // Server returned a structured error envelope — fall through to the
+      // generic snack rather than leaking the raw API code at the user.
+      return l.snackErrorGeneric;
+    }
+    // Genuine transport faults (no HTTP response) — geolocator-style
+    // matching against the underlying exception type.
+    final raw = inner?.toString() ?? e.toString();
+    if (raw.contains('SocketException') ||
+        raw.contains('connectionError') ||
+        raw.contains('connectionTimeout') ||
+        raw.contains('Connection refused') ||
+        raw.contains('Failed host lookup')) {
+      return l.errorNetwork;
+    }
+    return l.snackErrorGeneric;
+  }
+  if (e is ApiException) return l.snackErrorGeneric;
+  return l.snackErrorGeneric;
+}
 
 typedef OnMethodAdded = void Function(String successMessage);
 
@@ -102,9 +134,14 @@ class _AddMethodSheetBodyState extends ConsumerState<_AddMethodSheetBody> {
           );
     } catch (e) {
       if (!mounted) return;
+      // Same shape as sign_in_page._resolveError: only translate to a
+      // localized "network error" when the failure is genuinely
+      // transport-level. Everything else (validation, server-side
+      // rejection) collapses to the generic snack so we never leak
+      // raw "DioException [unknown]: null" at the user.
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(e.toString())));
+        ..showSnackBar(SnackBar(content: Text(_resolveError(e, l))));
       return;
     }
     if (!mounted) return;

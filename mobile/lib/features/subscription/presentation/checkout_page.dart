@@ -1,7 +1,9 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/api/api_exception.dart';
 import '../../../core/format/money_format.dart';
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
@@ -16,6 +18,31 @@ import '../../billing/presentation/widgets/method_icon.dart';
 import '../data/plan_pricing.dart';
 import '../data/subscription_state.dart';
 import 'plans_page.dart';
+
+/// Translates a thrown error from the checkout/purchase flow into a
+/// localized snackbar message. Same shape as the resolver in
+/// `sign_in_page.dart` — transport faults map to errorNetwork, anything
+/// else collapses to the generic snack so we never leak raw
+/// `DioException [unknown]: null` at the user.
+String _resolveCheckoutError(Object e, AppLocalizations l) {
+  if (e is DioException) {
+    final inner = e.error;
+    if (inner is ApiException) {
+      return l.snackErrorGeneric;
+    }
+    final raw = inner?.toString() ?? e.toString();
+    if (raw.contains('SocketException') ||
+        raw.contains('connectionError') ||
+        raw.contains('connectionTimeout') ||
+        raw.contains('Connection refused') ||
+        raw.contains('Failed host lookup')) {
+      return l.errorNetwork;
+    }
+    return l.snackErrorGeneric;
+  }
+  if (e is ApiException) return l.snackErrorGeneric;
+  return l.snackErrorGeneric;
+}
 
 /// Selected saved-method id for this checkout. Cleared between checkouts by
 /// resetting on the welcome page; auto-initialized from the member's default
@@ -230,9 +257,10 @@ class CheckoutPage extends ConsumerWidget {
       }
     } catch (e) {
       if (!context.mounted) return;
+      final l = AppLocalizations.of(context);
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(e.toString())));
+        ..showSnackBar(SnackBar(content: Text(_resolveCheckoutError(e, l))));
       return;
     }
     final now = DateTime.now();

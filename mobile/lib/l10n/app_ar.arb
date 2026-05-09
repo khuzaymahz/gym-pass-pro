@@ -301,6 +301,9 @@
   "checkoutExtensionRenewsOn": "التجديد الجديد",
   "errorPaymentMethod": "اختر طريقة دفع صالحة",
 
+  "welcomeBlurbLong": "بطاقتك مفعّلة. {visits} زيارة بانتظارك في جميع الأندية الشريكة ضمن الشبكة.",
+  "@welcomeBlurbLong": {"placeholders": {"visits": {"type": "String"}}},
+
   "subscriptionTitle": "اشتراكك",
   "subscriptionOverline": "بطاقتك",
   "subscriptionTitleAccent": "الحالية.",

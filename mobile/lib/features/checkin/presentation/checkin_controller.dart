@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/gp_tokens.dart';
@@ -210,11 +211,10 @@ class CheckinController extends StateNotifier<CheckinUiState> {
 
   dynamic _asApi(Object e) {
     try {
-      final dynamic err = e;
-      if (err.runtimeType.toString().contains('DioException')) {
-        return err.error;
+      if (e is DioException) {
+        return e.error;
       }
-      return err;
+      return e;
     } catch (_) {
       return null;
     }

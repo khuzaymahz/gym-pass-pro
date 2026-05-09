@@ -53,5 +53,12 @@
 	<string>GymPass uses your location to centre the Explore map on you and show how far each gym is.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>GymPass uses your location to centre the Explore map on you and show how far each gym is.</string>
+	<!-- Camera string is required by the mobile_scanner plugin which
+	     links AVCaptureDevice. Apple rejects any build that links the
+	     camera APIs without this key, even if the app never opens the
+	     scanner. The string is shown the first time the member taps
+	     "Scan to check in". -->
+	<key>NSCameraUsageDescription</key>
+	<string>GymPass uses the camera to scan the QR code at gym entrances when you check in.</string>
 </dict>
 </plist>
