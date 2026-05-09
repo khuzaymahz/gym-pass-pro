@@ -447,14 +447,21 @@ class GymDetailPage extends ConsumerWidget {
     );
   }
 
-  /// Renders the gym's amenities as a wrapping grid of icon + label
-  /// tiles. Driven by `gym.amenities` from the backend (`/api/v1/
-  /// gyms/by-slug/{slug}` → `GymRead.amenities`). Slugs come from the
-  /// partner portal's `AmenitiesPicker` preset list (`wifi`,
-  /// `parking`, `showers`, `lockers`, `pool`, `sauna`, …); each
-  /// known slug maps to a Material icon + an ARB-localised label.
-  /// Unknown slugs (custom entries the partner typed in) render with
-  /// a generic check icon and the slug as the label fallback.
+  /// Renders the gym's amenities as a horizontal scroll strip of
+  /// icon + label tiles. Driven by `gym.amenities` from the backend
+  /// (`/api/v1/gyms/by-slug/{slug}` → `GymRead.amenities`). Slugs
+  /// come from the partner portal's `AmenitiesPicker` preset list
+  /// (`wifi`, `parking`, `showers`, `lockers`, `pool`, `sauna`, …);
+  /// each known slug maps to a Material icon + an ARB-localised
+  /// label. Unknown slugs (custom entries the partner typed in)
+  /// render with a generic check icon and the slug as the label
+  /// fallback.
+  ///
+  /// Layout is a horizontal `ListView` so the strip stays one row
+  /// tall regardless of count — members swipe left/right to see
+  /// the rest. Keeps the page's vertical rhythm stable whether a
+  /// gym has 3 amenities or 20. Direction follows the locale
+  /// (RTL flips automatically via the surrounding `Directionality`).
   ///
   /// Empty list → entire section is skipped (no header, no padding)
   /// so a freshly-seeded gym with no amenities filled out doesn't
@@ -467,39 +474,57 @@ class GymDetailPage extends ConsumerWidget {
   ) {
     if (amenities.isEmpty) return const SizedBox.shrink();
     final items = amenities.map((slug) => _amenityFor(slug, l)).toList();
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: items
-          .map(
-            (it) => Container(
-              width: (MediaQuery.sizeOf(context).width - 40 - 24) / 4,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              decoration: BoxDecoration(
-                color: gp.bg2,
-                borderRadius: BorderRadius.circular(GPRadius.md),
-                border: Border.all(color: gp.line),
-                boxShadow: gp.cardShadows,
-              ),
-              child: Column(
-                children: [
-                  Icon(it.$1, color: gp.fg, size: 18),
-                  const SizedBox(height: 8),
-                  Text(
+    // Fixed tile width keeps every chip the same size regardless of
+    // label length. 88 px ≈ four-up at the previous 360 px-ish content
+    // width, so the visual matches the old static row when there are
+    // few amenities — the strip just grows scrollable as more are
+    // added.
+    const tileWidth = 88.0;
+    const tileHeight = 76.0;
+    return SizedBox(
+      height: tileHeight,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        // Bouncing physics so the swipe feels native; clamping at the
+        // edges would read as "stuck" on a short list.
+        physics: const BouncingScrollPhysics(),
+        itemCount: items.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (_, i) {
+          final it = items[i];
+          return Container(
+            width: tileWidth,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            decoration: BoxDecoration(
+              color: gp.bg2,
+              borderRadius: BorderRadius.circular(GPRadius.md),
+              border: Border.all(color: gp.line),
+              boxShadow: gp.cardShadows,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(it.$1, color: gp.fg, size: 18),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Text(
                     it.$2,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
                     style: GPText.mono(
                       size: 8.5,
                       letterSpacing: 1.4,
                       color: gp.mutedSoft,
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          )
-          .toList(),
+          );
+        },
+      ),
     );
   }
 
