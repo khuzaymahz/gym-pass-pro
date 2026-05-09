@@ -1,5 +1,6 @@
 import 'dart:ui' as ui;
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -53,6 +54,11 @@ class GymPinMarker extends ConsumerWidget {
     final initial = gymInitials(gym.nameEn);
     final size = selected ? 42.0 : 38.0;
     final ring = selected ? 2.5 : 2.0;
+    // 42 px max × DPR × 2 (Hero handoff into the detail page); capped
+    // at 128 raw pixels so a hundred pins on screen don't keep a
+    // hundred 1000-px JPEGs decoded in RAM.
+    final dpr = MediaQuery.of(context).devicePixelRatio;
+    final pixelSize = (42 * dpr * 2).round().clamp(64, 128);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
@@ -84,11 +90,32 @@ class GymPinMarker extends ConsumerWidget {
               ],
             ),
             clipBehavior: Clip.antiAlias,
+            // Real partner logo when available; tier-coloured initial
+            // disc when not. Cached + decoded-to-pin-size so panning a
+            // map full of pins doesn't refetch logos every frame.
+            // Sharing the same `CachedNetworkImageProvider` URL with
+            // the gym detail Hero means the detail page's header logo
+            // appears instantly when a member taps through from the map.
             child: gym.logoUrl != null && gym.logoUrl!.isNotEmpty
-                ? Image.network(
-                    resolveMediaUrl(apiBaseUrl, gym.logoUrl!),
+                ? CachedNetworkImage(
+                    imageUrl: resolveMediaUrl(apiBaseUrl, gym.logoUrl!),
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Center(
+                    memCacheWidth: pixelSize,
+                    memCacheHeight: pixelSize,
+                    maxWidthDiskCache: pixelSize,
+                    maxHeightDiskCache: pixelSize,
+                    fadeInDuration: const Duration(milliseconds: 160),
+                    placeholder: (_, __) => Center(
+                      child: Text(
+                        initial,
+                        style: GPText.display(
+                          initial.characters.length >= 2 ? 12.0 : 16.0,
+                          color: accent,
+                          height: 1.0,
+                        ),
+                      ),
+                    ),
+                    errorWidget: (_, __, ___) => Center(
                       child: Text(
                         initial,
                         style: GPText.display(

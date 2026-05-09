@@ -78,6 +78,14 @@ dependencies:
   flutter_map: ^7.0.2
   latlong2: ^0.9.1
 
+  # Image caching — disk + memory cache for `/api/v1/gyms/.../photos`
+  # and partner-uploaded logos. Backed by `flutter_cache_manager`
+  # (LRU disk cache with a 30-day TTL by default), so the hero photo
+  # slider and gym logos don't re-download on every cold launch and
+  # don't decode the full-resolution JPEG into RAM when we're only
+  # displaying a 400-px-wide slot.
+  cached_network_image: ^3.4.1
+
   # Utilities
   intl: ^0.20.2
   freezed_annotation: ^2.4.4

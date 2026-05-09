@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1169,6 +1170,12 @@ class _MiniAvatar extends StatelessWidget {
     final logoUrl = gym.logoUrl;
     final hasLogo = logoUrl != null && logoUrl.isNotEmpty;
     final resolved = hasLogo ? resolveMediaUrl(apiBaseUrl, logoUrl) : null;
+    final dpr = MediaQuery.maybeOf(context)?.devicePixelRatio ?? 2.0;
+    // 22 logical px × DPR × 2 (Hero / scaling headroom), capped so we
+    // never ask the decoder for more than 96 raw pixels for what is at
+    // most a 22-px disc — keeps the avatar stack light enough to render
+    // every tier card without a noticeable hitch on list scroll.
+    final pixelSize = (22 * dpr * 2).round().clamp(48, 96);
     return Container(
       width: 22,
       height: 22,
@@ -1180,17 +1187,20 @@ class _MiniAvatar extends StatelessWidget {
         border: Border.all(color: bg, width: 2),
       ),
       child: hasLogo
-          ? Image.network(
-              resolved!,
+          ? CachedNetworkImage(
+              imageUrl: resolved!,
               fit: BoxFit.cover,
               width: 22,
               height: 22,
-              // Image errors land us back on the monogram so the preview
-              // never collapses to a blank disc.
-              errorBuilder: (_, __, ___) => _MonogramText(
-                initial: initial,
-                color: accent,
-              ),
+              memCacheWidth: pixelSize,
+              memCacheHeight: pixelSize,
+              maxWidthDiskCache: pixelSize,
+              maxHeightDiskCache: pixelSize,
+              fadeInDuration: const Duration(milliseconds: 160),
+              placeholder: (_, __) =>
+                  _MonogramText(initial: initial, color: accent),
+              errorWidget: (_, __, ___) =>
+                  _MonogramText(initial: initial, color: accent),
             )
           : _MonogramText(initial: initial, color: accent),
     );

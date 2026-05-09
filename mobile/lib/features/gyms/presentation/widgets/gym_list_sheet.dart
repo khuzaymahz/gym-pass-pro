@@ -1,5 +1,6 @@
 import 'dart:ui' as ui;
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -418,6 +419,12 @@ class HeroLogo extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final initial = gymInitials(gym.nameEn);
     final apiBaseUrl = ref.watch(envProvider).apiBaseUrl;
+    // 72-px disc × DPR × 2 (Hero scale-up into the gym detail header,
+    // which is 56-px but animates from this 72-px source). Capped at
+    // 256 px raw so we don't keep a 4 MB partner JPEG decoded for a
+    // floating card.
+    final dpr = MediaQuery.of(context).devicePixelRatio;
+    final pixelSize = (72 * dpr * 2).round().clamp(96, 256);
     return Container(
       width: 72,
       height: 72,
@@ -438,10 +445,16 @@ class HeroLogo extends ConsumerWidget {
       ),
       clipBehavior: Clip.antiAlias,
       child: gym.logoUrl != null && gym.logoUrl!.isNotEmpty
-          ? Image.network(
-              resolveMediaUrl(apiBaseUrl, gym.logoUrl!),
+          ? CachedNetworkImage(
+              imageUrl: resolveMediaUrl(apiBaseUrl, gym.logoUrl!),
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => _initialFallback(initial, accent),
+              memCacheWidth: pixelSize,
+              memCacheHeight: pixelSize,
+              maxWidthDiskCache: pixelSize,
+              maxHeightDiskCache: pixelSize,
+              fadeInDuration: const Duration(milliseconds: 200),
+              placeholder: (_, __) => _initialFallback(initial, accent),
+              errorWidget: (_, __, ___) => _initialFallback(initial, accent),
             )
           : _initialFallback(initial, accent),
     );

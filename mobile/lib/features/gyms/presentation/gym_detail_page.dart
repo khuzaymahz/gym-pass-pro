@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -738,6 +739,7 @@ class _PhotoSlider extends StatefulWidget {
 class _PhotoSliderState extends State<_PhotoSlider> {
   final PageController _controller = PageController();
   int _index = 0;
+  bool _firstPrefetchDone = false;
 
   @override
   void dispose() {
@@ -745,8 +747,52 @@ class _PhotoSliderState extends State<_PhotoSlider> {
     super.dispose();
   }
 
+  /// Decoded-bitmap target width. The page hero is the device width
+  /// rendered at the device pixel ratio — anything bigger than that
+  /// is wasted RAM and decode time. Capped at 1600 px so a 4K phone
+  /// with 3.5× DPR (≈1400 logical × 3.5 = 4900 raw) doesn't try to
+  /// keep a 50 MB bitmap in cache; the cap is well above any sane
+  /// hero JPEG.
+  int _targetCacheWidth(BuildContext context) {
+    final mq = MediaQuery.of(context);
+    final raw = (mq.size.width * mq.devicePixelRatio).round();
+    return raw.clamp(360, 1600);
+  }
+
+  /// `precacheImage` decodes the JPEG into the image-cache so when
+  /// `PageView` builds the neighbour child, the bitmap is already
+  /// ready and the swipe doesn't wait on network → decode. We do
+  /// this on first frame for the visible page + the next one, then
+  /// chase the user as they swipe.
+  void _prefetchNeighbours(BuildContext context, int center) {
+    final w = _targetCacheWidth(context);
+    final candidates = <int>{center - 1, center + 1};
+    for (final i in candidates) {
+      if (i < 0 || i >= widget.photos.length) continue;
+      final url = _resolvePhotoUrl(widget.mediaBase, widget.photos[i].url);
+      final provider = ResizeImage(
+        CachedNetworkImageProvider(url),
+        width: w,
+      );
+      // `precacheImage` is a no-op if the provider is already in the
+      // cache, so calling it on every page change is cheap.
+      precacheImage(provider, context);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final cacheW = _targetCacheWidth(context);
+    if (!_firstPrefetchDone) {
+      _firstPrefetchDone = true;
+      // Defer to post-frame so the surrounding Scaffold has a chance
+      // to lay out — `precacheImage` reads the size from MediaQuery,
+      // which is stable by then.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _prefetchNeighbours(context, _index);
+      });
+    }
     return Stack(
       children: [
         Positioned.fill(
@@ -761,22 +807,41 @@ class _PhotoSliderState extends State<_PhotoSlider> {
             child: PageView.builder(
               controller: _controller,
               itemCount: widget.photos.length,
-              onPageChanged: (i) => setState(() => _index = i),
+              onPageChanged: (i) {
+                setState(() => _index = i);
+                _prefetchNeighbours(context, i);
+              },
               itemBuilder: (_, i) {
                 final photo = widget.photos[i];
                 final alt = widget.isAr
                     ? (photo.altTextAr ?? photo.altTextEn ?? '')
                     : (photo.altTextEn ?? photo.altTextAr ?? '');
-                return Image.network(
-                  _resolvePhotoUrl(widget.mediaBase, photo.url),
-                  fit: BoxFit.cover,
-                  semanticLabel: alt,
-                  loadingBuilder: (context, child, progress) {
-                    if (progress == null) return child;
-                    return Container(color: widget.fadeColor);
-                  },
-                  errorBuilder: (_, __, ___) =>
-                      Container(color: widget.fadeColor),
+                return Semantics(
+                  label: alt,
+                  image: true,
+                  // `CachedNetworkImage` adds three things `Image.network`
+                  // doesn't:
+                  //   1. `flutter_cache_manager`-backed disk cache —
+                  //      cold launches no longer re-fetch every photo.
+                  //   2. `memCacheWidth` — the JPEG decodes to the
+                  //      display width, not the source width, so a
+                  //      4000-px hero doesn't sit in RAM as a
+                  //      4000×3000 ARGB bitmap (≈48 MB) for a
+                  //      400-px slot.
+                  //   3. `fadeInDuration` — the new photo crossfades
+                  //      from the placeholder, which masks the brief
+                  //      decode pause when paging.
+                  child: CachedNetworkImage(
+                    imageUrl: _resolvePhotoUrl(widget.mediaBase, photo.url),
+                    fit: BoxFit.cover,
+                    memCacheWidth: cacheW,
+                    maxWidthDiskCache: cacheW,
+                    fadeInDuration: const Duration(milliseconds: 200),
+                    fadeOutDuration: const Duration(milliseconds: 80),
+                    placeholder: (_, __) => Container(color: widget.fadeColor),
+                    errorWidget: (_, __, ___) =>
+                        Container(color: widget.fadeColor),
+                  ),
                 );
               },
             ),
