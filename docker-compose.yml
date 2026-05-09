@@ -102,7 +102,10 @@ services:
       NEXT_PUBLIC_API_URL: http://localhost:8000
       BACKEND_API_URL: http://backend:8000
       NEXTAUTH_URL: http://localhost:3001
-      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-dev-nextauth-secret-change-me}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-dev-nextauth-secret-min-16-chars-please}
+      # MUST match backend env exactly. Dev default lives here (and
+      # in .env.example) so production deploys are forced to set it.
+      ADMIN_EXCHANGE_SECRET: ${ADMIN_EXCHANGE_SECRET:-changeme-admin-exchange-secret-dev-only}
     volumes:
       - ./admin:/app
       - admin_node_modules:/app/node_modules
@@ -122,6 +125,7 @@ services:
       BACKEND_API_URL: http://backend:8000
       NEXTAUTH_URL: http://localhost:3003
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-dev-nextauth-secret-change-me}
+      ADMIN_EXCHANGE_SECRET: ${ADMIN_EXCHANGE_SECRET:-changeme-admin-exchange-secret-dev-only}
     volumes:
       - ./gym-partner:/app
       - gym_partner_node_modules:/app/node_modules

@@ -1,3 +1,5 @@
+import { getTranslations } from "next-intl/server";
+
 import AdminCreateForm from "@/components/AdminCreateForm";
 import AdminResetPassword from "@/components/AdminResetPassword";
 import EmptyState from "@/components/EmptyState";
@@ -5,6 +7,7 @@ import StatTile from "@/components/StatTile";
 import StatusPill from "@/components/StatusPill";
 import Toolbar from "@/components/Toolbar";
 import { runAction } from "@/lib/action-result";
+import { AdminCreateBodySchema, parseAction } from "@/lib/action-schemas";
 import { AdminSDK, type AdminCreateBody } from "@/lib/sdk";
 
 function formatDate(iso: string): string {
@@ -24,13 +27,26 @@ export default async function AdminsPage() {
     role: "admin",
     pageSize: 100,
   });
+  const t = await getTranslations("admins");
+  const tStats = await getTranslations("admins.stats");
+  const tTable = await getTranslations("admins.table");
+  const tEmpty = await getTranslations("admins.empty");
 
   async function createAdmin(body: AdminCreateBody) {
     "use server";
-    return runAction(() => AdminSDK.createAdmin(body));
+    const validated = parseAction(AdminCreateBodySchema, body);
+    if (!validated.ok) return validated;
+    return runAction(() => AdminSDK.createAdmin(validated.data));
   }
   async function resetPassword(id: string, password: string) {
     "use server";
+    if (typeof password !== "string" || password.length < 12 || password.length > 128) {
+      return {
+        ok: false as const,
+        code: "VALIDATION_ERROR",
+        message: "Password must be 12–128 characters.",
+      };
+    }
     return runAction(() => AdminSDK.resetAdminPassword(id, password));
   }
 
@@ -40,38 +56,38 @@ export default async function AdminsPage() {
   return (
     <section className="flex flex-col gap-5">
       <Toolbar
-        title="Admins"
-        description="Everyone with a seat at this console. Creation and resets are audit-logged."
-        count={{ label: "total", value: result.items.length }}
+        title={t("title")}
+        description={t("description")}
+        count={{ label: t("total"), value: result.items.length }}
       />
 
       <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-        <StatTile label="Active" value={activeCount} tone="ok" />
+        <StatTile label={tStats("active")} value={activeCount} tone="ok" />
         <StatTile
-          label="Deactivated"
+          label={tStats("deactivated")}
           value={inactiveCount}
           tone={inactiveCount > 0 ? "warn" : "default"}
         />
-        <StatTile label="Total seats" value={result.items.length} />
-        <StatTile label="Added this month" value={monthAdds(result.items)} />
+        <StatTile label={tStats("totalSeats")} value={result.items.length} />
+        <StatTile
+          label={tStats("addedThisMonth")}
+          value={monthAdds(result.items)}
+        />
       </div>
 
       <AdminCreateForm action={createAdmin} />
 
       {result.items.length === 0 ? (
-        <EmptyState
-          title="No admins yet"
-          hint="Provision yourself or a colleague above."
-        />
+        <EmptyState title={tEmpty("title")} hint={tEmpty("hint")} />
       ) : (
         <div className="panel overflow-hidden">
           <table className="table">
             <thead>
               <tr>
-                <th>Admin</th>
-                <th>Email</th>
-                <th>Joined</th>
-                <th>Status</th>
+                <th>{tTable("admin")}</th>
+                <th>{tTable("email")}</th>
+                <th>{tTable("joined")}</th>
+                <th>{tTable("status")}</th>
                 <th className="w-0" />
               </tr>
             </thead>
@@ -83,7 +99,7 @@ export default async function AdminsPage() {
                     <td className="min-w-0">
                       <div className="flex min-w-0 flex-col leading-tight">
                         <span className="truncate font-medium text-paper">
-                          {a.name ?? "Unnamed admin"}
+                          {a.name ?? tTable("unnamed")}
                         </span>
                         <span className="truncate text-[11px] text-muted num">
                           {a.id.slice(0, 8)}
@@ -96,7 +112,7 @@ export default async function AdminsPage() {
                     </td>
                     <td>
                       <StatusPill tone={a.deletedAt ? "bad" : "ok"}>
-                        {a.deletedAt ? "Disabled" : "Active"}
+                        {a.deletedAt ? tTable("disabled") : tTable("active")}
                       </StatusPill>
                     </td>
                     <td className="text-right">

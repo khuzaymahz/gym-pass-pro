@@ -32,6 +32,21 @@ const securityHeaders = [
   },
 ];
 
+// next/image needs an explicit allowlist of remote hosts the
+// optimizer is allowed to fetch from. Backend serves /media/* under
+// these hosts in our environments:
+//   - localhost:8000      — host-machine dev
+//   - backend:8000        — admin container in docker compose
+//   - api.gym-pass.net    — production
+// The wildcard line matches the prod domain plus any preview
+// subdomains we spin up for staging.
+const remoteImagePatterns = [
+  { protocol: "http", hostname: "localhost", port: "8000", pathname: "/**" },
+  { protocol: "http", hostname: "backend", port: "8000", pathname: "/**" },
+  { protocol: "https", hostname: "api.gym-pass.net", pathname: "/**" },
+  { protocol: "https", hostname: "*.gym-pass.net", pathname: "/**" },
+];
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -39,6 +54,9 @@ const nextConfig = {
   poweredByHeader: false,
   experimental: {
     typedRoutes: false,
+  },
+  images: {
+    remotePatterns: remoteImagePatterns,
   },
   async headers() {
     return [

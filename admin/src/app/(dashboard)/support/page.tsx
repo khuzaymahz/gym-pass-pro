@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
 import EmptyState from "@/components/EmptyState";
 import { FilterBar, Segmented, SearchInput } from "@/components/FilterBar";
@@ -92,6 +93,14 @@ export default async function SupportPage({
   searchParams: Promise<SearchParams>;
 }) {
   const params = await searchParams;
+  const t = await getTranslations("support");
+  const tStats = await getTranslations("support.stats");
+  const tTable = await getTranslations("support.table");
+  const tEmpty = await getTranslations("support.empty");
+  const tFilters = await getTranslations("support.filters");
+  const tStatuses = await getTranslations("support.statuses");
+  const tPriorities = await getTranslations("support.priorities");
+  const tCategories = await getTranslations("support.categories");
   const status = parseStatus(params.status);
   const priority = parsePriority(params.priority);
   const category = parseCategory(params.category);
@@ -127,53 +136,57 @@ export default async function SupportPage({
   return (
     <section className="flex flex-col gap-5">
       <Toolbar
-        title="Support"
-        description="Member-submitted tickets from the mobile app. Reply, reassign, resolve."
-        count={{ label: "matching", value: result.total.toLocaleString() }}
+        title={t("title")}
+        description={t("description")}
+        count={{ label: tStats("total"), value: result.total.toLocaleString() }}
       />
 
       <div className="grid grid-cols-2 gap-2 md:grid-cols-6">
         <StatTile
-          label="Open"
+          label={tStats("open")}
           value={openCount}
           tone={openCount > 0 ? "warn" : "ok"}
         />
         <StatTile
-          label="Urgent (page)"
+          label={tPriorities("urgent")}
           value={urgentOnPage}
           tone={urgentOnPage > 0 ? "bad" : "default"}
         />
-        <StatTile label="In progress" value={stats.inProgress} tone="info" />
-        <StatTile label="Waiting user" value={stats.waitingUser} />
-        <StatTile label="Resolved" value={stats.resolved} tone="ok" />
-        <StatTile label="Closed" value={stats.closed} />
+        <StatTile
+          label={tStats("inProgress")}
+          value={stats.inProgress}
+          tone="info"
+        />
+        <StatTile label={tStats("waitingUser")} value={stats.waitingUser} />
+        <StatTile label={tStats("resolved")} value={stats.resolved} tone="ok" />
+        <StatTile label={tStats("closed")} value={stats.closed} />
       </div>
 
       <FilterBar>
         <Segmented
           value={status}
           options={STATUSES}
-          labelFor={(s) => s.replace("_", " ")}
+          labelFor={(s) => tStatuses(s)}
           hrefFor={(s) => hrefFor({ status: s, page: undefined })}
         />
         <Segmented
           value={priority}
           options={PRIORITIES}
-          labelFor={(p) => p.charAt(0).toUpperCase() + p.slice(1)}
+          labelFor={(p) => tPriorities(p)}
           hrefFor={(p) => hrefFor({ priority: p, page: undefined })}
-          allLabel="Any priority"
+          allLabel={tFilters("allPriorities")}
         />
         <Segmented
           value={category}
           options={CATEGORIES}
-          labelFor={(c) => c.replace("_", " ")}
+          labelFor={(c) => tCategories(c)}
           hrefFor={(c) => hrefFor({ category: c, page: undefined })}
-          allLabel="Any category"
+          allLabel={tFilters("allCategories")}
         />
         <div className="ml-auto">
           <SearchInput
             defaultValue={q}
-            placeholder="Subject, body, member…"
+            placeholder={tFilters("search")}
             action="/support"
             hidden={{
               status: params.status,
@@ -186,62 +199,64 @@ export default async function SupportPage({
 
       {result.items.length === 0 ? (
         <EmptyState
-          title="No tickets match"
-          hint="Clear filters to see the full queue."
-          action={{ href: "/support", label: "Clear filters" }}
+          title={tEmpty("title")}
+          hint={tEmpty("hint")}
+          action={{ href: "/support", label: tFilters("allStatuses") }}
         />
       ) : (
         <div className="panel overflow-hidden">
           <table className="table">
             <thead>
               <tr>
-                <th>Subject</th>
-                <th>Member</th>
-                <th>Category</th>
-                <th>Priority</th>
-                <th>Status</th>
-                <th>Updated</th>
+                <th>{tTable("subject")}</th>
+                <th>{tTable("member")}</th>
+                <th>{tTable("category")}</th>
+                <th>{tTable("priority")}</th>
+                <th>{tTable("status")}</th>
+                <th>{tTable("updated")}</th>
               </tr>
             </thead>
             <tbody>
-              {result.items.map((t) => (
-                <tr key={t.id}>
+              {result.items.map((ticket) => (
+                <tr key={ticket.id}>
                   <td className="min-w-0">
                     <Link
-                      href={`/support/${t.id}`}
+                      href={`/support/${ticket.id}`}
                       className="flex min-w-0 flex-col leading-tight hover:text-lime"
                     >
-                      <span className="truncate text-paper">{t.subject}</span>
+                      <span className="truncate text-paper">
+                        {ticket.subject}
+                      </span>
                       <span className="truncate text-[11px] text-muted num">
-                        {t.id.slice(0, 8)}
+                        {ticket.id.slice(0, 8)}
                       </span>
                     </Link>
                   </td>
                   <td className="min-w-0">
                     <div className="flex min-w-0 flex-col leading-tight">
                       <span className="truncate text-paper/90">
-                        {t.userName ?? "—"}
+                        {ticket.userName ?? "—"}
                       </span>
                       <span className="truncate text-[11px] text-muted">
-                        {t.userEmail ?? t.userPhone ?? ""}
+                        {ticket.userEmail ?? ticket.userPhone ?? ""}
                       </span>
                     </div>
                   </td>
                   <td className="capitalize text-muted">
-                    {t.category.replace("_", " ")}
+                    {tCategories(ticket.category)}
                   </td>
                   <td>
-                    <StatusPill tone={PRIORITY_TONE[t.priority]}>
-                      {t.priority}
+                    <StatusPill tone={PRIORITY_TONE[ticket.priority]}>
+                      {tPriorities(ticket.priority)}
                     </StatusPill>
                   </td>
                   <td>
-                    <StatusPill tone={STATUS_TONE[t.status]}>
-                      {t.status.replace("_", " ")}
+                    <StatusPill tone={STATUS_TONE[ticket.status]}>
+                      {tStatuses(ticket.status)}
                     </StatusPill>
                   </td>
                   <td className="num text-[11.5px] text-muted whitespace-nowrap">
-                    {formatDate(t.updatedAt)}
+                    {formatDate(ticket.updatedAt)}
                   </td>
                 </tr>
               ))}

@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 
@@ -13,6 +15,7 @@ type Props = {
 
 export default function GymLogoPanel({ logoUrl, uploadAction, deleteAction }: Props) {
   const router = useRouter();
+  const t = useTranslations("gyms.logo");
   const [pending, startTransition] = useTransition();
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
@@ -27,7 +30,7 @@ export default function GymLogoPanel({ logoUrl, uploadAction, deleteAction }: Pr
     event.preventDefault();
     setError(null);
     if (!file) {
-      setError("Pick an image first.");
+      setError(t("pickImage"));
       return;
     }
     const formData = new FormData();
@@ -62,26 +65,25 @@ export default function GymLogoPanel({ logoUrl, uploadAction, deleteAction }: Pr
     <section className="panel flex flex-col gap-3 p-4">
       <header className="flex items-center justify-between">
         <div>
-          <h2 className="text-sm font-semibold">Logo</h2>
-          <p className="text-[11px] text-muted">
-            Square mark used wherever this gym is referenced — gym list, detail,
-            and plan network sheets. Stored on the backend.
-          </p>
+          <h2 className="text-sm font-semibold">{t("title")}</h2>
+          <p className="text-[11px] text-muted">{t("description")}</p>
         </div>
       </header>
 
       <div className="flex items-center gap-4">
-        <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-line bg-surface-2">
+        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-line bg-surface-2">
           {logoUrl ? (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
+            <Image
               src={logoUrl}
-              alt="Gym logo"
-              className="h-full w-full object-cover"
+              alt={t("alt")}
+              fill
+              sizes="80px"
+              className="object-cover"
+              unoptimized
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-[10px] uppercase tracking-widest text-muted">
-              No logo
+              {t("noLogo")}
             </div>
           )}
         </div>
@@ -98,8 +100,11 @@ export default function GymLogoPanel({ logoUrl, uploadAction, deleteAction }: Pr
           <div className="flex items-center justify-between">
             <span className="text-[11px] text-muted">
               {file
-                ? `${file.name} · ${Math.round(file.size / 1024)} KB`
-                : "JPEG / PNG / WebP — square images work best."}
+                ? t("fileSummary", {
+                    name: file.name,
+                    kb: Math.round(file.size / 1024),
+                  })
+                : t("hint")}
             </span>
             <div className="flex gap-2">
               {logoUrl ? (
@@ -109,11 +114,15 @@ export default function GymLogoPanel({ logoUrl, uploadAction, deleteAction }: Pr
                   disabled={blocking}
                   onClick={onDelete}
                 >
-                  Remove
+                  {t("remove")}
                 </button>
               ) : null}
               <button className="btn-primary btn-sm" disabled={blocking || !file}>
-                {busy ? "Uploading…" : logoUrl ? "Replace logo" : "Upload logo"}
+                {busy
+                  ? t("uploading")
+                  : logoUrl
+                    ? t("replace")
+                    : t("upload")}
               </button>
             </div>
           </div>

@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 
@@ -26,6 +28,7 @@ export default function GymPhotosPanel({
   deleteAction,
 }: Props) {
   const router = useRouter();
+  const t = useTranslations("gyms.photos");
   const [pending, startTransition] = useTransition();
   const [file, setFile] = useState<File | null>(null);
   const [altEn, setAltEn] = useState("");
@@ -44,7 +47,7 @@ export default function GymPhotosPanel({
     event.preventDefault();
     setError(null);
     if (!file) {
-      setError("Pick an image first.");
+      setError(t("errorPickFirst"));
       return;
     }
     const formData = new FormData();
@@ -112,13 +115,12 @@ export default function GymPhotosPanel({
     <section className="panel flex flex-col gap-3 p-4">
       <header className="flex items-center justify-between">
         <div>
-          <h2 className="text-sm font-semibold">Photos</h2>
-          <p className="text-[11px] text-muted">
-            Upload JPEG, PNG, or WebP images. Files are stored on the backend
-            and streamed to the mobile slider in sort order.
-          </p>
+          <h2 className="text-sm font-semibold">{t("title")}</h2>
+          <p className="text-[11px] text-muted">{t("description")}</p>
         </div>
-        <span className="text-[11px] text-muted">{sorted.length} uploaded</span>
+        <span className="text-[11px] text-muted">
+          {t("uploaded", { count: sorted.length })}
+        </span>
       </header>
 
       <form
@@ -126,7 +128,7 @@ export default function GymPhotosPanel({
         className="grid grid-cols-1 gap-2 md:grid-cols-4"
       >
         <label className="field md:col-span-2">
-          <span className="field-label">Image file</span>
+          <span className="field-label">{t("imageFile")}</span>
           <input
             ref={fileInputRef}
             className="input input-sm"
@@ -137,7 +139,7 @@ export default function GymPhotosPanel({
           />
         </label>
         <label className="field">
-          <span className="field-label">Alt (EN)</span>
+          <span className="field-label">{t("altEn")}</span>
           <input
             className="input input-sm"
             value={altEn}
@@ -145,7 +147,7 @@ export default function GymPhotosPanel({
           />
         </label>
         <label className="field">
-          <span className="field-label">Alt (AR)</span>
+          <span className="field-label">{t("altAr")}</span>
           <input
             className="input input-sm"
             dir="rtl"
@@ -155,10 +157,15 @@ export default function GymPhotosPanel({
         </label>
         <div className="md:col-span-4 flex items-center justify-between">
           <span className="text-[11px] text-muted">
-            {file ? `${file.name} · ${Math.round(file.size / 1024)} KB` : "No file selected."}
+            {file
+              ? t("fileSummary", {
+                  name: file.name,
+                  kb: Math.round(file.size / 1024),
+                })
+              : t("noFile")}
           </span>
           <button className="btn-primary btn-sm" disabled={busy || !file}>
-            {uploading ? "Uploading…" : "Upload photo"}
+            {uploading ? t("uploading") : t("uploadPhoto")}
           </button>
         </div>
       </form>
@@ -169,7 +176,7 @@ export default function GymPhotosPanel({
 
       {sorted.length === 0 ? (
         <p className="rounded border border-dashed border-line px-3 py-6 text-center text-[12px] text-muted">
-          No photos yet. Upload the first image above.
+          {t("noPhotosYet")}
         </p>
       ) : (
         <ul className="flex flex-col gap-2">
@@ -211,6 +218,7 @@ function PhotoRow({
   onAltSave: (en: string, ar: string) => void;
   pending: boolean;
 }) {
+  const t = useTranslations("gyms.photos");
   const [editing, setEditing] = useState(false);
   const [altEn, setAltEn] = useState(photo.altTextEn ?? "");
   const [altAr, setAltAr] = useState(photo.altTextAr ?? "");
@@ -218,11 +226,13 @@ function PhotoRow({
   return (
     <li className="flex items-start gap-3 rounded border border-line bg-surface-1 p-2">
       <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded bg-surface-2">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <Image
           src={photo.url}
           alt={photo.altTextEn ?? ""}
-          className="h-full w-full object-cover"
+          fill
+          sizes="96px"
+          className="object-cover"
+          unoptimized
         />
       </div>
 
@@ -242,13 +252,13 @@ function PhotoRow({
           <div className="grid grid-cols-1 gap-1 md:grid-cols-2">
             <input
               className="input input-sm"
-              placeholder="Alt (EN)"
+              placeholder={t("altPlaceholderEn")}
               value={altEn}
               onChange={(e) => setAltEn(e.target.value)}
             />
             <input
               className="input input-sm"
-              placeholder="Alt (AR)"
+              placeholder={t("altPlaceholderAr")}
               dir="rtl"
               value={altAr}
               onChange={(e) => setAltAr(e.target.value)}
@@ -263,7 +273,7 @@ function PhotoRow({
                   setEditing(false);
                 }}
               >
-                Save alt text
+                {t("altSave")}
               </button>
               <button
                 type="button"
@@ -274,7 +284,7 @@ function PhotoRow({
                   setEditing(false);
                 }}
               >
-                Cancel
+                {t("cancel")}
               </button>
             </div>
           </div>
@@ -293,7 +303,7 @@ function PhotoRow({
             className="btn-ghost btn-sm"
             disabled={!canMoveUp || pending}
             onClick={onMoveUp}
-            title="Move up"
+            title={t("moveUp")}
           >
             ↑
           </button>
@@ -302,7 +312,7 @@ function PhotoRow({
             className="btn-ghost btn-sm"
             disabled={!canMoveDown || pending}
             onClick={onMoveDown}
-            title="Move down"
+            title={t("moveDown")}
           >
             ↓
           </button>
@@ -313,7 +323,7 @@ function PhotoRow({
             className="btn-ghost btn-sm"
             onClick={() => setEditing((v) => !v)}
           >
-            {editing ? "…" : "Edit alt"}
+            {editing ? t("altPending") : t("editAlt")}
           </button>
           <button
             type="button"
@@ -321,7 +331,7 @@ function PhotoRow({
             disabled={pending}
             onClick={onDelete}
           >
-            Delete
+            {t("delete")}
           </button>
         </div>
       </div>

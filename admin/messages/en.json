@@ -38,13 +38,39 @@
   },
   "common": {
     "save": "Save",
+    "saving": "Saving…",
     "cancel": "Cancel",
     "saved": "Saved",
+    "savedDot": "Saved.",
     "loading": "Loading…",
     "error": "Something went wrong",
+    "errorGeneric": "Something went wrong.",
     "empty": "No data",
     "noChanges": "No changes to save",
-    "retry": "Retry"
+    "noChangesToSave": "No changes to save.",
+    "retry": "Retry",
+    "viewAll": "View all",
+    "all": "All",
+    "filter": "Filter",
+    "search": "Search",
+    "next": "Next",
+    "prev": "Previous",
+    "delete": "Delete",
+    "remove": "Remove",
+    "edit": "Edit",
+    "open": "Open",
+    "close": "Close",
+    "yes": "Yes",
+    "no": "No",
+    "on": "On",
+    "off": "Off",
+    "active": "Active",
+    "inactive": "Inactive",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "none": "—",
+    "of": "of",
+    "back": "Back"
   },
   "login": {
     "title": "Sign in",
@@ -52,14 +78,579 @@
     "email": "Email",
     "password": "Password",
     "submit": "Sign in",
-    "withGoogle": "Continue with Google"
+    "submitting": "Signing in…",
+    "withGoogle": "Continue with Google",
+    "invalid": "Invalid credentials.",
+    "footer": "Internal console for the GymPass team."
+  },
+  "error": {
+    "eyebrow": "Something went wrong",
+    "title": "We couldn't load this page.",
+    "body": "There was a problem talking to the GymPass server. This is usually a transient hiccup — try again, and if it keeps happening reach out to ops.",
+    "retry": "Retry",
+    "goHome": "Go to dashboard",
+    "ref": "Ref"
   },
   "dashboard": {
-    "title": "Overview",
+    "title": "Dashboard",
+    "description": "Operations overview for the current workspace.",
     "health": {
       "allSystems": "All systems",
       "degraded": "Degraded"
     },
-    "noPriorMonth": "No prior month"
+    "noPriorMonth": "No prior month",
+    "needsAttention": "Needs attention",
+    "openQueue": "Open queue",
+    "stats": {
+      "members": "Members",
+      "membersSub": "{count} in 30d",
+      "activeSubs": "Active subs",
+      "activeSubsSub": "{count} expiring ≤7d",
+      "gyms": "Gyms",
+      "checkinsToday": "Check-ins · today",
+      "checkinsTodaySub": "{count} MTD",
+      "pendingPayouts": "Pending payouts",
+      "revenueMtd": "Revenue · MTD",
+      "revenueDeltaSub": "{sign}{delta}% vs prev"
+    },
+    "panels": {
+      "checkins": "Check-ins",
+      "revenue": "Revenue",
+      "signups": "Signups",
+      "tierSplit": "Active subs · tier split",
+      "topGyms": "Top gyms",
+      "topGymsSub": "MTD check-ins",
+      "recentSignups": "Recent signups",
+      "recentCheckins": "Recent check-ins",
+      "last30Days": "Last 30 days"
+    },
+    "feeds": {
+      "allUsers": "All users",
+      "allCheckins": "All check-ins",
+      "topGymsEmpty": "Check-ins will rank gyms here.",
+      "noMembersYet": "No members yet.",
+      "noScans": "No scans recorded.",
+      "noSignups": "No signups in window.",
+      "noData": "No data"
+    },
+    "attention": {
+      "urgentTickets": "urgent tickets",
+      "openTickets": "open tickets",
+      "expiringSubs": "subs expiring ≤7d"
+    }
+  },
+  "users": {
+    "title": "Users",
+    "description": "Every member and admin in the system.",
+    "edit": {
+      "firstName": "First name",
+      "lastName": "Last name",
+      "gender": "Gender",
+      "genderMale": "male",
+      "genderFemale": "female",
+      "birthdate": "Birthdate",
+      "email": "Email",
+      "phone": "Phone",
+      "role": "Role",
+      "roleMember": "member",
+      "roleAdmin": "admin",
+      "locale": "Locale",
+      "localeAr": "ar",
+      "localeEn": "en",
+      "status": "Status",
+      "active": "Account active",
+      "save": "Save changes",
+      "footerHint": "Role + status changes are audit-logged."
+    },
+    "detail": {
+      "back": "Users",
+      "totalPaid": "Total paid",
+      "subscriptions": "Subscriptions",
+      "noneActive": "None active",
+      "active": "Active · {tier}",
+      "openTickets": "Open tickets",
+      "totalTickets": "{count} total",
+      "referrals": "Referrals",
+      "converted": "{count} converted",
+      "profile": "Profile",
+      "subsHistory": "Subscriptions & tier history",
+      "records": "{count} record",
+      "recordsPlural": "{count} records",
+      "noSubs": "No subscriptions yet.",
+      "tier": "Tier",
+      "status": "Status",
+      "window": "Window",
+      "visits": "Visits",
+      "price": "Price",
+      "autoRenew": "Auto-renew",
+      "monthsPlan": "{count} mo plan",
+      "cancelled": "cancelled {date}",
+      "payments": "Payments",
+      "noPayments": "No payments yet.",
+      "method": "Method",
+      "detail": "Detail",
+      "amount": "Amount",
+      "when": "When",
+      "supportHistory": "Support history",
+      "tickets": "{count} ticket",
+      "ticketsPlural": "{count} tickets",
+      "noTickets": "No support tickets.",
+      "subject": "Subject",
+      "category": "Category",
+      "priority": "Priority",
+      "updated": "Updated",
+      "openTicket": "open",
+      "recentCheckins": "Recent check-ins",
+      "lastCount": "last {count}",
+      "noCheckins": "No check-ins yet.",
+      "gym": "Gym",
+      "reason": "Reason",
+      "referralCode": "Referral code",
+      "shareLink": "share link: {url}",
+      "pending": "Pending",
+      "expired": "Expired",
+      "invitedBy": "Invited by",
+      "noInvited": "No invited friends yet.",
+      "invited": "Invited",
+      "identity": "Identity",
+      "memberSince": "Member since",
+      "lastActive": "Last active"
+    }
+  },
+  "gyms": {
+    "title": "Gyms",
+    "description": "Partner venues on the network. Edit pricing, tier, and status per row.",
+    "addGym": "Add gym",
+    "newTitle": "New gym",
+    "newDescription": "Register a partner venue. Slug is permanent once saved.",
+    "back": "Gyms",
+    "softDelete": "Soft-delete",
+    "onNetwork": "on network",
+    "stats": {
+      "total": "Total",
+      "active": "Active",
+      "silver": "Silver",
+      "gold": "Gold",
+      "platinum": "Platinum",
+      "diamond": "Diamond"
+    },
+    "filters": {
+      "category": {
+        "gym": "Gyms",
+        "crossfit": "CrossFit",
+        "martial": "Martial",
+        "yoga": "Yoga"
+      },
+      "allTiers": "All tiers",
+      "search": "Search name, area, slug…"
+    },
+    "table": {
+      "venue": "Venue",
+      "area": "Area",
+      "category": "Category",
+      "tier": "Tier",
+      "perVisit": "Per visit",
+      "photos": "Photos",
+      "status": "Status",
+      "live": "Live",
+      "off": "Off",
+      "edit": "Edit"
+    },
+    "empty": {
+      "noMatch": "No gyms match",
+      "noRows": "No rows on this page",
+      "noMatchHint": "Adjust filters, clear search, or add your first venue.",
+      "noRowsHint": "Try the previous page."
+    },
+    "form": {
+      "slug": "Slug",
+      "slugTitle": "Lowercase letters, digits, and hyphens (2–64 chars)",
+      "area": "Area",
+      "category": "Category",
+      "nameEn": "Name (EN)",
+      "nameAr": "Name (AR)",
+      "requiredTier": "Required tier",
+      "matches": "Matches",
+      "suggest": "Suggest {tier}",
+      "addressEn": "Address (EN)",
+      "addressAr": "Address (AR)",
+      "lat": "Latitude",
+      "lng": "Longitude",
+      "rate": "Rate (JOD / visit)",
+      "amenitiesLabel": "Amenities (comma-separated, e.g. sauna, pool, spa)",
+      "save": "Save changes",
+      "create": "Create gym",
+      "footerHint": "Changes apply immediately. Audit log captures the before/after diff."
+    },
+    "logo": {
+      "title": "Logo",
+      "description": "Square mark used wherever this gym is referenced — gym list, detail, and plan network sheets. Stored on the backend.",
+      "alt": "Gym logo",
+      "noLogo": "No logo",
+      "pickImage": "Pick an image first.",
+      "hint": "JPEG / PNG / WebP — square images work best.",
+      "uploading": "Uploading…",
+      "upload": "Upload logo",
+      "replace": "Replace logo",
+      "remove": "Remove",
+      "fileSummary": "{name} · {kb} KB"
+    },
+    "photos": {
+      "title": "Photos",
+      "description": "Upload JPEG, PNG, or WebP images. Files are stored on the backend and streamed to the mobile slider in sort order.",
+      "uploaded": "{count} uploaded",
+      "imageFile": "Image file",
+      "altEn": "Alt (EN)",
+      "altAr": "Alt (AR)",
+      "noFile": "No file selected.",
+      "fileSummary": "{name} · {kb} KB",
+      "uploadPhoto": "Upload photo",
+      "uploading": "Uploading…",
+      "noPhotosYet": "No photos yet. Upload the first image above.",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "altSave": "Save alt text",
+      "editAlt": "Edit alt",
+      "altPending": "…",
+      "delete": "Delete",
+      "cancel": "Cancel",
+      "altPlaceholderEn": "Alt (EN)",
+      "altPlaceholderAr": "Alt (AR)",
+      "errorPickFirst": "Pick an image first."
+    }
+  },
+  "subscriptions": {
+    "title": "Subscriptions",
+    "description": "Active member passes — filter, inspect, cancel inline.",
+    "found": "found",
+    "stats": {
+      "active": "Active",
+      "pending": "Pending",
+      "expired": "Expired",
+      "cancelled": "Cancelled"
+    },
+    "filters": {
+      "allTiers": "All tiers",
+      "search": "Name, email, or phone…"
+    },
+    "table": {
+      "member": "Member",
+      "tier": "Tier",
+      "status": "Status",
+      "window": "Window",
+      "visits": "Visits",
+      "renew": "Renew",
+      "on": "ON",
+      "off": "OFF"
+    },
+    "empty": {
+      "title": "No subscriptions match",
+      "hint": "Clear filters, or wait for a member to subscribe."
+    },
+    "cancel": "Cancel",
+    "cancelConfirm": "Cancel this subscription?"
+  },
+  "plans": {
+    "title": "Plans",
+    "description": "Tier and pricing for member subscriptions. Edits apply to future renewals.",
+    "count": "plans",
+    "duration": "{count} mo",
+    "fields": {
+      "price": "Price (JOD)",
+      "monthlyVisits": "Monthly visits",
+      "includedGyms": "Included gyms",
+      "discount": "Discount %",
+      "featuresEn": "Features · EN (one per line)",
+      "featuresAr": "Features · AR (one per line)"
+    },
+    "footerHint": "Changes apply to future renewals."
+  },
+  "payouts": {
+    "title": "Payouts",
+    "description": "Monthly partner settlement runs. Generate, review, mark paid once transferred.",
+    "total": "total",
+    "stats": {
+      "pendingAmount": "Pending amount",
+      "paidAmount": "Paid amount",
+      "pendingRuns": "Pending runs",
+      "paidRuns": "Paid runs"
+    },
+    "table": {
+      "gym": "Gym",
+      "period": "Period",
+      "entries": "Entries",
+      "amount": "Amount",
+      "status": "Status",
+      "paid": "paid",
+      "pending": "pending"
+    },
+    "empty": {
+      "title": "No payouts yet",
+      "hint": "Generate a run for a period once partner gyms have logged check-ins."
+    },
+    "filters": {
+      "search": "Filter by gym UUID…"
+    },
+    "markPaid": "Mark paid",
+    "marking": "Marking…",
+    "notesPlaceholder": "Reference / notes (optional)",
+    "generate": {
+      "title": "Generate run",
+      "periodStart": "Period start",
+      "periodEnd": "Period end",
+      "submit": "Generate payouts",
+      "submitting": "Generating…"
+    }
+  },
+  "checkins": {
+    "title": "Check-ins",
+    "description": "Every member scan across the partner network.",
+    "found": "found",
+    "stats": {
+      "today": "Today",
+      "thisMonth": "MTD",
+      "successRate": "Success rate"
+    },
+    "table": {
+      "when": "When",
+      "member": "Member",
+      "gym": "Gym",
+      "status": "Status",
+      "reason": "Reason"
+    },
+    "empty": {
+      "title": "No check-ins match",
+      "hint": "Adjust filters or wait for a scan."
+    },
+    "filters": {
+      "allStatuses": "All",
+      "search": "Member name / gym name / id…"
+    }
+  },
+  "audit": {
+    "title": "Audit log",
+    "description": "Every mutation across the system is recorded here.",
+    "found": "found",
+    "table": {
+      "when": "When",
+      "actor": "Actor",
+      "action": "Action",
+      "entity": "Entity",
+      "diff": "Diff"
+    },
+    "empty": {
+      "title": "No audit entries match",
+      "hint": "Adjust filters or wait for activity."
+    },
+    "filters": {
+      "search": "actor / action / entity…"
+    }
+  },
+  "admins": {
+    "title": "Admins",
+    "description": "Everyone with a seat at this console. Creation and resets are audit-logged.",
+    "total": "total",
+    "stats": {
+      "active": "Active",
+      "deactivated": "Deactivated",
+      "totalSeats": "Total seats",
+      "addedThisMonth": "Added this month"
+    },
+    "form": {
+      "email": "Email",
+      "emailPlaceholder": "name@domain",
+      "name": "Full name",
+      "namePlaceholder": "First Last",
+      "password": "Password",
+      "passwordPlaceholder": "≥ 12 chars · upper, lower, digit, symbol",
+      "submit": "Create admin",
+      "submitting": "Creating…"
+    },
+    "table": {
+      "admin": "Admin",
+      "email": "Email",
+      "joined": "Joined",
+      "status": "Status",
+      "active": "Active",
+      "disabled": "Disabled",
+      "unnamed": "Unnamed admin"
+    },
+    "empty": {
+      "title": "No admins yet",
+      "hint": "Provision yourself or a colleague above."
+    },
+    "reset": {
+      "label": "Reset password",
+      "newPassword": "New password",
+      "newPasswordPlaceholder": "≥ 12 chars · upper, lower, digit, symbol",
+      "submit": "Reset",
+      "submitting": "Resetting…",
+      "success": "Password reset.",
+      "cancel": "Cancel"
+    }
+  },
+  "notifications": {
+    "title": "Broadcast",
+    "description": "Publish an in-app push to every active member. Optionally scope by tier.",
+    "form": {
+      "titleEn": "Title · EN",
+      "titleAr": "Title · AR",
+      "bodyEn": "Body · EN",
+      "bodyAr": "Body · AR",
+      "targetTier": "Target tier",
+      "allActive": "All active members",
+      "send": "Send broadcast",
+      "sending": "Sending…",
+      "footerHint": "Both languages required. Confirm before send.",
+      "confirmSend": "Send this broadcast to every matching member?",
+      "sentTo": "Sent to {count} member(s)."
+    },
+    "guidelines": {
+      "title": "Send guidelines",
+      "leadStrong": "Lead with the news.",
+      "leadBody": " Members see the notification on the lock screen — keep it under 80 characters.",
+      "arabicStrong": "Arabic is required.",
+      "arabicBody": " AR is the default locale. Sending EN alone leaves AR users with nothing.",
+      "scopeStrong": "Tier scope is hard.",
+      "scopeBody1": " Choosing ",
+      "scopeBody2": " reaches only Silver members. Leave blank for the whole base."
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "description": "Configuration of the running console — environment, providers, JWT timings.",
+    "appEnv": "Environment",
+    "apiDomain": "API",
+    "adminDomain": "Admin domain",
+    "providers": "Providers",
+    "jwtAccess": "JWT access TTL",
+    "jwtRefresh": "JWT refresh TTL",
+    "jwtService": "JWT service TTL",
+    "exchangeSkew": "Exchange max skew",
+    "health": "Health checks",
+    "maxUploadMb": "Max upload (MB)",
+    "ok": "ok",
+    "down": "down",
+    "seconds": "s"
+  },
+  "support": {
+    "title": "Support",
+    "description": "Member tickets and conversations.",
+    "stats": {
+      "open": "Open",
+      "inProgress": "In progress",
+      "waitingUser": "Waiting on user",
+      "resolved": "Resolved",
+      "closed": "Closed",
+      "total": "Total"
+    },
+    "filters": {
+      "search": "Subject / member name / id…",
+      "allCategories": "All categories",
+      "allPriorities": "All priorities",
+      "allStatuses": "All statuses"
+    },
+    "table": {
+      "subject": "Subject",
+      "category": "Category",
+      "priority": "Priority",
+      "status": "Status",
+      "updated": "Updated",
+      "member": "Member",
+      "open": "open"
+    },
+    "empty": {
+      "title": "No tickets match",
+      "hint": "Adjust filters or wait for a member to write in."
+    },
+    "detail": {
+      "back": "Queue",
+      "viewMember": "View member",
+      "opened": "Opened",
+      "updated": "Updated",
+      "resolved": "Resolved",
+      "thread": "Thread",
+      "messagesCount": "{count} messages",
+      "noReplies": "No replies yet.",
+      "reply": "Reply",
+      "internalNote": "Internal notes stay hidden from the member.",
+      "controls": "Controls",
+      "autoSaves": "auto-saves",
+      "memberLabel": "member",
+      "internalLabel": "internal",
+      "unknownAuthor": "Unknown",
+      "unknownMember": "Unknown member"
+    },
+    "reply": {
+      "body": "Reply body",
+      "internalToggle": "Internal note (hidden from member)",
+      "submit": "Send reply",
+      "submitting": "Sending…",
+      "internalSubmit": "Add internal note",
+      "errorEmpty": "Reply body cannot be empty."
+    },
+    "controls": {
+      "status": "Status",
+      "priority": "Priority",
+      "category": "Category",
+      "assignee": "Assignee",
+      "assignSelf": "Assign to me",
+      "clearAssignee": "Clear assignee",
+      "noAssignee": "Unassigned",
+      "saving": "saving…",
+      "saved": "saved"
+    },
+    "categories": {
+      "bug": "Bug",
+      "payment": "Payment",
+      "account": "Account",
+      "gym_issue": "Gym issue",
+      "feature": "Feature",
+      "complaint": "Complaint",
+      "other": "Other"
+    },
+    "priorities": {
+      "low": "Low",
+      "normal": "Normal",
+      "high": "High",
+      "urgent": "Urgent"
+    },
+    "statuses": {
+      "open": "Open",
+      "in_progress": "In progress",
+      "waiting_user": "Waiting on user",
+      "resolved": "Resolved",
+      "closed": "Closed"
+    }
+  },
+  "checkinStatuses": {
+    "success": "Success",
+    "tier_locked": "Tier locked",
+    "no_visits": "No visits left",
+    "expired": "Expired",
+    "invalid_qr": "Invalid QR",
+    "rate_limited": "Rate limited"
+  },
+  "subscriptionStatuses": {
+    "pending": "Pending",
+    "active": "Active",
+    "expired": "Expired",
+    "cancelled": "Cancelled"
+  },
+  "paymentStatuses": {
+    "pending": "Pending",
+    "succeeded": "Succeeded",
+    "failed": "Failed"
+  },
+  "paymentMethods": {
+    "card": "Card",
+    "cliq": "CliQ",
+    "apple_pay": "Apple Pay",
+    "mock": "Mock"
+  },
+  "referralStatuses": {
+    "pending": "Pending",
+    "converted": "Converted",
+    "expired": "Expired"
   }
 }

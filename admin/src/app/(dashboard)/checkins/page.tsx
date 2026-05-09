@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
 import EmptyState from "@/components/EmptyState";
 import { FilterBar, Segmented, SearchInput } from "@/components/FilterBar";
@@ -67,6 +68,13 @@ export default async function CheckinsPage({
   searchParams: Promise<SearchParams>;
 }) {
   const params = await searchParams;
+  const t = await getTranslations("checkins");
+  const tStats = await getTranslations("checkins.stats");
+  const tTable = await getTranslations("checkins.table");
+  const tEmpty = await getTranslations("checkins.empty");
+  const tFilters = await getTranslations("checkins.filters");
+  const tStatuses = await getTranslations("checkinStatuses");
+  const tCommon = await getTranslations("common");
   const status = parseStatus(params.status);
   const gymId = params.gymId?.trim() || undefined;
   const userId = params.userId?.trim() || undefined;
@@ -101,27 +109,21 @@ export default async function CheckinsPage({
   return (
     <section className="flex flex-col gap-5">
       <Toolbar
-        title="Check-ins"
-        description="Live QR-scan ledger — authoritative source for payouts and tier enforcement."
-        count={{ label: "total", value: result.total.toLocaleString() }}
-        actions={
-          <span className="inline-flex items-center gap-1.5 text-[11.5px] text-muted">
-            <span className="dot bg-lime pulse" />
-            Live · refresh to update
-          </span>
-        }
+        title={t("title")}
+        description={t("description")}
+        count={{ label: t("found"), value: result.total.toLocaleString() }}
       />
 
       <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-        <StatTile label="On page" value={result.items.length} />
-        <StatTile label="Granted" value={successCount} tone="ok" />
+        <StatTile label={tStats("today")} value={result.items.length} />
+        <StatTile label={tStats("today")} value={successCount} tone="ok" />
         <StatTile
-          label="Denied"
+          label={tStats("thisMonth")}
           value={deniedCount}
           tone={deniedCount > 0 ? "bad" : "default"}
         />
         <StatTile
-          label="Denial rate"
+          label={tStats("successRate")}
           value={
             result.items.length === 0
               ? "—"
@@ -135,14 +137,14 @@ export default async function CheckinsPage({
         <Segmented
           value={status}
           options={STATUSES}
-          labelFor={(s) => s.replace("_", " ")}
+          labelFor={(s) => tStatuses(s)}
           hrefFor={(s) => hrefFor({ status: s, page: undefined })}
         />
         <div className="ml-auto">
           <SearchInput
             name="gymId"
             defaultValue={gymId}
-            placeholder="Filter by gym UUID…"
+            placeholder={tFilters("search")}
             action="/checkins"
             hidden={{ userId, status: params.status, since, until }}
           />
@@ -185,25 +187,22 @@ export default async function CheckinsPage({
         {gymId ? <input type="hidden" name="gymId" value={gymId} /> : null}
         {status ? <input type="hidden" name="status" value={status} /> : null}
         <button type="submit" className="btn-primary btn-sm ml-auto">
-          Apply
+          {tCommon("filter")}
         </button>
       </form>
 
       {result.items.length === 0 ? (
-        <EmptyState
-          title="No check-ins recorded"
-          hint="Once members scan, every scan lands here — granted or denied."
-        />
+        <EmptyState title={tEmpty("title")} hint={tEmpty("hint")} />
       ) : (
         <div className="panel overflow-hidden">
           <table className="table table-compact">
             <thead>
               <tr>
-                <th>When</th>
-                <th>Member</th>
-                <th>Venue</th>
-                <th>Status</th>
-                <th>Reason</th>
+                <th>{tTable("when")}</th>
+                <th>{tTable("member")}</th>
+                <th>{tTable("gym")}</th>
+                <th>{tTable("status")}</th>
+                <th>{tTable("reason")}</th>
               </tr>
             </thead>
             <tbody>
@@ -233,7 +232,7 @@ export default async function CheckinsPage({
                     <td className="text-paper/90 truncate">{c.gymNameEn}</td>
                     <td>
                       <StatusPill tone={STATUS_TONE[c.status]}>
-                        {c.status.replace("_", " ")}
+                        {tStatuses(c.status)}
                       </StatusPill>
                     </td>
                     <td className="text-[11.5px] text-muted">

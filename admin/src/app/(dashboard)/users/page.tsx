@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
 import EmptyState from "@/components/EmptyState";
 import { FilterBar, Segmented, SearchInput } from "@/components/FilterBar";
@@ -47,6 +48,10 @@ export default async function UsersPage({
   const includeDeleted = params.includeDeleted === "1";
   const page = parsePage(params.page);
   const q = params.q?.trim() || undefined;
+  const t = await getTranslations("users");
+  const tCommon = await getTranslations("common");
+  const tEdit = await getTranslations("users.edit");
+  const tNav = await getTranslations("nav.items");
 
   const result = await AdminSDK.listUsers({
     role,
@@ -77,12 +82,12 @@ export default async function UsersPage({
   return (
     <section className="flex flex-col gap-5">
       <Toolbar
-        title="Users"
-        description="Members and admins across the workspace."
-        count={{ label: "found", value: result.total.toLocaleString() }}
+        title={t("title")}
+        description={t("description")}
+        count={{ label: tCommon("of"), value: result.total.toLocaleString() }}
         actions={
           <Link href="/admins" className="btn-secondary btn-sm">
-            Manage admins
+            {tNav("admins")}
           </Link>
         }
       />
@@ -91,25 +96,27 @@ export default async function UsersPage({
         <Segmented
           value={role}
           options={ROLES}
-          labelFor={(r) => r.charAt(0).toUpperCase() + r.slice(1)}
+          labelFor={(r) =>
+            r === "admin" ? tEdit("roleAdmin") : tEdit("roleMember")
+          }
           hrefFor={(r) => hrefFor({ role: r, page: undefined })}
         />
         <Segmented
           value={includeDeleted ? "all" : undefined}
           options={["all"] as const}
-          labelFor={() => "Include deleted"}
+          labelFor={() => tCommon("all")}
           hrefFor={(v) =>
             hrefFor({
               includeDeleted: v === "all" ? "1" : undefined,
               page: undefined,
             })
           }
-          allLabel="Active only"
+          allLabel={tCommon("active")}
         />
         <div className="ml-auto">
           <SearchInput
             defaultValue={q}
-            placeholder="Name, email, phone…"
+            placeholder="Name / email / phone"
             action="/users"
             hidden={{
               role: params.role,
@@ -120,22 +127,18 @@ export default async function UsersPage({
       </FilterBar>
 
       {result.items.length === 0 ? (
-        <EmptyState
-          title="No users match"
-          hint="Widen the search or clear role filter."
-        />
+        <EmptyState title={tCommon("empty")} hint={tCommon("empty")} />
       ) : (
         <div className="panel overflow-hidden">
           <table className="table">
             <thead>
               <tr>
-                <th>Member</th>
-                <th>Email</th>
-                <th>Phone</th>
-                <th>Role</th>
-                <th>Locale</th>
-                <th>Joined</th>
-                <th>Status</th>
+                <th>{tEdit("firstName")}</th>
+                <th>{tEdit("email")}</th>
+                <th>{tEdit("phone")}</th>
+                <th>{tEdit("role")}</th>
+                <th>{tEdit("locale")}</th>
+                <th>{tEdit("status")}</th>
                 <th className="w-0" />
               </tr>
             </thead>
@@ -148,7 +151,7 @@ export default async function UsersPage({
                       className="flex min-w-0 flex-col leading-tight hover:text-lime"
                     >
                       <span className="truncate font-medium text-paper">
-                        {u.name ?? "Unnamed"}
+                        {u.name ?? "—"}
                       </span>
                       <span className="truncate text-[11px] text-muted num">
                         {u.id.slice(0, 8)}
@@ -161,18 +164,24 @@ export default async function UsersPage({
                     <span className="kbd capitalize">{u.role}</span>
                   </td>
                   <td className="uppercase text-muted">{u.locale}</td>
-                  <td className="num text-muted">{formatDate(u.createdAt)}</td>
                   <td>
                     <StatusPill tone={u.deletedAt ? "bad" : "ok"}>
-                      {u.deletedAt ? "Deleted" : "Active"}
+                      {u.deletedAt
+                        ? tCommon("disabled")
+                        : tCommon("active")}
                     </StatusPill>
+                  </td>
+                  <td className="num text-muted">
+                    <span className="text-[11px]">
+                      {formatDate(u.createdAt)}
+                    </span>
                   </td>
                   <td className="text-right">
                     <Link
                       href={`/users/${u.id}`}
                       className="btn-ghost btn-sm"
                     >
-                      Open →
+                      {tCommon("open")} →
                     </Link>
                   </td>
                 </tr>

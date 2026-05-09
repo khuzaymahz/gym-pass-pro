@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
 import CancelSubscriptionButton from "@/components/CancelSubscriptionButton";
 import EmptyState from "@/components/EmptyState";
@@ -58,6 +59,12 @@ export default async function SubscriptionsPage({
   searchParams: Promise<SearchParams>;
 }) {
   const params = await searchParams;
+  const t = await getTranslations("subscriptions");
+  const tStats = await getTranslations("subscriptions.stats");
+  const tTable = await getTranslations("subscriptions.table");
+  const tEmpty = await getTranslations("subscriptions.empty");
+  const tFilters = await getTranslations("subscriptions.filters");
+  const tStatuses = await getTranslations("subscriptionStatuses");
   const status = parseStatus(params.status);
   const tier = parseTier(params.tier);
   const q = params.q?.trim() || undefined;
@@ -97,21 +104,21 @@ export default async function SubscriptionsPage({
   return (
     <section className="flex flex-col gap-5">
       <Toolbar
-        title="Subscriptions"
-        description="Active member passes — filter, inspect, cancel inline."
-        count={{ label: "found", value: result.total.toLocaleString() }}
+        title={t("title")}
+        description={t("description")}
+        count={{ label: t("found"), value: result.total.toLocaleString() }}
       />
 
       <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-        <StatTile label="Active" value={activeCount} tone="ok" />
+        <StatTile label={tStats("active")} value={activeCount} tone="ok" />
         <StatTile
-          label="Pending"
+          label={tStats("pending")}
           value={pendingCount}
           tone={pendingCount > 0 ? "warn" : "default"}
         />
-        <StatTile label="Expired" value={expiredCount} />
+        <StatTile label={tStats("expired")} value={expiredCount} />
         <StatTile
-          label="Cancelled"
+          label={tStats("cancelled")}
           value={cancelledCount}
           tone={cancelledCount > 0 ? "bad" : "default"}
         />
@@ -121,7 +128,7 @@ export default async function SubscriptionsPage({
         <Segmented
           value={status}
           options={STATUSES}
-          labelFor={(s) => s.charAt(0).toUpperCase() + s.slice(1)}
+          labelFor={(s) => tStatuses(s)}
           hrefFor={(s) => hrefFor({ status: s, page: undefined })}
         />
         <Segmented
@@ -129,12 +136,12 @@ export default async function SubscriptionsPage({
           options={TIERS}
           labelFor={(t) => t.charAt(0).toUpperCase() + t.slice(1)}
           hrefFor={(t) => hrefFor({ tier: t, page: undefined })}
-          allLabel="All tiers"
+          allLabel={tFilters("allTiers")}
         />
         <div className="ml-auto">
           <SearchInput
             defaultValue={q}
-            placeholder="Name, email, or phone…"
+            placeholder={tFilters("search")}
             action="/subscriptions"
             hidden={{ status: params.status, tier: params.tier }}
           />
@@ -142,21 +149,18 @@ export default async function SubscriptionsPage({
       </FilterBar>
 
       {result.items.length === 0 ? (
-        <EmptyState
-          title="No subscriptions match"
-          hint="Clear filters, or wait for a member to subscribe."
-        />
+        <EmptyState title={tEmpty("title")} hint={tEmpty("hint")} />
       ) : (
         <div className="panel overflow-hidden">
           <table className="table">
             <thead>
               <tr>
-                <th>Member</th>
-                <th>Tier</th>
-                <th>Status</th>
-                <th>Window</th>
-                <th className="num">Visits</th>
-                <th>Renew</th>
+                <th>{tTable("member")}</th>
+                <th>{tTable("tier")}</th>
+                <th>{tTable("status")}</th>
+                <th>{tTable("window")}</th>
+                <th className="num">{tTable("visits")}</th>
+                <th>{tTable("renew")}</th>
                 <th className="w-0" />
               </tr>
             </thead>
@@ -184,7 +188,7 @@ export default async function SubscriptionsPage({
                   </td>
                   <td>
                     <StatusPill tone={STATUS_TONE[s.status]}>
-                      {s.status}
+                      {tStatuses(s.status)}
                     </StatusPill>
                   </td>
                   <td className="num text-muted text-[12px] whitespace-nowrap">
@@ -195,7 +199,7 @@ export default async function SubscriptionsPage({
                     <span
                       className={`kbd ${s.autoRenew ? "text-lime" : "text-muted"}`}
                     >
-                      {s.autoRenew ? "ON" : "OFF"}
+                      {s.autoRenew ? tTable("on") : tTable("off")}
                     </span>
                   </td>
                   <td className="text-right">

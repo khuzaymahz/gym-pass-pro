@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -13,6 +14,8 @@ type Props = {
 
 export default function UserEditForm({ user, action }: Props) {
   const router = useRouter();
+  const t = useTranslations("users.edit");
+  const tCommon = useTranslations("common");
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<{
     tone: "ok" | "err";
@@ -45,14 +48,14 @@ export default function UserEditForm({ user, action }: Props) {
     if (isActive !== initialActive) payload.isActive = isActive;
 
     if (Object.keys(payload).length === 0) {
-      setMessage({ tone: "ok", text: "No changes to save." });
+      setMessage({ tone: "ok", text: tCommon("noChangesToSave") });
       return;
     }
 
     startTransition(async () => {
       const result = await action(payload);
       if (result.ok) {
-        setMessage({ tone: "ok", text: "Saved." });
+        setMessage({ tone: "ok", text: tCommon("savedDot") });
         router.refresh();
       } else {
         setMessage({ tone: "err", text: result.message });
@@ -64,7 +67,7 @@ export default function UserEditForm({ user, action }: Props) {
     <form onSubmit={onSubmit} className="panel flex flex-col gap-4 p-4">
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
         <label className="field">
-          <span className="field-label">First name</span>
+          <span className="field-label">{t("firstName")}</span>
           <input
             className="input input-sm"
             value={firstName}
@@ -72,7 +75,7 @@ export default function UserEditForm({ user, action }: Props) {
           />
         </label>
         <label className="field">
-          <span className="field-label">Last name</span>
+          <span className="field-label">{t("lastName")}</span>
           <input
             className="input input-sm"
             value={lastName}
@@ -80,19 +83,19 @@ export default function UserEditForm({ user, action }: Props) {
           />
         </label>
         <label className="field">
-          <span className="field-label">Gender</span>
+          <span className="field-label">{t("gender")}</span>
           <select
             className="select input-sm"
             value={gender}
             onChange={(e) => setGender(e.target.value as Gender | "")}
           >
             <option value="">—</option>
-            <option value="male">male</option>
-            <option value="female">female</option>
+            <option value="male">{t("genderMale")}</option>
+            <option value="female">{t("genderFemale")}</option>
           </select>
         </label>
         <label className="field">
-          <span className="field-label">Birthdate</span>
+          <span className="field-label">{t("birthdate")}</span>
           <input
             type="date"
             className="input input-sm"
@@ -101,7 +104,7 @@ export default function UserEditForm({ user, action }: Props) {
           />
         </label>
         <label className="field">
-          <span className="field-label">Email</span>
+          <span className="field-label">{t("email")}</span>
           <input
             className="input input-sm num"
             value={user.email ?? ""}
@@ -110,7 +113,7 @@ export default function UserEditForm({ user, action }: Props) {
           />
         </label>
         <label className="field">
-          <span className="field-label">Phone</span>
+          <span className="field-label">{t("phone")}</span>
           <input
             className="input input-sm num"
             value={user.phone ?? ""}
@@ -119,18 +122,18 @@ export default function UserEditForm({ user, action }: Props) {
           />
         </label>
         <label className="field">
-          <span className="field-label">Role</span>
+          <span className="field-label">{t("role")}</span>
           <select
             className="select input-sm"
             value={role}
             onChange={(e) => setRole(e.target.value as AdminUser["role"])}
           >
-            <option value="member">member</option>
-            <option value="admin">admin</option>
+            <option value="member">{t("roleMember")}</option>
+            <option value="admin">{t("roleAdmin")}</option>
           </select>
         </label>
         <label className="field">
-          <span className="field-label">Locale</span>
+          <span className="field-label">{t("locale")}</span>
           <select
             className="select input-sm"
             value={locale}
@@ -138,12 +141,12 @@ export default function UserEditForm({ user, action }: Props) {
               setLocale(e.target.value as AdminUser["locale"])
             }
           >
-            <option value="ar">ar</option>
-            <option value="en">en</option>
+            <option value="ar">{t("localeAr")}</option>
+            <option value="en">{t("localeEn")}</option>
           </select>
         </label>
         <label className="field">
-          <span className="field-label">Status</span>
+          <span className="field-label">{t("status")}</span>
           <label className="flex h-[34px] items-center gap-2 text-[12.5px] text-paper">
             <input
               type="checkbox"
@@ -151,7 +154,7 @@ export default function UserEditForm({ user, action }: Props) {
               checked={isActive}
               onChange={(e) => setIsActive(e.target.checked)}
             />
-            Account active
+            {t("active")}
           </label>
         </label>
       </div>
@@ -166,12 +169,10 @@ export default function UserEditForm({ user, action }: Props) {
             {message.text}
           </p>
         ) : (
-          <p className="text-[11px] text-muted">
-            Role + status changes are audit-logged.
-          </p>
+          <p className="text-[11px] text-muted">{t("footerHint")}</p>
         )}
         <button className="btn-primary btn-sm" disabled={pending}>
-          {pending ? "Saving…" : "Save changes"}
+          {pending ? tCommon("saving") : t("save")}
         </button>
       </div>
     </form>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -12,6 +13,8 @@ type Props = {
 
 export default function MarkPayoutPaid({ action }: Props) {
   const router = useRouter();
+  const t = useTranslations("payouts");
+  const tCommon = useTranslations("common");
   const [open, setOpen] = useState(false);
   const [notes, setNotes] = useState("");
   const [pending, startTransition] = useTransition();
@@ -39,7 +42,7 @@ export default function MarkPayoutPaid({ action }: Props) {
         onClick={() => setOpen(true)}
         className="btn-primary btn-sm"
       >
-        Mark paid
+        {t("markPaid")}
       </button>
     );
   }
@@ -48,7 +51,7 @@ export default function MarkPayoutPaid({ action }: Props) {
     <form onSubmit={onSubmit} className="flex items-center justify-end gap-1.5">
       <input
         className="input input-sm w-44"
-        placeholder="Notes (optional)"
+        placeholder={t("notesPlaceholder")}
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
       />
@@ -57,7 +60,7 @@ export default function MarkPayoutPaid({ action }: Props) {
         disabled={pending}
         className="btn-primary btn-sm"
       >
-        {pending ? "…" : "Confirm"}
+        {pending ? t("marking") : tCommon("save")}
       </button>
       <button
         type="button"
@@ -68,7 +71,7 @@ export default function MarkPayoutPaid({ action }: Props) {
         }}
         className="btn-ghost btn-sm"
       >
-        Cancel
+        {tCommon("cancel")}
       </button>
       {error ? <span className="text-[11px] text-red-300">{error}</span> : null}
     </form>

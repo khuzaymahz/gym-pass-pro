@@ -1,3 +1,5 @@
+import { getTranslations } from "next-intl/server";
+
 import StatusPill from "@/components/StatusPill";
 import Toolbar from "@/components/Toolbar";
 import { AdminSDK } from "@/lib/sdk";
@@ -21,13 +23,11 @@ import { AdminSDK } from "@/lib/sdk";
  */
 export default async function SettingsPage() {
   const settings = await AdminSDK.settings();
+  const t = await getTranslations("settings");
 
   return (
     <section className="flex flex-col gap-5">
-      <Toolbar
-        title="System Settings"
-        description="Runtime configuration and infrastructure health. Read-only — values are sourced from the deployed environment file."
-      />
+      <Toolbar title={t("title")} description={t("description")} />
 
       {/* Environment + uptime headline */}
       <div className="grid gap-4 md:grid-cols-2">

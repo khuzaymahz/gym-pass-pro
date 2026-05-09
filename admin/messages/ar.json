@@ -38,13 +38,39 @@
   },
   "common": {
     "save": "حفظ",
+    "saving": "جارٍ الحفظ…",
     "cancel": "إلغاء",
     "saved": "تم الحفظ",
+    "savedDot": "تم الحفظ.",
     "loading": "جارٍ التحميل…",
     "error": "حدث خطأ",
+    "errorGeneric": "حدث خطأ.",
     "empty": "لا توجد بيانات",
     "noChanges": "لا تغييرات للحفظ",
-    "retry": "إعادة المحاولة"
+    "noChangesToSave": "لا تغييرات للحفظ.",
+    "retry": "إعادة المحاولة",
+    "viewAll": "عرض الكل",
+    "all": "الكل",
+    "filter": "تصفية",
+    "search": "بحث",
+    "next": "التالي",
+    "prev": "السابق",
+    "delete": "حذف",
+    "remove": "إزالة",
+    "edit": "تعديل",
+    "open": "فتح",
+    "close": "إغلاق",
+    "yes": "نعم",
+    "no": "لا",
+    "on": "تشغيل",
+    "off": "إيقاف",
+    "active": "نشط",
+    "inactive": "غير نشط",
+    "enabled": "مفعّل",
+    "disabled": "معطّل",
+    "none": "—",
+    "of": "من",
+    "back": "رجوع"
   },
   "login": {
     "title": "تسجيل الدخول",
@@ -52,14 +78,579 @@
     "email": "البريد الإلكتروني",
     "password": "كلمة المرور",
     "submit": "دخول",
-    "withGoogle": "المتابعة عبر جوجل"
+    "submitting": "جارٍ الدخول…",
+    "withGoogle": "المتابعة عبر جوجل",
+    "invalid": "بيانات غير صحيحة.",
+    "footer": "لوحة داخلية لفريق GymPass."
+  },
+  "error": {
+    "eyebrow": "حدث خطأ",
+    "title": "تعذّر تحميل هذه الصفحة.",
+    "body": "حدث خطأ أثناء التواصل مع خادم GymPass. غالباً ما تكون مشكلة عابرة — حاول مرة أخرى، وإذا تكررت تواصل مع الفريق التشغيلي.",
+    "retry": "إعادة المحاولة",
+    "goHome": "إلى لوحة التحكم",
+    "ref": "مرجع"
   },
   "dashboard": {
-    "title": "نظرة عامة",
+    "title": "لوحة التحكم",
+    "description": "نظرة عامة على عمليات النظام.",
     "health": {
-      "allSystems": "كل الأنظمة تعمل",
+      "allSystems": "جميع الأنظمة تعمل",
       "degraded": "تدهور"
     },
-    "noPriorMonth": "لا شهر سابق"
+    "noPriorMonth": "لا شهر سابق",
+    "needsAttention": "بحاجة للانتباه",
+    "openQueue": "فتح الطابور",
+    "stats": {
+      "members": "الأعضاء",
+      "membersSub": "{count} خلال 30 يوماً",
+      "activeSubs": "اشتراكات نشطة",
+      "activeSubsSub": "{count} ينتهي خلال 7 أيام",
+      "gyms": "الأندية",
+      "checkinsToday": "تسجيلات اليوم",
+      "checkinsTodaySub": "{count} منذ بداية الشهر",
+      "pendingPayouts": "دفعات معلّقة",
+      "revenueMtd": "الإيرادات · من بداية الشهر",
+      "revenueDeltaSub": "{sign}{delta}% مقابل السابق"
+    },
+    "panels": {
+      "checkins": "تسجيلات الدخول",
+      "revenue": "الإيرادات",
+      "signups": "تسجيلات جديدة",
+      "tierSplit": "اشتراكات نشطة · توزيع الباقات",
+      "topGyms": "أفضل الأندية",
+      "topGymsSub": "تسجيلات منذ بداية الشهر",
+      "recentSignups": "أحدث التسجيلات",
+      "recentCheckins": "أحدث تسجيلات الدخول",
+      "last30Days": "آخر 30 يوماً"
+    },
+    "feeds": {
+      "allUsers": "كل المستخدمين",
+      "allCheckins": "كل التسجيلات",
+      "topGymsEmpty": "ستترتب الأندية هنا حسب التسجيلات.",
+      "noMembersYet": "لا يوجد أعضاء بعد.",
+      "noScans": "لم يتم تسجيل أي مسح.",
+      "noSignups": "لا تسجيلات في هذه الفترة.",
+      "noData": "لا توجد بيانات"
+    },
+    "attention": {
+      "urgentTickets": "تذاكر عاجلة",
+      "openTickets": "تذاكر مفتوحة",
+      "expiringSubs": "اشتراكات تنتهي خلال 7 أيام"
+    }
+  },
+  "users": {
+    "title": "المستخدمون",
+    "description": "كل عضو ومشرف في النظام.",
+    "edit": {
+      "firstName": "الاسم الأول",
+      "lastName": "اسم العائلة",
+      "gender": "الجنس",
+      "genderMale": "ذكر",
+      "genderFemale": "أنثى",
+      "birthdate": "تاريخ الميلاد",
+      "email": "البريد الإلكتروني",
+      "phone": "الهاتف",
+      "role": "الدور",
+      "roleMember": "عضو",
+      "roleAdmin": "مشرف",
+      "locale": "اللغة",
+      "localeAr": "ar",
+      "localeEn": "en",
+      "status": "الحالة",
+      "active": "حساب نشط",
+      "save": "حفظ التغييرات",
+      "footerHint": "تغييرات الدور والحالة مسجّلة في سجل التدقيق."
+    },
+    "detail": {
+      "back": "المستخدمون",
+      "totalPaid": "إجمالي المدفوع",
+      "subscriptions": "الاشتراكات",
+      "noneActive": "لا اشتراك نشط",
+      "active": "نشط · {tier}",
+      "openTickets": "تذاكر مفتوحة",
+      "totalTickets": "{count} إجمالي",
+      "referrals": "الإحالات",
+      "converted": "{count} تحوّلت",
+      "profile": "الملف",
+      "subsHistory": "الاشتراكات وتاريخ الباقات",
+      "records": "{count} سجل",
+      "recordsPlural": "{count} سجلات",
+      "noSubs": "لا توجد اشتراكات بعد.",
+      "tier": "الباقة",
+      "status": "الحالة",
+      "window": "الفترة",
+      "visits": "الزيارات",
+      "price": "السعر",
+      "autoRenew": "تجديد تلقائي",
+      "monthsPlan": "{count} شهر",
+      "cancelled": "أُلغي {date}",
+      "payments": "الدفعات",
+      "noPayments": "لا توجد دفعات بعد.",
+      "method": "الطريقة",
+      "detail": "التفاصيل",
+      "amount": "المبلغ",
+      "when": "متى",
+      "supportHistory": "سجل الدعم",
+      "tickets": "{count} تذكرة",
+      "ticketsPlural": "{count} تذاكر",
+      "noTickets": "لا توجد تذاكر دعم.",
+      "subject": "الموضوع",
+      "category": "الفئة",
+      "priority": "الأولوية",
+      "updated": "آخر تحديث",
+      "openTicket": "فتح",
+      "recentCheckins": "أحدث تسجيلات الدخول",
+      "lastCount": "آخر {count}",
+      "noCheckins": "لا توجد تسجيلات بعد.",
+      "gym": "النادي",
+      "reason": "السبب",
+      "referralCode": "كود الإحالة",
+      "shareLink": "رابط المشاركة: {url}",
+      "pending": "معلّق",
+      "expired": "منتهٍ",
+      "invitedBy": "دعاه",
+      "noInvited": "لم يدعُ أحداً بعد.",
+      "invited": "المدعوّ",
+      "identity": "الهوية",
+      "memberSince": "عضو منذ",
+      "lastActive": "آخر نشاط"
+    }
+  },
+  "gyms": {
+    "title": "الأندية",
+    "description": "الأندية الشريكة في الشبكة. عدّل التسعير والباقة والحالة لكل صف.",
+    "addGym": "إضافة نادٍ",
+    "newTitle": "نادٍ جديد",
+    "newDescription": "سجّل نادياً شريكاً. الـ slug ثابت بعد الحفظ.",
+    "back": "الأندية",
+    "softDelete": "حذف منطقي",
+    "onNetwork": "ضمن الشبكة",
+    "stats": {
+      "total": "الإجمالي",
+      "active": "نشط",
+      "silver": "فضّي",
+      "gold": "ذهبي",
+      "platinum": "بلاتيني",
+      "diamond": "ماسي"
+    },
+    "filters": {
+      "category": {
+        "gym": "أندية",
+        "crossfit": "CrossFit",
+        "martial": "فنون قتالية",
+        "yoga": "يوغا"
+      },
+      "allTiers": "كل الباقات",
+      "search": "ابحث بالاسم أو المنطقة أو الـ slug…"
+    },
+    "table": {
+      "venue": "النادي",
+      "area": "المنطقة",
+      "category": "الفئة",
+      "tier": "الباقة",
+      "perVisit": "لكل زيارة",
+      "photos": "صور",
+      "status": "الحالة",
+      "live": "متاح",
+      "off": "متوقف",
+      "edit": "تعديل"
+    },
+    "empty": {
+      "noMatch": "لا أندية مطابقة",
+      "noRows": "لا صفوف في هذه الصفحة",
+      "noMatchHint": "عدّل المرشّحات أو امسح البحث، أو أضف أول نادٍ.",
+      "noRowsHint": "جرّب الصفحة السابقة."
+    },
+    "form": {
+      "slug": "الـ slug",
+      "slugTitle": "حروف صغيرة وأرقام وشرطات (2–64 حرفاً)",
+      "area": "المنطقة",
+      "category": "الفئة",
+      "nameEn": "الاسم (إنجليزي)",
+      "nameAr": "الاسم (عربي)",
+      "requiredTier": "الباقة المطلوبة",
+      "matches": "مطابق",
+      "suggest": "اقترح {tier}",
+      "addressEn": "العنوان (إنجليزي)",
+      "addressAr": "العنوان (عربي)",
+      "lat": "خط العرض",
+      "lng": "خط الطول",
+      "rate": "السعر (دينار / زيارة)",
+      "amenitiesLabel": "المرافق (مفصولة بفواصل، مثل ساونا، مسبح، سبا)",
+      "save": "حفظ التغييرات",
+      "create": "إنشاء النادي",
+      "footerHint": "التغييرات تُطبَّق فوراً. سجل التدقيق يحفظ الفرق."
+    },
+    "logo": {
+      "title": "الشعار",
+      "description": "علامة مربعة تُعرض في كل مكان يُذكر فيه هذا النادي. تُحفظ على الخادم.",
+      "alt": "شعار النادي",
+      "noLogo": "لا يوجد شعار",
+      "pickImage": "اختر صورة أولاً.",
+      "hint": "JPEG / PNG / WebP — الصور المربعة هي الأفضل.",
+      "uploading": "جارٍ الرفع…",
+      "upload": "رفع شعار",
+      "replace": "استبدال الشعار",
+      "remove": "إزالة",
+      "fileSummary": "{name} · {kb} كيلوبايت"
+    },
+    "photos": {
+      "title": "الصور",
+      "description": "ارفع صور JPEG أو PNG أو WebP. الملفات تُحفظ على الخادم وتُعرض في تطبيق العضو حسب الترتيب.",
+      "uploaded": "{count} مرفوع",
+      "imageFile": "ملف الصورة",
+      "altEn": "بديل (EN)",
+      "altAr": "بديل (AR)",
+      "noFile": "لم يتم اختيار ملف.",
+      "fileSummary": "{name} · {kb} كيلوبايت",
+      "uploadPhoto": "رفع صورة",
+      "uploading": "جارٍ الرفع…",
+      "noPhotosYet": "لا صور بعد. ارفع أول صورة من الأعلى.",
+      "moveUp": "أعلى",
+      "moveDown": "أسفل",
+      "altSave": "حفظ النص البديل",
+      "editAlt": "تعديل النص البديل",
+      "altPending": "…",
+      "delete": "حذف",
+      "cancel": "إلغاء",
+      "altPlaceholderEn": "بديل (EN)",
+      "altPlaceholderAr": "بديل (AR)",
+      "errorPickFirst": "اختر صورة أولاً."
+    }
+  },
+  "subscriptions": {
+    "title": "الاشتراكات",
+    "description": "بطاقات العضوية النشطة — تصفية وفحص وإلغاء.",
+    "found": "نتيجة",
+    "stats": {
+      "active": "نشط",
+      "pending": "معلّق",
+      "expired": "منتهٍ",
+      "cancelled": "ملغى"
+    },
+    "filters": {
+      "allTiers": "كل الباقات",
+      "search": "الاسم أو البريد أو الهاتف…"
+    },
+    "table": {
+      "member": "العضو",
+      "tier": "الباقة",
+      "status": "الحالة",
+      "window": "الفترة",
+      "visits": "الزيارات",
+      "renew": "تجديد",
+      "on": "تشغيل",
+      "off": "إيقاف"
+    },
+    "empty": {
+      "title": "لا اشتراكات مطابقة",
+      "hint": "امسح المرشّحات أو انتظر اشتراك عضو."
+    },
+    "cancel": "إلغاء",
+    "cancelConfirm": "إلغاء هذا الاشتراك؟"
+  },
+  "plans": {
+    "title": "الباقات",
+    "description": "الباقات والتسعير لاشتراكات الأعضاء. التعديلات تُطبَّق على التجديدات المستقبلية.",
+    "count": "باقة",
+    "duration": "{count} شهر",
+    "fields": {
+      "price": "السعر (دينار)",
+      "monthlyVisits": "زيارات شهرية",
+      "includedGyms": "أندية مشمولة",
+      "discount": "نسبة الخصم %",
+      "featuresEn": "مميزات · EN (سطر لكل ميزة)",
+      "featuresAr": "مميزات · AR (سطر لكل ميزة)"
+    },
+    "footerHint": "التعديلات تُطبَّق على التجديدات المستقبلية."
+  },
+  "payouts": {
+    "title": "الدفعات",
+    "description": "تسويات شهرية للأندية الشريكة. أنشئ، راجع، حدّد كمدفوع بعد التحويل.",
+    "total": "الإجمالي",
+    "stats": {
+      "pendingAmount": "مبلغ معلّق",
+      "paidAmount": "مبلغ مدفوع",
+      "pendingRuns": "دفعات معلّقة",
+      "paidRuns": "دفعات مدفوعة"
+    },
+    "table": {
+      "gym": "النادي",
+      "period": "الفترة",
+      "entries": "إدخالات",
+      "amount": "المبلغ",
+      "status": "الحالة",
+      "paid": "مدفوع",
+      "pending": "معلّق"
+    },
+    "empty": {
+      "title": "لا دفعات بعد",
+      "hint": "أنشئ تسوية لفترة ما بعد تسجيل الزيارات."
+    },
+    "filters": {
+      "search": "تصفية بمعرّف النادي…"
+    },
+    "markPaid": "حدّد كمدفوع",
+    "marking": "جارٍ التحديد…",
+    "notesPlaceholder": "ملاحظات / مرجع (اختياري)",
+    "generate": {
+      "title": "إنشاء تسوية",
+      "periodStart": "بداية الفترة",
+      "periodEnd": "نهاية الفترة",
+      "submit": "إنشاء الدفعات",
+      "submitting": "جارٍ الإنشاء…"
+    }
+  },
+  "checkins": {
+    "title": "تسجيلات الدخول",
+    "description": "كل عمليات المسح من الأعضاء عبر شبكة الأندية.",
+    "found": "نتيجة",
+    "stats": {
+      "today": "اليوم",
+      "thisMonth": "منذ بداية الشهر",
+      "successRate": "نسبة النجاح"
+    },
+    "table": {
+      "when": "متى",
+      "member": "العضو",
+      "gym": "النادي",
+      "status": "الحالة",
+      "reason": "السبب"
+    },
+    "empty": {
+      "title": "لا تسجيلات مطابقة",
+      "hint": "عدّل المرشّحات أو انتظر مسحاً جديداً."
+    },
+    "filters": {
+      "allStatuses": "الكل",
+      "search": "اسم العضو / النادي / المعرّف…"
+    }
+  },
+  "audit": {
+    "title": "سجل التدقيق",
+    "description": "كل تعديل في النظام موثّق هنا.",
+    "found": "نتيجة",
+    "table": {
+      "when": "متى",
+      "actor": "الفاعل",
+      "action": "الإجراء",
+      "entity": "الكيان",
+      "diff": "الفرق"
+    },
+    "empty": {
+      "title": "لا قيود مطابقة",
+      "hint": "عدّل المرشّحات أو انتظر نشاطاً."
+    },
+    "filters": {
+      "search": "الفاعل / الإجراء / الكيان…"
+    }
+  },
+  "admins": {
+    "title": "المشرفون",
+    "description": "كل من له مقعد في هذه اللوحة. الإنشاء وإعادة التعيين موثّقان في سجل التدقيق.",
+    "total": "الإجمالي",
+    "stats": {
+      "active": "نشط",
+      "deactivated": "معطّل",
+      "totalSeats": "إجمالي المقاعد",
+      "addedThisMonth": "أُضيف هذا الشهر"
+    },
+    "form": {
+      "email": "البريد الإلكتروني",
+      "emailPlaceholder": "name@domain",
+      "name": "الاسم الكامل",
+      "namePlaceholder": "الاسم الأول والأخير",
+      "password": "كلمة المرور",
+      "passwordPlaceholder": "≥ 12 حرفاً · كبير، صغير، رقم، رمز",
+      "submit": "إنشاء مشرف",
+      "submitting": "جارٍ الإنشاء…"
+    },
+    "table": {
+      "admin": "المشرف",
+      "email": "البريد الإلكتروني",
+      "joined": "انضم في",
+      "status": "الحالة",
+      "active": "نشط",
+      "disabled": "معطّل",
+      "unnamed": "مشرف بدون اسم"
+    },
+    "empty": {
+      "title": "لا مشرفين بعد",
+      "hint": "أضف نفسك أو زميلاً من الأعلى."
+    },
+    "reset": {
+      "label": "إعادة تعيين كلمة المرور",
+      "newPassword": "كلمة مرور جديدة",
+      "newPasswordPlaceholder": "≥ 12 حرفاً · كبير، صغير، رقم، رمز",
+      "submit": "إعادة تعيين",
+      "submitting": "جارٍ الإعادة…",
+      "success": "تمّت إعادة التعيين.",
+      "cancel": "إلغاء"
+    }
+  },
+  "notifications": {
+    "title": "إرسال إشعار",
+    "description": "أرسل إشعاراً داخل التطبيق لكل الأعضاء النشطين. اختر باقة مستهدفة اختيارياً.",
+    "form": {
+      "titleEn": "العنوان · EN",
+      "titleAr": "العنوان · AR",
+      "bodyEn": "النص · EN",
+      "bodyAr": "النص · AR",
+      "targetTier": "الباقة المستهدفة",
+      "allActive": "كل الأعضاء النشطين",
+      "send": "إرسال البث",
+      "sending": "جارٍ الإرسال…",
+      "footerHint": "اللغتان مطلوبتان. أكّد قبل الإرسال.",
+      "confirmSend": "إرسال هذا البث لكل عضو مطابق؟",
+      "sentTo": "أُرسل لـ {count} عضو."
+    },
+    "guidelines": {
+      "title": "إرشادات الإرسال",
+      "leadStrong": "ابدأ بالخبر.",
+      "leadBody": " يرى الأعضاء الإشعار على شاشة القفل — اجعله أقل من 80 حرفاً.",
+      "arabicStrong": "العربية مطلوبة.",
+      "arabicBody": " AR هي اللغة الافتراضية. الإرسال بـ EN فقط يترك مستخدمي AR بلا شيء.",
+      "scopeStrong": "نطاق الباقة صارم.",
+      "scopeBody1": " اختيار ",
+      "scopeBody2": " يصل لأعضاء الفضّي فقط. اتركها فارغة لكل القاعدة."
+    }
+  },
+  "settings": {
+    "title": "الإعدادات",
+    "description": "إعدادات اللوحة الحالية — البيئة، المزوّدون، أوقات صلاحية JWT.",
+    "appEnv": "البيئة",
+    "apiDomain": "الواجهة البرمجية",
+    "adminDomain": "نطاق اللوحة",
+    "providers": "المزوّدون",
+    "jwtAccess": "صلاحية JWT الوصول",
+    "jwtRefresh": "صلاحية JWT التجديد",
+    "jwtService": "صلاحية JWT الخدمة",
+    "exchangeSkew": "أقصى انحراف للتبادل",
+    "health": "فحوص الصحة",
+    "maxUploadMb": "أقصى رفع (ميغابايت)",
+    "ok": "سليم",
+    "down": "متوقف",
+    "seconds": "ث"
+  },
+  "support": {
+    "title": "الدعم",
+    "description": "تذاكر الأعضاء والمحادثات.",
+    "stats": {
+      "open": "مفتوح",
+      "inProgress": "قيد المعالجة",
+      "waitingUser": "بانتظار العضو",
+      "resolved": "محلولة",
+      "closed": "مغلقة",
+      "total": "الإجمالي"
+    },
+    "filters": {
+      "search": "الموضوع / اسم العضو / المعرّف…",
+      "allCategories": "كل الفئات",
+      "allPriorities": "كل الأولويات",
+      "allStatuses": "كل الحالات"
+    },
+    "table": {
+      "subject": "الموضوع",
+      "category": "الفئة",
+      "priority": "الأولوية",
+      "status": "الحالة",
+      "updated": "آخر تحديث",
+      "member": "العضو",
+      "open": "فتح"
+    },
+    "empty": {
+      "title": "لا تذاكر مطابقة",
+      "hint": "عدّل المرشّحات أو انتظر تذكرة جديدة."
+    },
+    "detail": {
+      "back": "الطابور",
+      "viewMember": "عرض العضو",
+      "opened": "فُتحت",
+      "updated": "حُدّثت",
+      "resolved": "حُلّت",
+      "thread": "المحادثة",
+      "messagesCount": "{count} رسالة",
+      "noReplies": "لا ردود بعد.",
+      "reply": "رد",
+      "internalNote": "الملاحظات الداخلية تبقى مخفية عن العضو.",
+      "controls": "التحكم",
+      "autoSaves": "حفظ تلقائي",
+      "memberLabel": "عضو",
+      "internalLabel": "داخلي",
+      "unknownAuthor": "غير معروف",
+      "unknownMember": "عضو غير معروف"
+    },
+    "reply": {
+      "body": "نص الرد",
+      "internalToggle": "ملاحظة داخلية (مخفية عن العضو)",
+      "submit": "إرسال الرد",
+      "submitting": "جارٍ الإرسال…",
+      "internalSubmit": "إضافة ملاحظة داخلية",
+      "errorEmpty": "لا يمكن أن يكون نص الرد فارغاً."
+    },
+    "controls": {
+      "status": "الحالة",
+      "priority": "الأولوية",
+      "category": "الفئة",
+      "assignee": "المسؤول",
+      "assignSelf": "أسند إليّ",
+      "clearAssignee": "إزالة المسؤول",
+      "noAssignee": "غير مُسنَدة",
+      "saving": "جارٍ الحفظ…",
+      "saved": "محفوظة"
+    },
+    "categories": {
+      "bug": "خطأ برمجي",
+      "payment": "دفع",
+      "account": "حساب",
+      "gym_issue": "مشكلة نادٍ",
+      "feature": "ميزة",
+      "complaint": "شكوى",
+      "other": "أخرى"
+    },
+    "priorities": {
+      "low": "منخفضة",
+      "normal": "عادية",
+      "high": "مرتفعة",
+      "urgent": "عاجلة"
+    },
+    "statuses": {
+      "open": "مفتوحة",
+      "in_progress": "قيد المعالجة",
+      "waiting_user": "بانتظار العضو",
+      "resolved": "محلولة",
+      "closed": "مغلقة"
+    }
+  },
+  "checkinStatuses": {
+    "success": "ناجح",
+    "tier_locked": "باقة محظورة",
+    "no_visits": "لا زيارات متبقية",
+    "expired": "منتهٍ",
+    "invalid_qr": "QR غير صالح",
+    "rate_limited": "تجاوز الحد"
+  },
+  "subscriptionStatuses": {
+    "pending": "معلّق",
+    "active": "نشط",
+    "expired": "منتهٍ",
+    "cancelled": "ملغى"
+  },
+  "paymentStatuses": {
+    "pending": "معلّق",
+    "succeeded": "ناجح",
+    "failed": "فاشل"
+  },
+  "paymentMethods": {
+    "card": "بطاقة",
+    "cliq": "CliQ",
+    "apple_pay": "Apple Pay",
+    "mock": "Mock"
+  },
+  "referralStatuses": {
+    "pending": "معلّقة",
+    "converted": "تحوّلت",
+    "expired": "منتهية"
   }
 }

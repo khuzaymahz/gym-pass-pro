@@ -1,10 +1,12 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 import GymForm from "@/components/GymForm";
 import GymLogoPanel from "@/components/GymLogoPanel";
 import GymPhotosPanel from "@/components/GymPhotosPanel";
 import Toolbar from "@/components/Toolbar";
+import { GymUpsertBodySchema, parseAction } from "@/lib/action-schemas";
 import {
   deleteGym,
   deleteGymLogo,
@@ -25,8 +27,12 @@ type Props = { params: Promise<{ id: string }> };
 
 async function updateAction(id: string, data: Partial<GymRead>) {
   "use server";
+  const validated = parseAction(GymUpsertBodySchema, data);
+  if (!validated.ok) {
+    return { ok: false, error: validated.message };
+  }
   try {
-    await updateGym(id, data);
+    await updateGym(id, validated.data as Partial<GymRead>);
     return { ok: true };
   } catch (error) {
     return {
@@ -112,6 +118,8 @@ async function deleteLogoAction(gymId: string) {
 
 export default async function EditGymPage({ params }: Props) {
   const { id } = await params;
+  const t = await getTranslations("gyms");
+  const tForm = await getTranslations("gyms.form");
   let gym;
   let photos: GymPhotoRead[] = [];
   try {
@@ -143,15 +151,15 @@ export default async function EditGymPage({ params }: Props) {
         actions={
           <>
             <Link href="/gyms" className="btn-ghost btn-sm">
-              ← Gyms
+              ← {t("back")}
             </Link>
             <form action={boundDelete}>
-              <button className="btn-danger btn-sm">Soft-delete</button>
+              <button className="btn-danger btn-sm">{t("softDelete")}</button>
             </form>
           </>
         }
       />
-      <GymForm initial={gym} action={bound} submitLabel="Save changes" />
+      <GymForm initial={gym} action={bound} submitLabel={tForm("save")} />
       <GymLogoPanel
         logoUrl={resolvedLogo}
         uploadAction={boundUploadLogo}

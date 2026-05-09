@@ -1,3 +1,5 @@
+import { getTranslations } from "next-intl/server";
+
 import EmptyState from "@/components/EmptyState";
 import { FilterBar, Segmented, SearchInput } from "@/components/FilterBar";
 import GeneratePayoutsForm from "@/components/GeneratePayoutsForm";
@@ -45,6 +47,11 @@ export default async function PayoutsPage({
   searchParams: Promise<SearchParams>;
 }) {
   const params = await searchParams;
+  const t = await getTranslations("payouts");
+  const tStats = await getTranslations("payouts.stats");
+  const tTable = await getTranslations("payouts.table");
+  const tEmpty = await getTranslations("payouts.empty");
+  const tFilters = await getTranslations("payouts.filters");
   const status = parseStatus(params.status);
   const gymId = params.gymId?.trim() || undefined;
   const page = parsePage(params.page);
@@ -89,26 +96,26 @@ export default async function PayoutsPage({
   return (
     <section className="flex flex-col gap-5">
       <Toolbar
-        title="Payouts"
-        description="Monthly partner settlement runs. Generate, review, mark paid once transferred."
-        count={{ label: "total", value: result.total.toLocaleString() }}
+        title={t("title")}
+        description={t("description")}
+        count={{ label: t("total"), value: result.total.toLocaleString() }}
       />
 
       <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
         <StatTile
-          label="Pending amount"
+          label={tStats("pendingAmount")}
           value={pendingAmount.toFixed(2)}
           unit="JOD"
           tone={pendingAmount > 0 ? "warn" : "default"}
         />
         <StatTile
-          label="Paid amount"
+          label={tStats("paidAmount")}
           value={paidAmount.toFixed(2)}
           unit="JOD"
           tone="ok"
         />
-        <StatTile label="Pending runs" value={pendingCount} />
-        <StatTile label="Paid runs" value={paidCount} />
+        <StatTile label={tStats("pendingRuns")} value={pendingCount} />
+        <StatTile label={tStats("paidRuns")} value={paidCount} />
       </div>
 
       <GeneratePayoutsForm action={generate} />
@@ -117,14 +124,16 @@ export default async function PayoutsPage({
         <Segmented
           value={status}
           options={STATUSES}
-          labelFor={(s) => s.charAt(0).toUpperCase() + s.slice(1)}
+          labelFor={(s) =>
+            s === "paid" ? tTable("paid") : tTable("pending")
+          }
           hrefFor={(s) => hrefFor({ status: s, page: undefined })}
         />
         <div className="ml-auto">
           <SearchInput
             name="gymId"
             defaultValue={gymId}
-            placeholder="Filter by gym UUID…"
+            placeholder={tFilters("search")}
             action="/payouts"
             hidden={{ status: params.status }}
           />
@@ -132,20 +141,17 @@ export default async function PayoutsPage({
       </FilterBar>
 
       {result.items.length === 0 ? (
-        <EmptyState
-          title="No payouts yet"
-          hint="Generate a run for a period once partner gyms have logged check-ins."
-        />
+        <EmptyState title={tEmpty("title")} hint={tEmpty("hint")} />
       ) : (
         <div className="panel overflow-hidden">
           <table className="table">
             <thead>
               <tr>
-                <th>Gym</th>
-                <th>Period</th>
-                <th className="num">Entries</th>
-                <th className="num">Amount</th>
-                <th>Status</th>
+                <th>{tTable("gym")}</th>
+                <th>{tTable("period")}</th>
+                <th className="num">{tTable("entries")}</th>
+                <th className="num">{tTable("amount")}</th>
+                <th>{tTable("status")}</th>
                 <th className="w-0" />
               </tr>
             </thead>
@@ -172,7 +178,9 @@ export default async function PayoutsPage({
                   </td>
                   <td>
                     <StatusPill tone={p.status === "paid" ? "ok" : "warn"}>
-                      {p.status}
+                      {p.status === "paid"
+                        ? tTable("paid")
+                        : tTable("pending")}
                     </StatusPill>
                   </td>
                   <td className="text-right">

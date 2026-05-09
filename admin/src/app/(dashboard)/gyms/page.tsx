@@ -1,4 +1,6 @@
+import Image from "next/image";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
 import EmptyState from "@/components/EmptyState";
 import { FilterBar, Segmented, SearchInput } from "@/components/FilterBar";
@@ -25,6 +27,13 @@ export default async function GymsPage({
 }: {
   searchParams: SearchParams;
 }) {
+  const t = await getTranslations("gyms");
+  const tStats = await getTranslations("gyms.stats");
+  const tFilters = await getTranslations("gyms.filters");
+  const tCategory = await getTranslations("gyms.filters.category");
+  const tTable = await getTranslations("gyms.table");
+  const tEmpty = await getTranslations("gyms.empty");
+
   const pageParam = Math.max(1, Number.parseInt(searchParams.page ?? "1", 10) || 1);
   const category = searchParams.category as
     | (typeof CATEGORY_OPTIONS)[number]
@@ -84,36 +93,34 @@ export default async function GymsPage({
   return (
     <section className="flex flex-col gap-5">
       <Toolbar
-        title="Gyms"
-        description="Partner venues on the network. Edit pricing, tier, and status per row."
-        count={{ label: "on network", value: firstPage.items.length }}
+        title={t("title")}
+        description={t("description")}
+        count={{ label: t("onNetwork"), value: firstPage.items.length }}
         actions={
           <Link href="/gyms/new" className="btn-primary">
-            Add gym
+            {t("addGym")}
           </Link>
         }
       />
 
       <div className="grid grid-cols-2 gap-2 md:grid-cols-6">
-        <StatTile label="Total" value={firstPage.items.length} />
+        <StatTile label={tStats("total")} value={firstPage.items.length} />
         <StatTile
-          label="Active"
+          label={tStats("active")}
           value={activeCount}
           tone={activeCount === firstPage.items.length ? "ok" : "default"}
         />
-        <StatTile label="Silver" value={tierCounts.silver} />
-        <StatTile label="Gold" value={tierCounts.gold} />
-        <StatTile label="Platinum" value={tierCounts.platinum} />
-        <StatTile label="Diamond" value={tierCounts.diamond} />
+        <StatTile label={tStats("silver")} value={tierCounts.silver} />
+        <StatTile label={tStats("gold")} value={tierCounts.gold} />
+        <StatTile label={tStats("platinum")} value={tierCounts.platinum} />
+        <StatTile label={tStats("diamond")} value={tierCounts.diamond} />
       </div>
 
       <FilterBar>
         <Segmented
           value={category}
           options={CATEGORY_OPTIONS}
-          labelFor={(o) =>
-            ({ gym: "Gyms", crossfit: "CrossFit", martial: "Martial", yoga: "Yoga" })[o]
-          }
+          labelFor={(o) => tCategory(o)}
           hrefFor={(o) => hrefFor({ category: o, page: undefined })}
         />
         <Segmented
@@ -121,12 +128,12 @@ export default async function GymsPage({
           options={TIER_OPTIONS}
           labelFor={(o) => o.charAt(0).toUpperCase() + o.slice(1)}
           hrefFor={(o) => hrefFor({ tier: o, page: undefined })}
-          allLabel="All tiers"
+          allLabel={tFilters("allTiers")}
         />
         <div className="ml-auto">
           <SearchInput
             defaultValue={searchParams.q}
-            placeholder="Search name, area, slug…"
+            placeholder={tFilters("search")}
             action="/gyms"
             hidden={{ category: searchParams.category, tier: searchParams.tier }}
           />
@@ -135,15 +142,13 @@ export default async function GymsPage({
 
       {pageItems.length === 0 ? (
         <EmptyState
-          title={total === 0 ? "No gyms match" : "No rows on this page"}
+          title={total === 0 ? tEmpty("noMatch") : tEmpty("noRows")}
           hint={
-            total === 0
-              ? "Adjust filters, clear search, or add your first venue."
-              : "Try the previous page."
+            total === 0 ? tEmpty("noMatchHint") : tEmpty("noRowsHint")
           }
           action={
             firstPage.items.length === 0
-              ? { href: "/gyms/new", label: "Add gym" }
+              ? { href: "/gyms/new", label: t("addGym") }
               : undefined
           }
         />
@@ -152,19 +157,25 @@ export default async function GymsPage({
           <table className="table">
             <thead>
               <tr>
-                <th>Venue</th>
-                <th>Area</th>
-                <th>Category</th>
-                <th>Tier</th>
-                <th className="num">Per visit</th>
-                <th className="num">Photos</th>
-                <th>Status</th>
+                <th>{tTable("venue")}</th>
+                <th>{tTable("area")}</th>
+                <th>{tTable("category")}</th>
+                <th>{tTable("tier")}</th>
+                <th className="num">{tTable("perVisit")}</th>
+                <th className="num">{tTable("photos")}</th>
+                <th>{tTable("status")}</th>
                 <th className="w-0" />
               </tr>
             </thead>
             <tbody>
               {pageItems.map((g) => (
-                <GymRow key={g.id} g={g} />
+                <GymRow
+                  key={g.id}
+                  g={g}
+                  liveLabel={tTable("live")}
+                  offLabel={tTable("off")}
+                  editLabel={tTable("edit")}
+                />
               ))}
             </tbody>
           </table>
@@ -181,7 +192,17 @@ export default async function GymsPage({
   );
 }
 
-function GymRow({ g }: { g: GymRead }) {
+function GymRow({
+  g,
+  liveLabel,
+  offLabel,
+  editLabel,
+}: {
+  g: GymRead;
+  liveLabel: string;
+  offLabel: string;
+  editLabel: string;
+}) {
   return (
     <tr>
       <td className="min-w-0">
@@ -214,12 +235,12 @@ function GymRow({ g }: { g: GymRead }) {
       </td>
       <td>
         <StatusPill tone={g.isActive ? "ok" : "mute"}>
-          {g.isActive ? "Live" : "Off"}
+          {g.isActive ? liveLabel : offLabel}
         </StatusPill>
       </td>
       <td className="num text-right">
         <Link href={`/gyms/${g.id}`} className="btn-ghost btn-sm">
-          Edit →
+          {editLabel} →
         </Link>
       </td>
     </tr>
@@ -230,11 +251,13 @@ function GymThumb({ logoUrl, name }: { logoUrl?: string | null; name: string }) 
   const initial = name.trim().charAt(0).toUpperCase() || "·";
   if (logoUrl) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
+      <Image
         src={resolvePhotoUrl(logoUrl)}
         alt=""
+        width={28}
+        height={28}
         className="h-7 w-7 flex-shrink-0 rounded-md border border-line object-cover"
+        unoptimized
       />
     );
   }

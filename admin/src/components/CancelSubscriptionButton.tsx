@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -11,11 +12,13 @@ type Props = {
 
 export default function CancelSubscriptionButton({ action }: Props) {
   const router = useRouter();
+  const t = useTranslations("subscriptions");
+  const tCommon = useTranslations("common");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   function onClick() {
-    if (!confirm("Cancel this subscription? This cannot be undone.")) return;
+    if (!confirm(t("cancelConfirm"))) return;
     setError(null);
     startTransition(async () => {
       const result = await action();
@@ -35,7 +38,7 @@ export default function CancelSubscriptionButton({ action }: Props) {
         disabled={pending}
         className="btn-danger btn-sm disabled:opacity-50"
       >
-        {pending ? "Cancelling…" : "Cancel"}
+        {pending ? tCommon("loading") : t("cancel")}
       </button>
       {error ? <span className="text-[11px] text-red-300">{error}</span> : null}
     </div>

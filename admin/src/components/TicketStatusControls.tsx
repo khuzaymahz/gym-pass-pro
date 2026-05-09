@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 
 import type { ActionResult } from "@/lib/action-result";
@@ -48,6 +49,11 @@ export default function TicketStatusControls({
   currentAdminId,
   action,
 }: Props) {
+  const t = useTranslations("support.controls");
+  const tStatuses = useTranslations("support.statuses");
+  const tPriorities = useTranslations("support.priorities");
+  const tCategories = useTranslations("support.categories");
+  const tCommon = useTranslations("common");
   const [status, setStatus] = useState<TicketStatus>(initialStatus);
   const [priority, setPriority] = useState<TicketPriority>(initialPriority);
   const [category, setCategory] = useState<TicketCategory>(initialCategory);
@@ -62,7 +68,7 @@ export default function TicketStatusControls({
     startTransition(async () => {
       const result = await action(body);
       if (result.ok) {
-        setMessage({ tone: "ok", text: "Updated." });
+        setMessage({ tone: "ok", text: tCommon("savedDot") });
         if (result.data) {
           setStatus(result.data.status);
           setPriority(result.data.priority);
@@ -77,7 +83,7 @@ export default function TicketStatusControls({
 
   return (
     <div className="flex flex-col gap-3">
-      <Field label="Status">
+      <Field label={t("status")}>
         <select
           className="select input-sm"
           value={status}
@@ -90,12 +96,12 @@ export default function TicketStatusControls({
         >
           {STATUSES.map((s) => (
             <option key={s} value={s}>
-              {s.replace("_", " ")}
+              {tStatuses(s)}
             </option>
           ))}
         </select>
       </Field>
-      <Field label="Priority">
+      <Field label={t("priority")}>
         <select
           className="select input-sm"
           value={priority}
@@ -108,12 +114,12 @@ export default function TicketStatusControls({
         >
           {PRIORITIES.map((p) => (
             <option key={p} value={p}>
-              {p}
+              {tPriorities(p)}
             </option>
           ))}
         </select>
       </Field>
-      <Field label="Category">
+      <Field label={t("category")}>
         <select
           className="select input-sm"
           value={category}
@@ -126,12 +132,12 @@ export default function TicketStatusControls({
         >
           {CATEGORIES.map((c) => (
             <option key={c} value={c}>
-              {c.replace("_", " ")}
+              {tCategories(c)}
             </option>
           ))}
         </select>
       </Field>
-      <Field label="Assignee">
+      <Field label={t("assignee")}>
         {assignee === currentAdminId ? (
           <button
             type="button"
@@ -142,7 +148,7 @@ export default function TicketStatusControls({
             }}
             className="btn-secondary btn-sm w-full"
           >
-            Unassign me
+            {t("clearAssignee")}
           </button>
         ) : (
           <button
@@ -154,11 +160,11 @@ export default function TicketStatusControls({
             }}
             className="btn-primary btn-sm w-full"
           >
-            Assign to me
+            {t("assignSelf")}
           </button>
         )}
         <p className="mt-1 text-[11px] text-muted num">
-          {assignee ? `Assigned: ${assignee.slice(0, 8)}…` : "Unassigned"}
+          {assignee ? `${assignee.slice(0, 8)}…` : t("noAssignee")}
         </p>
       </Field>
 

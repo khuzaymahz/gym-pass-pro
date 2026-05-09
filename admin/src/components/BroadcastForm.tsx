@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 
 import type { ActionResult } from "@/lib/action-result";
@@ -14,6 +15,7 @@ type Props = {
 const TIERS: Tier[] = ["silver", "gold", "platinum", "diamond"];
 
 export default function BroadcastForm({ action }: Props) {
+  const t = useTranslations("notifications.form");
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<{
     tone: "ok" | "err";
@@ -28,7 +30,7 @@ export default function BroadcastForm({ action }: Props) {
 
   function onSubmit(event: React.FormEvent) {
     event.preventDefault();
-    if (!confirm("Send this broadcast to every matching member?")) return;
+    if (!confirm(t("confirmSend"))) return;
     setMessage(null);
 
     const payload: BroadcastBody = {
@@ -44,7 +46,7 @@ export default function BroadcastForm({ action }: Props) {
       if (result.ok) {
         setMessage({
           tone: "ok",
-          text: `Sent to ${result.data.recipients} member(s).`,
+          text: t("sentTo", { count: result.data.recipients }),
         });
         setTitleEn("");
         setTitleAr("");
@@ -59,7 +61,7 @@ export default function BroadcastForm({ action }: Props) {
   return (
     <form onSubmit={onSubmit} className="panel flex flex-col">
       <div className="grid grid-cols-1 gap-3 border-b border-line p-4 md:grid-cols-2">
-        <Field label="Title · EN">
+        <Field label={t("titleEn")}>
           <input
             className="input input-sm"
             required
@@ -67,7 +69,7 @@ export default function BroadcastForm({ action }: Props) {
             onChange={(e) => setTitleEn(e.target.value)}
           />
         </Field>
-        <Field label="Title · AR">
+        <Field label={t("titleAr")}>
           <input
             className="input input-sm"
             required
@@ -76,7 +78,7 @@ export default function BroadcastForm({ action }: Props) {
             onChange={(e) => setTitleAr(e.target.value)}
           />
         </Field>
-        <Field label="Body · EN">
+        <Field label={t("bodyEn")}>
           <textarea
             className="input min-h-[6rem]"
             required
@@ -84,7 +86,7 @@ export default function BroadcastForm({ action }: Props) {
             onChange={(e) => setBodyEn(e.target.value)}
           />
         </Field>
-        <Field label="Body · AR">
+        <Field label={t("bodyAr")}>
           <textarea
             className="input min-h-[6rem]"
             required
@@ -93,16 +95,16 @@ export default function BroadcastForm({ action }: Props) {
             onChange={(e) => setBodyAr(e.target.value)}
           />
         </Field>
-        <Field label="Target tier">
+        <Field label={t("targetTier")}>
           <select
             className="select input-sm"
             value={targetTier}
             onChange={(e) => setTargetTier(e.target.value as "" | Tier)}
           >
-            <option value="">All active members</option>
-            {TIERS.map((t) => (
-              <option key={t} value={t}>
-                {t}
+            <option value="">{t("allActive")}</option>
+            {TIERS.map((tier) => (
+              <option key={tier} value={tier}>
+                {tier}
               </option>
             ))}
           </select>
@@ -119,12 +121,10 @@ export default function BroadcastForm({ action }: Props) {
             {message.text}
           </p>
         ) : (
-          <span className="text-[12px] text-muted">
-            Both languages required. Confirm before send.
-          </span>
+          <span className="text-[12px] text-muted">{t("footerHint")}</span>
         )}
         <button className="btn-primary btn-sm" disabled={pending}>
-          {pending ? "Sending…" : "Send broadcast"}
+          {pending ? t("sending") : t("send")}
         </button>
       </footer>
     </form>

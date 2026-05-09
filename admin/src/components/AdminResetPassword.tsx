@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 
 import type { ActionResult } from "@/lib/action-result";
@@ -9,6 +10,8 @@ type Props = {
 };
 
 export default function AdminResetPassword({ action }: Props) {
+  const t = useTranslations("admins.reset");
+  const tCommon = useTranslations("common");
   const [open, setOpen] = useState(false);
   const [password, setPassword] = useState("");
   const [pending, startTransition] = useTransition();
@@ -23,7 +26,7 @@ export default function AdminResetPassword({ action }: Props) {
     startTransition(async () => {
       const result = await action(password);
       if (result.ok) {
-        setMessage({ tone: "ok", text: "Password updated." });
+        setMessage({ tone: "ok", text: t("success") });
         setPassword("");
         setOpen(false);
       } else {
@@ -39,7 +42,7 @@ export default function AdminResetPassword({ action }: Props) {
         onClick={() => setOpen(true)}
         className="btn-ghost btn-sm"
       >
-        Reset password
+        {t("label")}
       </button>
     );
   }
@@ -50,8 +53,9 @@ export default function AdminResetPassword({ action }: Props) {
         className="input input-sm w-40"
         type="password"
         required
-        minLength={8}
-        placeholder="New password"
+        minLength={12}
+        maxLength={128}
+        placeholder={t("newPasswordPlaceholder")}
         value={password}
         onChange={(e) => setPassword(e.target.value)}
       />
@@ -60,7 +64,7 @@ export default function AdminResetPassword({ action }: Props) {
         disabled={pending}
         className="btn-primary btn-sm"
       >
-        {pending ? "…" : "Save"}
+        {pending ? t("submitting") : tCommon("save")}
       </button>
       <button
         type="button"
@@ -71,7 +75,7 @@ export default function AdminResetPassword({ action }: Props) {
         }}
         className="btn-ghost btn-sm"
       >
-        Cancel
+        {t("cancel")}
       </button>
       {message ? (
         <span

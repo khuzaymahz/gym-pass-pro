@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
 import EmptyState from "@/components/EmptyState";
 import Pager from "@/components/Pager";
@@ -56,6 +57,10 @@ export default async function AuditPage({
   searchParams: Promise<SearchParams>;
 }) {
   const params = await searchParams;
+  const t = await getTranslations("audit");
+  const tTable = await getTranslations("audit.table");
+  const tEmpty = await getTranslations("audit.empty");
+  const tCommon = await getTranslations("common");
   const entityType = params.entityType?.trim() || undefined;
   const action = params.action?.trim() || undefined;
   const actorUserId = params.actorUserId?.trim() || undefined;
@@ -84,9 +89,9 @@ export default async function AuditPage({
   return (
     <section className="flex flex-col gap-5">
       <Toolbar
-        title="Audit log"
-        description="Every write path emits an append-only row — who, what, when, where."
-        count={{ label: "entries", value: result.total.toLocaleString() }}
+        title={t("title")}
+        description={t("description")}
+        count={{ label: t("found"), value: result.total.toLocaleString() }}
       />
 
       <form
@@ -125,30 +130,27 @@ export default async function AuditPage({
         <div className="ml-auto flex items-center gap-1">
           {(entityType || action || actorUserId) && (
             <Link href="/audit" className="btn-ghost btn-sm">
-              Clear
+              {tCommon("close")}
             </Link>
           )}
           <button type="submit" className="btn-primary btn-sm">
-            Apply
+            {tCommon("filter")}
           </button>
         </div>
       </form>
 
       {result.items.length === 0 ? (
-        <EmptyState
-          title="No entries match"
-          hint="Clear filters to see the tail of the log."
-        />
+        <EmptyState title={tEmpty("title")} hint={tEmpty("hint")} />
       ) : (
         <div className="panel overflow-hidden">
           <table className="table table-compact">
             <thead>
               <tr>
-                <th>UTC</th>
-                <th>Actor</th>
-                <th>Action</th>
-                <th>Entity</th>
-                <th>Diff</th>
+                <th>{tTable("when")}</th>
+                <th>{tTable("actor")}</th>
+                <th>{tTable("action")}</th>
+                <th>{tTable("entity")}</th>
+                <th>{tTable("diff")}</th>
                 <th>IP</th>
               </tr>
             </thead>

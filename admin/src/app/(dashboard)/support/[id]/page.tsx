@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { getServerSession } from "next-auth";
 
@@ -67,6 +68,10 @@ export default async function TicketDetailPage({
   const { id } = await params;
   const session = await getServerSession(authOptions);
   const currentAdminId = session?.adminId ?? "";
+  const t = await getTranslations("support.detail");
+  const tStatuses = await getTranslations("support.statuses");
+  const tPriorities = await getTranslations("support.priorities");
+  const tCategories = await getTranslations("support.categories");
 
   let ticket;
   try {
@@ -93,17 +98,17 @@ export default async function TicketDetailPage({
     <section className="flex flex-col gap-5">
       <Toolbar
         title={ticket.subject}
-        description={`${ticket.category.replace("_", " ")} · #${ticket.id.slice(0, 8)} · ${ticket.userName ?? "Unknown member"}`}
+        description={`${tCategories(ticket.category)} · #${ticket.id.slice(0, 8)} · ${ticket.userName ?? t("unknownMember")}`}
         actions={
           <>
             <StatusPill tone={STATUS_TONE[ticket.status]}>
-              {ticket.status.replace("_", " ")}
+              {tStatuses(ticket.status)}
             </StatusPill>
             <StatusPill tone={PRIORITY_TONE[ticket.priority]}>
-              {ticket.priority}
+              {tPriorities(ticket.priority)}
             </StatusPill>
             <Link href="/support" className="btn-ghost btn-sm">
-              ← Queue
+              ← {t("back")}
             </Link>
           </>
         }
@@ -111,19 +116,19 @@ export default async function TicketDetailPage({
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11.5px] text-muted num">
         <span>
-          <span className="text-muted">Opened</span>{" "}
+          <span className="text-muted">{t("opened")}</span>{" "}
           <span className="text-paper/80">{formatDate(ticket.createdAt)}</span>
         </span>
         <span>·</span>
         <span>
-          <span className="text-muted">Updated</span>{" "}
+          <span className="text-muted">{t("updated")}</span>{" "}
           <span className="text-paper/80">{formatDate(ticket.updatedAt)}</span>
         </span>
         {ticket.resolvedAt ? (
           <>
             <span>·</span>
             <span>
-              <span className="text-muted">Resolved</span>{" "}
+              <span className="text-muted">{t("resolved")}</span>{" "}
               <span className="text-lime">{formatDate(ticket.resolvedAt)}</span>
             </span>
           </>
@@ -133,7 +138,7 @@ export default async function TicketDetailPage({
           href={`/users/${ticket.userId}`}
           className="text-paper/80 hover:text-lime"
         >
-          View member →
+          {t("viewMember")} →
         </Link>
       </div>
 
@@ -143,9 +148,9 @@ export default async function TicketDetailPage({
             <div className="flex items-center justify-between border-b border-line pb-2">
               <div className="flex items-center gap-2 text-[12px]">
                 <span className="text-paper font-medium">
-                  {ticket.userName ?? "Unknown member"}
+                  {ticket.userName ?? t("unknownMember")}
                 </span>
-                <span className="kbd">member</span>
+                <span className="kbd">{t("memberLabel")}</span>
                 <span className="text-muted num">
                   {[ticket.userEmail, ticket.userPhone]
                     .filter(Boolean)
@@ -238,9 +243,9 @@ export default async function TicketDetailPage({
 
           <div className="panel p-4">
             <div className="mb-3 flex items-center justify-between border-b border-line pb-2">
-              <h2 className="h3">Reply</h2>
+              <h2 className="h3">{t("reply")}</h2>
               <span className="text-[11px] text-muted">
-                Internal notes stay hidden from the member.
+                {t("internalNote")}
               </span>
             </div>
             <TicketReplyForm action={reply} />
@@ -249,8 +254,8 @@ export default async function TicketDetailPage({
 
         <aside className="panel h-fit p-4">
           <div className="mb-3 flex items-center justify-between border-b border-line pb-2">
-            <h2 className="h3">Controls</h2>
-            <span className="text-[11px] text-muted">auto-saves</span>
+            <h2 className="h3">{t("controls")}</h2>
+            <span className="text-[11px] text-muted">{t("autoSaves")}</span>
           </div>
           <TicketStatusControls
             initialStatus={ticket.status}

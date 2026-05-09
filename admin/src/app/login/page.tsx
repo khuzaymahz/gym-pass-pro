@@ -1,12 +1,14 @@
 "use client";
 
 import { signIn } from "next-auth/react";
+import { useTranslations } from "next-intl";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 
 function LoginForm() {
   const router = useRouter();
   const search = useSearchParams();
+  const t = useTranslations("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -26,14 +28,14 @@ function LoginForm() {
       const callback = search.get("callbackUrl") ?? "/";
       router.push(callback);
     } else {
-      setError("Credentials not recognised.");
+      setError(t("invalid"));
     }
   }
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-3">
       <label className="field">
-        <span className="field-label">Email</span>
+        <span className="field-label">{t("email")}</span>
         <input
           className="input input-sm"
           type="email"
@@ -44,7 +46,7 @@ function LoginForm() {
         />
       </label>
       <label className="field">
-        <span className="field-label">Password</span>
+        <span className="field-label">{t("password")}</span>
         <input
           className="input input-sm"
           type="password"
@@ -55,44 +57,47 @@ function LoginForm() {
         />
       </label>
 
-      {error ? (
-        <p className="text-[12px] text-red-300">{error}</p>
-      ) : null}
+      {error ? <p className="text-[12px] text-red-300">{error}</p> : null}
 
       <button
         type="submit"
         className="btn-primary btn-sm mt-1 w-full justify-center"
         disabled={loading}
       >
-        {loading ? "Signing in…" : "Continue"}
+        {loading ? t("submitting") : t("submit")}
       </button>
-
-      <p className="mt-1 text-[11px] text-muted">
-        NextAuth · service-token exchange
-      </p>
     </form>
   );
 }
 
 export default function LoginPage() {
+  // Server component would be ideal but next-intl `getTranslations`
+  // forces async + the form needs onSubmit; keeping the page as a
+  // small client wrapper keeps the boundary tight.
+  return (
+    <LoginShell>
+      <Suspense fallback={null}>
+        <LoginForm />
+      </Suspense>
+    </LoginShell>
+  );
+}
+
+function LoginShell({ children }: { children: React.ReactNode }) {
+  const t = useTranslations("login");
+  const tBrand = useTranslations("brand");
   return (
     <main className="flex min-h-screen items-center justify-center bg-ink p-6 text-paper">
       <div className="w-full max-w-sm">
         <div className="mb-5 flex items-center justify-between">
           <div>
-            <p className="label">GymPass · Console</p>
-            <h1 className="mt-1 h2">Sign in</h1>
+            <p className="label">{tBrand("name")} · Console</p>
+            <h1 className="mt-1 h2">{t("title")}</h1>
           </div>
-          <span className="kbd">staff</span>
+          <span className="kbd">{t("subtitle")}</span>
         </div>
-        <div className="panel p-5">
-          <Suspense fallback={null}>
-            <LoginForm />
-          </Suspense>
-        </div>
-        <p className="mt-3 text-[11px] text-muted">
-          Members use the mobile app. This console is staff-only.
-        </p>
+        <div className="panel p-5">{children}</div>
+        <p className="mt-3 text-[11px] text-muted">{t("footer")}</p>
       </div>
     </main>
   );

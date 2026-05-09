@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 
 import type { ActionResult } from "@/lib/action-result";
 import type { SupportTicketMessage, TicketReplyBody } from "@/lib/sdk";
@@ -12,6 +13,8 @@ type Props = {
 
 export default function TicketReplyForm({ action }: Props) {
   const router = useRouter();
+  const t = useTranslations("support.reply");
+  const tCommon = useTranslations("common");
   const [body, setBody] = useState("");
   const [isInternalNote, setInternal] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -30,7 +33,7 @@ export default function TicketReplyForm({ action }: Props) {
         setInternal(false);
         setMessage({
           tone: "ok",
-          text: isInternalNote ? "Internal note saved." : "Reply sent.",
+          text: tCommon("savedDot"),
         });
         router.refresh();
       } else {
@@ -47,11 +50,7 @@ export default function TicketReplyForm({ action }: Props) {
         }`}
         value={body}
         onChange={(e) => setBody(e.target.value)}
-        placeholder={
-          isInternalNote
-            ? "Internal note — visible only to admins."
-            : "Reply to the member…"
-        }
+        placeholder={t("body")}
         required
       />
       <div className="flex flex-wrap items-center gap-3">
@@ -62,7 +61,7 @@ export default function TicketReplyForm({ action }: Props) {
             onChange={(e) => setInternal(e.target.checked)}
             className="h-3.5 w-3.5 accent-amber-300"
           />
-          Internal note
+          {t("internalToggle")}
         </label>
         {message ? (
           <span
@@ -77,7 +76,11 @@ export default function TicketReplyForm({ action }: Props) {
           className="btn-primary btn-sm ml-auto"
           disabled={pending || !body.trim()}
         >
-          {pending ? "Sending…" : isInternalNote ? "Save note" : "Send reply"}
+          {pending
+            ? t("submitting")
+            : isInternalNote
+              ? t("internalSubmit")
+              : t("submit")}
         </button>
       </div>
     </form>

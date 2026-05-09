@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -14,6 +15,8 @@ type Props = {
 
 export default function PlanEditor({ plan, action }: Props) {
   const router = useRouter();
+  const t = useTranslations("plans");
+  const tCommon = useTranslations("common");
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<{
     tone: "ok" | "err";
@@ -52,7 +55,7 @@ export default function PlanEditor({ plan, action }: Props) {
     startTransition(async () => {
       const result = await action(payload);
       if (result.ok) {
-        setMessage({ tone: "ok", text: "Saved." });
+        setMessage({ tone: "ok", text: tCommon("savedDot") });
         router.refresh();
       } else {
         setMessage({ tone: "err", text: result.message });
@@ -65,9 +68,11 @@ export default function PlanEditor({ plan, action }: Props) {
       <header className="flex items-center justify-between border-b border-line px-4 py-3">
         <div className="flex items-center gap-2">
           <h3 className="h2 capitalize">{plan.tier}</h3>
-          <span className="kbd">{plan.durationMonths} mo</span>
+          <span className="kbd">
+            {t("duration", { count: plan.durationMonths })}
+          </span>
           <StatusPill tone={isActive ? "ok" : "mute"}>
-            {isActive ? "Active" : "Inactive"}
+            {isActive ? tCommon("active") : tCommon("inactive")}
           </StatusPill>
         </div>
         <label className="flex items-center gap-1.5 text-[12px] text-muted">
@@ -77,12 +82,12 @@ export default function PlanEditor({ plan, action }: Props) {
             onChange={(e) => setIsActive(e.target.checked)}
             className="h-3.5 w-3.5 accent-lime"
           />
-          Enabled
+          {tCommon("enabled")}
         </label>
       </header>
 
       <div className="grid grid-cols-2 gap-3 border-b border-line p-4 md:grid-cols-4">
-        <Field label="Price (JOD)">
+        <Field label={t("fields.price")}>
           <input
             className="input input-sm num"
             required
@@ -91,7 +96,7 @@ export default function PlanEditor({ plan, action }: Props) {
             onChange={(e) => setPriceJod(e.target.value)}
           />
         </Field>
-        <Field label="Monthly visits">
+        <Field label={t("fields.monthlyVisits")}>
           <input
             className="input input-sm num"
             required
@@ -103,7 +108,7 @@ export default function PlanEditor({ plan, action }: Props) {
             }
           />
         </Field>
-        <Field label="Included gyms">
+        <Field label={t("fields.includedGyms")}>
           <input
             className="input input-sm num"
             required
@@ -115,7 +120,7 @@ export default function PlanEditor({ plan, action }: Props) {
             }
           />
         </Field>
-        <Field label="Discount %">
+        <Field label={t("fields.discount")}>
           <input
             className="input input-sm num"
             required
@@ -127,14 +132,14 @@ export default function PlanEditor({ plan, action }: Props) {
       </div>
 
       <div className="grid grid-cols-1 gap-3 p-4 md:grid-cols-2">
-        <Field label="Features · EN (one per line)">
+        <Field label={t("fields.featuresEn")}>
           <textarea
             className="input min-h-[7rem]"
             value={featuresEn}
             onChange={(e) => setFeaturesEn(e.target.value)}
           />
         </Field>
-        <Field label="Features · AR (one per line)">
+        <Field label={t("fields.featuresAr")}>
           <textarea
             className="input min-h-[7rem]"
             dir="rtl"
@@ -154,12 +159,10 @@ export default function PlanEditor({ plan, action }: Props) {
             {message.text}
           </p>
         ) : (
-          <span className="text-[12px] text-muted">
-            Changes apply to future renewals.
-          </span>
+          <span className="text-[12px] text-muted">{t("footerHint")}</span>
         )}
         <button className="btn-primary btn-sm" disabled={pending}>
-          {pending ? "Saving…" : "Save"}
+          {pending ? tCommon("saving") : tCommon("save")}
         </button>
       </footer>
     </form>

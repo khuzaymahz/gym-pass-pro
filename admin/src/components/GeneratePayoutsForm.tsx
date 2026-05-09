@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -25,6 +26,7 @@ function todayISO(): string {
 
 export default function GeneratePayoutsForm({ action }: Props) {
   const router = useRouter();
+  const t = useTranslations("payouts.generate");
   const [periodStart, setPeriodStart] = useState(firstOfThisMonth());
   const [periodEnd, setPeriodEnd] = useState(todayISO());
   const [pending, startTransition] = useTransition();
@@ -60,7 +62,7 @@ export default function GeneratePayoutsForm({ action }: Props) {
       className="flex flex-wrap items-end gap-2 rounded-lg border border-line bg-surface p-3"
     >
       <label className="field">
-        <span className="field-label">Period start</span>
+        <span className="field-label">{t("periodStart")}</span>
         <input
           type="date"
           className="input input-sm w-40"
@@ -70,7 +72,7 @@ export default function GeneratePayoutsForm({ action }: Props) {
         />
       </label>
       <label className="field">
-        <span className="field-label">Period end</span>
+        <span className="field-label">{t("periodEnd")}</span>
         <input
           type="date"
           className="input input-sm w-40"
@@ -80,11 +82,8 @@ export default function GeneratePayoutsForm({ action }: Props) {
         />
       </label>
       <button className="btn-primary btn-sm" disabled={pending}>
-        {pending ? "Generating…" : "Generate run"}
+        {pending ? t("submitting") : t("submit")}
       </button>
-      <span className="ml-auto self-center text-[11.5px] text-muted">
-        Creates one payout per active gym for the chosen window.
-      </span>
       {message ? (
         <p
           className={`w-full text-[12px] ${

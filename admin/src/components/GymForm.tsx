@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -25,6 +26,8 @@ const SLUG_PATTERN = "[a-z0-9-]{2,64}";
 
 export default function GymForm({ initial, action, submitLabel }: Props) {
   const router = useRouter();
+  const t = useTranslations("gyms.form");
+  const tCommon = useTranslations("common");
   const [state, setState] = useState<Partial<GymRead>>({
     slug: "",
     nameEn: "",
@@ -49,7 +52,7 @@ export default function GymForm({ initial, action, submitLabel }: Props) {
     const result = await action(state);
     setLoading(false);
     if (!result.ok) {
-      setError(result.error ?? "Something went wrong.");
+      setError(result.error ?? tCommon("errorGeneric"));
       return;
     }
     router.push("/gyms");
@@ -75,18 +78,18 @@ export default function GymForm({ initial, action, submitLabel }: Props) {
     <form onSubmit={onSubmit} className="panel flex flex-col gap-4 p-4">
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
         <label className="field">
-          <span className="field-label">Slug</span>
+          <span className="field-label">{t("slug")}</span>
           <input
             className="input input-sm num"
             required
             maxLength={FIELD_LIMITS.slug}
             pattern={SLUG_PATTERN}
-            title="Lowercase letters, digits, and hyphens (2–64 chars)"
+            title={t("slugTitle")}
             {...bind("slug")}
           />
         </label>
         <label className="field">
-          <span className="field-label">Area</span>
+          <span className="field-label">{t("area")}</span>
           <input
             className="input input-sm"
             required
@@ -95,7 +98,7 @@ export default function GymForm({ initial, action, submitLabel }: Props) {
           />
         </label>
         <label className="field">
-          <span className="field-label">Category</span>
+          <span className="field-label">{t("category")}</span>
           <select className="select input-sm" {...bind("category")}>
             {["gym", "crossfit", "martial", "yoga"].map((v) => (
               <option key={v} value={v}>
@@ -105,7 +108,7 @@ export default function GymForm({ initial, action, submitLabel }: Props) {
           </select>
         </label>
         <label className="field">
-          <span className="field-label">Name (EN)</span>
+          <span className="field-label">{t("nameEn")}</span>
           <input
             className="input input-sm"
             required
@@ -114,7 +117,7 @@ export default function GymForm({ initial, action, submitLabel }: Props) {
           />
         </label>
         <label className="field">
-          <span className="field-label">Name (AR)</span>
+          <span className="field-label">{t("nameAr")}</span>
           <input
             className="input input-sm"
             required
@@ -124,7 +127,7 @@ export default function GymForm({ initial, action, submitLabel }: Props) {
           />
         </label>
         <label className="field">
-          <span className="field-label">Required tier</span>
+          <span className="field-label">{t("requiredTier")}</span>
           <div className="flex items-center gap-2">
             <select
               className="select input-sm flex-1"
@@ -145,12 +148,14 @@ export default function GymForm({ initial, action, submitLabel }: Props) {
               disabled={suggestionMatches}
               title={suggestion.reason}
             >
-              {suggestionMatches ? "Matches" : `Suggest ${suggestion.tier}`}
+              {suggestionMatches
+                ? t("matches")
+                : t("suggest", { tier: suggestion.tier })}
             </button>
           </div>
         </label>
         <label className="field md:col-span-2 lg:col-span-3">
-          <span className="field-label">Address (EN)</span>
+          <span className="field-label">{t("addressEn")}</span>
           <input
             className="input input-sm"
             required
@@ -159,7 +164,7 @@ export default function GymForm({ initial, action, submitLabel }: Props) {
           />
         </label>
         <label className="field md:col-span-2 lg:col-span-3">
-          <span className="field-label">Address (AR)</span>
+          <span className="field-label">{t("addressAr")}</span>
           <input
             className="input input-sm"
             required
@@ -169,7 +174,7 @@ export default function GymForm({ initial, action, submitLabel }: Props) {
           />
         </label>
         <label className="field">
-          <span className="field-label">Latitude</span>
+          <span className="field-label">{t("lat")}</span>
           <input
             className="input input-sm num"
             required
@@ -179,7 +184,7 @@ export default function GymForm({ initial, action, submitLabel }: Props) {
           />
         </label>
         <label className="field">
-          <span className="field-label">Longitude</span>
+          <span className="field-label">{t("lng")}</span>
           <input
             className="input input-sm num"
             required
@@ -189,7 +194,7 @@ export default function GymForm({ initial, action, submitLabel }: Props) {
           />
         </label>
         <label className="field">
-          <span className="field-label">Rate (JOD / visit)</span>
+          <span className="field-label">{t("rate")}</span>
           <input
             className="input input-sm num"
             required
@@ -197,9 +202,7 @@ export default function GymForm({ initial, action, submitLabel }: Props) {
           />
         </label>
         <label className="field md:col-span-2 lg:col-span-3">
-          <span className="field-label">
-            Amenities (comma-separated, e.g. sauna, pool, spa)
-          </span>
+          <span className="field-label">{t("amenitiesLabel")}</span>
           <input
             className="input input-sm"
             value={amenitiesText}
@@ -222,12 +225,10 @@ export default function GymForm({ initial, action, submitLabel }: Props) {
         {error ? (
           <p className="text-[12px] text-red-300">{error}</p>
         ) : (
-          <p className="text-[11px] text-muted">
-            Changes apply immediately. Audit log captures the before/after diff.
-          </p>
+          <p className="text-[11px] text-muted">{t("footerHint")}</p>
         )}
         <button className="btn-primary btn-sm" disabled={loading}>
-          {loading ? "Saving…" : submitLabel}
+          {loading ? tCommon("saving") : submitLabel}
         </button>
       </div>
     </form>
