@@ -345,9 +345,15 @@ class _PlanCard extends StatelessWidget {
     }
     final used = sub.visitsUsed;
     final total = sub.termTotalVisits;
-    final shownUsed = total == 0 ? used : used.clamp(0, total);
-    final percent = total == 0 ? 0.0 : (shownUsed / total).clamp(0.0, 1.0);
-    final remaining = total == 0 ? 0 : (total - shownUsed).clamp(0, total);
+    // `total <= 0` covers two distinct cases:
+    //   - 0  → cycle hasn't materialised yet (subscription mid-hydrate).
+    //   - -1 → unlimited tier (Diamond) — no cap to clamp against.
+    // The previous `total == 0` only handled the first case, so a Diamond
+    // member tapping into Home hit `used.clamp(0, -1)` and crashed
+    // ("Invalid argument(s): 0", because `lo > hi`).
+    final shownUsed = total <= 0 ? used : used.clamp(0, total);
+    final percent = total <= 0 ? 0.0 : (shownUsed / total).clamp(0.0, 1.0);
+    final remaining = total <= 0 ? 0 : (total - shownUsed).clamp(0, total);
     final card = Material(
       color: gp.bg2,
       borderRadius: BorderRadius.circular(GPRadius.xl),
