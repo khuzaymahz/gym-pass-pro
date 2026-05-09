@@ -180,28 +180,32 @@ class SubscriptionState {
   /// budget every 30 days from the subscription's `starts_at` anchor —
   /// `visitsUsed` is the count of successful check-ins inside that
   /// period (NOT lifetime), so subtraction gives the live remaining
-  /// budget. Diamond returns -1 to flag "unlimited" — callers must
-  /// check before formatting.
+  /// budget.
+  ///
+  /// Per business model: every tier (Silver / Gold / Platinum /
+  /// Diamond) gets the same `monthly_visits = 30` allocation. Tier
+  /// only gates which gyms a member can scan into — the entry-tier
+  /// network for Silver, the full partner network for Diamond — not
+  /// the number of visits. The earlier mobile-only `-1` "unlimited"
+  /// sentinel for Diamond was a model bug; backend seeds all four
+  /// tiers with 30 monthly visits.
   ///
   /// The historical name `termTotalVisits` predates the per-period
   /// model and is kept to avoid touching every call site; conceptually
   /// it is the per-period cap.
   int get termTotalVisits {
     if (!hasSubscription) return 0;
-    if (tierKey == 'diamond') return -1;
     return monthlyVisits ?? 0;
   }
 
   int get visitsRemaining {
     final total = termTotalVisits;
-    if (total < 0) return -1;
     if (total == 0) return 0;
     return total - visitsUsed < 0 ? 0 : total - visitsUsed;
   }
 
   bool get isTermVisitsExhausted {
     final total = termTotalVisits;
-    if (total < 0) return false; // Diamond: never exhausted.
     return total > 0 && visitsUsed >= total;
   }
 

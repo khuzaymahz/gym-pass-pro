@@ -175,15 +175,16 @@ class CheckinController extends StateNotifier<CheckinUiState> {
     GPTier tier,
   ) async {
     try {
-      // Optimistic post-scan visits-left for the success screen. Diamond
-      // is unlimited (termTotalVisits == -1) so we omit the cap; finite
-      // tiers use the term cap from the active plan, falling back to the
-      // tier's nominal monthly count when the catalog hasn't hydrated.
+      // Optimistic post-scan visits-left for the success screen. Every
+      // tier shares the same `monthly_visits = 30` allocation per the
+      // backend seed — tier only gates the gym network, not the cap —
+      // so we always have a finite number to compute against. Falls
+      // back to the tier's nominal monthly count when the plan
+      // catalog hasn't hydrated yet.
       final termTotal =
           sub.termTotalVisits > 0 ? sub.termTotalVisits : tier.visits;
-      final remainingAfter = sub.termTotalVisits < 0
-          ? null
-          : (termTotal - (sub.visitsUsed + 1)).clamp(0, termTotal);
+      final remainingAfter =
+          (termTotal - (sub.visitsUsed + 1)).clamp(0, termTotal);
       final result = await _repo.scan(payload, remainingAfter: remainingAfter);
       if (result.status == 'success') {
         await _subscription.recordVisit(gymSlug: result.gymSlug);
