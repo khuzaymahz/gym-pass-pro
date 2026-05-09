@@ -53,7 +53,8 @@ class ExplorePage extends ConsumerStatefulWidget {
   ConsumerState<ExplorePage> createState() => _ExplorePageState();
 }
 
-class _ExplorePageState extends ConsumerState<ExplorePage> {
+class _ExplorePageState extends ConsumerState<ExplorePage>
+    with TickerProviderStateMixin {
   final TextEditingController _searchCtrl = TextEditingController();
   final FocusNode _searchFocus = FocusNode();
 
@@ -122,6 +123,120 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
   static const double _sheetAutoOpen = 0.45;
   static const double _sheetMax = 0.84;
 
+  /// Jordan country bounds for camera constraint. Sets the hard
+  /// edges of the world the member can pan to — drag past the
+  /// border and flutter_map clamps. Slightly padded out from the
+  /// political border so regions hugging the edge (Aqaba on the
+  /// south coast, Mafraq on the east) aren't visually clipped.
+  ///
+  /// Coordinates roughly:
+  ///   SW corner ≈ Aqaba southern tip / Saudi border
+  ///   NE corner ≈ Northeast border with Iraq / Syria
+  static final LatLngBounds _jordanBounds = LatLngBounds(
+    const LatLng(29.10, 34.85),
+    const LatLng(33.45, 39.40),
+  );
+
+  /// High-resolution Jordan border polygon (~60 points). Used as a
+  /// HOLE in the dark mask polygon, so tiles INSIDE the country
+  /// render normally (with all their labels, roads, area names) and
+  /// EVERYTHING outside renders solid black. Foreign place names —
+  /// KAYSERI, ALEPPO, JERUSALEM, AS-SUWEIDA, AL WAJH — never
+  /// appear, and there are no neighbour-country roads / borders
+  /// peeking through.
+  ///
+  /// Earlier we tried this with ~20 points; the border was kinked
+  /// enough that the cut-out shape looked broken at zoom 6-7.
+  /// 60+ points spaced roughly every ~10-30 km gives a sub-pixel
+  /// approximation at zoom 6 (where the country fits the screen)
+  /// and reads as a clean border at every higher zoom. Pixel-
+  /// perfect would need a real GeoJSON asset (~500 points); for
+  /// now this resolution is the right trade-off between fidelity
+  /// and binary size.
+  ///
+  /// Points trace clockwise from the NW corner. Order is
+  /// load-bearing: reversing it inverts hole-vs-fill regions.
+  static const List<LatLng> _jordanPolygon = [
+    // ===== NW — Israel/Syria triangle (Yarmouk) =====
+    LatLng(32.72, 35.55),
+    LatLng(32.71, 35.62),
+    LatLng(32.70, 35.72),
+    // ===== N — Syrian border (Daraa belt) =====
+    LatLng(32.66, 35.85),
+    LatLng(32.69, 35.96),
+    LatLng(32.74, 36.05),
+    LatLng(32.78, 36.18),
+    LatLng(32.74, 36.30),
+    LatLng(32.65, 36.42),
+    LatLng(32.55, 36.55),
+    LatLng(32.48, 36.72),
+    LatLng(32.43, 36.92),
+    // ===== NE — approach to the Iraqi panhandle =====
+    LatLng(32.40, 37.18),
+    LatLng(32.42, 37.50),
+    LatLng(32.46, 37.85),
+    LatLng(32.52, 38.20),
+    LatLng(32.60, 38.55),
+    LatLng(32.85, 38.78),
+    // ===== E — Iraqi border (north tip + east edge) =====
+    LatLng(33.37, 38.78), // sharp north tip of the panhandle
+    LatLng(33.20, 38.92),
+    LatLng(33.05, 39.05),
+    LatLng(32.85, 39.15),
+    LatLng(32.55, 39.20),
+    LatLng(32.30, 39.20),
+    // ===== SE — Saudi border (long diagonal SW) =====
+    LatLng(32.05, 39.10),
+    LatLng(31.75, 38.90),
+    LatLng(31.45, 38.65),
+    LatLng(31.15, 38.40),
+    LatLng(30.85, 38.18),
+    LatLng(30.55, 37.95),
+    LatLng(30.25, 37.75),
+    LatLng(29.95, 37.50),
+    LatLng(29.65, 37.20),
+    LatLng(29.42, 36.85),
+    LatLng(29.32, 36.45),
+    LatLng(29.25, 35.95),
+    LatLng(29.20, 35.45),
+    // ===== S — Aqaba southern tip =====
+    LatLng(29.18, 34.95),
+    // ===== W — Israel / West Bank border, going north =====
+    // Wadi Araba southern stretch
+    LatLng(29.45, 35.00),
+    LatLng(29.75, 35.05),
+    LatLng(30.05, 35.10),
+    LatLng(30.30, 35.15),
+    LatLng(30.55, 35.20),
+    LatLng(30.80, 35.30),
+    // Dead Sea southern + middle (eastern shore is the border)
+    LatLng(30.95, 35.38),
+    LatLng(31.10, 35.42),
+    LatLng(31.30, 35.45),
+    LatLng(31.50, 35.48),
+    LatLng(31.70, 35.50),
+    LatLng(31.80, 35.52),
+    // Jordan Valley going north
+    LatLng(32.00, 35.55),
+    LatLng(32.20, 35.55),
+    LatLng(32.40, 35.55),
+    LatLng(32.55, 35.55),
+    // closes back to NW corner (32.72, 35.55) automatically
+  ];
+
+  /// Outer ring of the mask polygon — large rectangle around the
+  /// camera's reachable envelope. Doesn't need to be world-scale;
+  /// ~5° padded around Jordan keeps the polygon cheap to
+  /// triangulate while still covering the entire viewport at
+  /// every zoom level we allow.
+  static const List<LatLng> _maskOuterRect = [
+    LatLng(35.00, 30.00), // NW
+    LatLng(35.00, 45.00), // NE
+    LatLng(27.00, 45.00), // SE
+    LatLng(27.00, 30.00), // SW
+  ];
+
+
   @override
   void initState() {
     super.initState();
@@ -181,6 +296,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
     _searchCtrl.removeListener(_onSearchTextChanged);
     _searchCtrl.dispose();
     _sheetCtrl.dispose();
+    _cameraAnim?.dispose();
     super.dispose();
   }
 
@@ -204,6 +320,19 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
   /// the background. The fresh read updates the cross-app
   /// `userPositionProvider` so distance-aware widgets elsewhere
   /// (home, gym detail) see it too.
+  ///
+  /// On initial detection (panMap=false) the map is framed to the
+  /// user's region — Amman / Aqaba / Irbid / etc. — at an "eagle
+  /// view" zoom that shows all the gyms in that region without
+  /// requiring the member to pan or zoom. The detection cascade is
+  /// stored-region-first (instant, from previous session) then
+  /// fresh-GPS (more accurate, lands a few seconds later); both
+  /// paths trigger the same fit-camera call so the camera ends up
+  /// at the right region by the time the GPS fix finishes.
+  ///
+  /// On locate-me-button (panMap=true) the camera zooms into the
+  /// user's exact lat/lng — street-level — because that's the
+  /// member's intent when they tap the button.
   Future<void> _locateUser({bool panMap = false}) async {
     final regionStore = ref.read(homeRegionStoreProvider);
     final service = ref.read(locationServiceProvider);
@@ -215,6 +344,11 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
         _userPosition = GeoPoint(lat: stored.lat, lng: stored.lng);
       });
       ref.read(userPositionProvider.notifier).state = stored;
+      // Fit to stored region immediately so a returning member sees
+      // their last-known city framed before the fresh GPS lands.
+      if (!panMap) {
+        _fitCameraToRegion(regionForPosition(stored.lat, stored.lng));
+      }
     }
 
     final result = await service.currentPosition();
@@ -228,16 +362,123 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
     unawaited(regionStore.write(pos.latitude, pos.longitude));
 
     if (panMap) {
-      _moveCameraTo(LatLng(pos.latitude, pos.longitude), zoom: 14);
+      // Locate-me intent — zoom in tight on the user's pin.
+      unawaited(_animateCameraTo(LatLng(pos.latitude, pos.longitude), zoom: 14));
+    } else {
+      // Initial / auto detect — frame the user's region as an
+      // eagle view (bounds-fit), so all gyms in that region are
+      // visible without panning.
+      _fitCameraToRegion(regionForPosition(pos.latitude, pos.longitude));
     }
   }
 
-  /// Move the camera to a target. flutter_map's `move` is sync and
-  /// safe to call immediately; we use it for locate-me + tap-to-pan
-  /// to a list row.
-  void _moveCameraTo(LatLng target, {double zoom = 13}) {
-    _mapCtrl.move(target, zoom);
+  /// Animate the camera to frame [region]'s bounds. The padding
+  /// keeps gyms hugging the bounds' edge from rendering right up
+  /// against the search bar / sheet / FAB. Wrapped in a try/catch
+  /// because `fitCamera` can throw if it's called before the map's
+  /// first layout pass — in that case, the `initialCenter` /
+  /// `initialZoom` are still in effect and produce a reasonable
+  /// fallback frame.
+  void _fitCameraToRegion(JordanRegion region) {
+    try {
+      _mapCtrl.fitCamera(
+        CameraFit.bounds(
+          bounds: LatLngBounds(
+            LatLng(
+              region.bounds.southwest.lat,
+              region.bounds.southwest.lng,
+            ),
+            LatLng(
+              region.bounds.northeast.lat,
+              region.bounds.northeast.lng,
+            ),
+          ),
+          padding: const EdgeInsets.fromLTRB(40, 80, 40, 60),
+        ),
+      );
+    } catch (_) {
+      // Map not laid out yet; the next call (after fresh GPS lands)
+      // will land cleanly. If both calls fire before mount, the
+      // initialCenter/initialZoom still produce a sensible view.
+    }
   }
+
+  /// In-flight camera-animation controller, kept so a fresh tap
+  /// (e.g. selecting a different gym while the camera is mid-move)
+  /// cancels the previous tween instead of fighting it.
+  AnimationController? _cameraAnim;
+
+  /// Smooth camera move — tweens both centre and zoom over
+  /// [_cameraAnimDuration] using a soft ease curve. Used for every
+  /// user-triggered camera change (pin tap, list-row tap, locate-me).
+  /// The animation is deliberately a touch slow (~650 ms) so the
+  /// camera glide reads as a transition, not a jump cut, when the
+  /// member switches between gyms.
+  ///
+  /// flutter_map's `MapController.move` is itself synchronous, so
+  /// we drive the animation here by ticking `move` from a Tween on
+  /// every animation frame. No external animation package needed.
+  Future<void> _animateCameraTo(LatLng target, {double? zoom}) async {
+    final startCenter = _mapCtrl.camera.center;
+    final startZoom = _mapCtrl.camera.zoom;
+    final endZoom = zoom ?? startZoom;
+
+    // Same start = same end → no-op (avoid creating an animation
+    // that has no work to do).
+    if (startCenter.latitude == target.latitude &&
+        startCenter.longitude == target.longitude &&
+        startZoom == endZoom) {
+      return;
+    }
+
+    // Cancel any in-flight tween before starting a new one.
+    _cameraAnim?.dispose();
+
+    final ctl = AnimationController(
+      vsync: this,
+      duration: _cameraAnimDuration,
+    );
+    _cameraAnim = ctl;
+
+    final curved =
+        CurvedAnimation(parent: ctl, curve: Curves.easeInOutCubic);
+    final latTween = Tween<double>(
+      begin: startCenter.latitude,
+      end: target.latitude,
+    );
+    final lngTween = Tween<double>(
+      begin: startCenter.longitude,
+      end: target.longitude,
+    );
+    final zoomTween = Tween<double>(begin: startZoom, end: endZoom);
+
+    void onTick() {
+      _mapCtrl.move(
+        LatLng(latTween.evaluate(curved), lngTween.evaluate(curved)),
+        zoomTween.evaluate(curved),
+      );
+    }
+
+    curved.addListener(onTick);
+    try {
+      await ctl.forward();
+    } catch (_) {
+      // Disposed mid-animation (e.g. user tapped a different gym);
+      // the new tween is already taking over, nothing to do.
+    } finally {
+      curved.removeListener(onTick);
+      if (identical(_cameraAnim, ctl)) {
+        _cameraAnim = null;
+      }
+      ctl.dispose();
+    }
+  }
+
+  /// Tween duration for user-triggered camera moves. ~650 ms with
+  /// `easeInOutCubic` lands at the sweet spot — long enough that
+  /// the eye reads the geographic relationship between the previous
+  /// pin and the new one, short enough that nobody waits on it.
+  static const _cameraAnimDuration = Duration(milliseconds: 650);
 
   /// Locate-me handler — pans to the cached GPS position, or kicks
   /// off a fresh permission + GPS read on first tap.
@@ -245,7 +486,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
     HapticFeedback.selectionClick();
     final cached = _userPosition;
     if (cached != null) {
-      _moveCameraTo(LatLng(cached.lat, cached.lng), zoom: 14);
+      unawaited(_animateCameraTo(LatLng(cached.lat, cached.lng), zoom: 14));
       return;
     }
     await _locateUser(panMap: true);
@@ -257,9 +498,34 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
   void _onMarkerTap(GymSummary gym) {
     HapticFeedback.selectionClick();
     if (gym.lat != null && gym.lng != null) {
-      _moveCameraTo(LatLng(gym.lat!, gym.lng!), zoom: 15);
+      unawaited(_animateCameraTo(LatLng(gym.lat!, gym.lng!), zoom: 15));
     }
     setState(() => _selectedGym = gym);
+  }
+
+  /// List-row tap handler — same affordance as a pin tap (camera
+  /// glides to the gym + profile card slides in), plus an extra
+  /// step: collapse the sheet to its minimum so the card is
+  /// visible. Without the collapse, the card would render at the
+  /// bottom of the screen *underneath* the still-expanded sheet
+  /// and the member would never see it.
+  ///
+  /// Tapping the card itself routes to the gym detail page; this
+  /// handler deliberately does NOT route, so a list-row tap and a
+  /// pin tap end up at exactly the same intermediate state.
+  void _selectGymFromList(GymSummary gym) {
+    HapticFeedback.selectionClick();
+    if (gym.lat != null && gym.lng != null) {
+      unawaited(_animateCameraTo(LatLng(gym.lat!, gym.lng!), zoom: 15));
+    }
+    setState(() => _selectedGym = gym);
+    if (_sheetCtrl.isAttached && _sheetCtrl.size > _sheetMin + 0.02) {
+      _sheetCtrl.animateTo(
+        _sheetMin,
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeOutCubic,
+      );
+    }
   }
 
   bool _matches(
@@ -413,6 +679,11 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
           //
           // For higher volume / branded styling, swap the URL to a
           // Stadia/Mapbox style — single-line change.
+          // Labeled tile variants — labels (city names, region
+          // names, road names) render on top of every tile; the
+          // polygon mask layer below cuts everything outside
+          // Jordan's border so foreign labels never show. Jordan
+          // itself reads with full place context.
           final tileUrl = isDark
               ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
               : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png';
@@ -425,7 +696,26 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                   initialCenter:
                       LatLng(region.centre.lat, region.centre.lng),
                   initialZoom: region.staticMapZoom.toDouble(),
-                  minZoom: 4,
+                  // `containCenter` (NOT `contain`) — the camera
+                  // CENTER must stay inside Jordan, but the viewport
+                  // edges can extend beyond into the dark mask area.
+                  // The stricter `contain` we tried first was so
+                  // restrictive at low zoom that members couldn't
+                  // pinch out to see the whole country — flutter_map
+                  // forces the viewport to stay inside the bounds,
+                  // which is impossible when the bounds are smaller
+                  // than the viewport. `containCenter` lets the
+                  // viewport be larger; the polygon mask handles
+                  // making the out-of-Jordan area look right.
+                  cameraConstraint: CameraConstraint.containCenter(
+                    bounds: _jordanBounds,
+                  ),
+                  // minZoom 6 lets members pinch out to see all of
+                  // Jordan with a small dark margin around it. 7 was
+                  // tight enough that the country only just fit a
+                  // phone width; 6 leaves enough room that the cut-
+                  // out polygon's outline reads clearly.
+                  minZoom: 6,
                   maxZoom: 18,
                   // Disable rotation — easy to trigger by accident on
                   // touch and members never need it. Pinch zoom + pan
@@ -484,6 +774,26 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                     // pans, so panning back to a recently-visited area
                     // is instant and doesn't re-fetch.
                   ),
+                  // Out-of-Jordan mask. Renders a giant rectangle in
+                  // solid background colour with Jordan's border as
+                  // a hole — tiles inside the hole show through with
+                  // their labels intact; outside the hole is filled
+                  // dark, hiding all foreign tile content (roads,
+                  // labels, terrain) without affecting Jordan's
+                  // visibility. Border resolution is the dominant
+                  // factor in how clean the cut-out reads — see the
+                  // `_jordanPolygon` doc for why we use ~60 points.
+                  PolygonLayer(
+                    polygons: [
+                      Polygon(
+                        points: _maskOuterRect,
+                        holePointsList: const [_jordanPolygon],
+                        color: Colors.black,
+                        borderColor: Colors.transparent,
+                        borderStrokeWidth: 0,
+                      ),
+                    ],
+                  ),
                   MarkerLayer(
                     markers: [
                       for (final g in markerGyms)
@@ -501,6 +811,12 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                             selected:
                                 _selectedGym?.slug == g.slug,
                             onTap: () => _onMarkerTap(g),
+                            // Double-tap on the pin = "I know which
+                            // gym I want, take me there" — skips the
+                            // intermediate card overlay and pushes
+                            // the gym detail page directly.
+                            onDoubleTap: () =>
+                                context.push('/gyms/${g.slug}'),
                           ),
                         ),
                     ],
@@ -562,15 +878,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                 query: query,
                 isLoading: isLoadingGyms,
                 hasError: hasError,
-                onGymTap: (gym) => context.push('/gyms/${gym.slug}'),
-                onGymHover: (gym) async {
-                  // Tapping a row pans the map to that gym AND opens
-                  // its profile card — feels like the list and the
-                  // map are one thing.
-                  if (gym.lat == null || gym.lng == null) return;
-                  _moveCameraTo(LatLng(gym.lat!, gym.lng!), zoom: 15);
-                  setState(() => _selectedGym = gym);
-                },
+                onGymSelect: _selectGymFromList,
                 distanceFor: _distanceToGym,
               ),
             ],
@@ -587,16 +895,26 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
 /// pin is a Flutter widget — pinch zoom on the map scales the
 /// ring/logo proportionally with the rest of the UI, so the result
 /// looks like part of the app rather than a foreign SDK marker.
+///
+/// Tap behaviour:
+///   - Single tap → [onTap] fires after the gesture-recogniser
+///     resolves single vs double (~250 ms). Parent uses this to
+///     show the floating profile card.
+///   - Double tap → [onDoubleTap] fires immediately on the second
+///     tap. Parent uses this to navigate straight to the gym
+///     detail page (skipping the card overlay).
 class _GymPinMarker extends ConsumerWidget {
   const _GymPinMarker({
     required this.gym,
     required this.selected,
     required this.onTap,
+    required this.onDoubleTap,
   });
 
   final GymSummary gym;
   final bool selected;
   final VoidCallback onTap;
+  final VoidCallback onDoubleTap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -610,6 +928,7 @@ class _GymPinMarker extends ConsumerWidget {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
+      onDoubleTap: onDoubleTap,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -888,8 +1207,7 @@ class _GymListSheet extends ConsumerWidget {
     required this.query,
     required this.isLoading,
     required this.hasError,
-    required this.onGymTap,
-    required this.onGymHover,
+    required this.onGymSelect,
     required this.distanceFor,
   });
 
@@ -901,8 +1219,11 @@ class _GymListSheet extends ConsumerWidget {
   final String query;
   final bool isLoading;
   final bool hasError;
-  final ValueChanged<GymSummary> onGymTap;
-  final Future<void> Function(GymSummary) onGymHover;
+
+  /// Called when a row is tapped. The parent decides what "select"
+  /// means (animate camera, raise the floating profile card, snap
+  /// the sheet down) — the row itself just reports the intent.
+  final ValueChanged<GymSummary> onGymSelect;
   final double? Function(GymSummary) distanceFor;
 
   @override
@@ -1040,10 +1361,11 @@ class _GymListSheet extends ConsumerWidget {
                           gym: gym,
                           distanceMeters: distanceFor(gym),
                           query: query,
-                          onTap: () {
-                            unawaited(onGymHover(gym));
-                            onGymTap(gym);
-                          },
+                          // Tap selects the gym (camera move + card
+                          // overlay + sheet collapse) — same end
+                          // state as tapping the gym's pin on the
+                          // map. The card itself routes to detail.
+                          onTap: () => onGymSelect(gym),
                         );
                       },
                     ),
