@@ -14,6 +14,16 @@ const CATEGORIES: GymUpdateBody["category"][] = [
   "yoga",
 ];
 
+// Mirrors backend `schemas/gym.py::GymUpdate`. Drift here drops the
+// UX hint to "you can type forever" while the backend silently 422s.
+const FIELD_LIMITS = {
+  name: 128,
+  address: 512,
+  area: 64,
+  phone: 32,
+  amenities: 256,
+} as const;
+
 export function GymProfileForm({ gym }: { gym: GymRead }) {
   const t = useTranslations("profile");
   const router = useRouter();
@@ -27,18 +37,21 @@ export function GymProfileForm({ gym }: { gym: GymRead }) {
     setStatus("idle");
     setErrorMsg(null);
     const data = new FormData(event.currentTarget);
+    const trimmed = (key: string): string =>
+      String(data.get(key) ?? "").trim();
     const body: GymUpdateBody = {
-      nameEn: String(data.get("nameEn") ?? ""),
-      nameAr: String(data.get("nameAr") ?? ""),
-      addressEn: String(data.get("addressEn") ?? ""),
-      addressAr: String(data.get("addressAr") ?? ""),
-      area: String(data.get("area") ?? ""),
-      phone: String(data.get("phone") ?? "") || null,
+      nameEn: trimmed("nameEn"),
+      nameAr: trimmed("nameAr"),
+      addressEn: trimmed("addressEn"),
+      addressAr: trimmed("addressAr"),
+      area: trimmed("area"),
+      phone: trimmed("phone") || null,
       category: data.get("category") as GymUpdateBody["category"],
-      amenities: String(data.get("amenities") ?? "")
+      amenities: trimmed("amenities")
         .split(",")
         .map((s) => s.trim())
-        .filter(Boolean),
+        .filter(Boolean)
+        .slice(0, 64),
     };
     const result = await saveGymAction(body);
     setSaving(false);
@@ -54,24 +67,45 @@ export function GymProfileForm({ gym }: { gym: GymRead }) {
   return (
     <form onSubmit={onSubmit} className="card flex flex-col gap-4">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Field label={t("nameEn")} name="nameEn" defaultValue={gym.nameEn} />
-        <Field label={t("nameAr")} name="nameAr" defaultValue={gym.nameAr} />
+        <Field
+          label={t("nameEn")}
+          name="nameEn"
+          defaultValue={gym.nameEn}
+          maxLength={FIELD_LIMITS.name}
+          required
+        />
+        <Field
+          label={t("nameAr")}
+          name="nameAr"
+          defaultValue={gym.nameAr}
+          maxLength={FIELD_LIMITS.name}
+          required
+        />
         <Field
           label={t("addressEn")}
           name="addressEn"
           defaultValue={gym.addressEn}
+          maxLength={FIELD_LIMITS.address}
         />
         <Field
           label={t("addressAr")}
           name="addressAr"
           defaultValue={gym.addressAr}
+          maxLength={FIELD_LIMITS.address}
         />
-        <Field label={t("area")} name="area" defaultValue={gym.area} />
+        <Field
+          label={t("area")}
+          name="area"
+          defaultValue={gym.area}
+          maxLength={FIELD_LIMITS.area}
+          required
+        />
         <Field
           label={t("phone")}
           name="phone"
           defaultValue={gym.phone ?? ""}
           dir="ltr"
+          maxLength={FIELD_LIMITS.phone}
         />
         <label className="field">
           <span className="field-label">{t("category")}</span>
@@ -102,6 +136,7 @@ export function GymProfileForm({ gym }: { gym: GymRead }) {
         label={t("amenities")}
         name="amenities"
         defaultValue={gym.amenities.join(", ")}
+        maxLength={FIELD_LIMITS.amenities}
       />
 
       <div className="flex items-center justify-end gap-3">
@@ -130,11 +165,15 @@ function Field({
   name,
   defaultValue,
   dir,
+  maxLength,
+  required,
 }: {
   label: string;
   name: string;
   defaultValue?: string;
   dir?: "ltr";
+  maxLength?: number;
+  required?: boolean;
 }) {
   return (
     <label className="field">
@@ -144,6 +183,8 @@ function Field({
         name={name}
         defaultValue={defaultValue}
         dir={dir}
+        maxLength={maxLength}
+        required={required}
       />
     </label>
   );

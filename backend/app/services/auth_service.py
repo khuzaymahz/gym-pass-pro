@@ -353,6 +353,11 @@ class AuthService:
         ) or not await self.rate_limiter.allow(
             phone_key, limit=5, window_seconds=300
         ):
+            log.warning(
+                "partner_login_rate_limited",
+                phone=_mask_phone(phone),
+                ip=actor.ip_address,
+            )
             raise AppError(
                 ErrorCode.RATE_LIMITED,
                 "Too many login attempts. Try again in a few minutes.",
@@ -366,10 +371,28 @@ class AuthService:
             or user.gym_id is None
         ):
             verify_password(password, _dummy_password_hash())
+            log.warning(
+                "partner_login_failed",
+                phone=_mask_phone(phone),
+                ip=actor.ip_address,
+                reason=(
+                    "user_not_found" if user is None
+                    else "wrong_role" if user.role != Role.GYM_OWNER
+                    else "no_password" if not user.password_hash
+                    else "no_gym_link"
+                ),
+            )
             raise AppError(
                 ErrorCode.AUTH_INVALID_CREDENTIALS, "Invalid credentials."
             )
         if not verify_password(password, user.password_hash):
+            log.warning(
+                "partner_login_failed",
+                phone=_mask_phone(phone),
+                ip=actor.ip_address,
+                reason="bad_password",
+                user_id=str(user.id),
+            )
             raise AppError(
                 ErrorCode.AUTH_INVALID_CREDENTIALS, "Invalid credentials."
             )
@@ -397,6 +420,11 @@ class AuthService:
         ) or not await self.rate_limiter.allow(
             email_key, limit=5, window_seconds=300
         ):
+            log.warning(
+                "admin_login_rate_limited",
+                email=_mask_email(email),
+                ip=actor.ip_address,
+            )
             raise AppError(
                 ErrorCode.RATE_LIMITED,
                 "Too many login attempts. Try again in a few minutes.",
@@ -405,10 +433,27 @@ class AuthService:
         user = await self.users.get_by_email(email)
         if user is None or user.role != Role.ADMIN or not user.password_hash:
             verify_password(password, _dummy_password_hash())
+            log.warning(
+                "admin_login_failed",
+                email=_mask_email(email),
+                ip=actor.ip_address,
+                reason=(
+                    "user_not_found" if user is None
+                    else "wrong_role" if user.role != Role.ADMIN
+                    else "no_password"
+                ),
+            )
             raise AppError(
                 ErrorCode.AUTH_INVALID_CREDENTIALS, "Invalid credentials."
             )
         if not verify_password(password, user.password_hash):
+            log.warning(
+                "admin_login_failed",
+                email=_mask_email(email),
+                ip=actor.ip_address,
+                reason="bad_password",
+                user_id=str(user.id),
+            )
             raise AppError(
                 ErrorCode.AUTH_INVALID_CREDENTIALS, "Invalid credentials."
             )

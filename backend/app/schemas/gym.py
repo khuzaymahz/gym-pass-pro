@@ -25,7 +25,10 @@ class GymBase(BaseModel):
     # the camera level; this is the schema-side complement.
     lat: Decimal = Field(ge=Decimal("-90"), le=Decimal("90"))
     lng: Decimal = Field(ge=Decimal("-180"), le=Decimal("180"))
-    phone: str | None = None
+    # 32 chars is enough for any plausible international format and
+    # matches the bound on `GymUpdate.phone` so the create and update
+    # paths agree on what's a valid value.
+    phone: str | None = Field(default=None, max_length=32)
     category: Category
     required_tier: Tier = Field(alias="requiredTier", default=Tier.SILVER)
     # Per-visit payout to the gym in JOD. Negative makes no sense
@@ -51,14 +54,22 @@ class GymCreate(GymBase):
 
 
 class GymUpdate(BaseModel):
-    name_en: str | None = Field(alias="nameEn", default=None)
-    name_ar: str | None = Field(alias="nameAr", default=None)
-    address_en: str | None = Field(alias="addressEn", default=None)
-    address_ar: str | None = Field(alias="addressAr", default=None)
-    area: str | None = None
+    # Length bounds mirror `GymBase` so a partner-driven update can't
+    # bypass what the admin-create path enforces. Without these, the
+    # partner profile form accepts arbitrary-length input and the only
+    # backstop is whatever the DB column happens to be.
+    name_en: str | None = Field(
+        alias="nameEn", default=None, min_length=1, max_length=128,
+    )
+    name_ar: str | None = Field(
+        alias="nameAr", default=None, min_length=1, max_length=128,
+    )
+    address_en: str | None = Field(alias="addressEn", default=None, max_length=512)
+    address_ar: str | None = Field(alias="addressAr", default=None, max_length=512)
+    area: str | None = Field(default=None, min_length=1, max_length=64)
     lat: Decimal | None = Field(default=None, ge=Decimal("-90"), le=Decimal("90"))
     lng: Decimal | None = Field(default=None, ge=Decimal("-180"), le=Decimal("180"))
-    phone: str | None = None
+    phone: str | None = Field(default=None, max_length=32)
     category: Category | None = None
     required_tier: Tier | None = Field(alias="requiredTier", default=None)
     per_visit_rate_jod: Decimal | None = Field(
@@ -67,7 +78,9 @@ class GymUpdate(BaseModel):
         ge=Decimal("0"),
         le=Decimal("100"),
     )
-    amenities: list[str] | None = None
+    # Cap amenities so a hostile or buggy client can't ship megabytes
+    # of strings into a single update.
+    amenities: list[str] | None = Field(default=None, max_length=64)
     opening_hours: dict[str, Any] | None = Field(alias="openingHours", default=None)
     cover_image_url: str | None = Field(alias="coverImageUrl", default=None)
     logo_url: str | None = Field(alias="logoUrl", default=None)

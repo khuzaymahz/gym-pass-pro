@@ -12,6 +12,17 @@ type Props = {
   submitLabel: string;
 };
 
+// Mirrors backend `schemas/gym.py::GymBase`. Drift here drops UX
+// hints to "you can type forever" while the backend silently 422s.
+const FIELD_LIMITS = {
+  slug: 64,
+  name: 128,
+  address: 512,
+  area: 64,
+  amenities: 256,
+} as const;
+const SLUG_PATTERN = "[a-z0-9-]{2,64}";
+
 export default function GymForm({ initial, action, submitLabel }: Props) {
   const router = useRouter();
   const [state, setState] = useState<Partial<GymRead>>({
@@ -65,11 +76,23 @@ export default function GymForm({ initial, action, submitLabel }: Props) {
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
         <label className="field">
           <span className="field-label">Slug</span>
-          <input className="input input-sm num" required {...bind("slug")} />
+          <input
+            className="input input-sm num"
+            required
+            maxLength={FIELD_LIMITS.slug}
+            pattern={SLUG_PATTERN}
+            title="Lowercase letters, digits, and hyphens (2–64 chars)"
+            {...bind("slug")}
+          />
         </label>
         <label className="field">
           <span className="field-label">Area</span>
-          <input className="input input-sm" required {...bind("area")} />
+          <input
+            className="input input-sm"
+            required
+            maxLength={FIELD_LIMITS.area}
+            {...bind("area")}
+          />
         </label>
         <label className="field">
           <span className="field-label">Category</span>
@@ -83,11 +106,22 @@ export default function GymForm({ initial, action, submitLabel }: Props) {
         </label>
         <label className="field">
           <span className="field-label">Name (EN)</span>
-          <input className="input input-sm" required {...bind("nameEn")} />
+          <input
+            className="input input-sm"
+            required
+            maxLength={FIELD_LIMITS.name}
+            {...bind("nameEn")}
+          />
         </label>
         <label className="field">
           <span className="field-label">Name (AR)</span>
-          <input className="input input-sm" required dir="rtl" {...bind("nameAr")} />
+          <input
+            className="input input-sm"
+            required
+            dir="rtl"
+            maxLength={FIELD_LIMITS.name}
+            {...bind("nameAr")}
+          />
         </label>
         <label className="field">
           <span className="field-label">Required tier</span>
@@ -117,11 +151,22 @@ export default function GymForm({ initial, action, submitLabel }: Props) {
         </label>
         <label className="field md:col-span-2 lg:col-span-3">
           <span className="field-label">Address (EN)</span>
-          <input className="input input-sm" required {...bind("addressEn")} />
+          <input
+            className="input input-sm"
+            required
+            maxLength={FIELD_LIMITS.address}
+            {...bind("addressEn")}
+          />
         </label>
         <label className="field md:col-span-2 lg:col-span-3">
           <span className="field-label">Address (AR)</span>
-          <input className="input input-sm" required dir="rtl" {...bind("addressAr")} />
+          <input
+            className="input input-sm"
+            required
+            dir="rtl"
+            maxLength={FIELD_LIMITS.address}
+            {...bind("addressAr")}
+          />
         </label>
         <label className="field">
           <span className="field-label">Latitude</span>
@@ -158,13 +203,15 @@ export default function GymForm({ initial, action, submitLabel }: Props) {
           <input
             className="input input-sm"
             value={amenitiesText}
+            maxLength={FIELD_LIMITS.amenities}
             onChange={(e) =>
               setState((s) => ({
                 ...s,
                 amenities: e.target.value
                   .split(",")
                   .map((a) => a.trim().toLowerCase())
-                  .filter(Boolean),
+                  .filter(Boolean)
+                  .slice(0, 64),
               }))
             }
           />
