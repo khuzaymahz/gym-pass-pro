@@ -225,8 +225,12 @@ async def admin_exchange(
     from app.db.enums import Role
 
     rl_key = f"admin:exchange:{body.email.lower()}"
+    # See partner_exchange below for the why on the bump from 5 → 30.
+    # Same reasoning applies: HMAC envelope is the actual defense,
+    # the rate-limit is a safety net that was too tight for a
+    # legitimate active session.
     if not await svc.rate_limiter.allow(
-        rl_key, limit=5, window_seconds=300,
+        rl_key, limit=30, window_seconds=300,
     ):
         raise AppError(
             ErrorCode.RATE_LIMITED,
@@ -300,9 +304,21 @@ async def partner_exchange(
     from app.core.exceptions import AppError, ErrorCode
     from app.db.enums import Role
 
+    # The exchange endpoint is gated by an HMAC envelope tied to a
+    # shared secret only the partner portal holds, plus a single-use
+    # nonce. Anyone who can produce a valid request is, by definition,
+    # the legitimate caller — the rate-limiter is purely defensive
+    # against a buggy NextAuth side spinning out requests, not against
+    # an attacker. 5/5min was tight enough that a normal active session
+    # (one mint on sign-in + one refresh near the 5-min service-token
+    # expiry per active tab) regularly tripped it, surfacing as the
+    # very misleading "Credentials not recognised" on /login. Bumped
+    # generously and gated by a more robust check on the calling side
+    # (NextAuth coalesces concurrent refreshes so a render storm only
+    # produces a single exchange call).
     rl_key = f"partner:exchange:{body.phone}"
     if not await svc.rate_limiter.allow(
-        rl_key, limit=5, window_seconds=300,
+        rl_key, limit=30, window_seconds=300,
     ):
         raise AppError(
             ErrorCode.RATE_LIMITED,
