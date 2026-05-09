@@ -66,14 +66,17 @@ class _GymLoaderState extends State<GymLoader>
   @override
   void initState() {
     super.initState();
-    // 2.4 s per cycle: plates finish dropping at the 80 % mark
+    // 1.6 s per cycle: plates finish dropping at the 80 % mark
     // (`progress` reaches 1.0), then the dumbbell holds for the
-    // remaining 480 ms before resetting. The hold is what makes the
-    // animation feel deliberate rather than busy — the eye has time
-    // to register the assembled shape before the next cycle starts.
+    // remaining 320 ms before resetting. Was 2.4 s originally —
+    // members read that as sluggish on quick refreshes (the plates
+    // were still building when the data already landed). 1.6 s is
+    // brisk enough that a fast network refresh sees most of a full
+    // cycle, slow enough that the eye still registers the assembled
+    // shape during the hold.
     _ctrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2400),
+      duration: const Duration(milliseconds: 1600),
     )..repeat();
   }
 
@@ -292,7 +295,17 @@ class _DumbbellBuildPainter extends CustomPainter {
           canvas.drawRRect(plateRRect, glowPaint);
         }
 
-        final platePaint = Paint()..color = plateColor.withValues(alpha: e);
+        // Plate alpha floors at 0.55 so each plate is already
+        // legibly visible the moment its drop starts, then ramps
+        // to full opacity as it lands. The earlier "0 → 1 with
+        // `e`" curve made plates ghost in from invisible — read
+        // as washed-out during the build. Floor + ramp keeps the
+        // sequencing legible (you can still see the staggered
+        // outer→inner drop) while making the dumbbell read as
+        // *solid* throughout.
+        final plateAlpha = 0.55 + 0.45 * e;
+        final platePaint = Paint()
+          ..color = plateColor.withValues(alpha: plateAlpha);
         canvas.drawRRect(plateRRect, platePaint);
       }
     }

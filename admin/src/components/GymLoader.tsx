@@ -85,10 +85,13 @@ export function GymLoader({
   const plates = PLATE_SPECS.slice(0, plateCount);
 
   // Cycle: plates finish dropping at the 80 % mark (`progress`
-  // hits 1.0), then the dumbbell holds for the remaining 480 ms
-  // before resetting. The hold is what makes the animation feel
-  // deliberate rather than busy.
-  const cycle = 2.4;
+  // hits 1.0), then the dumbbell holds for the remaining 320 ms
+  // before resetting. Was 2.4 s originally — read as sluggish on
+  // quick form submits where the network round-trip beat the
+  // animation to "fully built". 1.6 s is brisk enough that a
+  // fast submit sees most of a cycle, slow enough that the eye
+  // still registers the assembled shape during the hold.
+  const cycle = 1.6;
   const progress = reducedMotion
     ? 1
     : clamp01(((t % cycle) / cycle) * 1.25);
@@ -207,6 +210,15 @@ export function GymLoader({
                   e > 0.92 && unit >= 12
                     ? `drop-shadow(0 0 ${unit * 0.1}px rgb(var(--c-accent) / 0.45))`
                     : "none";
+                // Plate alpha floors at 0.55 so each plate is
+                // already legibly visible the moment its drop
+                // starts, then ramps to full opacity as it lands.
+                // The earlier "0 → 1 with `e`" curve made plates
+                // ghost in from invisible — read as washed-out
+                // during the build. Floor + ramp keeps the
+                // sequencing legible while making the dumbbell
+                // read as *solid* throughout.
+                const plateOpacity = 0.55 + 0.45 * e;
                 return (
                   <rect
                     key={i}
@@ -216,7 +228,7 @@ export function GymLoader({
                     height={ph}
                     rx={unit * 0.04}
                     fill={plateColor}
-                    opacity={e}
+                    opacity={plateOpacity}
                     style={{ filter: glow }}
                   />
                 );
