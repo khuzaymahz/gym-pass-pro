@@ -604,6 +604,8 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String checkoutPayAmount(int amount) => 'ادفع $amount د.أ';
   @override
+  String get checkoutPayingOverlay => 'جاري معالجة الدفع';
+  @override
   String get checkoutOneMonth => 'شهر واحد';
   @override
   String checkoutDurationSummary(int months) => '$months شهور';

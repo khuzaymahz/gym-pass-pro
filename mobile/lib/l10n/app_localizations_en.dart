@@ -602,6 +602,8 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String checkoutPayAmount(int amount) => 'Pay $amount JOD';
   @override
+  String get checkoutPayingOverlay => 'PROCESSING PAYMENT';
+  @override
   String get checkoutOneMonth => '1-MONTH';
   @override
   String checkoutDurationSummary(int months) => '$months-MONTH';

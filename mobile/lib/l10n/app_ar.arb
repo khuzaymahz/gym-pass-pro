@@ -304,6 +304,7 @@
   "checkoutOverline": "دفع آمن",
   "checkoutPayAmount": "ادفع {amount} د.أ",
   "@checkoutPayAmount": {"placeholders": {"amount": {"type": "int"}}},
+  "checkoutPayingOverlay": "جاري معالجة الدفع",
   "checkoutOneMonth": "شهر واحد",
   "checkoutDurationSummary": "{months} شهور",
   "@checkoutDurationSummary": {"placeholders": {"months": {"type": "int"}}},

@@ -7,6 +7,7 @@ import '../../../core/api/api_exception.dart';
 import '../../../core/format/money_format.dart';
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
+import '../../../core/widgets/gym_loader.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
 import '../../../core/widgets/pill_button.dart';
@@ -49,7 +50,7 @@ String _resolveCheckoutError(Object e, AppLocalizations l) {
 /// method in the picker.
 final selectedMethodIdProvider = StateProvider<String?>((_) => null);
 
-class CheckoutPage extends ConsumerWidget {
+class CheckoutPage extends ConsumerStatefulWidget {
   const CheckoutPage({super.key, this.isRenewal = false});
 
   /// True when the page was entered via "Renew now" from My Subscription.
@@ -60,7 +61,21 @@ class CheckoutPage extends ConsumerWidget {
   final bool isRenewal;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CheckoutPage> createState() => _CheckoutPageState();
+}
+
+class _CheckoutPageState extends ConsumerState<CheckoutPage> {
+  /// True from the moment the member taps "Pay" until the backend
+  /// returns (success → navigate to /welcome, or error → snackbar).
+  /// While set, the page paints a full-screen overlay with the
+  /// `GymLoader` and a "Processing payment…" caption. The overlay
+  /// captures all input so members can't double-tap Pay or back-out
+  /// of the page mid-network — the previous freeze had no visible
+  /// indicator and looked like the app had hung.
+  bool _isPaying = false;
+
+  @override
+  Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final selectedKey = ref.watch(selectedTierProvider);
     final durationMonths = ref.watch(selectedDurationProvider);
@@ -83,7 +98,7 @@ class CheckoutPage extends ConsumerWidget {
     final currentDuration = sub.durationMonths ?? 0;
     // Renewal forces a fresh term on the same tier, so it is explicitly not
     // an extension even when tier + duration match the current plan.
-    final isExtension = !isRenewal &&
+    final isExtension = !widget.isRenewal &&
         sub.hasSubscription &&
         currentTier != null &&
         tier.key == currentTier.key &&
@@ -104,11 +119,20 @@ class CheckoutPage extends ConsumerWidget {
     final projectedRenew =
         isExtension ? sub.projectedRenewIso(durationMonths) : null;
 
-    return Scaffold(
-      body: SafeArea(
-        minimum: const EdgeInsets.only(bottom: 8),
-        child: Column(
-          children: [
+    // Block the back gesture / system back button while a payment
+    // is in flight — the network call has already been issued and
+    // the member won't get a clean cancel by exiting the page; the
+    // loader overlay is the visible "wait, this is happening"
+    // signal.
+    return PopScope(
+      canPop: !_isPaying,
+      child: Scaffold(
+        body: SafeArea(
+          minimum: const EdgeInsets.only(bottom: 8),
+          child: Stack(
+            children: [
+              Column(
+                children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
               child: Row(
@@ -183,7 +207,7 @@ class CheckoutPage extends ConsumerWidget {
                   PillButton(
                     label: l.checkoutPayAmount(total),
                     trailingIcon: Icons.arrow_forward,
-                    onPressed: canPay
+                    onPressed: (canPay && !_isPaying)
                         ? () => _onPay(
                               context,
                               ref,
@@ -192,7 +216,7 @@ class CheckoutPage extends ConsumerWidget {
                               total,
                               resolvedMethod,
                               isExtension: isExtension,
-                              isRenewal: isRenewal,
+                              isRenewal: widget.isRenewal,
                             )
                         : null,
                   ),
@@ -200,6 +224,10 @@ class CheckoutPage extends ConsumerWidget {
               ),
             ),
           ],
+        ),
+              if (_isPaying) _PayingOverlay(label: l.checkoutPayingOverlay),
+            ],
+          ),
         ),
       ),
     );
@@ -227,6 +255,8 @@ class CheckoutPage extends ConsumerWidget {
     required bool isExtension,
     required bool isRenewal,
   }) async {
+    if (_isPaying) return;
+    setState(() => _isPaying = true);
     final sub = ref.read(subscriptionProvider.notifier);
     final billing = ref.read(billingProvider.notifier);
     final hasExistingSub = ref.read(subscriptionProvider).hasSubscription;
@@ -257,6 +287,9 @@ class CheckoutPage extends ConsumerWidget {
       }
     } catch (e) {
       if (!context.mounted) return;
+      // Drop the overlay before showing the snackbar so the member
+      // can read it and try again.
+      if (mounted) setState(() => _isPaying = false);
       final l = AppLocalizations.of(context);
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
@@ -272,6 +305,11 @@ class CheckoutPage extends ConsumerWidget {
       paid: true,
     ),);
     if (!context.mounted) return;
+    // Keep the overlay up through the navigation transition so the
+    // page doesn't briefly flash back to the checkout summary before
+    // /welcome takes over. The State will dispose with the overlay
+    // still flagged true; that's fine — the route swap unmounts the
+    // whole page.
     context.go('/welcome');
   }
 
@@ -681,5 +719,49 @@ class CheckoutPage extends ConsumerWidget {
       default:
         return l.checkoutDurationSummary(months);
     }
+  }
+}
+
+/// Full-screen modal-style overlay that paints over the checkout
+/// content while the payment network call is in flight. The
+/// `GymLoader` carries the visual; the caption gives the member
+/// explicit "we're processing your payment, don't navigate away"
+/// language so the freeze reads as deliberate work, not as the app
+/// hanging. Sits above all interactive widgets — taps, drags, and
+/// the system back gesture (gated separately by `PopScope`) all
+/// land here and do nothing, which is the correct behaviour while
+/// the gateway is mid-charge.
+class _PayingOverlay extends StatelessWidget {
+  const _PayingOverlay({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final gp = context.gp;
+    return Positioned.fill(
+      child: AbsorbPointer(
+        child: Container(
+          color: gp.bg.withValues(alpha: 0.85),
+          alignment: Alignment.center,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const GymLoader(size: GymLoaderSize.large),
+              const SizedBox(height: 18),
+              Text(
+                label,
+                style: GPText.mono(
+                  size: 11,
+                  letterSpacing: 1.8,
+                  color: gp.fg,
+                  weight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -304,6 +304,7 @@
   "checkoutOverline": "Secure checkout",
   "checkoutPayAmount": "Pay {amount} JOD",
   "@checkoutPayAmount": {"placeholders": {"amount": {"type": "int"}}},
+  "checkoutPayingOverlay": "PROCESSING PAYMENT",
   "checkoutOneMonth": "1-MONTH",
   "checkoutDurationSummary": "{months}-MONTH",
   "@checkoutDurationSummary": {"placeholders": {"months": {"type": "int"}}},

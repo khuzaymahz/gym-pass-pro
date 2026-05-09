@@ -301,6 +301,7 @@ abstract class AppLocalizations {
   String get checkoutTitleAccent;
   String get checkoutOverline;
   String checkoutPayAmount(int amount);
+  String get checkoutPayingOverlay;
   String get checkoutOneMonth;
   String checkoutDurationSummary(int months);
   String get checkoutDurationYear;
