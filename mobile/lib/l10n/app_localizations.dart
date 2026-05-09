@@ -167,6 +167,11 @@ abstract class AppLocalizations {
   String get exploreFiltersCategorySection;
   String get exploreFiltersTierSection;
   String get exploreFiltersFavoritesLabel;
+  String get exploreLocateServiceDisabled;
+  String get exploreLocatePermissionDenied;
+  String get exploreLocatePermissionDeniedForever;
+  String get exploreLocateOpenSettings;
+  String get exploreLocateUnavailable;
   String get gymsCategoryAll;
   String get gymsCategoryGym;
   String get gymsCategoryCrossfit;

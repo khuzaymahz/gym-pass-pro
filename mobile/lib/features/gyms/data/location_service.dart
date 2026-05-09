@@ -3,13 +3,20 @@ import 'package:geolocator/geolocator.dart';
 
 /// Result of a one-shot "where is the user?" query.
 ///
-/// Three terminal states:
+/// Five terminal states:
 ///   - `granted` + `position`: GPS came back, the map can centre on it.
-///   - `denied`: user explicitly refused (or has the permission set
-///     to "denied forever" at the OS level). The map falls back to
-///     its default centre and never re-prompts during the session.
+///   - `denied`: user dismissed the prompt this round but can be
+///     re-asked. UI prompts again on the next locate-me tap.
+///   - `deniedForever`: user has flipped the OS-level toggle to
+///     "never allow" — `requestPermission` will no-op until the
+///     member opens system Settings. UI offers an "Open Settings"
+///     action.
 ///   - `serviceDisabled`: location services are off at the device
-///     level (airplane mode, no GPS hardware, etc.). Same fallback.
+///     level (airplane mode, no GPS hardware, etc.). UI offers a
+///     deep-link to the location services screen.
+///   - `unavailable`: granted, services on, but GPS didn't return
+///     a fix in time (timeout, indoor, hardware error). UI shows
+///     a "try again" message.
 class LocationResult {
   const LocationResult({required this.status, this.position});
 
@@ -19,7 +26,13 @@ class LocationResult {
   bool get hasPosition => status == LocationStatus.granted && position != null;
 }
 
-enum LocationStatus { granted, denied, serviceDisabled }
+enum LocationStatus {
+  granted,
+  denied,
+  deniedForever,
+  serviceDisabled,
+  unavailable,
+}
 
 /// Thin wrapper over `geolocator` so the page doesn't have to know
 /// about the permission state machine. Keeps two behaviours in one
@@ -44,8 +57,10 @@ class LocationService {
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
     }
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) {
+    if (permission == LocationPermission.deniedForever) {
+      return const LocationResult(status: LocationStatus.deniedForever);
+    }
+    if (permission == LocationPermission.denied) {
       return const LocationResult(status: LocationStatus.denied);
     }
 
@@ -61,12 +76,21 @@ class LocationService {
         position: pos,
       );
     } catch (_) {
-      // Timeout, hardware error, position-unavailable — treat as
-      // denied for routing purposes. The page falls back to the
-      // default centre and the member can pinch around as usual.
-      return const LocationResult(status: LocationStatus.denied);
+      // Timeout, hardware error, position-unavailable — distinct
+      // from "denied" so the UI can offer a "try again" message
+      // rather than asking the member to re-grant permission they
+      // already gave.
+      return const LocationResult(status: LocationStatus.unavailable);
     }
   }
+
+  /// Deep-link into the OS app-settings page so a member who flipped
+  /// "never allow" can re-grant location permission. Returns true if
+  /// the system honoured the open request. The corresponding system-
+  /// settings screen for *services off* (airplane mode, GPS hardware
+  /// disabled) is `openLocationSettings`.
+  Future<bool> openAppSettings() => Geolocator.openAppSettings();
+  Future<bool> openLocationSettings() => Geolocator.openLocationSettings();
 
   /// Distance in metres between two points. Wraps `Geolocator`'s
   /// haversine helper so the explore page doesn't import the package

@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../l10n/app_localizations.dart';
 import '../data/gym_repository.dart';
 import '../data/gym_summary.dart';
 import '../data/home_region_store.dart';
@@ -76,6 +77,12 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
   /// stored value is read. Drives distance pills + the locate-me
   /// camera target.
   GeoPoint? _userPosition;
+
+  /// In-flight locate-me request. Disables the FAB while a fresh GPS
+  /// read is pending so a tap-spam can't queue overlapping requests
+  /// (and so the FAB can swap its icon for a small spinner — the
+  /// member sees the tap was registered).
+  bool _locating = false;
 
   /// Debounce timer for the search box. Without it, every keystroke
   /// pushes a new query into the Riverpod state, which rebuilds the
@@ -329,14 +336,95 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
   /// pin and the new one, short enough that nobody waits on it.
   static const _cameraAnimDuration = Duration(milliseconds: 650);
 
+  /// Locate-me FAB tap. Always re-reads GPS (skipping the cached
+  /// position is intentional — the cached value is from the last
+  /// session and may be hundreds of km from where the member actually
+  /// is, so a "return to me" affordance that flies to the wrong city
+  /// reads as broken). Surfaces a snackbar on failure so the silent
+  /// "did anything happen?" experience is gone:
+  ///
+  ///   - serviceDisabled → "Turn on Location Services" + Settings deep-link.
+  ///   - deniedForever   → "Permission denied. Tap Settings to enable."
+  ///   - denied          → simple toast, the next tap will re-prompt.
+  ///   - unavailable     → "Couldn't get location, try again."
   Future<void> _onLocateMe() async {
+    if (_locating) return;
     HapticFeedback.selectionClick();
-    final cached = _userPosition;
-    if (cached != null) {
-      unawaited(_animateCameraTo(LatLng(cached.lat, cached.lng), zoom: 14));
-      return;
+    setState(() => _locating = true);
+    try {
+      final service = ref.read(locationServiceProvider);
+      final result = await service.currentPosition();
+      if (!mounted) return;
+      switch (result.status) {
+        case LocationStatus.granted:
+          final pos = result.position!;
+          setState(() {
+            _userPosition = GeoPoint(lat: pos.latitude, lng: pos.longitude);
+          });
+          ref.read(userPositionProvider.notifier).state =
+              HomeLocation(lat: pos.latitude, lng: pos.longitude);
+          unawaited(
+            ref
+                .read(homeRegionStoreProvider)
+                .write(pos.latitude, pos.longitude),
+          );
+          unawaited(
+            _animateCameraTo(LatLng(pos.latitude, pos.longitude), zoom: 14),
+          );
+          break;
+        case LocationStatus.serviceDisabled:
+          _showLocateError(
+            AppLocalizations.of(context).exploreLocateServiceDisabled,
+            actionLabel: AppLocalizations.of(context).exploreLocateOpenSettings,
+            onAction: () => service.openLocationSettings(),
+          );
+          break;
+        case LocationStatus.deniedForever:
+          _showLocateError(
+            AppLocalizations.of(context).exploreLocatePermissionDeniedForever,
+            actionLabel: AppLocalizations.of(context).exploreLocateOpenSettings,
+            onAction: () => service.openAppSettings(),
+          );
+          break;
+        case LocationStatus.denied:
+          _showLocateError(
+            AppLocalizations.of(context).exploreLocatePermissionDenied,
+          );
+          break;
+        case LocationStatus.unavailable:
+          _showLocateError(
+            AppLocalizations.of(context).exploreLocateUnavailable,
+          );
+          break;
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _locating = false);
+      }
     }
-    await _locateUser(panMap: true);
+  }
+
+  /// Surface a snackbar with optional trailing action. Centralised so
+  /// every locate-me failure path uses the same look and dismissal
+  /// rules — replaces the previous silent return that left the member
+  /// wondering whether the tap registered.
+  void _showLocateError(
+    String message, {
+    String? actionLabel,
+    VoidCallback? onAction,
+  }) {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 4),
+        action: (actionLabel != null && onAction != null)
+            ? SnackBarAction(label: actionLabel, onPressed: onAction)
+            : null,
+      ),
+    );
   }
 
   void _onMarkerTap(GymSummary gym) {
@@ -620,7 +708,10 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
               PositionedDirectional(
                 bottom: MediaQuery.sizeOf(context).height * exploreSheetMin + 12,
                 end: 16,
-                child: LocateMeButton(onTap: _onLocateMe),
+                child: LocateMeButton(
+                  onTap: _onLocateMe,
+                  loading: _locating,
+                ),
               ),
               // 3. Selected-gym profile card — slides up from above
               //    the bottom sheet when a pin is tapped.

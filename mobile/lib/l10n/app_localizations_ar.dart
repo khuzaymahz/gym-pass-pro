@@ -285,6 +285,20 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get exploreFiltersFavoritesLabel => 'عرض المفضلة فقط';
   @override
+  String get exploreLocateServiceDisabled =>
+      'فعّل خدمات الموقع من إعدادات الجهاز لتحديد موقعك.';
+  @override
+  String get exploreLocatePermissionDenied =>
+      'إذن الموقع مطلوب لتوسيط الخريطة على موقعك.';
+  @override
+  String get exploreLocatePermissionDeniedForever =>
+      'تم رفض إذن الموقع. اضغط على الإعدادات لتفعيله.';
+  @override
+  String get exploreLocateOpenSettings => 'الإعدادات';
+  @override
+  String get exploreLocateUnavailable =>
+      'تعذّر تحديد موقعك. حاول مجددًا بعد قليل.';
+  @override
   String get gymsCategoryAll => 'الكل';
   @override
   String get gymsCategoryGym => 'صالة';

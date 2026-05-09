@@ -286,6 +286,20 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get exploreFiltersFavoritesLabel => 'Show only favorites';
   @override
+  String get exploreLocateServiceDisabled =>
+      'Turn on Location Services in your device settings to locate yourself.';
+  @override
+  String get exploreLocatePermissionDenied =>
+      'Location permission is required to centre the map on you.';
+  @override
+  String get exploreLocatePermissionDeniedForever =>
+      'Location permission was denied. Tap Settings to enable it.';
+  @override
+  String get exploreLocateOpenSettings => 'Settings';
+  @override
+  String get exploreLocateUnavailable =>
+      "Couldn't get your location. Try again in a moment.";
+  @override
   String get gymsCategoryAll => 'All';
   @override
   String get gymsCategoryGym => 'Gym';
