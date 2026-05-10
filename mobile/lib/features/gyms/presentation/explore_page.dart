@@ -227,15 +227,18 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
     );
   }
 
-  /// Double tap on the handle jumps the sheet to its max extent
-  /// (`exploreSheetMax`). If the sheet is already at max, double
-  /// tap drops it back to the mid auto-open instead — gives the
-  /// gesture a sane "back out" path so it's not a one-way door.
+  /// Double tap on the handle is a max-or-close toggle. From any
+  /// position below max, jumps to `exploreSheetMax`; from max,
+  /// closes the sheet all the way to `exploreSheetMin`. That gives
+  /// a fast in-out gesture: double-tap once to fully open, again
+  /// to fully close — no third tap needed to dismiss the sheet.
+  /// Single tap (`_expandSheet`) still handles the everyday
+  /// min ↔ mid toggle.
   Future<void> _expandSheetMax() async {
     if (!_sheetCtrl.isAttached) return;
     final current = _sheetCtrl.size;
     final target = current >= exploreSheetMax - 0.02
-        ? exploreSheetAutoOpen
+        ? exploreSheetMin
         : exploreSheetMax;
     await _sheetCtrl.animateTo(
       target,
