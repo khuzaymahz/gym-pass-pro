@@ -403,8 +403,17 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
                 .read(homeRegionStoreProvider)
                 .write(pos.latitude, pos.longitude),
           );
-          unawaited(
-            _animateCameraTo(LatLng(pos.latitude, pos.longitude), zoom: 14),
+          // Region-fit ("eagle view") instead of a tight zoom-14
+          // pan-to-point. The previous tight zoom dropped the
+          // member onto a single block of street with no
+          // surrounding gyms in frame — useful for "where exactly
+          // am I" but not for "show me clubs around me", which is
+          // the intent of the Explore-page locate FAB. Frames the
+          // member's region (Amman / Zarqa / etc.) bounds so all
+          // partner gyms in that region are visible alongside the
+          // user dot, matching the initial-paint camera fit.
+          _fitCameraToRegion(
+            regionForPosition(pos.latitude, pos.longitude),
           );
           break;
         case LocationStatus.serviceDisabled:
@@ -703,6 +712,22 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
                   JordanLabelsLayer(tileUrl: tileUrlLabels),
                   MarkerLayer(
                     markers: [
+                      // User-position marker — classic blue accuracy
+                      // dot, distinct from gym pins so the eye reads
+                      // "this is YOU" vs "this is a club". Renders
+                      // only when we've actually resolved a position;
+                      // before that the locate-me FAB is the only
+                      // affordance pointing at the absent dot.
+                      if (_userPosition != null)
+                        Marker(
+                          point: LatLng(
+                            _userPosition!.lat,
+                            _userPosition!.lng,
+                          ),
+                          width: 28,
+                          height: 28,
+                          child: const _UserPositionMarker(),
+                        ),
                       for (final g in markerGyms)
                         Marker(
                           point: LatLng(g.lat!, g.lng!),
@@ -830,4 +855,74 @@ class GeoPoint {
   const GeoPoint({required this.lat, required this.lng});
   final double lat;
   final double lng;
+}
+
+/// "You are here" dot rendered on the explore map at the member's
+/// resolved position. Three layers of the classic Google-Maps user
+/// pin pattern:
+///
+///   - **Outer halo** at low alpha — a soft 28-px circle that
+///     hints at GPS accuracy without claiming a precise radius.
+///   - **White ring** — a 16-px disc that separates the inner dot
+///     from the halo + tile texture so the marker reads on any
+///     map background (the dark CARTO basemap, the warm-paper
+///     light basemap, green parks, yellow roads).
+///   - **Inner dot** — the saturated blue centre, 10 px.
+///
+/// Hard-coded blue (`#1A73E8`) rather than a tier colour so the
+/// member never confuses "you are here" with a gym pin. Static
+/// — no pulse, no animation. The locate-me FAB animation is
+/// where the "found you" feedback lives; the dot itself stays
+/// quiet so the eye registers it as a location, not as something
+/// that wants attention.
+class _UserPositionMarker extends StatelessWidget {
+  const _UserPositionMarker();
+
+  static const _userBlue = Color(0xFF1A73E8);
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: SizedBox(
+        width: 28,
+        height: 28,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _userBlue.withValues(alpha: 0.22),
+              ),
+            ),
+            Container(
+              width: 16,
+              height: 16,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.25),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              width: 10,
+              height: 10,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: _userBlue,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
