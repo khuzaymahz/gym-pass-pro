@@ -155,7 +155,18 @@ class GymPinMarker extends ConsumerWidget {
             //      no-logo branch below, where they're the *intended*
             //      visual — never as a transient state.
             child: gym.logoUrl != null && gym.logoUrl!.isNotEmpty
-                ? CachedNetworkImage(
+                ? ClipOval(
+                  // Explicit oval clip on top of the parent
+                  // `clipBehavior: Clip.antiAlias` decoration —
+                  // belt + braces. Some Flutter render paths
+                  // produce subtle square-feeling edges on the
+                  // shadowed circle decoration alone (sub-pixel
+                  // AA artefacts at the boxShadow boundary);
+                  // wrapping the image in a ClipOval guarantees
+                  // the bitmap is hard-clipped to a perfect
+                  // circle regardless of the parent's clip
+                  // strategy.
+                  child: CachedNetworkImage(
                     imageUrl: resolveMediaUrl(apiBaseUrl, gym.logoUrl!),
                     // `cover` so the logo fills the pin disc edge
                     // to edge regardless of source image padding.
@@ -172,6 +183,8 @@ class GymPinMarker extends ConsumerWidget {
                     // trade for a consistently-sized mark across
                     // every gym.
                     fit: BoxFit.cover,
+                    width: baseSize,
+                    height: baseSize,
                     memCacheWidth: pixelSize,
                     memCacheHeight: pixelSize,
                     maxWidthDiskCache: pixelSize,
@@ -192,7 +205,8 @@ class GymPinMarker extends ConsumerWidget {
                         ),
                       ),
                     ),
-                  )
+                  ),
+                )
                 : Center(
                     child: Text(
                       initial,

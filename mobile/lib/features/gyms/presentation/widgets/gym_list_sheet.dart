@@ -485,24 +485,31 @@ class HeroLogo extends ConsumerWidget {
       //     initials only render in the explicit no-logo and
       //     hard-error branches, never as a transient state.
       child: hasLogo
-          ? CachedNetworkImage(
-              imageUrl: resolveMediaUrl(apiBaseUrl, gym.logoUrl!),
-              // `cover` to fill the floating-card disc edge to
-              // edge — see the matching note in `GymPinMarker`.
-              // Tight squares fill perfectly; padded uploads
-              // shed their margin at the disc edge.
-              fit: BoxFit.cover,
-              memCacheWidth: pixelSize,
-              memCacheHeight: pixelSize,
-              maxWidthDiskCache: pixelSize,
-              maxHeightDiskCache: pixelSize,
-              fadeInDuration: Duration.zero,
-              fadeOutDuration: Duration.zero,
-              // White placeholder matches the new white disc bg
-              // so there's no flash from grey to white when the
-              // cached bitmap lands.
-              placeholder: (_, __) => Container(color: Colors.white),
-              errorWidget: (_, __, ___) => _initialFallback(initial, accent),
+          ? ClipOval(
+              // Explicit oval clip in addition to the parent's
+              // `BoxShape.circle` — guarantees the bitmap is
+              // hard-clipped to a perfect circle.
+              child: CachedNetworkImage(
+                imageUrl: resolveMediaUrl(apiBaseUrl, gym.logoUrl!),
+                // `cover` to fill the floating-card disc edge to
+                // edge — see the matching note in `GymPinMarker`.
+                // Tight squares fill perfectly; padded uploads
+                // shed their margin at the disc edge.
+                fit: BoxFit.cover,
+                width: 72,
+                height: 72,
+                memCacheWidth: pixelSize,
+                memCacheHeight: pixelSize,
+                maxWidthDiskCache: pixelSize,
+                maxHeightDiskCache: pixelSize,
+                fadeInDuration: Duration.zero,
+                fadeOutDuration: Duration.zero,
+                // White placeholder matches the new white disc bg
+                // so there's no flash from grey to white when the
+                // cached bitmap lands.
+                placeholder: (_, __) => Container(color: Colors.white),
+                errorWidget: (_, __, ___) => _initialFallback(initial, accent),
+              ),
             )
           : _initialFallback(initial, accent),
     );

@@ -141,32 +141,39 @@ class GymLogo extends StatelessWidget {
         decoration: frame,
         clipBehavior: Clip.antiAlias,
         child: hasLogo
-            ? CachedNetworkImage(
-                imageUrl: logoUrl!,
-                // `cover` so the logo fills the disc edge to edge
-                // regardless of source padding — see the matching
-                // note in `GymPinMarker`. The partner cropper
-                // enforces a 1:1 square, so tight uploads land
-                // at perfect fill; padded uploads get their
-                // padding trimmed at the disc edge.
-                fit: BoxFit.cover,
-                width: size,
-                height: size,
-                // Decoded-bitmap dimensions; both axes set so a non-square
-                // partner logo doesn't stretch a single axis. The on-disk
-                // copy is also bounded so we never persist a 4 MB original
-                // for a 56-px slot.
-                memCacheWidth: pixelSize,
-                memCacheHeight: pixelSize,
-                maxWidthDiskCache: pixelSize,
-                maxHeightDiskCache: pixelSize,
-                fadeInDuration: const Duration(milliseconds: 200),
-                fadeOutDuration: const Duration(milliseconds: 80),
-                // Show the monogram while the network fetch is in flight
-                // *and* on hard error — same fallback so the silhouette
-                // is stable whether the load succeeds slowly or fails.
-                placeholder: (_, __) => _Initial(gym: gym, size: size),
-                errorWidget: (_, __, ___) => _Initial(gym: gym, size: size),
+            ? ClipOval(
+                // Explicit oval clip in addition to the parent's
+                // antialiased decoration clip — guarantees the
+                // bitmap is hard-clipped to a circle even if the
+                // parent's render path produces sub-pixel
+                // square-feeling edges.
+                child: CachedNetworkImage(
+                  imageUrl: logoUrl!,
+                  // `cover` so the logo fills the disc edge to edge
+                  // regardless of source padding — see the matching
+                  // note in `GymPinMarker`. The partner cropper
+                  // enforces a 1:1 square, so tight uploads land
+                  // at perfect fill; padded uploads get their
+                  // padding trimmed at the disc edge.
+                  fit: BoxFit.cover,
+                  width: size,
+                  height: size,
+                  // Decoded-bitmap dimensions; both axes set so a non-square
+                  // partner logo doesn't stretch a single axis. The on-disk
+                  // copy is also bounded so we never persist a 4 MB original
+                  // for a 56-px slot.
+                  memCacheWidth: pixelSize,
+                  memCacheHeight: pixelSize,
+                  maxWidthDiskCache: pixelSize,
+                  maxHeightDiskCache: pixelSize,
+                  fadeInDuration: const Duration(milliseconds: 200),
+                  fadeOutDuration: const Duration(milliseconds: 80),
+                  // Show the monogram while the network fetch is in flight
+                  // *and* on hard error — same fallback so the silhouette
+                  // is stable whether the load succeeds slowly or fails.
+                  placeholder: (_, __) => _Initial(gym: gym, size: size),
+                  errorWidget: (_, __, ___) => _Initial(gym: gym, size: size),
+                ),
               )
             : _Initial(gym: gym, size: size),
       ),
