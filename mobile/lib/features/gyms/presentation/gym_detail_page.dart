@@ -95,17 +95,61 @@ class GymDetailPage extends ConsumerWidget {
         children: [
           SizedBox(
             height: 400,
-            child: photosAsync.when(
-              data: (photos) => photos.isEmpty
-                  ? _heroFallback(gp)
-                  : _PhotoSlider(
-                      photos: photos,
-                      isAr: isAr,
-                      fadeColor: gp.bg,
-                      mediaBase: mediaBase,
-                    ),
-              loading: () => _heroFallback(gp),
-              error: (_, __) => _heroFallback(gp),
+            // Crossfade the loading-state gradient → real photo slider
+            // (and back, on error). Without this the swap is a hard cut
+            // from the placeholder gradient to the slider the moment
+            // `photosAsync` resolves — read by members as "something
+            // else loaded first, *then* the gym profile appeared."
+            // 280 ms is long enough to feel like a single hand-off,
+            // short enough that it doesn't delay reading the page.
+            //
+            // Keys matter: `AnimatedSwitcher` diffs by key. Same key
+            // for fallback in loading / error / empty branches keeps
+            // the gradient *steady* across those non-data states; a
+            // distinct key for the slider triggers the crossfade only
+            // when real photos land.
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 280),
+              switchInCurve: Curves.easeOut,
+              switchOutCurve: Curves.easeIn,
+              // Default layoutBuilder centers children, which collapses
+              // the gradient (no intrinsic size). `StackFit.expand`
+              // forces both children to fill the 400-px slot so they
+              // overlap pixel-for-pixel during the fade.
+              layoutBuilder: (currentChild, previousChildren) {
+                return Stack(
+                  fit: StackFit.expand,
+                  alignment: Alignment.center,
+                  children: [
+                    ...previousChildren,
+                    if (currentChild != null) currentChild,
+                  ],
+                );
+              },
+              child: photosAsync.when(
+                data: (photos) => photos.isEmpty
+                    ? KeyedSubtree(
+                        key: const ValueKey('hero-fallback'),
+                        child: _heroFallback(gp),
+                      )
+                    : KeyedSubtree(
+                        key: const ValueKey('hero-slider'),
+                        child: _PhotoSlider(
+                          photos: photos,
+                          isAr: isAr,
+                          fadeColor: gp.bg,
+                          mediaBase: mediaBase,
+                        ),
+                      ),
+                loading: () => KeyedSubtree(
+                  key: const ValueKey('hero-fallback'),
+                  child: _heroFallback(gp),
+                ),
+                error: (_, __) => KeyedSubtree(
+                  key: const ValueKey('hero-fallback'),
+                  child: _heroFallback(gp),
+                ),
+              ),
             ),
           ),
           Positioned(
