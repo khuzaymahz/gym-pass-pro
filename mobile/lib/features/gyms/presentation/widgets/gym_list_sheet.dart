@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -503,34 +504,33 @@ class HeroLogo extends ConsumerWidget {
   }
 }
 
-/// Tap recogniser that fires `onTap` **immediately** (no
-/// double-tap-wait delay) while still recognising a true double-tap
-/// when one arrives within a generous window. Flutter's stock
-/// `GestureDetector` debounces single tap by `kDoubleTapTimeout`
-/// (~300 ms) when both `onTap` and `onDoubleTap` are wired — the
-/// recogniser has to wait to be sure no second tap is coming. On
-/// the gym-list handle that delay was reading as laggy: a member
-/// taps, watches the sheet sit still for a beat, then animate.
+/// Tap recogniser that delays single-tap execution by a short
+/// window so a follow-up tap can be recognised as a true
+/// double-tap. Flutter's stock `GestureDetector` does this too,
+/// but with a `kDoubleTapTimeout` of ~300 ms — long enough to
+/// read as laggy on a control where the action is a quick
+/// animation. We tighten the window to **180 ms**: at the edge
+/// of perceptual "instant" (under 200 ms is the standard
+/// snappy-response threshold) while still long enough for a
+/// natural double-tap rhythm to register reliably.
 ///
-/// This wrapper inverts the responsibility: fire single tap right
-/// away (the sheet starts animating to mid), and if a second tap
-/// lands within `_doubleTapWindow` ms, fire `onDoubleTap` and let
-/// it override the in-flight animation. The visible flow becomes
-/// "tap → sheet starts opening → tap again → it keeps going up to
-/// max" — one continuous motion instead of "tap → wait → tap →
-/// tap-cancel → animate".
+/// Flow:
+///   - First tap → start a 180 ms timer; nothing animates yet.
+///   - Second tap lands inside the window → cancel timer, fire
+///     `onDoubleTap` immediately. The "skipped" single-tap
+///     animation never plays so there's no override-mid-flight.
+///   - Timer expires with no second tap → fire `onTap`. The
+///     180 ms wait is short enough that members read it as
+///     "tap, then sheet moves" rather than "tap, wait, then
+///     sheet moves".
 ///
-/// 320 ms window is *generous* (Flutter default is 300 ms, Apple's
-/// HIG recommends 300 ms). Earlier 220 ms was too tight — by the
-/// time members finished the first tap and started the second,
-/// more than 220 ms had often passed so the second tap registered
-/// as a fresh single instead of overriding to a double. 320 ms
-/// catches any natural double-tap rhythm while still keeping the
-/// single-tap response instant. The trade is small: a slow
-/// "two singles" gesture (300 ms apart) registers as a double
-/// instead — on this control that lifts the sheet to max, easy
-/// to recover from with one more tap (max → mid). The win on
-/// reliable double-tap detection outweighs the rare false-double.
+/// If `onDoubleTap` is null, fire `onTap` immediately — no
+/// reason to debounce when there's no double-tap path.
+///
+/// Earlier iterations tried "fire single instantly + override
+/// in-flight on double" — felt snappier on single tap but never
+/// gave the user enough room to reliably trigger a double. The
+/// wait-then-fire model gives both gestures a clean lane.
 class _FastTapHandle extends StatefulWidget {
   const _FastTapHandle({
     required this.onTap,
@@ -547,27 +547,44 @@ class _FastTapHandle extends StatefulWidget {
 }
 
 class _FastTapHandleState extends State<_FastTapHandle> {
-  static const _doubleTapWindow = Duration(milliseconds: 320);
-  DateTime? _lastTapAt;
+  static const _doubleTapWindow = Duration(milliseconds: 180);
+  Timer? _pendingTap;
 
   void _handleTap() {
-    final now = DateTime.now();
-    final last = _lastTapAt;
-    if (last != null &&
-        widget.onDoubleTap != null &&
-        now.difference(last) <= _doubleTapWindow) {
-      // Second tap within window → double tap. Clear the
-      // tracker so a third tap doesn't accidentally count as
-      // another double on top.
-      _lastTapAt = null;
+    // No double-tap handler → fire single immediately. There's
+    // no reason to debounce when there's no double-tap path to
+    // wait for.
+    if (widget.onDoubleTap == null) {
+      widget.onTap();
+      return;
+    }
+
+    // Second tap inside the window → cancel the pending single,
+    // fire double right away. The single-tap animation never
+    // started so there's no need to override anything.
+    final pending = _pendingTap;
+    if (pending != null && pending.isActive) {
+      pending.cancel();
+      _pendingTap = null;
       widget.onDoubleTap!.call();
       return;
     }
-    // First tap (or stale tap) → single, fired immediately. Stash
-    // the timestamp so a follow-up tap inside the window can be
-    // recognised as a double.
-    _lastTapAt = now;
-    widget.onTap();
+
+    // First tap → schedule the single. Member sees a 180 ms
+    // pause before the sheet begins animating; if they tap
+    // again within that window, the single is cancelled in
+    // favour of the double.
+    _pendingTap = Timer(_doubleTapWindow, () {
+      _pendingTap = null;
+      if (!mounted) return;
+      widget.onTap();
+    });
+  }
+
+  @override
+  void dispose() {
+    _pendingTap?.cancel();
+    super.dispose();
   }
 
   @override
