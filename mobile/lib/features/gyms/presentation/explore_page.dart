@@ -211,15 +211,29 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
     return _tilesWarm && asyncGyms.hasValue;
   }
 
-  /// Single tap on the handle toggles the sheet between its
-  /// resting handle-peek (`exploreSheetMin`) and the mid auto-open
-  /// (`exploreSheetAutoOpen`). For "go to max", see
-  /// [_expandSheetMax] — wired to double-tap.
+  /// Single tap on the handle. Three-state policy:
+  ///   - At max → drop to mid (gentle step down).
+  ///   - At mid (or any in-between drag position) → close to min.
+  ///   - At min → open to mid (everyday "show me the list").
+  ///
+  /// Pairs with [_expandSheetMax] (double-tap) which does the
+  /// fast big-jumps: any-position → max, max → min.
   Future<void> _expandSheet() async {
     if (!_sheetCtrl.isAttached) return;
     final current = _sheetCtrl.size;
-    final target =
-        current > exploreSheetMin + 0.05 ? exploreSheetMin : exploreSheetAutoOpen;
+    double target;
+    if (current >= exploreSheetMax - 0.02) {
+      // At max → drop one step down to mid.
+      target = exploreSheetAutoOpen;
+    } else if (current > exploreSheetMin + 0.05) {
+      // Anywhere above the resting handle (mid or a drag-stopped
+      // in-between) → close to min. The everyday "hide the list"
+      // direction.
+      target = exploreSheetMin;
+    } else {
+      // At min → open to mid. Everyday "show me the list".
+      target = exploreSheetAutoOpen;
+    }
     await _sheetCtrl.animateTo(
       target,
       duration: const Duration(milliseconds: 240),
