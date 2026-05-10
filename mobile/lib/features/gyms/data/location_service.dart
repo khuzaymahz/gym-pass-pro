@@ -82,21 +82,23 @@ class LocationService {
     }
 
     // Fast path — last-known fix from the OS cache. Instant when
-    // present; null on cold-start devices or after a long
-    // location-services-off window. Often the only thing that
-    // succeeds on Windows / desktop emulators where no real GPS
-    // is wired up.
+    // present, prefers a fresh fix but accepts a stale one over
+    // failing entirely. Android emulators with mock locations set
+    // often return positions with `timestamp == null` (the static
+    // config doesn't write one) — earlier code rejected those and
+    // fell through to live reads that the emulator never satisfies.
+    Position? cachedFix;
     try {
-      final cached = await Geolocator.getLastKnownPosition();
-      if (cached != null && _isFresh(cached.timestamp)) {
-        return LocationResult(
-          status: LocationStatus.granted,
-          position: cached,
-        );
-      }
+      cachedFix = await Geolocator.getLastKnownPosition();
     } catch (_) {
-      // Fall through to the live read — `getLastKnownPosition`
-      // can throw on web or platforms that don't support it.
+      // `getLastKnownPosition` can throw on web / unsupported
+      // platforms — fall through to live read.
+    }
+    if (cachedFix != null && _isFresh(cachedFix.timestamp)) {
+      return LocationResult(
+        status: LocationStatus.granted,
+        position: cachedFix,
+      );
     }
 
     // Two-step live attempt — high accuracy with a brief 4 s
@@ -124,7 +126,23 @@ class LocationService {
       );
     }
 
-    // Both attempts exhausted — distinct from "denied" so the UI
+    // Last resort — accept the OS-cached fix even if it failed the
+    // freshness gate or has no timestamp. For "centre my map" UX a
+    // position that's an hour old (or undated) is materially better
+    // than no position at all; the member sees roughly where they
+    // are and can pan if needed. This is what unblocks Android
+    // emulators that expose a static mock location with a null
+    // timestamp — without this branch every locate-me tap on the
+    // emulator failed, regardless of whether a fix was actually
+    // configured.
+    if (cachedFix != null) {
+      return LocationResult(
+        status: LocationStatus.granted,
+        position: cachedFix,
+      );
+    }
+
+    // No cached fix, no live read — distinct from "denied" so the UI
     // can offer a "try again" message rather than asking the member
     // to re-grant permission they already gave.
     return const LocationResult(status: LocationStatus.unavailable);
