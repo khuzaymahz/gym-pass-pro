@@ -490,7 +490,12 @@ class GymDetailPage extends ConsumerWidget {
         // edges would read as "stuck" on a short list.
         physics: const BouncingScrollPhysics(),
         itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        // 14 px between tiles. Was 8 — felt cramped per user
+        // feedback; the chips visually merged into a horizontal
+        // band rather than reading as discrete amenity cards.
+        // 14 gives each tile its own silhouette without
+        // pushing the four-up first row off-screen.
+        separatorBuilder: (_, __) => const SizedBox(width: 14),
         itemBuilder: (_, i) {
           final it = items[i];
           return Container(
