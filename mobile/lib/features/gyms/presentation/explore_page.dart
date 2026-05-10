@@ -806,6 +806,21 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
                 options: MapOptions(
                   initialCenter: LatLng(region.centre.lat, region.centre.lng),
                   initialZoom: region.staticMapZoom.toDouble(),
+                  // Theme-matched empty-canvas colour. Without this,
+                  // flutter_map renders its own default light surface
+                  // (~grey-white) under the tile grid until tiles
+                  // actually arrive — and the warm-up `BackdropFilter`
+                  // samples that surface, blurs it, and produces a
+                  // "white loading frame" even in dark mode. Once
+                  // dark CARTO tiles paint over it the canvas turns
+                  // dark and the blur turns dark too, which members
+                  // read as a jarring white→dark flip. Setting this
+                  // to the active scaffold background means the
+                  // blank canvas matches the rest of the app from
+                  // the very first frame, so the blur just darkens
+                  // a uniform dark field instead of a white one.
+                  backgroundColor:
+                      Theme.of(context).scaffoldBackgroundColor,
                   // `contain` — the entire camera VIEWPORT must stay
                   // within Jordan's bounding rectangle. minZoom 7 is
                   // the user-defined "pinch-out floor" where Jordan
