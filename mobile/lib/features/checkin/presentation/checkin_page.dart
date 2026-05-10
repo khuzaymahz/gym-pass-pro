@@ -45,7 +45,17 @@ class _CheckinPageState extends ConsumerState<CheckinPage>
   /// keeps battery + MLKit cost down: the State stays mounted, but
   /// the camera goes idle when the user is on Home / Explore /
   /// Profile.
-  bool _branchVisible = true;
+  ///
+  /// **Defaults to false.** The shell mounts ALL four branches at
+  /// app boot — including this one — so without a false default
+  /// the `MobileScanner` widget would render in the tree from
+  /// frame zero, the controller would attach to its preview
+  /// surface, the Camera2 lifecycle + MLKit barcode dynamite
+  /// module + TFLite XNNPACK delegate would all initialise on a
+  /// member who hasn't even tapped SCAN yet. False at boot, flipped
+  /// true the first time the build computes the shell's current
+  /// branch and finds we're it.
+  bool _branchVisible = false;
 
   @override
   void initState() {
@@ -209,20 +219,41 @@ class _CheckinPageState extends ConsumerState<CheckinPage>
                                 fit: StackFit.expand,
                                 children: [
                                   Container(color: gp.bg2),
-                                  MobileScanner(
-                                    controller: _controller,
-                                    onDetect: (capture) {
-                                      final raw = capture.barcodes
-                                          .map((b) => b.rawValue)
-                                          .firstWhere(
-                                              (v) => v != null && v.isNotEmpty,
-                                              orElse: () => null,);
-                                      if (raw == null) return;
-                                      ref
-                                          .read(checkinControllerProvider.notifier)
-                                          .onQrDetected(raw);
-                                    },
-                                  ),
+                                  // `MobileScanner` only enters the tree
+                                  // when our branch is actually visible.
+                                  // The shell's IndexedStack mounts every
+                                  // branch at boot, so without this gate
+                                  // the camera + Camera2 surface + MLKit
+                                  // barcode dynamite + TFLite XNNPACK
+                                  // delegate would all initialise on a
+                                  // member who hasn't tapped SCAN yet —
+                                  // visible in the device logs as a flood
+                                  // of camera/tflite/MLKit init lines at
+                                  // app launch. Replacing it with a
+                                  // matching `gp.bg2` placeholder when
+                                  // hidden keeps the layout slot identical
+                                  // (no shift when the user lands on the
+                                  // tab) while letting the native handler
+                                  // stay torn down.
+                                  if (_branchVisible)
+                                    MobileScanner(
+                                      controller: _controller,
+                                      onDetect: (capture) {
+                                        final raw = capture.barcodes
+                                            .map((b) => b.rawValue)
+                                            .firstWhere(
+                                                (v) =>
+                                                    v != null && v.isNotEmpty,
+                                                orElse: () => null,);
+                                        if (raw == null) return;
+                                        ref
+                                            .read(checkinControllerProvider
+                                                .notifier,)
+                                            .onQrDetected(raw);
+                                      },
+                                    )
+                                  else
+                                    Container(color: gp.bg2),
                                   _cornerBrackets(),
                                   _scanLine(frameSize),
                                   // Swipe overlay. On Android, MobileScanner's
