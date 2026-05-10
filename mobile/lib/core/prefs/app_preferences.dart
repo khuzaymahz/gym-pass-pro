@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-import '../di/providers.dart';
-
-/// User-facing app preferences. Persists across launches via secure
-/// storage so the member's locale, notification toggles, and theme
-/// choice survive a reboot.
+/// User-facing app preferences. Backed by [SharedPreferences] (not
+/// secure_storage) — these aren't secrets, and SharedPreferences's
+/// synchronous-after-init API lets us read locale + themeMode
+/// **before the first frame paints** so the splash and the rest of
+/// the app start in the user's chosen language + palette without
+/// the ~50–800 ms flash from defaults that the previous
+/// secure_storage-backed setup produced.
 ///
 /// **`themeMode`**: defaults to `dark` — the brand's primary
 /// surface. The settings page and the auth-screen toggle expose a
@@ -21,23 +24,12 @@ class AppPreferences {
   final bool notifClubsNearby;
   final bool notifPromos;
 
-  /// `true` once secure_storage has been read at least once and the
-  /// stored values (or their defaults) have been applied. Surfaces
-  /// that paint locale-dependent or theme-dependent content during
-  /// app boot — the splash in particular — read this so they can
-  /// hide their text until they know the right locale to render in.
-  /// Without it, a member who chose EN sees an Arabic tagline for
-  /// the ~50–200 ms window between first paint and the secure_storage
-  /// hydrate completing.
-  final bool hydrated;
-
   const AppPreferences({
     this.locale = const Locale('ar'),
     this.themeMode = ThemeMode.dark,
     this.notifPlanReminders = true,
     this.notifClubsNearby = true,
     this.notifPromos = false,
-    this.hydrated = false,
   });
 
   AppPreferences copyWith({
@@ -46,7 +38,6 @@ class AppPreferences {
     bool? notifPlanReminders,
     bool? notifClubsNearby,
     bool? notifPromos,
-    bool? hydrated,
   }) {
     return AppPreferences(
       locale: locale ?? this.locale,
@@ -54,117 +45,136 @@ class AppPreferences {
       notifPlanReminders: notifPlanReminders ?? this.notifPlanReminders,
       notifClubsNearby: notifClubsNearby ?? this.notifClubsNearby,
       notifPromos: notifPromos ?? this.notifPromos,
-      hydrated: hydrated ?? this.hydrated,
     );
   }
+}
+
+/// Storage keys. Kept consistent with the legacy secure_storage
+/// names so the migration step in `loadAppPreferences` can find
+/// values written by previous app versions.
+const _kLocale = 'pref.locale';
+const _kTheme = 'pref.theme';
+const _kNotifPlan = 'pref.notif.plan';
+const _kNotifClubs = 'pref.notif.clubs';
+const _kNotifPromos = 'pref.notif.promos';
+
+Locale _parseLocale(String? v) {
+  if (v == 'en') return const Locale('en');
+  return const Locale('ar');
+}
+
+ThemeMode _parseThemeMode(String? v) {
+  // Only `light` and `dark` are valid now. A previously-saved
+  // `system` value (or anything else) falls through to the dark
+  // default — first interaction with the picker overwrites it.
+  if (v == 'light') return ThemeMode.light;
+  return ThemeMode.dark;
+}
+
+String _serializeThemeMode(ThemeMode m) {
+  return m == ThemeMode.light ? 'light' : 'dark';
+}
+
+bool _parseBool(String? v, {required bool defaultValue}) {
+  if (v == null) return defaultValue;
+  return v == '1' || v == 'true';
+}
+
+/// Awaited once in `main()` before `runApp()` so the splash's
+/// first frame paints the user's chosen locale + theme. Returns:
+///   - the [SharedPreferences] handle, kept alive for the
+///     [AppPreferencesNotifier] writers;
+///   - the materialised initial [AppPreferences] (locale + theme
+///     are real, notifications start at defaults and are
+///     reconciled below).
+///
+/// If SharedPreferences is empty (first launch after upgrade from
+/// the old secure_storage-only setup), falls back to a one-shot
+/// secure_storage read so existing users don't lose their
+/// settings. We pay the ~500–1500 ms Keystore init cost **once**
+/// per device for migration; every subsequent launch is the fast
+/// SharedPreferences path.
+Future<({SharedPreferences shared, AppPreferences initial})>
+    loadAppPreferences() async {
+  final shared = await SharedPreferences.getInstance();
+
+  // Migration: SharedPreferences is empty for our keys but
+  // secure_storage might still hold a previous user's choice.
+  // Copy across so the next read is fast.
+  if (!shared.containsKey(_kLocale) && !shared.containsKey(_kTheme)) {
+    try {
+      const legacy = FlutterSecureStorage();
+      final loc = await legacy.read(key: _kLocale);
+      final theme = await legacy.read(key: _kTheme);
+      final plan = await legacy.read(key: _kNotifPlan);
+      final clubs = await legacy.read(key: _kNotifClubs);
+      final promos = await legacy.read(key: _kNotifPromos);
+      if (loc != null) await shared.setString(_kLocale, loc);
+      if (theme != null) await shared.setString(_kTheme, theme);
+      if (plan != null) await shared.setString(_kNotifPlan, plan);
+      if (clubs != null) await shared.setString(_kNotifClubs, clubs);
+      if (promos != null) await shared.setString(_kNotifPromos, promos);
+    } catch (_) {
+      // Keystore unavailable / fresh device / corrupted secure_storage —
+      // fall through to defaults silently. This is the no-prior-
+      // settings case anyway.
+    }
+  }
+
+  final initial = AppPreferences(
+    locale: _parseLocale(shared.getString(_kLocale)),
+    themeMode: _parseThemeMode(shared.getString(_kTheme)),
+    notifPlanReminders:
+        _parseBool(shared.getString(_kNotifPlan), defaultValue: true),
+    notifClubsNearby:
+        _parseBool(shared.getString(_kNotifClubs), defaultValue: true),
+    notifPromos:
+        _parseBool(shared.getString(_kNotifPromos), defaultValue: false),
+  );
+  return (shared: shared, initial: initial);
 }
 
 class AppPreferencesNotifier extends StateNotifier<AppPreferences> {
-  final FlutterSecureStorage _storage;
-  static const _localeKey = 'pref.locale';
-  static const _themeKey = 'pref.theme';
-  static const _notifPlanKey = 'pref.notif.plan';
-  static const _notifClubsKey = 'pref.notif.clubs';
-  static const _notifPromosKey = 'pref.notif.promos';
+  AppPreferencesNotifier(this._shared, AppPreferences initial) : super(initial);
 
-  /// Set true the moment any setter fires. _load() consults this so a
-  /// setter that beat the hydrate (rare but real on cold-start: user
-  /// taps the locale toggle on the splash screen before the secure_storage
-  /// read returns) doesn't get clobbered by stale stored values. Without
-  /// this guard the user's tap "doesn't take" — they re-tap, see it
-  /// flicker, and lose trust in the toggle.
-  bool _userInteracted = false;
-
-  AppPreferencesNotifier(this._storage) : super(const AppPreferences()) {
-    // Defer the secure_storage read past the first frame so Android's
-    // Keystore init (500–1500ms cold) doesn't block initial paint. The app
-    // defaults to AR + system theme; if the user previously chose EN or
-    // pinned dark/light, the first frame paints with defaults and flips
-    // once [_load] completes — acceptable tradeoff for faster startup.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
-  }
-
-  Future<void> _load() async {
-    final locale = await _storage.read(key: _localeKey);
-    final theme = await _storage.read(key: _themeKey);
-    final plan = await _storage.read(key: _notifPlanKey);
-    final clubs = await _storage.read(key: _notifClubsKey);
-    final promos = await _storage.read(key: _notifPromosKey);
-    if (_userInteracted) {
-      // User already touched a setter while we were waiting on
-      // secure_storage; their state wins. The setter already wrote
-      // through to storage, so the *next* cold-start will read the
-      // correct value naturally.
-      return;
-    }
-    state = AppPreferences(
-      locale: _parseLocale(locale),
-      themeMode: _parseThemeMode(theme),
-      notifPlanReminders: _parseBool(plan, defaultValue: true),
-      notifClubsNearby: _parseBool(clubs, defaultValue: true),
-      notifPromos: _parseBool(promos, defaultValue: false),
-      // Flip on hydrate-complete regardless of whether any value
-      // changed — the *signal* downstream surfaces are waiting for
-      // is "the stored prefs have been consulted at least once,"
-      // not "they differed from the defaults."
-      hydrated: true,
-    );
-  }
-
-  Locale _parseLocale(String? v) {
-    if (v == 'en') return const Locale('en');
-    return const Locale('ar');
-  }
-
-  ThemeMode _parseThemeMode(String? v) {
-    // Only `light` and `dark` are valid now. A previously-saved
-    // `system` value (or anything else) falls through to the dark
-    // default — first interaction with the picker overwrites it.
-    if (v == 'light') return ThemeMode.light;
-    return ThemeMode.dark;
-  }
-
-  String _serializeThemeMode(ThemeMode m) {
-    return m == ThemeMode.light ? 'light' : 'dark';
-  }
-
-  bool _parseBool(String? v, {required bool defaultValue}) {
-    if (v == null) return defaultValue;
-    return v == '1' || v == 'true';
-  }
+  final SharedPreferences _shared;
 
   Future<void> setLocale(Locale locale) async {
-    _userInteracted = true;
     state = state.copyWith(locale: locale);
-    await _storage.write(key: _localeKey, value: locale.languageCode);
+    await _shared.setString(_kLocale, locale.languageCode);
   }
 
   Future<void> setThemeMode(ThemeMode mode) async {
-    _userInteracted = true;
     state = state.copyWith(themeMode: mode);
-    await _storage.write(key: _themeKey, value: _serializeThemeMode(mode));
+    await _shared.setString(_kTheme, _serializeThemeMode(mode));
   }
 
   Future<void> setNotifPlanReminders(bool value) async {
-    _userInteracted = true;
     state = state.copyWith(notifPlanReminders: value);
-    await _storage.write(key: _notifPlanKey, value: value ? '1' : '0');
+    await _shared.setString(_kNotifPlan, value ? '1' : '0');
   }
 
   Future<void> setNotifClubsNearby(bool value) async {
-    _userInteracted = true;
     state = state.copyWith(notifClubsNearby: value);
-    await _storage.write(key: _notifClubsKey, value: value ? '1' : '0');
+    await _shared.setString(_kNotifClubs, value ? '1' : '0');
   }
 
   Future<void> setNotifPromos(bool value) async {
-    _userInteracted = true;
     state = state.copyWith(notifPromos: value);
-    await _storage.write(key: _notifPromosKey, value: value ? '1' : '0');
+    await _shared.setString(_kNotifPromos, value ? '1' : '0');
   }
 }
 
+/// Provider declaration without an initial state — `main()` must
+/// override this with the synchronously-loaded prefs from
+/// [loadAppPreferences] before `runApp`. Reading it without the
+/// override throws a clear error rather than silently using
+/// defaults that would re-introduce the cold-start flash.
 final appPreferencesProvider =
     StateNotifierProvider<AppPreferencesNotifier, AppPreferences>((ref) {
-  return AppPreferencesNotifier(ref.read(secureStorageProvider));
+  throw StateError(
+    'appPreferencesProvider was read before main() injected the '
+    'sync-loaded prefs. Make sure runApp() wraps the app in a '
+    'ProviderScope with an override built from loadAppPreferences().',
+  );
 });

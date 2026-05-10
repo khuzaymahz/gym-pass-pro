@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/bootstrap/app_bootstrap.dart';
-import '../../../core/prefs/app_preferences.dart';
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
 import '../../../core/widgets/glow.dart';
@@ -11,6 +10,16 @@ import '../../../core/widgets/overline.dart';
 import '../../../l10n/app_localizations.dart';
 import 'auth_controller.dart';
 
+/// First-frame brand surface. Locale + theme are correct from
+/// the very first paint because `main()` sync-loads them via
+/// [loadAppPreferences] before `runApp` — so no Arabic-flash for
+/// an EN user, no dark-flash for a Light user. The native
+/// launch background underneath is day/night-aware (Android
+/// resource folders), so a member whose chosen theme matches
+/// their OS theme sees one continuous surface across native →
+/// Flutter → /home; a mismatch causes at most one transition at
+/// the native → Flutter handoff (which is masked by the wordmark
+/// reveal animation drawing on top of it).
 class SplashPage extends ConsumerStatefulWidget {
   const SplashPage({super.key});
 
@@ -61,28 +70,9 @@ class _SplashPageState extends ConsumerState<SplashPage>
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
-    // Splash deliberately follows the **OS brightness**, not the
-    // user's stored theme preference, for the same reason the
-    // native launch background does (see `values/colors.xml` →
-    // `gp_launch_bg`): the brand moment lives between the OS's
-    // launch window and Flutter's first frame, both of which are
-    // OS-driven, so painting the splash from `prefs.themeMode`
-    // (which lags behind because it hydrates from secure_storage
-    // post-frame) creates a guaranteed dark→light flicker mid-
-    // splash for any member who chose Light. By following OS
-    // brightness here, the native launch flash and the Flutter
-    // splash share the same surface — the handoff is invisible —
-    // and the at-most-one theme transition happens cleanly at
-    // the splash → /home navigation, where the route slide masks
-    // it. Pick the matching palette explicitly from `GpColors`
-    // so we get the same exact shade Flutter would have applied.
-    final isOsDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
-    final palette = isOsDark ? GpColors.dark : GpColors.light;
-    final hydrated = ref.watch(
-      appPreferencesProvider.select((p) => p.hydrated),
-    );
+    final gp = context.gp;
     return Scaffold(
-      backgroundColor: palette.bg,
+      backgroundColor: gp.bg,
       body: Stack(
         alignment: Alignment.center,
         children: [
@@ -97,58 +87,24 @@ class _SplashPageState extends ConsumerState<SplashPage>
           Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _AnimatedWordmark(
-                controller: _reveal,
-                size: 76,
-                fg: palette.fg,
-                accentInk: palette.accentInk,
-              ),
+              _AnimatedWordmark(controller: _reveal, size: 76),
               const SizedBox(height: 22),
-              // Locale-dependent text — only render once secure_storage
-              // has hydrated and we know the user's chosen locale. Until
-              // then, reserve the vertical space with a fixed-height
-              // SizedBox so the wordmark doesn't shift when the tagline
-              // fades in. Without this gate, a member who chose EN sees
-              // the Arabic tagline for ~50–200 ms before it flips.
-              SizedBox(
-                height: 14,
-                child: hydrated
-                    ? _FadeInOverline(
-                        controller: _reveal,
-                        text: l.splashTagline,
-                      )
-                    : null,
+              _FadeInOverline(
+                controller: _reveal,
+                text: l.splashTagline,
               ),
               const SizedBox(height: 120),
-              SizedBox(
-                height: 14,
-                child: hydrated
-                    ? Text(
-                        l.splashLoading,
-                        style: GPText.mono(
-                          size: 10,
-                          letterSpacing: 2.4,
-                          color: palette.muted,
-                        ),
-                      )
-                    : null,
+              Text(
+                l.splashLoading,
+                style: GPText.mono(size: 10, letterSpacing: 2.4, color: gp.muted),
               ),
             ],
           ),
           Positioned(
             bottom: 40,
-            child: SizedBox(
-              height: 13,
-              child: hydrated
-                  ? Text(
-                      l.splashFooter,
-                      style: GPText.mono(
-                        size: 9,
-                        letterSpacing: 2.0,
-                        color: palette.muted,
-                      ),
-                    )
-                  : null,
+            child: Text(
+              l.splashFooter,
+              style: GPText.mono(size: 9, letterSpacing: 2.0, color: gp.muted),
             ),
           ),
         ],
@@ -164,23 +120,12 @@ class _SplashPageState extends ConsumerState<SplashPage>
 class _AnimatedWordmark extends StatelessWidget {
   final AnimationController controller;
   final double size;
-  // `fg` and `accentInk` are passed in from the parent rather than
-  // pulled from `context.gp` so the wordmark follows the splash's
-  // OS-driven palette (see the rationale on `_SplashPageState.build`)
-  // instead of the active app theme — which during the splash window
-  // is the default `ThemeMode.dark` until prefs hydrate.
-  final Color fg;
-  final Color accentInk;
 
-  const _AnimatedWordmark({
-    required this.controller,
-    required this.size,
-    required this.fg,
-    required this.accentInk,
-  });
+  const _AnimatedWordmark({required this.controller, required this.size});
 
   @override
   Widget build(BuildContext context) {
+    final gp = context.gp;
     final dotFade = CurvedAnimation(
       parent: controller,
       curve: const Interval(0.00, 0.30, curve: Curves.easeOut),
@@ -247,7 +192,7 @@ class _AnimatedWordmark extends StatelessWidget {
                             offset: Offset(-40 * (1 - gymSlide.value), 0),
                             child: Text(
                               'GYM',
-                              style: baseStyle.copyWith(color: fg),
+                              style: baseStyle.copyWith(color: gp.fg),
                             ),
                           ),
                         ),
@@ -257,7 +202,7 @@ class _AnimatedWordmark extends StatelessWidget {
                             offset: Offset(40 * (1 - passSlide.value), 0),
                             child: Text(
                               'PASS',
-                              style: baseStyle.copyWith(color: accentInk),
+                              style: baseStyle.copyWith(color: gp.accentInk),
                             ),
                           ),
                         ),
@@ -266,7 +211,7 @@ class _AnimatedWordmark extends StatelessWidget {
                     const SizedBox(height: 10),
                     _UnderlineSweep(
                       progress: underline.value,
-                      color: accentInk,
+                      color: gp.accentInk,
                       maxWidth: size * 4.2,
                     ),
                   ],

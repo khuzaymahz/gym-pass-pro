@@ -23,6 +23,14 @@ dependencies:
   # Storage
   flutter_secure_storage: ^9.2.2
 
+  # Fast unencrypted prefs store — used ONLY for the cold-start
+  # values (locale, themeMode) that the splash needs synchronously
+  # before the first frame paints. secure_storage is the wrong
+  # tool for these reads: its ~500–1500 ms Keystore init blocks
+  # startup, and the values themselves aren't secrets. Everything
+  # else (tokens, biometric vault) stays on secure_storage.
+  shared_preferences: ^2.3.2
+
   # Biometric unlock for the saved-credential vault. Falls back to the OS
   # PIN/passcode when fingerprint/face is unavailable, never plaintext.
   local_auth: ^2.3.0
