@@ -180,3 +180,42 @@ export async function deleteGymLogo(gymId: string): Promise<GymRead> {
     token: await token(),
   });
 }
+
+/// Partner-portal login bound 1:1 to a gym. The DB enforces the
+/// uniqueness constraint via the partial unique index
+/// `uq_users_gym_owner_gym_id`, so attempting to create a second
+/// owner on a gym that already has one comes back as a clean 409
+/// from the backend.
+export type GymOwnerRead = {
+  id: string;
+  phone: string;
+  name: string | null;
+  gymId: string;
+};
+
+export async function getGymOwner(
+  gymId: string,
+): Promise<GymOwnerRead | null> {
+  return api<GymOwnerRead | null>(
+    `/api/v1/admin/gyms/${gymId}/owner`,
+    { token: await token() },
+  );
+}
+
+export async function createGymOwner(
+  gymId: string,
+  body: { phone: string; password: string; name?: string | null },
+): Promise<GymOwnerRead> {
+  return api(`/api/v1/admin/gyms/${gymId}/owner`, {
+    method: "POST",
+    body: JSON.stringify(body),
+    token: await token(),
+  });
+}
+
+export async function deleteGymOwner(gymId: string): Promise<void> {
+  return api(`/api/v1/admin/gyms/${gymId}/owner`, {
+    method: "DELETE",
+    token: await token(),
+  });
+}

@@ -4,20 +4,25 @@ import { notFound } from "next/navigation";
 
 import GymForm from "@/components/GymForm";
 import GymLogoPanel from "@/components/GymLogoPanel";
+import { GymOwnerPanel } from "@/components/GymOwnerPanel";
 import GymPhotosPanel from "@/components/GymPhotosPanel";
 import Toolbar from "@/components/Toolbar";
 import { GymUpsertBodySchema, parseAction } from "@/lib/action-schemas";
 import {
+  createGymOwner,
   deleteGym,
   deleteGymLogo,
+  deleteGymOwner,
   deleteGymPhoto,
   getGym,
+  getGymOwner,
   listGymPhotos,
   resolvePhotoUrl,
   updateGym,
   updateGymPhoto,
   uploadGymLogo,
   uploadGymPhoto,
+  type GymOwnerRead,
   type GymPhotoRead,
   type GymPhotoUpdate,
   type GymRead,
@@ -116,15 +121,63 @@ async function deleteLogoAction(gymId: string) {
   }
 }
 
+async function createOwnerAction(
+  gymId: string,
+  input: { phone: string; password: string; name: string },
+) {
+  "use server";
+  try {
+    const value = await createGymOwner(gymId, {
+      phone: input.phone.trim(),
+      password: input.password,
+      name: input.name.trim() || null,
+    });
+    return { ok: true as const, value };
+  } catch (error) {
+    return {
+      ok: false as const,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to create partner login.",
+    };
+  }
+}
+
+async function deleteOwnerAction(gymId: string) {
+  "use server";
+  try {
+    await deleteGymOwner(gymId);
+    return { ok: true as const };
+  } catch (error) {
+    return {
+      ok: false as const,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to revoke partner login.",
+    };
+  }
+}
+
 export default async function EditGymPage({ params }: Props) {
   const { id } = await params;
   const t = await getTranslations("gyms");
   const tForm = await getTranslations("gyms.form");
   let gym;
   let photos: GymPhotoRead[] = [];
+  let owner: GymOwnerRead | null = null;
   try {
     gym = await getGym(id);
     photos = await listGymPhotos(id);
+    // Owner is optional — a freshly-created gym hasn't been bound to a
+    // partner login yet. Soft-fail: if the owner endpoint errors for
+    // any non-404 reason, the rest of the page should still render.
+    try {
+      owner = await getGymOwner(id);
+    } catch {
+      owner = null;
+    }
   } catch {
     notFound();
   }
@@ -136,6 +189,8 @@ export default async function EditGymPage({ params }: Props) {
   const boundDeletePhoto = deletePhotoAction.bind(null, id);
   const boundUploadLogo = uploadLogoAction.bind(null, id);
   const boundDeleteLogo = deleteLogoAction.bind(null, id);
+  const boundCreateOwner = createOwnerAction.bind(null, id);
+  const boundDeleteOwner = deleteOwnerAction.bind(null, id);
 
   const photosForPanel = photos.map((p) => ({
     ...p,
@@ -164,6 +219,11 @@ export default async function EditGymPage({ params }: Props) {
         logoUrl={resolvedLogo}
         uploadAction={boundUploadLogo}
         deleteAction={boundDeleteLogo}
+      />
+      <GymOwnerPanel
+        initial={owner}
+        createAction={boundCreateOwner}
+        deleteAction={boundDeleteOwner}
       />
       <GymPhotosPanel
         photos={photosForPanel}

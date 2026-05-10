@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { AmenitiesPicker } from "@/components/AmenitiesPicker";
 import type { GymRead } from "@/lib/gyms";
 import { suggestTier } from "@/lib/tierSuggestion";
 
@@ -20,7 +21,6 @@ const FIELD_LIMITS = {
   name: 128,
   address: 512,
   area: 64,
-  amenities: 256,
 } as const;
 const SLUG_PATTERN = "[a-z0-9-]{2,64}";
 
@@ -67,7 +67,6 @@ export default function GymForm({ initial, action, submitLabel }: Props) {
     };
   }
 
-  const amenitiesText = (state.amenities ?? []).join(", ");
   const suggestion = suggestTier({
     perVisitRateJod: state.perVisitRateJod,
     amenities: state.amenities,
@@ -201,25 +200,41 @@ export default function GymForm({ initial, action, submitLabel }: Props) {
             {...bind("perVisitRateJod")}
           />
         </label>
-        <label className="field md:col-span-2 lg:col-span-3">
-          <span className="field-label">{t("amenitiesLabel")}</span>
-          <input
-            className="input input-sm"
-            value={amenitiesText}
-            maxLength={FIELD_LIMITS.amenities}
-            onChange={(e) =>
-              setState((s) => ({
-                ...s,
-                amenities: e.target.value
-                  .split(",")
-                  .map((a) => a.trim().toLowerCase())
-                  .filter(Boolean)
-                  .slice(0, 64),
-              }))
-            }
-          />
-        </label>
       </div>
+
+      {/* Amenities — checkbox grid + custom-entry chip list. Same
+          component the partner portal uses, so the vocabulary
+          (preset list, cap of 64, custom-entry rules) stays in
+          lockstep across both surfaces editing the same backend
+          gym record. */}
+      <div className="border-t border-line pt-4">
+        <AmenitiesPicker
+          value={state.amenities ?? []}
+          onChange={(next) => setState((s) => ({ ...s, amenities: next }))}
+        />
+      </div>
+
+      {/* Active toggle — soft-delete is destructive (clears partner
+          login, breaks deep links). This boolean lets an operator
+          temporarily *hide* a gym from the member explore tab
+          without losing the partner relationship. Mobile filters
+          inactive gyms out of `/api/v1/gyms` automatically. */}
+      <label className="flex items-start gap-3 border-t border-line pt-4">
+        <input
+          type="checkbox"
+          className="mt-0.5 h-4 w-4 rounded border-line bg-ink accent-accent"
+          checked={state.isActive ?? true}
+          onChange={(e) =>
+            setState((s) => ({ ...s, isActive: e.target.checked }))
+          }
+        />
+        <span className="flex flex-col gap-0.5">
+          <span className="field-label">{t("activeLabel")}</span>
+          <span className="text-[11.5px] text-muted">
+            {t("activeHint")}
+          </span>
+        </span>
+      </label>
 
       <div className="flex items-center justify-between border-t border-line pt-3">
         {error ? (

@@ -3,6 +3,40 @@
     "name": "GymPass",
     "tagline": "Admin · production"
   },
+  "amenities": {
+    "label": "What's included",
+    "subtitle": "Tick everything members can use at this gym. Anything not in the list, add it under \"Other\".",
+    "basics": "Basics",
+    "popular": "Popular",
+    "count": "{current} / {max}",
+    "customLabel": "Other amenities",
+    "customPlaceholder": "e.g. yoga studio",
+    "customAdd": "Add",
+    "customRemove": "Remove {value}",
+    "customHint": "Press Enter to add. Lowercase, no commas. Each entry up to 48 characters.",
+    "presets": {
+      "wifi": "Wi-Fi",
+      "lockers": "Lockers",
+      "showers": "Showers",
+      "changing_rooms": "Changing rooms",
+      "parking": "Parking",
+      "towels": "Towels",
+      "water_fountain": "Water fountain",
+      "ac": "Air conditioning",
+      "free_weights": "Free weights",
+      "cardio_machines": "Cardio machines",
+      "sauna": "Sauna",
+      "pool": "Swimming pool",
+      "steam_room": "Steam room",
+      "group_classes": "Group classes",
+      "personal_training": "Personal training",
+      "kids_area": "Kids area",
+      "women_only_area": "Women-only section",
+      "prayer_room": "Prayer room",
+      "juice_bar": "Juice bar",
+      "wheelchair_access": "Wheelchair access"
+    }
+  },
   "nav": {
     "groups": {
       "overview": "Overview",
@@ -278,10 +312,24 @@
       "lat": "Latitude",
       "lng": "Longitude",
       "rate": "Rate (JOD / visit)",
-      "amenitiesLabel": "Amenities (comma-separated, e.g. sauna, pool, spa)",
       "save": "Save changes",
       "create": "Create gym",
-      "footerHint": "Changes apply immediately. Audit log captures the before/after diff."
+      "footerHint": "Changes apply immediately. Audit log captures the before/after diff.",
+      "activeLabel": "Active",
+      "activeHint": "Uncheck to hide this gym from the mobile Explore tab without soft-deleting. The partner login and history stay intact; flip it back on to restore."
+    },
+    "owner": {
+      "title": "Partner login",
+      "subtitle": "One partner login per gym. The login lets the gym owner sign into the partner portal to view check-ins, edit profile, and manage photos.",
+      "namedLabel": "Display name",
+      "phoneLabel": "Phone",
+      "passwordLabel": "Initial password",
+      "idLabel": "User ID",
+      "create": "Create login",
+      "createHint": "Phone becomes the username. Share the password with the partner out of band — there is no email-invite flow yet.",
+      "revoke": "Revoke login",
+      "revokeHint": "Revoking signs the partner out everywhere and prevents future sign-in. Gym profile, photos, and history stay intact.",
+      "revokeConfirm": "Revoke partner login for {phone}? They will be signed out immediately."
     },
     "logo": {
       "title": "Logo",
