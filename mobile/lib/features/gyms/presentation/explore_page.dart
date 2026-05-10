@@ -211,10 +211,15 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
     return _tilesWarm && asyncGyms.hasValue;
   }
 
-  /// Single tap on the handle. Three-state policy:
-  ///   - At max → drop to mid (gentle step down).
-  ///   - At mid (or any in-between drag position) → close to min.
-  ///   - At min → open to mid (everyday "show me the list").
+  /// Single tap on the handle. Divides the sheet's vertical range
+  /// at the **mid** snap so the policy is robust to in-between
+  /// drag stops and animation tails:
+  ///   - Above mid (max, near-max, or any upper drag stop) → drop
+  ///     to mid. Gentle step-down regardless of how exactly the
+  ///     sheet sits at the moment of the tap.
+  ///   - Between min and mid → close to min. The everyday
+  ///     "hide the list".
+  ///   - At min → open to mid. The everyday "show me the list".
   ///
   /// Pairs with [_expandSheetMax] (double-tap) which does the
   /// fast big-jumps: any-position → max, max → min.
@@ -222,16 +227,18 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
     if (!_sheetCtrl.isAttached) return;
     final current = _sheetCtrl.size;
     double target;
-    if (current >= exploreSheetMax - 0.02) {
-      // At max → drop one step down to mid.
+    if (current >= exploreSheetAutoOpen + 0.02) {
+      // Anywhere above the mid snap (max, near-max, or any drag
+      // stop in the upper half) → drop to mid. Robust to a sheet
+      // that's at 0.799 instead of exactly 0.80, or a drag
+      // released at 0.65 — the previous "max - 0.02" threshold
+      // missed both cases and sent them straight to min.
       target = exploreSheetAutoOpen;
     } else if (current > exploreSheetMin + 0.05) {
-      // Anywhere above the resting handle (mid or a drag-stopped
-      // in-between) → close to min. The everyday "hide the list"
-      // direction.
+      // Lower half above min → close to min.
       target = exploreSheetMin;
     } else {
-      // At min → open to mid. Everyday "show me the list".
+      // At min → open to mid.
       target = exploreSheetAutoOpen;
     }
     await _sheetCtrl.animateTo(
