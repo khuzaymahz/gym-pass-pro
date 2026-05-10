@@ -96,6 +96,26 @@ class GymPinMarker extends ConsumerWidget {
             // Sharing the same `CachedNetworkImageProvider` URL with
             // the gym detail Hero means the detail page's header logo
             // appears instantly when a member taps through from the map.
+            //
+            // Two deliberate divergences from the standard
+            // `CachedNetworkImage` defaults, both targeting the
+            // "yellow blink while switching pins" bug:
+            //
+            //   1. **`fadeInDuration: Duration.zero`** — kills the
+            //      placeholder→image crossfade. The cached bitmap is
+            //      already in memory (the home + detail pages
+            //      pre-warm it via `GymLogo`), so the fade was 160 ms
+            //      of unnecessary transition that the user read as a
+            //      flash whenever the marker State rebuilt during a
+            //      selection switch.
+            //   2. **Neutral `bg3` placeholder** instead of the
+            //      tier-coloured initials. Even an actual cache miss
+            //      now lands on a quiet grey disc rather than a
+            //      bright amber/cyan letter that flashes through the
+            //      transition. The initials still show as the
+            //      hard-error fallback (`errorWidget`) and as the
+            //      no-logo branch below, where they're the *intended*
+            //      visual — never as a transient state.
             child: gym.logoUrl != null && gym.logoUrl!.isNotEmpty
                 ? CachedNetworkImage(
                     imageUrl: resolveMediaUrl(apiBaseUrl, gym.logoUrl!),
@@ -104,17 +124,9 @@ class GymPinMarker extends ConsumerWidget {
                     memCacheHeight: pixelSize,
                     maxWidthDiskCache: pixelSize,
                     maxHeightDiskCache: pixelSize,
-                    fadeInDuration: const Duration(milliseconds: 160),
-                    placeholder: (_, __) => Center(
-                      child: Text(
-                        initial,
-                        style: GPText.display(
-                          initial.characters.length >= 2 ? 12.0 : 16.0,
-                          color: accent,
-                          height: 1.0,
-                        ),
-                      ),
-                    ),
+                    fadeInDuration: Duration.zero,
+                    fadeOutDuration: Duration.zero,
+                    placeholder: (_, __) => Container(color: gp.bg3),
                     errorWidget: (_, __, ___) => Center(
                       child: Text(
                         initial,
