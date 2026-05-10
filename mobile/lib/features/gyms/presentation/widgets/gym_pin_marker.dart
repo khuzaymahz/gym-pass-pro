@@ -59,13 +59,40 @@ class GymPinMarker extends ConsumerWidget {
     final accent = tier?.color ?? gp.muted;
     final apiBaseUrl = ref.watch(envProvider).apiBaseUrl;
     final initial = gymInitials(gym.nameEn);
-    final size = selected ? 42.0 : 38.0;
-    final ring = selected ? 2.5 : 2.0;
+    // Hard-coded pin geometry — see `_baseSize` / `_selectedScale`
+    // notes below. Border thickness is fixed at 2 px regardless of
+    // selection state so nothing involving colour ever animates.
+    const baseSize = 38.0;
+    const selectedScale = 42.0 / 38.0; // 1.105
+    const ringWidth = 2.0;
     // 42 px max × DPR × 2 (Hero handoff into the detail page); capped
     // at 128 raw pixels so a hundred pins on screen don't keep a
     // hundred 1000-px JPEGs decoded in RAM.
     final dpr = MediaQuery.of(context).devicePixelRatio;
     final pixelSize = (42 * dpr * 2).round().clamp(64, 128);
+
+    // The decoration is built ONCE per pin per build, never on a
+    // colour-lerping animator. Earlier versions ran the whole
+    // BoxDecoration through `AnimatedContainer.decoration`, which
+    // re-creates a new Border instance each rebuild and tweens its
+    // properties — even with identical start/end colours, the
+    // intermediate raster passes anti-aliased differently, and
+    // members read the sub-frame edge artifacts as "the pin
+    // flashed." Pulling the decoration out and animating only the
+    // scale removes that whole class of bug at the source.
+    final pinDecoration = BoxDecoration(
+      shape: BoxShape.circle,
+      color: gp.bg2,
+      border: Border.all(color: accent, width: ringWidth),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.40),
+          blurRadius: 8,
+          offset: const Offset(0, 2),
+        ),
+      ],
+    );
+
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
@@ -73,29 +100,23 @@ class GymPinMarker extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Animates the size + ring thickness over 200 ms with a
-          // soft easeOutCubic — a small, smooth scale-up that reads
-          // as "this one is selected" without any colour change.
-          // Switching between pins glides both the outgoing and
-          // incoming selection in parallel; with colours fixed there's
-          // no flash mid-switch.
-          AnimatedContainer(
+          // Selection cue: **scale only**, no colour, no border
+          // thickness change. AnimatedScale runs a Tween on the
+          // matrix transform — the underlying widget tree (border
+          // colour, box shadow, image) never re-rasterizes during
+          // the animation, so there is literally no colour-channel
+          // path that could blink. Members read the 5 % size bump
+          // as "this one is selected"; switching between pins
+          // shrinks the outgoing and grows the incoming in
+          // parallel without any flash.
+          AnimatedScale(
+            scale: selected ? selectedScale : 1.0,
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeOutCubic,
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: gp.bg2,
-              border: Border.all(color: accent, width: ring),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.40),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
+            child: Container(
+            width: baseSize,
+            height: baseSize,
+            decoration: pinDecoration,
             clipBehavior: Clip.antiAlias,
             // Real partner logo when available; tier-coloured initial
             // disc when not. Cached + decoded-to-pin-size so panning a
@@ -155,6 +176,7 @@ class GymPinMarker extends ConsumerWidget {
                       ),
                     ),
                   ),
+            ),
           ),
           // Pin needle — a small tier-coloured triangle pointing at
           // the lat/lng under the logo. Just enough to read as a pin
