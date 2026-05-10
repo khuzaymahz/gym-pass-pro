@@ -1,11 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 
 import '../theme/gp_text.dart';
 import '../theme/gp_tokens.dart';
 
 enum PillVariant { primary, secondary, ghost }
 
-class PillButton extends StatelessWidget {
+/// Brand pill button. Used for every page-level CTA.
+///
+/// Press affordance:
+///   - **Scale**: 1.0 → 0.97 over 120 ms with `easeOut`. Subtle but
+///     enough that the button reads as physical — the same trick
+///     `GymRow` uses, just gentler since the pill is bigger.
+///   - **Ripple**: Material InkWell on top, so the touch point also
+///     gets a soft ink wash.
+///   - **Haptic**: `lightImpact` fires on primary-variant taps. The
+///     "I felt that" cue Apple's first-party UI uses for any
+///     consequential action; secondary/ghost variants stay silent
+///     so dense option grids don't chatter.
+class PillButton extends StatefulWidget {
   final String label;
   final VoidCallback? onPressed;
   final PillVariant variant;
@@ -26,11 +39,23 @@ class PillButton extends StatelessWidget {
   });
 
   @override
+  State<PillButton> createState() => _PillButtonState();
+}
+
+class _PillButtonState extends State<PillButton> {
+  bool _pressed = false;
+
+  void _setPressed(bool value) {
+    if (_pressed == value) return;
+    setState(() => _pressed = value);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final gp = context.gp;
-    final isPrimary = variant == PillVariant.primary;
-    final isSecondary = variant == PillVariant.secondary;
-    final isDisabled = onPressed == null;
+    final isPrimary = widget.variant == PillVariant.primary;
+    final isSecondary = widget.variant == PillVariant.secondary;
+    final isDisabled = widget.onPressed == null;
 
     final textColor = isPrimary
         ? (isDisabled ? gp.muted : gp.onLime)
@@ -42,25 +67,25 @@ class PillButton extends StatelessWidget {
     // callers should pick labels that actually fit — this just prevents the
     // striped overflow stripe if they don't.
     final child = Row(
-      mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
+      mainAxisSize: widget.expand ? MainAxisSize.max : MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        if (leadingIcon != null) ...[
-          Icon(leadingIcon, size: 16, color: textColor),
+        if (widget.leadingIcon != null) ...[
+          Icon(widget.leadingIcon, size: 16, color: textColor),
           const SizedBox(width: 10),
         ],
         Flexible(
           child: Text(
-            label.toUpperCase(),
+            widget.label.toUpperCase(),
             style: GPText.ctaLabel.copyWith(color: textColor),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             softWrap: false,
           ),
         ),
-        if (trailingIcon != null) ...[
+        if (widget.trailingIcon != null) ...[
           const SizedBox(width: 10),
-          Icon(trailingIcon, size: 16, color: textColor),
+          Icon(widget.trailingIcon, size: 16, color: textColor),
         ],
       ],
     );
@@ -81,7 +106,7 @@ class PillButton extends StatelessWidget {
               : (isPrimary ? null : Colors.transparent)),
       border: isSecondary
           ? Border.all(color: gp.line2)
-          : (variant == PillVariant.ghost
+          : (widget.variant == PillVariant.ghost
               ? Border.all(color: gp.line)
               : (isPrimary && isDisabled
                   ? Border.all(color: gp.line)
@@ -99,21 +124,32 @@ class PillButton extends StatelessWidget {
     );
 
     final body = Container(
-      height: height,
+      height: widget.height,
       padding: const EdgeInsets.symmetric(horizontal: 24),
       decoration: decoration,
       alignment: Alignment.center,
       child: child,
     );
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(GPRadius.pill),
-        onTap: onPressed,
-        child: expand
-            ? SizedBox(width: double.infinity, child: body)
-            : body,
+    return AnimatedScale(
+      scale: (_pressed && !isDisabled) ? 0.97 : 1.0,
+      duration: const Duration(milliseconds: 120),
+      curve: Curves.easeOut,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(GPRadius.pill),
+          onTap: isDisabled
+              ? null
+              : () {
+                  if (isPrimary) HapticFeedback.lightImpact();
+                  widget.onPressed!();
+                },
+          onHighlightChanged: _setPressed,
+          child: widget.expand
+              ? SizedBox(width: double.infinity, child: body)
+              : body,
+        ),
       ),
     );
   }

@@ -3,7 +3,17 @@ import 'package:go_router/go_router.dart';
 
 import '../theme/gp_tokens.dart';
 
-class IconBtn extends StatelessWidget {
+/// Round icon button for header chrome — back, fav, share, etc.
+///
+/// Press affordance:
+///   - **Scale**: 1.0 → 0.92 over 120 ms with `easeOut`. Slightly
+///     stronger compression than `PillButton` (0.97) because at
+///     40 px the button is small enough that a 3 % shrink reads
+///     as no movement at all; 8 % is the threshold where the
+///     button visibly *responds* without feeling jumpy.
+///   - **Ripple**: Material InkWell paints under the icon for a
+///     touch-point ink wash on top of the scale.
+class IconBtn extends StatefulWidget {
   final IconData icon;
   final VoidCallback? onPressed;
   final bool badge;
@@ -20,43 +30,62 @@ class IconBtn extends StatelessWidget {
   });
 
   @override
+  State<IconBtn> createState() => _IconBtnState();
+}
+
+class _IconBtnState extends State<IconBtn> {
+  bool _pressed = false;
+
+  void _setPressed(bool value) {
+    if (_pressed == value) return;
+    setState(() => _pressed = value);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final isDisabled = widget.onPressed == null;
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(GPRadius.pill),
-            onTap: onPressed,
-            child: Container(
-              width: size,
-              height: size,
-              decoration: BoxDecoration(
-                color: context.gp.bg3,
-                shape: BoxShape.circle,
-                border: Border.all(color: context.gp.line2),
-              ),
-              alignment: Alignment.center,
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 220),
-                switchInCurve: Curves.easeOutCubic,
-                switchOutCurve: Curves.easeInCubic,
-                transitionBuilder: (child, anim) => FadeTransition(
-                  opacity: anim,
-                  child: ScaleTransition(scale: anim, child: child),
+        AnimatedScale(
+          scale: (_pressed && !isDisabled) ? 0.92 : 1.0,
+          duration: const Duration(milliseconds: 120),
+          curve: Curves.easeOut,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(GPRadius.pill),
+              onTap: widget.onPressed,
+              onHighlightChanged: _setPressed,
+              child: Container(
+                width: widget.size,
+                height: widget.size,
+                decoration: BoxDecoration(
+                  color: context.gp.bg3,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: context.gp.line2),
                 ),
-                child: Icon(
-                  icon,
-                  key: ValueKey(icon),
-                  size: 18,
-                  color: tint ?? context.gp.fg,
+                alignment: Alignment.center,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 220),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  transitionBuilder: (child, anim) => FadeTransition(
+                    opacity: anim,
+                    child: ScaleTransition(scale: anim, child: child),
+                  ),
+                  child: Icon(
+                    widget.icon,
+                    key: ValueKey(widget.icon),
+                    size: 18,
+                    color: widget.tint ?? context.gp.fg,
+                  ),
                 ),
               ),
             ),
           ),
         ),
-        if (badge)
+        if (widget.badge)
           Positioned(
             right: 2,
             top: 2,
