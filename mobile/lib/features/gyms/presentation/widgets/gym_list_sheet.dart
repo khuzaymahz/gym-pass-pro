@@ -487,11 +487,11 @@ class HeroLogo extends ConsumerWidget {
       child: hasLogo
           ? CachedNetworkImage(
               imageUrl: resolveMediaUrl(apiBaseUrl, gym.logoUrl!),
-              // `contain` so the entire logo always fits inside
-              // the floating-card disc — see the matching note in
-              // `GymPinMarker`. Cover would slice padded or
-              // non-square uploads.
-              fit: BoxFit.contain,
+              // `cover` to fill the floating-card disc edge to
+              // edge — see the matching note in `GymPinMarker`.
+              // Tight squares fill perfectly; padded uploads
+              // shed their margin at the disc edge.
+              fit: BoxFit.cover,
               memCacheWidth: pixelSize,
               memCacheHeight: pixelSize,
               maxWidthDiskCache: pixelSize,

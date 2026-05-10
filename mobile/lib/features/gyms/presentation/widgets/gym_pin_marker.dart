@@ -157,18 +157,21 @@ class GymPinMarker extends ConsumerWidget {
             child: gym.logoUrl != null && gym.logoUrl!.isNotEmpty
                 ? CachedNetworkImage(
                     imageUrl: resolveMediaUrl(apiBaseUrl, gym.logoUrl!),
-                    // `contain` (not `cover`) so the partner's
-                    // entire logo always fits inside the pin
-                    // circle. Cover *fills* the box and slices
-                    // anything that doesn't fit — for partners
-                    // who uploaded logos with built-in margin or
-                    // non-square aspect, the result was cropped
-                    // wordmarks and clipped icons. Contain
-                    // letterboxes the image with a small grey
-                    // band against `gp.bg2` if the aspect doesn't
-                    // match, but the whole logo is always
-                    // visible.
-                    fit: BoxFit.contain,
+                    // `cover` so the logo fills the pin disc edge
+                    // to edge regardless of source image padding.
+                    // Combined with the white disc bg below, this
+                    // produces a "filled disc" look for every
+                    // upload: the partner cropper enforces a 1:1
+                    // square, so tightly-cropped uploads land at
+                    // perfect fill with no slicing; padded uploads
+                    // (logo with built-in margin) get their
+                    // *padding* trimmed at the disc edge — which
+                    // is exactly what "make it fit" asks for. The
+                    // small percentage of art that lives at the
+                    // very edge of a non-square upload is the
+                    // trade for a consistently-sized mark across
+                    // every gym.
+                    fit: BoxFit.cover,
                     memCacheWidth: pixelSize,
                     memCacheHeight: pixelSize,
                     maxWidthDiskCache: pixelSize,
