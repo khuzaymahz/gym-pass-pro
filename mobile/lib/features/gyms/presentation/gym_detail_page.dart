@@ -501,11 +501,19 @@ class GymDetailPage extends ConsumerWidget {
           return Container(
             width: tileWidth,
             padding: const EdgeInsets.symmetric(vertical: 14),
+            // Border stepped up from `gp.line` → `gp.line2` (the
+            // stronger divider token) and the card shadow dropped.
+            // In light mode the previous chrome made the tiles read
+            // as one merged strip: `gp.line` is too subtle to
+            // delimit each tile against the white surface, and the
+            // shared `gp.cardShadows` formed a continuous band
+            // along the bottom of the row that visually connected
+            // them. Stronger flat border + no shadow gives each
+            // tile a discrete chip silhouette in both themes.
             decoration: BoxDecoration(
               color: gp.bg2,
               borderRadius: BorderRadius.circular(GPRadius.md),
-              border: Border.all(color: gp.line),
-              boxShadow: gp.cardShadows,
+              border: Border.all(color: gp.line2),
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,

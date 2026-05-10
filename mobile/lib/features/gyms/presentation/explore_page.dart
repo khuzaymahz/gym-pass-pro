@@ -741,13 +741,31 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
                         InteractiveFlag.scrollWheelZoom,
                   ),
                   onTap: (_, __) {
-                    // Tap on empty map dismisses the gym card +
-                    // keyboard. Tap on a marker is captured by the
-                    // marker's own GestureDetector first.
+                    // Tap on empty map dismisses three things at
+                    // once — selected-gym card, keyboard, and an
+                    // expanded gym-list bottom sheet. Tap on a
+                    // marker is captured by the marker's own
+                    // GestureDetector before this onTap fires, so
+                    // selecting a pin still pops the card and
+                    // doesn't collapse the sheet.
                     if (_selectedGym != null) {
                       setState(() => _selectedGym = null);
                     }
                     FocusScope.of(context).unfocus();
+                    // Collapse the sheet if it's expanded above the
+                    // resting-handle position. The 0.02 epsilon
+                    // matters because the user might be holding the
+                    // sheet at exactly `exploreSheetMin` and a
+                    // micro-overshoot would otherwise trigger an
+                    // animation back to the same place.
+                    if (_sheetCtrl.isAttached &&
+                        _sheetCtrl.size > exploreSheetMin + 0.02) {
+                      _sheetCtrl.animateTo(
+                        exploreSheetMin,
+                        duration: const Duration(milliseconds: 240),
+                        curve: Curves.easeOutCubic,
+                      );
+                    }
                   },
                 ),
                 children: [
