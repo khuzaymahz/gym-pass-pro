@@ -89,19 +89,40 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
   /// labels-only layer fetch independently, and on a slow network
   /// the labels (smaller PNG payloads) often land before the base
   /// tiles — so members briefly see floating Arabic place names on
-  /// a blank canvas. Hold a loader overlay over the map until both
-  /// the warm-up timer fires AND the gym list is ready, then fade
-  /// it out via `AnimatedOpacity`.
+  /// a blank canvas. Hold a loader overlay over the map until base
+  /// tiles have actually painted AND the gym list is ready, then
+  /// fade it out via `AnimatedOpacity`.
   ///
-  /// 1.4 s covers a cold-cache CARTO tile fetch on typical mobile
-  /// network; the previous 700 ms wasn't enough on first launch and
-  /// members caught the half-rendered "labels-on-blank-canvas"
-  /// frame. On a warm cache or fast connection the overlay still
-  /// holds the full window — the eye prefers a deliberate
-  /// 1.4 s loading state to a 300 ms reveal of an unfinished map.
-  bool _tilesWarm = false;
-  Timer? _warmupTimer;
-  static const _warmupDuration = Duration(milliseconds: 1400);
+  /// Truthful "is the map loaded" signal — the previous fixed
+  /// 1.4 s timer was a guess. Members on slow networks still saw
+  /// the half-rendered map after the timer fired; members on warm
+  /// caches sat through 1.4 s of loader for a map that was already
+  /// painted at 200 ms. Tracking real tile-load completion fixes
+  /// both: the loader holds exactly as long as the network says
+  /// it needs to.
+  ///
+  /// State machine:
+  ///   - `_firstTileLoaded` flips true the moment the base
+  ///     `TileLayer`'s `tileBuilder` reports a tile with
+  ///     `loadFinishedAt != null`.
+  ///   - `_tilesGraceTimer` (300 ms) is armed on that first load
+  ///     so neighbouring tiles in the visible viewport have time
+  ///     to paint too — without this, the loader vanishes the
+  ///     instant ONE tile lands and the rest of the screen is
+  ///     still blank.
+  ///   - `_tilesCeilingTimer` (8 s) is the offline / CARTO-down
+  ///     safety: if no tile ever loads, the loader still dismisses
+  ///     so the member can see the (empty / errored) map and
+  ///     understand they're offline.
+  ///
+  /// `_tilesLoaded` is the consumer-facing flag, set when EITHER
+  /// the grace timer or the ceiling timer fires.
+  bool _firstTileLoaded = false;
+  bool _tilesLoaded = false;
+  Timer? _tilesGraceTimer;
+  Timer? _tilesCeilingTimer;
+  static const _tilesGraceDuration = Duration(milliseconds: 300);
+  static const _tilesCeilingDuration = Duration(seconds: 8);
 
   /// Debounce timer for the search box. Without it, every keystroke
   /// pushes a new query into the Riverpod state, which rebuilds the
@@ -146,10 +167,27 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
     // the page appear, then the prompt, instead of a flash of grey
     // while the dialog is up.
     WidgetsBinding.instance.addPostFrameCallback((_) => _locateUser());
-    // Map warm-up window — see `_tilesWarm` doc.
-    _warmupTimer = Timer(_warmupDuration, () {
-      if (!mounted) return;
-      setState(() => _tilesWarm = true);
+    // Offline / CARTO-down ceiling — see `_firstTileLoaded` doc.
+    // If no tile reports loaded inside this window, hide the loader
+    // anyway so the member sees the empty/errored map state and
+    // doesn't sit forever on a spinner.
+    _tilesCeilingTimer = Timer(_tilesCeilingDuration, () {
+      if (!mounted || _tilesLoaded) return;
+      setState(() => _tilesLoaded = true);
+    });
+  }
+
+  /// Called from the base `TileLayer`'s `tileBuilder` the first
+  /// time a tile reports `loadFinishedAt != null`. Arms the grace
+  /// timer; subsequent calls are no-ops because the tileBuilder
+  /// fires per build for every visible tile and we only care
+  /// about the first paint.
+  void _onFirstTileLoaded() {
+    if (_firstTileLoaded) return;
+    _firstTileLoaded = true;
+    _tilesGraceTimer = Timer(_tilesGraceDuration, () {
+      if (!mounted || _tilesLoaded) return;
+      setState(() => _tilesLoaded = true);
     });
   }
 
@@ -191,7 +229,8 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
   @override
   void dispose() {
     _searchDebounce?.cancel();
-    _warmupTimer?.cancel();
+    _tilesGraceTimer?.cancel();
+    _tilesCeilingTimer?.cancel();
     _searchFocus.removeListener(_onSearchFocusChanged);
     _searchFocus.dispose();
     _searchCtrl.removeListener(_onSearchTextChanged);
@@ -201,14 +240,16 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
     super.dispose();
   }
 
-  /// Map is ready to reveal once the warm-up timer has fired AND
+  /// Map is ready to reveal once base tiles have actually painted
+  /// (`_tilesLoaded`, set by either the grace timer after the first
+  /// real tile load or the ceiling timer for offline cases) AND
   /// the gym list has resolved (data hydrated, regardless of empty
-  /// or populated). Both are required: timer alone leaves
-  /// floating-label-on-blank-canvas vulnerability on slow networks;
-  /// data alone reveals before tiles paint. Together they give a
-  /// stable first impression.
+  /// or populated). Both are required: tiles alone leaves the
+  /// member staring at a map with no pins for the network round-
+  /// trip; data alone reveals while tiles are still painting.
+  /// Together they give a stable first impression.
   bool _isMapReady(AsyncValue<List<GymSummary>> asyncGyms) {
-    return _tilesWarm && asyncGyms.hasValue;
+    return _tilesLoaded && asyncGyms.hasValue;
   }
 
   /// Single tap on the handle. Divides the sheet's vertical range
@@ -817,6 +858,28 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
                     subdomains: const ['a', 'b', 'c', 'd'],
                     retinaMode: false,
                     userAgentPackageName: 'net.gympass.gympass',
+                    // tileBuilder fires per build for every tile in
+                    // the visible viewport. The `tile.loadFinishedAt`
+                    // field is non-null once flutter_map has finished
+                    // decoding that tile's PNG into a paintable
+                    // texture — the exact moment the pixels are
+                    // about to land on screen. We forward that to
+                    // `_onFirstTileLoaded` (which guards itself
+                    // against repeated calls) so the warm-up overlay
+                    // dismisses on real tile paint, not a fixed
+                    // timer guess. Defer the setState to the next
+                    // frame because the build phase is mid-flight
+                    // here. `tileWidget` is the unmodified tile —
+                    // we just inspect, never wrap.
+                    tileBuilder: (context, tileWidget, tile) {
+                      if (tile.loadFinishedAt != null && !_firstTileLoaded) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (!mounted) return;
+                          _onFirstTileLoaded();
+                        });
+                      }
+                      return tileWidget;
+                    },
                     errorTileCallback: (tile, error, stackTrace) {
                       debugPrint(
                         'TileLayer base error coords=${tile.coordinates} err=$error',
