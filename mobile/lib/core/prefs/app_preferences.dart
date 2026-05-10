@@ -21,12 +21,23 @@ class AppPreferences {
   final bool notifClubsNearby;
   final bool notifPromos;
 
+  /// `true` once secure_storage has been read at least once and the
+  /// stored values (or their defaults) have been applied. Surfaces
+  /// that paint locale-dependent or theme-dependent content during
+  /// app boot — the splash in particular — read this so they can
+  /// hide their text until they know the right locale to render in.
+  /// Without it, a member who chose EN sees an Arabic tagline for
+  /// the ~50–200 ms window between first paint and the secure_storage
+  /// hydrate completing.
+  final bool hydrated;
+
   const AppPreferences({
     this.locale = const Locale('ar'),
     this.themeMode = ThemeMode.dark,
     this.notifPlanReminders = true,
     this.notifClubsNearby = true,
     this.notifPromos = false,
+    this.hydrated = false,
   });
 
   AppPreferences copyWith({
@@ -35,6 +46,7 @@ class AppPreferences {
     bool? notifPlanReminders,
     bool? notifClubsNearby,
     bool? notifPromos,
+    bool? hydrated,
   }) {
     return AppPreferences(
       locale: locale ?? this.locale,
@@ -42,6 +54,7 @@ class AppPreferences {
       notifPlanReminders: notifPlanReminders ?? this.notifPlanReminders,
       notifClubsNearby: notifClubsNearby ?? this.notifClubsNearby,
       notifPromos: notifPromos ?? this.notifPromos,
+      hydrated: hydrated ?? this.hydrated,
     );
   }
 }
@@ -90,6 +103,11 @@ class AppPreferencesNotifier extends StateNotifier<AppPreferences> {
       notifPlanReminders: _parseBool(plan, defaultValue: true),
       notifClubsNearby: _parseBool(clubs, defaultValue: true),
       notifPromos: _parseBool(promos, defaultValue: false),
+      // Flip on hydrate-complete regardless of whether any value
+      // changed — the *signal* downstream surfaces are waiting for
+      // is "the stored prefs have been consulted at least once,"
+      // not "they differed from the defaults."
+      hydrated: true,
     );
   }
 

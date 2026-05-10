@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Night-mode override for the launch background. Resolves to the
+      dark brand surface so a member running their phone in OS-dark
+      sees a continuous dark flash → Flutter SplashPage handoff.
+      Matches Flutter's `GpColors.dark.bg` (= GP.ink, #FF0A0B0A).
+    -->
+    <color name="gp_launch_bg">#FF0A0B0A</color>
+</resources>

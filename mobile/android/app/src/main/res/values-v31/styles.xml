@@ -3,16 +3,22 @@
   Android 12+ enforces its own splash API: windowBackground is ignored
   during the "cold start" window, only windowSplashScreenBackground +
   (optional) windowSplashScreenAnimatedIcon show. We deliberately omit the
-  animated icon so the native window is a flat dark field — all branding
-  lives in Flutter's SplashPage, which paints identically to this bg on
-  its first frame so the handoff is invisible.
+  animated icon so the native window is a flat day/night-aware field —
+  all branding lives in Flutter's SplashPage, which paints identically
+  to this bg on its first frame so the handoff is invisible.
+
+  Both `windowSplashScreenBackground` and the legacy `windowBackground`
+  reference `gp_launch_bg`, which resolves to the light off-white in
+  `values/` and the dark brand surface in `values-night/`. So a phone
+  running in OS-light mode no longer flashes black before Flutter
+  takes over.
 -->
 <resources>
-    <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
-        <item name="android:windowSplashScreenBackground">@color/gp_ink</item>
+    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowSplashScreenBackground">@color/gp_launch_bg</item>
         <item name="android:windowBackground">@drawable/launch_background</item>
     </style>
-    <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
-        <item name="android:windowBackground">@color/gp_ink</item>
+    <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">@color/gp_launch_bg</item>
     </style>
 </resources>

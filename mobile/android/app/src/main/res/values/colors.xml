@@ -1,4 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!--
+      Brand ink — the dark surface used as a fixed brand colour where
+      day/night should *not* matter. Kept here so downstream resources
+      that reference it directly (icons, etc.) keep working.
+    -->
     <color name="gp_ink">#FF0A0B0A</color>
+
+    <!--
+      Native launch-window background. Day/night-aware via the
+      `values-night/` override: this default file is picked when the
+      device is in OS-light mode, so the colour here matches Flutter's
+      `GpColors.light.bg` (#FFFAFAF9). Result: a member running their
+      phone in light mode never sees a dark flash before Flutter's
+      SplashPage paints — the native flash and the first Flutter frame
+      now share the same off-white surface.
+    -->
+    <color name="gp_launch_bg">#FFFAFAF9</color>
 </resources>
