@@ -20,13 +20,13 @@ import 'explore_format.dart';
 /// behaviour. See `ExplorePage` for the full design rationale.
 const double exploreSheetMin = 0.066;
 const double exploreSheetAutoOpen = 0.45;
-// Was 0.84 — left almost no map visible above the sheet at full
-// open. 0.74 leaves a visible band of the map up top so the
-// member can still tell where they are while scrolling the gym
-// list. The "I want to see the list edge-to-edge" intent is
-// served by drag (no snap, sheet can settle anywhere up to
-// `maxChildSize`).
-const double exploreSheetMax = 0.74;
+// Tuned through user feedback: 0.84 was too tall (almost no map
+// visible at full open), 0.74 was too short. 0.80 keeps a clear
+// strip of map up top — enough to read the city you're in — while
+// giving the gym list comfortable scroll height. The "edge-to-
+// edge" intent is still served by drag (no snap, sheet can
+// settle anywhere up to `maxChildSize`).
+const double exploreSheetMax = 0.80;
 
 /// Bottom sheet — the "slider" that holds the gym list. Floats over
 /// the live map; drags between [exploreSheetMin] (sheet just shows
@@ -119,8 +119,7 @@ class GymListSheet extends ConsumerWidget {
                   // the general area registers; tap toggles between
                   // peek and half-open snaps.
                   SliverToBoxAdapter(
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
+                    child: _FastTapHandle(
                       onTap: onTapHandle,
                       onDoubleTap: onDoubleTapHandle,
                       child: SizedBox(
@@ -500,6 +499,79 @@ class HeroLogo extends ConsumerWidget {
         initial,
         style: GPText.display(size, color: accent, height: 1.0),
       ),
+    );
+  }
+}
+
+/// Tap recogniser that fires `onTap` **immediately** (no
+/// double-tap-wait delay) while still recognising a true double-tap
+/// when one arrives within a short window. Flutter's stock
+/// `GestureDetector` debounces single tap by `kDoubleTapTimeout`
+/// (~300 ms) when both `onTap` and `onDoubleTap` are wired — the
+/// recogniser has to wait to be sure no second tap is coming. On
+/// the gym-list handle that delay was reading as laggy: a member
+/// taps, watches the sheet sit still for a beat, then animate.
+///
+/// This wrapper inverts the responsibility: fire single tap right
+/// away (the sheet starts animating to mid), and if a second tap
+/// lands within `_doubleTapWindow` ms, fire `onDoubleTap` and let
+/// it override the in-flight animation. The visible flow becomes
+/// "tap → sheet starts opening → tap again → it keeps going up to
+/// max" — one continuous motion instead of "tap → wait → tap →
+/// tap-cancel → animate".
+///
+/// 220 ms window is shorter than Flutter's 300 ms default — at the
+/// 1.4× chance of a missed double-tap a member would naturally
+/// double-tap faster than that, and at the 0.6× cost of a slightly
+/// later double-tap registering as two singles instead. The trade
+/// is intentional: snappy single-tap feedback wins on this control,
+/// where double-tap is a power-user shortcut and a rare-miss falls
+/// back to "tap again to keep going up" behaviour anyway.
+class _FastTapHandle extends StatefulWidget {
+  const _FastTapHandle({
+    required this.onTap,
+    required this.child,
+    this.onDoubleTap,
+  });
+
+  final VoidCallback onTap;
+  final VoidCallback? onDoubleTap;
+  final Widget child;
+
+  @override
+  State<_FastTapHandle> createState() => _FastTapHandleState();
+}
+
+class _FastTapHandleState extends State<_FastTapHandle> {
+  static const _doubleTapWindow = Duration(milliseconds: 220);
+  DateTime? _lastTapAt;
+
+  void _handleTap() {
+    final now = DateTime.now();
+    final last = _lastTapAt;
+    if (last != null &&
+        widget.onDoubleTap != null &&
+        now.difference(last) <= _doubleTapWindow) {
+      // Second tap within window → double tap. Clear the
+      // tracker so a third tap doesn't accidentally count as
+      // another double on top.
+      _lastTapAt = null;
+      widget.onDoubleTap!.call();
+      return;
+    }
+    // First tap (or stale tap) → single, fired immediately. Stash
+    // the timestamp so a follow-up tap inside the window can be
+    // recognised as a double.
+    _lastTapAt = now;
+    widget.onTap();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: _handleTap,
+      child: widget.child,
     );
   }
 }
