@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../core/widgets/gym_loader.dart';
 import '../../../l10n/app_localizations.dart';
 import '../data/gym_repository.dart';
 import '../data/gym_summary.dart';
@@ -84,6 +85,22 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
   /// member sees the tap was registered).
   bool _locating = false;
 
+  /// First-paint warm-up gate. The base CARTO tile layer and the
+  /// labels-only layer fetch independently, and on a slow network
+  /// the labels (smaller PNG payloads) often land before the base
+  /// tiles — so members briefly see floating Arabic place names on
+  /// a blank canvas. Hold a loader overlay over the map until both
+  /// the warm-up timer fires AND the gym list is ready, then fade
+  /// it out via `AnimatedOpacity`.
+  ///
+  /// 700 ms covers typical LTE / Wi-Fi tile fetches on Amman; on a
+  /// faster connection the gym data lands sooner but we still wait
+  /// the full window to keep the reveal stable. Cap is short enough
+  /// that no one waits on a fast network.
+  bool _tilesWarm = false;
+  Timer? _warmupTimer;
+  static const _warmupDuration = Duration(milliseconds: 700);
+
   /// Debounce timer for the search box. Without it, every keystroke
   /// pushes a new query into the Riverpod state, which rebuilds the
   /// page → re-filters all gyms → recomputes the marker set. Cheap
@@ -127,6 +144,11 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
     // the page appear, then the prompt, instead of a flash of grey
     // while the dialog is up.
     WidgetsBinding.instance.addPostFrameCallback((_) => _locateUser());
+    // Map warm-up window — see `_tilesWarm` doc.
+    _warmupTimer = Timer(_warmupDuration, () {
+      if (!mounted) return;
+      setState(() => _tilesWarm = true);
+    });
   }
 
   void _onSearchTextChanged() {
@@ -167,6 +189,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
   @override
   void dispose() {
     _searchDebounce?.cancel();
+    _warmupTimer?.cancel();
     _searchFocus.removeListener(_onSearchFocusChanged);
     _searchFocus.dispose();
     _searchCtrl.removeListener(_onSearchTextChanged);
@@ -174,6 +197,16 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
     _sheetCtrl.dispose();
     _cameraAnim?.dispose();
     super.dispose();
+  }
+
+  /// Map is ready to reveal once the warm-up timer has fired AND
+  /// the gym list has resolved (data hydrated, regardless of empty
+  /// or populated). Both are required: timer alone leaves
+  /// floating-label-on-blank-canvas vulnerability on slow networks;
+  /// data alone reveals before tiles paint. Together they give a
+  /// stable first impression.
+  bool _isMapReady(AsyncValue<List<GymSummary>> asyncGyms) {
+    return _tilesWarm && asyncGyms.hasValue;
   }
 
   /// Tap on the handle toggles the sheet — drag is for "specific
@@ -702,6 +735,32 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
                     ],
                   ),
                 ],
+              ),
+              // 1.5. Map warm-up overlay — opaque scrim + GymLoader
+              //      while tiles + gym data are loading. Without this,
+              //      members briefly see floating Arabic place names
+              //      (the labels-only layer paints faster than the
+              //      base CARTO tile layer on slow networks) over a
+              //      blank canvas. The overlay covers everything
+              //      below the search bar so the partial-render
+              //      window never reaches the eye.
+              //
+              //      Hidden once the warm-up timer has fired AND the
+              //      gym list has resolved — `IgnorePointer` while
+              //      visible so taps don't accidentally hit the map
+              //      underneath.
+              IgnorePointer(
+                ignoring: _isMapReady(asyncGyms),
+                child: AnimatedOpacity(
+                  opacity: _isMapReady(asyncGyms) ? 0.0 : 1.0,
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOutCubic,
+                  child: Container(
+                    color: Theme.of(context).scaffoldBackgroundColor,
+                    alignment: Alignment.center,
+                    child: const GymLoader(size: GymLoaderSize.large),
+                  ),
+                ),
               ),
               // 2. Locate-me FAB — fixed position above the minimized
               //    sheet.
