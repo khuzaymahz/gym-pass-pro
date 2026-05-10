@@ -59,6 +59,44 @@ class ReferralRepository:
         rows = (await self.session.execute(stmt)).all()
         return [(r, u) for r, u in rows]
 
+    async def list_all_admin(
+        self,
+        *,
+        status: ReferralStatus | None = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> tuple[list[tuple[Referral, User, User]], int]:
+        """Paginated list across **all** referrals for the admin
+        dashboard. Returns triples of (referral, referrer, invited)
+        joined eagerly so the response can render both names without
+        a per-row N+1.
+
+        Optional `status` filter narrows to pending or converted —
+        useful for the "who hasn't paid yet?" reconciliation cut.
+        """
+        referrer = aliased(User)
+        invited = aliased(User)
+        base = (
+            select(Referral, referrer, invited)
+            .join(referrer, referrer.id == Referral.referrer_user_id)
+            .join(invited, invited.id == Referral.invited_user_id)
+        )
+        count_stmt = select(func.count()).select_from(Referral)
+        if status is not None:
+            base = base.where(Referral.status == status)
+            count_stmt = count_stmt.where(Referral.status == status)
+
+        total = int((await self.session.execute(count_stmt)).scalar_one() or 0)
+        offset = max(page - 1, 0) * page_size
+        stmt = (
+            base
+            .order_by(Referral.created_at.desc())
+            .limit(page_size)
+            .offset(offset)
+        )
+        rows = (await self.session.execute(stmt)).all()
+        return [(r, ref, inv) for r, ref, inv in rows], total
+
     async def counts_for_referrer(
         self, referrer_user_id: UUID
     ) -> dict[str, int]:

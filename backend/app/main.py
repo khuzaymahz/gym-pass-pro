@@ -36,6 +36,7 @@ from app.api.v1.admin import metrics as admin_metrics_router
 from app.api.v1.admin import notifications as admin_notifications_router
 from app.api.v1.admin import owners as admin_owners_router
 from app.api.v1.admin import payouts as admin_payouts_router
+from app.api.v1.admin import referrals as admin_referrals_router
 from app.api.v1.admin import plans as admin_plans_router
 from app.api.v1.admin import settings as admin_settings_router
 from app.api.v1.admin import subscriptions as admin_subscriptions_router
@@ -122,6 +123,7 @@ def create_app() -> FastAPI:
     app.include_router(admin_support_router.router, prefix=v1_prefix)
     app.include_router(admin_settings_router.router, prefix=v1_prefix)
     app.include_router(admin_owners_router.router, prefix=v1_prefix)
+    app.include_router(admin_referrals_router.router, prefix=v1_prefix)
     app.include_router(partner_me_router.router, prefix=v1_prefix)
     app.include_router(partner_profile_router.router, prefix=v1_prefix)
     app.include_router(partner_photos_router.router, prefix=v1_prefix)

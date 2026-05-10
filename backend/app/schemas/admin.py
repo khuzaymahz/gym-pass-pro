@@ -136,6 +136,25 @@ class AdminUserDetailReferral(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
+class AdminReferralRead(BaseModel):
+    """Single row in the admin's all-referrals list. Same shape as the
+    user-detail-embedded `AdminUserDetailReferral` but with the
+    **referrer** side populated too — the user-detail view already
+    knows who the referrer is (it's the page's user), the all-
+    referrals view does not.
+    """
+
+    id: UUID
+    referrer: AdminReferralPersonRef
+    invited: AdminReferralPersonRef
+    referral_code: str = Field(alias="referralCode")
+    status: ReferralStatus
+    created_at: datetime = Field(alias="createdAt")
+    converted_at: datetime | None = Field(alias="convertedAt", default=None)
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
 class AdminUserDetailPaymentMethodsEntry(BaseModel):
     method: PaymentMethod
     count: int

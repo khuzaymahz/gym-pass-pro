@@ -54,11 +54,35 @@
       "plans": "Plans",
       "payouts": "Payouts",
       "checkins": "Check-ins",
+      "referrals": "Referrals",
       "notifications": "Notifications",
       "audit": "Audit log",
       "admins": "Admins",
       "settings": "Settings"
     }
+  },
+  "referrals": {
+    "title": "Referrals",
+    "subtitle": "Every invite. Pending until the invitee finishes their first paid subscription, then converted.",
+    "filter": {
+      "all": "All",
+      "pending": "Pending",
+      "converted": "Converted"
+    },
+    "status": {
+      "pending": "Pending",
+      "converted": "Converted"
+    },
+    "col": {
+      "referrer": "Referrer",
+      "invited": "Invited",
+      "code": "Code",
+      "status": "Status",
+      "created": "Invited",
+      "converted": "Converted"
+    },
+    "emptyTitle": "No referrals yet",
+    "emptyBody": "Member-to-member referrals will appear here as they're created."
   },
   "account": {
     "signOut": "Sign out"

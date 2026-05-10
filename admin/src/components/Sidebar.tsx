@@ -66,7 +66,10 @@ export default function Sidebar({
     },
     {
       titleKey: "activity",
-      items: [{ href: "/checkins", labelKey: "checkins" }],
+      items: [
+        { href: "/checkins", labelKey: "checkins" },
+        { href: "/referrals", labelKey: "referrals" },
+      ],
     },
     {
       titleKey: "system",
