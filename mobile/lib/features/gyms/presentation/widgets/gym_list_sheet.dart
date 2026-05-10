@@ -238,11 +238,12 @@ class _GymListRow extends ConsumerWidget {
     final gp = context.gp;
     final isAr = Localizations.localeOf(context).languageCode == 'ar';
     final name = isAr && gym.nameAr.isNotEmpty ? gym.nameAr : gym.nameEn;
-    final tier = gym.tier == null ? null : GPTier.byKey(gym.tier!);
-    // Untiered gyms render with a neutral grey, not brand amber —
-    // see the matching note in `GymPinMarker`. The tier accent is
-    // a load-bearing colour cue, so we don't fake it for partners
-    // who haven't set a `required_tier`.
+    // Strict tier lookup — see the matching pattern in
+    // `GymPinMarker`. The list-row hero ring is the same
+    // tier-colour cue the map pin uses, and the same rule applies:
+    // never fake a tier colour for a partner whose
+    // `required_tier` field is missing or doesn't decode cleanly.
+    final tier = GPTier.tryByKey(gym.tier);
     final accent = tier?.color ?? gp.muted;
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),

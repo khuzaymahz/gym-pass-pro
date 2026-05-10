@@ -336,8 +336,32 @@ class GPTier {
 
   static const all = [silver, gold, platinum, diamond];
 
-  static GPTier byKey(String k) =>
-      all.firstWhere((t) => t.key == k, orElse: () => gold);
+  /// Lookup that **always** returns a tier — used for contexts that
+  /// have already validated the key (catalog rows, settled
+  /// subscriptions). Falls back to [silver] on a miss because Silver
+  /// is the entry tier; the previous fallback was [gold] (brand
+  /// amber), which made every malformed/unknown tier value render
+  /// dressed as Gold and lie about a partner's tier.
+  static GPTier byKey(String k) {
+    final norm = k.trim().toLowerCase();
+    return all.firstWhere((t) => t.key == norm, orElse: () => silver);
+  }
+
+  /// Strict lookup used at presentation surfaces where rendering an
+  /// "unknown tier" with a default colour would be a load-bearing
+  /// lie about the gym (the map pin colour, the floating gym card's
+  /// border, the list-sheet hero logo). Returns `null` when the
+  /// input doesn't match a known tier — callers swap in a neutral
+  /// grey rather than impersonate Silver/Gold/etc.
+  static GPTier? tryByKey(String? k) {
+    if (k == null) return null;
+    final norm = k.trim().toLowerCase();
+    if (norm.isEmpty) return null;
+    for (final t in all) {
+      if (t.key == norm) return t;
+    }
+    return null;
+  }
 }
 
 class GPCategory {

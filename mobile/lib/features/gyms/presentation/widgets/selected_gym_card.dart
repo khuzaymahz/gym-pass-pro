@@ -31,11 +31,13 @@ class SelectedGymCard extends ConsumerWidget {
     final gp = context.gp;
     final isAr = Localizations.localeOf(context).languageCode == 'ar';
     final name = isAr && gym.nameAr.isNotEmpty ? gym.nameAr : gym.nameEn;
-    final tier = gym.tier == null ? null : GPTier.byKey(gym.tier!);
-    // Untiered gyms render with a neutral grey, not brand amber —
-    // see the matching note in `GymPinMarker`. The tier accent is
-    // a load-bearing colour cue, so we don't fake it for partners
-    // who haven't set a `required_tier`.
+    // Strict tier lookup — returns null for unknown/empty/malformed
+    // tier strings rather than falling through to a default. The
+    // tier-coloured ring on this card is a load-bearing visual cue
+    // about gym access, so we don't fake it for partners whose
+    // `required_tier` field doesn't decode cleanly. See
+    // `GymPinMarker` for the matching pattern.
+    final tier = GPTier.tryByKey(gym.tier);
     final accent = tier?.color ?? gp.muted;
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.0, end: 1.0),
