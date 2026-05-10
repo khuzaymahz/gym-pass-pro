@@ -1025,9 +1025,25 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
                                 color: Theme.of(context)
                                     .scaffoldBackgroundColor
                                     .withValues(alpha: 0.45),
-                                child: const Center(
-                                  child: GymLoader(
-                                    size: GymLoaderSize.large,
+                                child: Center(
+                                  // Map's hero loader runs 30 % larger
+                                  // than the shared `large` size. The
+                                  // map fills the whole viewport, so a
+                                  // 56 × 36 dumbbell at the centre felt
+                                  // small relative to the surface it's
+                                  // standing in for. Transform.scale
+                                  // (not a new enum value) keeps the
+                                  // bump local to this surface — the
+                                  // checkout overlay, sheet load, and
+                                  // pull-to-refresh stay at their
+                                  // tuned sizes. CustomPaint scales
+                                  // cleanly under Transform; the
+                                  // dumbbell stays sharp at 1.3×.
+                                  child: Transform.scale(
+                                    scale: 1.3,
+                                    child: const GymLoader(
+                                      size: GymLoaderSize.large,
+                                    ),
                                   ),
                                 ),
                               ),
