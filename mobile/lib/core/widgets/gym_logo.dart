@@ -23,7 +23,16 @@ class GymLogo extends StatelessWidget {
     required this.gym,
     this.logoUrl,
     this.size = 54,
-    this.shape = GymLogoShape.rounded,
+    // Circle is the canonical app-wide silhouette for partner
+    // logos — every render surface (map pin, floating gym card,
+    // list-sheet hero, plans-page mini avatars, gym detail
+    // header, tier network sheet, gym tile) wants the same
+    // circular crop. The cropper in the gym-partner portal
+    // enforces a 1:1 aspect, so a circle clip never loses
+    // content a square wouldn't have lost. The legacy `rounded`
+    // shape is kept on the enum for any future hero use that
+    // wants a softer-square reading.
+    this.shape = GymLogoShape.circle,
   });
 
   /// Adapter for the real backend `GymSummary` payload — used by
@@ -37,7 +46,9 @@ class GymLogo extends StatelessWidget {
     GymSummary summary, {
     required String? resolvedLogoUrl,
     double size = 54,
-    GymLogoShape shape = GymLogoShape.rounded,
+    // Default to circle to match the canonical silhouette
+    // documented on the main constructor.
+    GymLogoShape shape = GymLogoShape.circle,
   }) {
     // Build a minimal `GPGym` shim so the inner painter doesn't
     // need to learn two data shapes. The logo widget only reads

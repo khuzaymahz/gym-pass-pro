@@ -15,7 +15,15 @@ class GymTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GymLogo(gym: gym, logoUrl: logoUrl, size: size);
+    // Circle shape matches the rest of the app's gym-logo
+    // surfaces (map pin, floating gym card, list-sheet hero
+    // logo, gym detail header). Single visual rule everywhere.
+    return GymLogo(
+      gym: gym,
+      logoUrl: logoUrl,
+      size: size,
+      shape: GymLogoShape.circle,
+    );
   }
 }
 

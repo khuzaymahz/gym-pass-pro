@@ -205,10 +205,20 @@ class GymDetailPage extends ConsumerWidget {
                           children: [
                             Hero(
                               tag: 'gym-logo-${gym.slug}',
+                              // Circle shape matches every other
+                              // gym-logo surface in the app (map
+                              // pin, floating selected-gym card,
+                              // gym-list-sheet hero logo, plans-
+                              // page mini avatars are all
+                              // circular). The partner cropper
+                              // enforces a 1:1 aspect, so a
+                              // circle clip never loses content
+                              // a square wouldn't have lost.
                               child: GymLogo(
                                 gym: gym,
                                 logoUrl: logoUrl,
                                 size: 56,
+                                shape: GymLogoShape.circle,
                               ),
                             ),
                             const SizedBox(width: 14),
