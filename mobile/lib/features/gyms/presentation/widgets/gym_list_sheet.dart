@@ -444,6 +444,16 @@ class HeroLogo extends ConsumerWidget {
         ],
       ),
       clipBehavior: Clip.antiAlias,
+      // Same "no transient yellow on switch" rule as `GymPinMarker`:
+      // when the member taps a different pin, this card's `gym` prop
+      // changes, the inner `CachedNetworkImage` sees a new URL, and
+      // would otherwise replay its placeholder→image fade — flashing
+      // the tier-coloured initials (amber for Gold, etc.) for the
+      // duration of the fade. Cached bitmaps land instantly, so:
+      //   - `fadeInDuration: Zero` kills the flash window
+      //   - placeholder is a neutral grey disc; the tier-coloured
+      //     initials only render in the explicit no-logo and
+      //     hard-error branches, never as a transient state.
       child: gym.logoUrl != null && gym.logoUrl!.isNotEmpty
           ? CachedNetworkImage(
               imageUrl: resolveMediaUrl(apiBaseUrl, gym.logoUrl!),
@@ -452,8 +462,9 @@ class HeroLogo extends ConsumerWidget {
               memCacheHeight: pixelSize,
               maxWidthDiskCache: pixelSize,
               maxHeightDiskCache: pixelSize,
-              fadeInDuration: const Duration(milliseconds: 200),
-              placeholder: (_, __) => _initialFallback(initial, accent),
+              fadeInDuration: Duration.zero,
+              fadeOutDuration: Duration.zero,
+              placeholder: (_, __) => Container(color: gp.bg3),
               errorWidget: (_, __, ___) => _initialFallback(initial, accent),
             )
           : _initialFallback(initial, accent),
