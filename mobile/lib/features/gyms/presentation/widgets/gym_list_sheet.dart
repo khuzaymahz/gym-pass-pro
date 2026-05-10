@@ -70,16 +70,19 @@ class GymListSheet extends ConsumerWidget {
       initialChildSize: exploreSheetMin,
       minChildSize: exploreSheetMin,
       maxChildSize: exploreSheetMax,
-      // Snap to the three user-defined sizes — drag-release lands on
-      // whichever of min / default / max is closest, never an in-
-      // between awkward size. Same affordance as Uber / Apple Maps'
-      // bottom panel.
-      snap: true,
-      snapSizes: const [
-        exploreSheetMin,
-        exploreSheetAutoOpen,
-        exploreSheetMax,
-      ],
+      // Free drag — no snap points. Members asked for the sheet
+      // to settle wherever they release it, not slam to one of
+      // three fixed sizes. The Uber-style three-snap model felt
+      // clipped on this map UI: a member who wanted the list
+      // 70 % open kept getting bounced to 84 % (max) or 45 %
+      // (auto-open). The min / max bounds still constrain the
+      // drag (so the sheet can't disappear or eat the screen),
+      // but anything between those is now a valid resting size.
+      // The named constants stay because programmatic moves
+      // (tap-to-expand on the handle, search-focus auto-open,
+      // map-tap collapse) still snap to those targets — only
+      // the *drag* is free.
+      snap: false,
       builder: (context, scrollCtrl) {
         return ClipRRect(
           borderRadius: const BorderRadius.vertical(
