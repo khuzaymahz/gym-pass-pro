@@ -10,6 +10,7 @@ import '../../../core/di/providers.dart';
 import '../../../core/realtime/realtime_client.dart';
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
+import '../../../core/widgets/gym_loader.dart';
 import '../../../core/widgets/gym_logo.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
@@ -141,10 +142,33 @@ class GymDetailPage extends ConsumerWidget {
                           mediaBase: mediaBase,
                         ),
                       ),
+                // Loading state — gradient backdrop + brand
+                // [GymLoader] centered so the "we're fetching"
+                // signal is explicit. Same dumbbell loader the
+                // map warm-up, sheet load, and payment overlay
+                // use, so members read every wait state with the
+                // same visual vocabulary. Distinct key from the
+                // empty/error fallback so the AnimatedSwitcher
+                // crossfades the loader away (rather than
+                // freezing it on screen) the moment photos
+                // arrive *or* the request resolves to empty.
                 loading: () => KeyedSubtree(
-                  key: const ValueKey('hero-fallback'),
-                  child: _heroFallback(gp),
+                  key: const ValueKey('hero-loading'),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      _heroFallback(gp),
+                      const Center(
+                        child: GymLoader(size: GymLoaderSize.large),
+                      ),
+                    ],
+                  ),
                 ),
+                // Terminal error → no loader (nothing more to
+                // wait for). Same gradient placeholder as the
+                // empty-data branch so the page still has a
+                // hero silhouette even when the photos endpoint
+                // failed.
                 error: (_, __) => KeyedSubtree(
                   key: const ValueKey('hero-fallback'),
                   child: _heroFallback(gp),

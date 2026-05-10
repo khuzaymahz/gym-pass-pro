@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/gp_tokens.dart';
+import '../../../../core/widgets/gym_loader.dart';
 
 /// Locate-me FAB. Sits over the map's trailing edge.
 ///
@@ -15,11 +16,14 @@ import '../../../../core/theme/gp_tokens.dart';
 ///     region-aware framing. Falls back to single-tap behaviour
 ///     if the parent doesn't provide a handler.
 ///
-/// While [loading] is true the icon swaps for a small lime spinner
-/// and both gestures are disabled — gives the member a visible
-/// "I heard you, finding you now" cue while geolocator does its
-/// 0–8 s work, and stops a tap-spam from queueing overlapping
-/// requests.
+/// While [loading] is true the icon swaps for the brand
+/// [GymLoader] (small) and both gestures are disabled — gives the
+/// member a visible "I heard you, finding you now" cue while
+/// geolocator does its 0–8 s work, and stops a tap-spam from
+/// queueing overlapping requests. The dumbbell loader matches the
+/// app's other "we're working" surfaces (warm-up overlay, sheet
+/// load, payment overlay) so the loading vocabulary is consistent
+/// across every wait state.
 class LocateMeButton extends StatelessWidget {
   const LocateMeButton({
     super.key,
@@ -53,14 +57,7 @@ class LocateMeButton extends StatelessWidget {
             border: Border.all(color: gp.line),
           ),
           child: loading
-              ? SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(gp.accentInk),
-                  ),
-                )
+              ? const GymLoader(size: GymLoaderSize.small)
               : Icon(Icons.my_location, size: 20, color: gp.fg),
         ),
       ),
