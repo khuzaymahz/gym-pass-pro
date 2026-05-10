@@ -32,7 +32,11 @@ class SelectedGymCard extends ConsumerWidget {
     final isAr = Localizations.localeOf(context).languageCode == 'ar';
     final name = isAr && gym.nameAr.isNotEmpty ? gym.nameAr : gym.nameEn;
     final tier = gym.tier == null ? null : GPTier.byKey(gym.tier!);
-    final accent = tier?.color ?? gp.accentInk;
+    // Untiered gyms render with a neutral grey, not brand amber —
+    // see the matching note in `GymPinMarker`. The tier accent is
+    // a load-bearing colour cue, so we don't fake it for partners
+    // who haven't set a `required_tier`.
+    final accent = tier?.color ?? gp.muted;
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.0, end: 1.0),
       duration: const Duration(milliseconds: 220),

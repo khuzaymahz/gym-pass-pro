@@ -46,17 +46,33 @@ class FiltersSheet extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // Tap-to-dismiss target around the drag handle. The
+                // handle itself is only 5 px tall — too small a hit
+                // area for a thumb tap, and members were instinctively
+                // tapping it to close the sheet rather than dragging.
+                // The wrapping `GestureDetector` claims a 32-px-tall
+                // band of negative space around the handle (the
+                // `EdgeInsets.symmetric(vertical: 14)` padding) so the
+                // tap lands cleanly without stealing space from the
+                // visible handle bar.
                 Center(
-                  child: Container(
-                    width: 36,
-                    height: 5,
-                    margin: const EdgeInsets.only(bottom: 22),
-                    decoration: BoxDecoration(
-                      color: gp.line2,
-                      borderRadius: BorderRadius.circular(3),
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => Navigator.of(context).maybePop(),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      child: Container(
+                        width: 36,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: gp.line2,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      ),
                     ),
                   ),
                 ),
+                const SizedBox(height: 8),
                 Row(
                   children: [
                     Text(

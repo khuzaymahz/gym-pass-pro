@@ -49,7 +49,13 @@ class GymPinMarker extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final gp = context.gp;
     final tier = gym.tier == null ? null : GPTier.byKey(gym.tier!);
-    final accent = tier?.color ?? gp.accentInk;
+    // Untiered gyms fall back to a *neutral* mid-grey, not the brand
+    // accent (`gp.accentInk` = lime/amber). Otherwise a partner who
+    // hasn't filled in `required_tier` shows up on the map dressed
+    // exactly like a Gold-tier gym, and members read the gym's tier
+    // off a colour cue that lies. Grey says "no tier signal yet";
+    // Gold's amber is reserved for actual Gold partners.
+    final accent = tier?.color ?? gp.muted;
     final apiBaseUrl = ref.watch(envProvider).apiBaseUrl;
     final initial = gymInitials(gym.nameEn);
     final size = selected ? 42.0 : 38.0;
