@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -941,39 +942,82 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
                   ),
                 ],
               ),
-              // 1.5. Map warm-up overlay — opaque scrim + GymLoader
-              //      while tiles + gym data are loading. Without this,
-              //      members briefly see the half-rendered map: the
-              //      labels-only layer paints faster than the base
-              //      CARTO tile layer on a cold network, leaving
-              //      Arabic place names floating over a blank canvas
-              //      until the streets paint in.
+              // 1.5. Map warm-up overlay — frosted-glass blur over the
+              //      live map + GymLoader on top. Without this, members
+              //      briefly see the half-rendered map: the labels-only
+              //      layer paints faster than the base CARTO tile layer
+              //      on a cold network, leaving Arabic place names
+              //      floating over a blank canvas until the streets
+              //      paint in.
+              //
+              //      The blur deliberately keeps the map *visible*
+              //      underneath — members see "something is loading
+              //      back there" rather than a flat opaque block, which
+              //      reads as the page being stuck. A semi-transparent
+              //      tint on top of the blur keeps the dumbbell loader
+              //      readable. Same vocabulary as the bottom sheet
+              //      uses for its glass effect, just heavier on the
+              //      blur and lighter on the tint.
+              //
+              //      `AnimatedSwitcher` (not `AnimatedOpacity`) so the
+              //      `BackdropFilter` actually *unmounts* once the map
+              //      reveals — `BackdropFilter` is expensive to
+              //      composite every frame, and `AnimatedOpacity` would
+              //      keep it alive at opacity 0.0 forever. With
+              //      `AnimatedSwitcher` the filter is gone after the
+              //      280 ms crossfade.
               //
               //      `Positioned.fill` is required — the parent Stack
-              //      uses `StackFit.loose`, so a non-Positioned
-              //      `Container` would shrink to the loader's
-              //      intrinsic size (~56 px) rather than covering the
-              //      map. Earlier version had this bug; the overlay
-              //      was a tiny dot in the middle and the user saw
-              //      everything through it.
+              //      uses `StackFit.loose`, so a non-Positioned child
+              //      would shrink to the loader's intrinsic size
+              //      (~56 px) rather than covering the map.
               //
-              //      Hidden once the warm-up timer has fired AND the
-              //      gym list has resolved — `IgnorePointer` while
-              //      visible so taps don't accidentally hit the map
-              //      underneath.
+              //      `ClipRect` around the BackdropFilter is required
+              //      by Flutter — the filter needs a clip boundary to
+              //      know which region to sample from the layer below.
+              //
+              //      Hidden once base tiles have actually painted AND
+              //      the gym list has resolved (see `_isMapReady`).
+              //      `IgnorePointer` while visible so taps don't
+              //      accidentally hit the map underneath.
               Positioned.fill(
                 child: IgnorePointer(
                   ignoring: _isMapReady(asyncGyms),
-                  child: AnimatedOpacity(
-                    opacity: _isMapReady(asyncGyms) ? 0.0 : 1.0,
+                  child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 280),
-                    curve: Curves.easeOutCubic,
-                    child: ColoredBox(
-                      color: Theme.of(context).scaffoldBackgroundColor,
-                      child: const Center(
-                        child: GymLoader(size: GymLoaderSize.large),
-                      ),
-                    ),
+                    switchInCurve: Curves.easeOut,
+                    switchOutCurve: Curves.easeIn,
+                    child: _isMapReady(asyncGyms)
+                        ? const SizedBox.shrink(
+                            key: ValueKey('map-overlay-ready'),
+                          )
+                        : ClipRect(
+                            key: const ValueKey('map-overlay-loading'),
+                            child: BackdropFilter(
+                              filter: ui.ImageFilter.blur(
+                                sigmaX: 16,
+                                sigmaY: 16,
+                              ),
+                              child: ColoredBox(
+                                // Theme-aware tint at ~45 % alpha —
+                                // dark surface in dark mode, off-white
+                                // in light. Heavy enough that the
+                                // dumbbell loader stays high-contrast
+                                // and readable; light enough that the
+                                // blurred map shapes show through and
+                                // members read "the map is loading"
+                                // instead of "the screen is blocked."
+                                color: Theme.of(context)
+                                    .scaffoldBackgroundColor
+                                    .withValues(alpha: 0.45),
+                                child: const Center(
+                                  child: GymLoader(
+                                    size: GymLoaderSize.large,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
                   ),
                 ),
               ),
