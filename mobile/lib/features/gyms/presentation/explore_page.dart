@@ -1009,9 +1009,16 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
                         : ClipRect(
                             key: const ValueKey('map-overlay-loading'),
                             child: BackdropFilter(
+                              // Sigma 11 (was 16) — 30 % less blur so
+                              // the map shapes are more legible behind
+                              // the loader. The eye still reads the
+                              // surface as "frosted, not the final
+                              // map" but tile detail comes through
+                              // enough that members see real progress
+                              // happening, not just a smeared field.
                               filter: ui.ImageFilter.blur(
-                                sigmaX: 16,
-                                sigmaY: 16,
+                                sigmaX: 11,
+                                sigmaY: 11,
                               ),
                               child: ColoredBox(
                                 // Theme-aware tint at ~45 % alpha —
