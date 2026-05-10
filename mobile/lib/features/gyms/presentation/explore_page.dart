@@ -211,9 +211,10 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
     return _tilesWarm && asyncGyms.hasValue;
   }
 
-  /// Tap on the handle toggles the sheet — drag is for "specific
-  /// size", tap is for "open / close". Open target is the same one
-  /// search / filter triggers use, so the affordances feel unified.
+  /// Single tap on the handle toggles the sheet between its
+  /// resting handle-peek (`exploreSheetMin`) and the mid auto-open
+  /// (`exploreSheetAutoOpen`). For "go to max", see
+  /// [_expandSheetMax] — wired to double-tap.
   Future<void> _expandSheet() async {
     if (!_sheetCtrl.isAttached) return;
     final current = _sheetCtrl.size;
@@ -222,6 +223,23 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
     await _sheetCtrl.animateTo(
       target,
       duration: const Duration(milliseconds: 240),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  /// Double tap on the handle jumps the sheet to its max extent
+  /// (`exploreSheetMax`). If the sheet is already at max, double
+  /// tap drops it back to the mid auto-open instead — gives the
+  /// gesture a sane "back out" path so it's not a one-way door.
+  Future<void> _expandSheetMax() async {
+    if (!_sheetCtrl.isAttached) return;
+    final current = _sheetCtrl.size;
+    final target = current >= exploreSheetMax - 0.02
+        ? exploreSheetAutoOpen
+        : exploreSheetMax;
+    await _sheetCtrl.animateTo(
+      target,
+      duration: const Duration(milliseconds: 280),
       curve: Curves.easeOutCubic,
     );
   }
@@ -910,6 +928,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
               GymListSheet(
                 controller: _sheetCtrl,
                 onTapHandle: _expandSheet,
+                onDoubleTapHandle: _expandSheetMax,
                 gyms: visible,
                 query: query,
                 isLoading: isLoadingGyms,

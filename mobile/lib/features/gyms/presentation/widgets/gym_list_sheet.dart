@@ -20,7 +20,13 @@ import 'explore_format.dart';
 /// behaviour. See `ExplorePage` for the full design rationale.
 const double exploreSheetMin = 0.066;
 const double exploreSheetAutoOpen = 0.45;
-const double exploreSheetMax = 0.84;
+// Was 0.84 — left almost no map visible above the sheet at full
+// open. 0.74 leaves a visible band of the map up top so the
+// member can still tell where they are while scrolling the gym
+// list. The "I want to see the list edge-to-edge" intent is
+// served by drag (no snap, sheet can settle anywhere up to
+// `maxChildSize`).
+const double exploreSheetMax = 0.74;
 
 /// Bottom sheet — the "slider" that holds the gym list. Floats over
 /// the live map; drags between [exploreSheetMin] (sheet just shows
@@ -34,6 +40,7 @@ class GymListSheet extends ConsumerWidget {
     super.key,
     required this.controller,
     required this.onTapHandle,
+    this.onDoubleTapHandle,
     required this.gyms,
     required this.query,
     required this.isLoading,
@@ -46,6 +53,12 @@ class GymListSheet extends ConsumerWidget {
   /// the handle to open the sheet without dragging).
   final DraggableScrollableController controller;
   final VoidCallback onTapHandle;
+
+  /// Optional power-user shortcut. Single tap toggles
+  /// min ↔ auto-open; double tap jumps the sheet to its max
+  /// extent. Falls through to single-tap-only behaviour if the
+  /// parent doesn't wire a handler.
+  final VoidCallback? onDoubleTapHandle;
   final List<GymSummary> gyms;
   final String query;
   final bool isLoading;
@@ -109,6 +122,7 @@ class GymListSheet extends ConsumerWidget {
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onTap: onTapHandle,
+                      onDoubleTap: onDoubleTapHandle,
                       child: SizedBox(
                         height: 32,
                         child: Center(
