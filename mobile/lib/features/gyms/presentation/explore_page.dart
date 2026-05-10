@@ -386,12 +386,44 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
   ///   - unavailable     → "Couldn't get location, try again."
   Future<void> _onLocateMe() => _resolveAndFrame(close: false);
 
-  /// Double tap on the locate-me FAB — same resolve flow as
-  /// single tap, but pans the camera to a tight zoom on the user
-  /// dot instead of the region eagle view. Power-user shortcut
-  /// for "where exactly am I" without sacrificing the default
-  /// region-aware framing.
-  Future<void> _onLocateMeClose() => _resolveAndFrame(close: true);
+  /// Double tap on the locate-me FAB — progressively zooms the
+  /// camera in toward the user dot. Each successive double-tap
+  /// steps by +2 zoom levels from the current camera, so the
+  /// progression goes eagle → district → block → street as the
+  /// member keeps tapping, capped at the map's `maxZoom` (18).
+  ///
+  /// Two paths:
+  ///   - **First tap of the session** (no cached `_userPosition`):
+  ///     resolve via the full GPS flow, then frame at a moderate
+  ///     close zoom (13) so the very first double-tap doesn't slam
+  ///     all the way to street level. The member can keep double-
+  ///     tapping for tighter framing.
+  ///   - **Subsequent taps** (`_userPosition != null`): skip the
+  ///     GPS round-trip entirely — the position hasn't changed in
+  ///     milliseconds — and just step the camera in by +2 zoom
+  ///     from wherever it is right now. Keeps the gesture snappy
+  ///     and progressive.
+  Future<void> _onLocateMeClose() async {
+    if (_locating) return;
+    // Subsequent-tap fast path — cached position, no GPS call.
+    if (_userPosition != null) {
+      HapticFeedback.selectionClick();
+      final currentZoom = _mapCtrl.camera.zoom;
+      final nextZoom = (currentZoom + 2).clamp(7.0, 18.0);
+      if (nextZoom <= currentZoom) return; // already at max
+      unawaited(
+        _animateCameraTo(
+          LatLng(_userPosition!.lat, _userPosition!.lng),
+          zoom: nextZoom,
+        ),
+      );
+      return;
+    }
+    // First tap of the session — fall back to the full GPS
+    // resolve, frame at a moderate close zoom rather than the
+    // eagle view.
+    return _resolveAndFrame(close: true);
+  }
 
   Future<void> _resolveAndFrame({required bool close}) async {
     if (_locating) return;
@@ -420,17 +452,17 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
           //     partner gyms. Default affordance — members usually
           //     want to see what's near them, not exactly where
           //     they're standing.
-          //   - `close == true` (double tap): zoom-16 pan to the
-          //     dot itself, street-level detail for "where exactly
-          //     am I" lookups. Numerically tighter than the old
-          //     zoom-14 single-tap, since we now have a dedicated
-          //     close affordance and the eagle view took the
-          //     general-purpose slot.
+          //   - `close == true` (first double tap of the session):
+          //     zoom-13 pan to the dot. Moderate close — visible
+          //     streets and a few city blocks, not street-level.
+          //     Subsequent double-taps step in +2 each time
+          //     (handled in `_onLocateMeClose`), so the member
+          //     can keep tapping for tighter framing.
           if (close) {
             unawaited(
               _animateCameraTo(
                 LatLng(pos.latitude, pos.longitude),
-                zoom: 16,
+                zoom: 13,
               ),
             );
           } else {
