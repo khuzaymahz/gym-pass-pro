@@ -447,13 +447,21 @@ class HeroLogo extends ConsumerWidget {
     // floating card.
     final dpr = MediaQuery.of(context).devicePixelRatio;
     final pixelSize = (72 * dpr * 2).round().clamp(96, 256);
+    final hasLogo = gym.logoUrl != null && gym.logoUrl!.isNotEmpty;
     return Container(
       width: 72,
       height: 72,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: gp.bg3,
+        // White interior when the partner has a real logo —
+        // matches their typical baked-in white background so the
+        // mark appears to fill the disc instead of sitting as a
+        // smaller "card inside a card." See `GymLogo` for the
+        // matching pattern. Fallback `gp.bg3` carries the
+        // initials monogram, where a hard-coded white would clash
+        // with the dark theme.
+        color: hasLogo ? Colors.white : gp.bg3,
         border: Border.all(color: accent, width: 2),
         boxShadow: [
           BoxShadow(
@@ -476,7 +484,7 @@ class HeroLogo extends ConsumerWidget {
       //   - placeholder is a neutral grey disc; the tier-coloured
       //     initials only render in the explicit no-logo and
       //     hard-error branches, never as a transient state.
-      child: gym.logoUrl != null && gym.logoUrl!.isNotEmpty
+      child: hasLogo
           ? CachedNetworkImage(
               imageUrl: resolveMediaUrl(apiBaseUrl, gym.logoUrl!),
               // `contain` so the entire logo always fits inside
@@ -490,7 +498,10 @@ class HeroLogo extends ConsumerWidget {
               maxHeightDiskCache: pixelSize,
               fadeInDuration: Duration.zero,
               fadeOutDuration: Duration.zero,
-              placeholder: (_, __) => Container(color: gp.bg3),
+              // White placeholder matches the new white disc bg
+              // so there's no flash from grey to white when the
+              // cached bitmap lands.
+              placeholder: (_, __) => Container(color: Colors.white),
               errorWidget: (_, __, ___) => _initialFallback(initial, accent),
             )
           : _initialFallback(initial, accent),

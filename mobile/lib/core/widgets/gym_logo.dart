@@ -85,9 +85,22 @@ class GymLogo extends StatelessWidget {
     // The previous category-coloured gradient pulled the eye away from
     // the tier signal and made the same gym read differently on the
     // detail page than on the map. Single source of visual truth now.
+    //
+    // Disc bg switches based on whether we have a real logo:
+    //   - **Has logo** → white. Partner-uploaded logos almost always
+    //     ship with a white internal background baked into the image
+    //     (the typical "logo on a white card" export). With our
+    //     previous `gp.bg3` disc colour, members saw the partner's
+    //     white logo card *inside* our grey disc — a card-inside-a-
+    //     card effect that made the actual mark look small. White on
+    //     white blends seamlessly so the logo appears to fill the
+    //     entire disc.
+    //   - **No logo** → `gp.bg3` (the original neutral surface). The
+    //     initials monogram needs a theme-matched canvas, not a
+    //     hard-coded white that would clash on the dark canvas.
     final frame = BoxDecoration(
       borderRadius: _radius,
-      color: gp.bg3,
+      color: hasLogo ? Colors.white : gp.bg3,
       border: Border.all(color: tier, width: size * 0.045),
       boxShadow: [
         BoxShadow(

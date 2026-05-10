@@ -116,7 +116,17 @@ class GymPinMarker extends ConsumerWidget {
             child: Container(
             width: baseSize,
             height: baseSize,
-            decoration: pinDecoration,
+            // White interior when there's a real logo to show — see
+            // the matching note in `GymLogo`. Partner-uploaded logos
+            // almost always come with a baked-in white background;
+            // matching that here lets the logo appear to fill the
+            // pin instead of sitting as a small "card inside a
+            // card." Falls back to the tier-aware pin decoration
+            // when only the initials monogram renders, so the
+            // monogram still has a theme-matched canvas.
+            decoration: gym.logoUrl != null && gym.logoUrl!.isNotEmpty
+                ? pinDecoration.copyWith(color: Colors.white)
+                : pinDecoration,
             clipBehavior: Clip.antiAlias,
             // Real partner logo when available; tier-coloured initial
             // disc when not. Cached + decoded-to-pin-size so panning a
@@ -165,7 +175,10 @@ class GymPinMarker extends ConsumerWidget {
                     maxHeightDiskCache: pixelSize,
                     fadeInDuration: Duration.zero,
                     fadeOutDuration: Duration.zero,
-                    placeholder: (_, __) => Container(color: gp.bg3),
+                    // White placeholder matches the pin's white
+                    // interior — no flash from grey-to-white when
+                    // the cached bitmap lands.
+                    placeholder: (_, __) => Container(color: Colors.white),
                     errorWidget: (_, __, ___) => Center(
                       child: Text(
                         initial,
