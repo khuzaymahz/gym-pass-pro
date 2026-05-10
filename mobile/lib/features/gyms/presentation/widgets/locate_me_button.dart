@@ -2,21 +2,34 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/gp_tokens.dart';
 
-/// Locate-me FAB. Sits over the map's trailing edge; the parent's
-/// onTap fires a fresh GPS read and pans the camera to the result.
+/// Locate-me FAB. Sits over the map's trailing edge.
+///
+/// Two-gesture model:
+///   - **Single tap** ([onTap]) — resolves the user's position and
+///     frames their *region* with surrounding gyms ("eagle view").
+///     The default affordance: members usually want to see what's
+///     near them, not exactly where they're standing.
+///   - **Double tap** ([onDoubleTap], optional) — resolves and
+///     zooms tight on the user dot. Power-user shortcut for
+///     "where exactly am I" without sacrificing the default's
+///     region-aware framing. Falls back to single-tap behaviour
+///     if the parent doesn't provide a handler.
 ///
 /// While [loading] is true the icon swaps for a small lime spinner
-/// and tap is disabled — gives the member a visible "I heard you,
-/// finding you now" cue while geolocator does its 0–6 s work, and
-/// stops a tap-spam from queueing overlapping requests.
+/// and both gestures are disabled — gives the member a visible
+/// "I heard you, finding you now" cue while geolocator does its
+/// 0–8 s work, and stops a tap-spam from queueing overlapping
+/// requests.
 class LocateMeButton extends StatelessWidget {
   const LocateMeButton({
     super.key,
     required this.onTap,
+    this.onDoubleTap,
     this.loading = false,
   });
 
   final VoidCallback onTap;
+  final VoidCallback? onDoubleTap;
   final bool loading;
 
   @override
@@ -29,6 +42,7 @@ class LocateMeButton extends StatelessWidget {
       shadowColor: Colors.black.withValues(alpha: 0.4),
       child: InkWell(
         onTap: loading ? null : onTap,
+        onDoubleTap: (loading || onDoubleTap == null) ? null : onDoubleTap,
         customBorder: const CircleBorder(),
         child: Container(
           width: 46,

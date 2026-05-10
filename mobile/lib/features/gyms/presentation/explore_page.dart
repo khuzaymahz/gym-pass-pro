@@ -371,18 +371,29 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
   /// pin and the new one, short enough that nobody waits on it.
   static const _cameraAnimDuration = Duration(milliseconds: 650);
 
-  /// Locate-me FAB tap. Always re-reads GPS (skipping the cached
-  /// position is intentional — the cached value is from the last
-  /// session and may be hundreds of km from where the member actually
-  /// is, so a "return to me" affordance that flies to the wrong city
-  /// reads as broken). Surfaces a snackbar on failure so the silent
-  /// "did anything happen?" experience is gone:
+  /// Single tap on the locate-me FAB — resolves the user's position
+  /// and frames their region with surrounding gyms ("eagle view").
+  /// Always re-reads GPS (skipping the cached position is
+  /// intentional — the cached value is from the last session and
+  /// may be hundreds of km from where the member actually is, so a
+  /// "return to me" affordance that flies to the wrong city reads
+  /// as broken). Surfaces a snackbar on failure so the silent "did
+  /// anything happen?" experience is gone:
   ///
   ///   - serviceDisabled → "Turn on Location Services" + Settings deep-link.
   ///   - deniedForever   → "Permission denied. Tap Settings to enable."
   ///   - denied          → simple toast, the next tap will re-prompt.
   ///   - unavailable     → "Couldn't get location, try again."
-  Future<void> _onLocateMe() async {
+  Future<void> _onLocateMe() => _resolveAndFrame(close: false);
+
+  /// Double tap on the locate-me FAB — same resolve flow as
+  /// single tap, but pans the camera to a tight zoom on the user
+  /// dot instead of the region eagle view. Power-user shortcut
+  /// for "where exactly am I" without sacrificing the default
+  /// region-aware framing.
+  Future<void> _onLocateMeClose() => _resolveAndFrame(close: true);
+
+  Future<void> _resolveAndFrame({required bool close}) async {
     if (_locating) return;
     HapticFeedback.selectionClick();
     setState(() => _locating = true);
@@ -403,18 +414,30 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
                 .read(homeRegionStoreProvider)
                 .write(pos.latitude, pos.longitude),
           );
-          // Region-fit ("eagle view") instead of a tight zoom-14
-          // pan-to-point. The previous tight zoom dropped the
-          // member onto a single block of street with no
-          // surrounding gyms in frame — useful for "where exactly
-          // am I" but not for "show me clubs around me", which is
-          // the intent of the Explore-page locate FAB. Frames the
-          // member's region (Amman / Zarqa / etc.) bounds so all
-          // partner gyms in that region are visible alongside the
-          // user dot, matching the initial-paint camera fit.
-          _fitCameraToRegion(
-            regionForPosition(pos.latitude, pos.longitude),
-          );
+          // Two camera modes for the same gesture:
+          //   - `close == false` (single tap): region-fit eagle
+          //     view so the user dot is centred among neighbouring
+          //     partner gyms. Default affordance — members usually
+          //     want to see what's near them, not exactly where
+          //     they're standing.
+          //   - `close == true` (double tap): zoom-16 pan to the
+          //     dot itself, street-level detail for "where exactly
+          //     am I" lookups. Numerically tighter than the old
+          //     zoom-14 single-tap, since we now have a dedicated
+          //     close affordance and the eagle view took the
+          //     general-purpose slot.
+          if (close) {
+            unawaited(
+              _animateCameraTo(
+                LatLng(pos.latitude, pos.longitude),
+                zoom: 16,
+              ),
+            );
+          } else {
+            _fitCameraToRegion(
+              regionForPosition(pos.latitude, pos.longitude),
+            );
+          }
           break;
         case LocationStatus.serviceDisabled:
           _showLocateError(
@@ -806,6 +829,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
                 end: 16,
                 child: LocateMeButton(
                   onTap: _onLocateMe,
+                  onDoubleTap: _onLocateMeClose,
                   loading: _locating,
                 ),
               ),
