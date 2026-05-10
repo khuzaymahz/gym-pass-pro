@@ -8,7 +8,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.enums import PayoutStatus
-from app.db.models import Gym, Payout, PayoutLedger
+from app.db.models import Checkin, Gym, Payout, PayoutLedger, User
 from app.utils.ids import uuid7
 
 
@@ -107,6 +107,25 @@ class PayoutLedgerRepository:
         )
         result = await self.session.execute(stmt)
         return int(result.rowcount or 0)
+
+    async def list_for_payout(
+        self, payout_id: UUID
+    ) -> list[tuple[PayoutLedger, Checkin, User]]:
+        """Drill-down: every ledger entry attached to a given payout,
+        joined with the checkin (for scan time) and the user (for
+        display name on the admin reconciliation page). Ordered
+        chronologically so the operator reads left-to-right through
+        the period the payout covers.
+        """
+        stmt = (
+            select(PayoutLedger, Checkin, User)
+            .join(Checkin, Checkin.id == PayoutLedger.checkin_id)
+            .join(User, User.id == Checkin.user_id)
+            .where(PayoutLedger.payout_id == payout_id)
+            .order_by(Checkin.scanned_at.asc())
+        )
+        rows = (await self.session.execute(stmt)).all()
+        return [(ledger, checkin, user) for ledger, checkin, user in rows]
 
 
 class PayoutRepository:

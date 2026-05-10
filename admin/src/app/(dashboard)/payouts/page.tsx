@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
 import EmptyState from "@/components/EmptyState";
@@ -159,12 +160,15 @@ export default async function PayoutsPage({
               {result.items.map((p) => (
                 <tr key={p.id}>
                   <td className="min-w-0">
-                    <div className="flex min-w-0 flex-col leading-tight">
+                    <Link
+                      href={`/payouts/${p.id}`}
+                      className="link-ghost flex min-w-0 flex-col leading-tight"
+                    >
                       <span className="truncate text-paper">{p.gymNameEn}</span>
                       <span className="truncate text-[11px] text-muted num">
                         {p.gymId.slice(0, 8)}
                       </span>
-                    </div>
+                    </Link>
                   </td>
                   <td className="num text-muted text-[12px] whitespace-nowrap">
                     {formatDate(p.periodStart)} → {formatDate(p.periodEnd)}

@@ -333,6 +333,36 @@ class AdminPayoutGenerate(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
+class AdminPayoutEntryRead(BaseModel):
+    """Single ledger row for the payout drill-down. Joins the user
+    side so the admin reconciliation page can render "who scanned"
+    without a per-row N+1.
+    """
+
+    ledger_id: UUID = Field(alias="ledgerId")
+    checkin_id: UUID = Field(alias="checkinId")
+    user_id: UUID = Field(alias="userId")
+    user_name: str | None = Field(alias="userName", default=None)
+    user_phone: str | None = Field(alias="userPhone", default=None)
+    scanned_at: datetime = Field(alias="scannedAt")
+    amount_jod: Decimal = Field(alias="amountJod")
+    rate_applied: Decimal = Field(alias="rateApplied")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class AdminPayoutDetail(BaseModel):
+    """Full payout view: header summary + every constituent entry.
+    Powers the operator's "show me what made up this 50 JOD" page
+    so disputes can be reconciled without dropping into the DB.
+    """
+
+    payout: AdminPayoutRead
+    entries: list[AdminPayoutEntryRead]
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
 class AdminPayoutMarkPaid(BaseModel):
     notes: str | None = None
 

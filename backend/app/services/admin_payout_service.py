@@ -124,3 +124,27 @@ class AdminPayoutService:
 
     async def pending_total(self) -> Decimal:
         return await self.payouts.pending_total()
+
+    async def get_with_gym(self, payout_id: UUID) -> tuple[Payout, Gym]:
+        """Fetch a single payout joined to its gym for the admin
+        detail page. Raises 404 cleanly if either is missing —
+        cheaper than papering over with a redirect to the list.
+        """
+        payout = await self.payouts.get(payout_id)
+        if payout is None:
+            raise AppError(ErrorCode.NOT_FOUND, "Payout not found.")
+        gym = await self.gyms.get(payout.gym_id)
+        if gym is None:
+            # Should be impossible given the FK, but the operator
+            # gets a clear error rather than a partial render.
+            raise AppError(ErrorCode.NOT_FOUND, "Gym not found.")
+        return payout, gym
+
+    async def list_entries(self, payout_id: UUID):
+        """Constituent ledger entries for the drill-down view —
+        the admin's reconciliation lens onto a payout. Service
+        layer wraps the repo call so the router stays thin and so
+        future filters (e.g. only-success-checkins) have a place
+        to live.
+        """
+        return await self.ledger.list_for_payout(payout_id)

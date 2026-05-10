@@ -227,6 +227,22 @@ export type AdminPayout = {
   notes: string | null;
 };
 
+export type AdminPayoutEntry = {
+  ledgerId: string;
+  checkinId: string;
+  userId: string;
+  userName: string | null;
+  userPhone: string | null;
+  scannedAt: string;
+  amountJod: string;
+  rateApplied: string;
+};
+
+export type AdminPayoutDetail = {
+  payout: AdminPayout;
+  entries: AdminPayoutEntry[];
+};
+
 export type AdminAuditEntry = {
   id: string;
   actorUserId: string | null;
@@ -511,6 +527,11 @@ export const AdminSDK = {
     return api(`/api/v1/admin/payouts/generate`, {
       method: "POST",
       body: JSON.stringify({ periodStart, periodEnd }),
+      token: await serviceToken(),
+    });
+  },
+  async getPayout(id: string): Promise<AdminPayoutDetail> {
+    return api(`/api/v1/admin/payouts/${id}`, {
       token: await serviceToken(),
     });
   },

@@ -15,6 +15,8 @@ from app.api.deps import (
 from app.db.enums import PayoutStatus
 from app.db.models import User
 from app.schemas.admin import (
+    AdminPayoutDetail,
+    AdminPayoutEntryRead,
     AdminPayoutGenerate,
     AdminPayoutMarkPaid,
     AdminPayoutRead,
@@ -88,6 +90,50 @@ async def generate_payouts(
         )
         for p, g in results if p.id in {c.id for c in created}
     ]
+
+
+@router.get("/{payout_id}", response_model=AdminPayoutDetail)
+async def get_payout(
+    payout_id: UUID,
+    svc: Annotated[AdminPayoutService, Depends(admin_payout_service)],
+    _: Annotated[User, Depends(current_admin)],
+) -> AdminPayoutDetail:
+    """Drill-down: payout summary + every constituent ledger entry,
+    each joined to the checkin (scan time) and the user (display
+    name + phone for the reconciliation lens). Routed under the
+    same admin-payouts prefix as the list/generate/mark-paid
+    endpoints.
+    """
+    payout, gym = await svc.get_with_gym(payout_id)
+    rows = await svc.list_entries(payout_id)
+    entries = [
+        AdminPayoutEntryRead(
+            ledgerId=ledger.id,
+            checkinId=checkin.id,
+            userId=user.id,
+            userName=user.display_name,
+            userPhone=user.phone,
+            scannedAt=checkin.scanned_at,
+            amountJod=ledger.amount_jod,
+            rateApplied=ledger.rate_applied,
+        )
+        for ledger, checkin, user in rows
+    ]
+    return AdminPayoutDetail(
+        payout=AdminPayoutRead(
+            id=payout.id,
+            gymId=payout.gym_id,
+            gymNameEn=gym.name_en,
+            periodStart=payout.period_start,
+            periodEnd=payout.period_end,
+            totalAmountJod=payout.total_amount_jod,
+            entryCount=payout.entry_count,
+            status=payout.status,
+            paidAt=payout.paid_at,
+            notes=payout.notes,
+        ),
+        entries=entries,
+    )
 
 
 @router.post("/{payout_id}/mark-paid", response_model=AdminPayoutRead)

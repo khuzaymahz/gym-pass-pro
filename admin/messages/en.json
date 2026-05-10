@@ -467,12 +467,31 @@
     "markPaid": "Mark paid",
     "marking": "Marking…",
     "notesPlaceholder": "Reference / notes (optional)",
+    "back": "Back to payouts",
     "generate": {
       "title": "Generate run",
       "periodStart": "Period start",
       "periodEnd": "Period end",
       "submit": "Generate payouts",
       "submitting": "Generating…"
+    },
+    "detail": {
+      "total": "Total",
+      "entries": "Entries",
+      "status": "Status",
+      "paidAt": "Paid",
+      "notes": "Notes",
+      "entriesTitle": "Constituent check-ins",
+      "entriesCount": "{count} entries",
+      "emptyTitle": "No entries",
+      "emptyBody": "This payout has no ledger entries attached. That should not happen — investigate before marking it paid.",
+      "driftWarning": "Header total ({header} JOD) and computed sum from entries ({computed} JOD) disagree by {diff} JOD. Investigate before marking paid.",
+      "col": {
+        "member": "Member",
+        "scannedAt": "Scanned",
+        "rate": "Rate",
+        "amount": "Amount"
+      }
     }
   },
   "checkins": {
