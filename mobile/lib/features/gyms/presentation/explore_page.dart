@@ -93,13 +93,15 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
   /// the warm-up timer fires AND the gym list is ready, then fade
   /// it out via `AnimatedOpacity`.
   ///
-  /// 700 ms covers typical LTE / Wi-Fi tile fetches on Amman; on a
-  /// faster connection the gym data lands sooner but we still wait
-  /// the full window to keep the reveal stable. Cap is short enough
-  /// that no one waits on a fast network.
+  /// 1.4 s covers a cold-cache CARTO tile fetch on typical mobile
+  /// network; the previous 700 ms wasn't enough on first launch and
+  /// members caught the half-rendered "labels-on-blank-canvas"
+  /// frame. On a warm cache or fast connection the overlay still
+  /// holds the full window — the eye prefers a deliberate
+  /// 1.4 s loading state to a 300 ms reveal of an unfinished map.
   bool _tilesWarm = false;
   Timer? _warmupTimer;
-  static const _warmupDuration = Duration(milliseconds: 700);
+  static const _warmupDuration = Duration(milliseconds: 1400);
 
   /// Debounce timer for the search box. Without it, every keystroke
   /// pushes a new query into the Riverpod state, which rebuilds the
@@ -738,27 +740,37 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
               ),
               // 1.5. Map warm-up overlay — opaque scrim + GymLoader
               //      while tiles + gym data are loading. Without this,
-              //      members briefly see floating Arabic place names
-              //      (the labels-only layer paints faster than the
-              //      base CARTO tile layer on slow networks) over a
-              //      blank canvas. The overlay covers everything
-              //      below the search bar so the partial-render
-              //      window never reaches the eye.
+              //      members briefly see the half-rendered map: the
+              //      labels-only layer paints faster than the base
+              //      CARTO tile layer on a cold network, leaving
+              //      Arabic place names floating over a blank canvas
+              //      until the streets paint in.
+              //
+              //      `Positioned.fill` is required — the parent Stack
+              //      uses `StackFit.loose`, so a non-Positioned
+              //      `Container` would shrink to the loader's
+              //      intrinsic size (~56 px) rather than covering the
+              //      map. Earlier version had this bug; the overlay
+              //      was a tiny dot in the middle and the user saw
+              //      everything through it.
               //
               //      Hidden once the warm-up timer has fired AND the
               //      gym list has resolved — `IgnorePointer` while
               //      visible so taps don't accidentally hit the map
               //      underneath.
-              IgnorePointer(
-                ignoring: _isMapReady(asyncGyms),
-                child: AnimatedOpacity(
-                  opacity: _isMapReady(asyncGyms) ? 0.0 : 1.0,
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeOutCubic,
-                  child: Container(
-                    color: Theme.of(context).scaffoldBackgroundColor,
-                    alignment: Alignment.center,
-                    child: const GymLoader(size: GymLoaderSize.large),
+              Positioned.fill(
+                child: IgnorePointer(
+                  ignoring: _isMapReady(asyncGyms),
+                  child: AnimatedOpacity(
+                    opacity: _isMapReady(asyncGyms) ? 0.0 : 1.0,
+                    duration: const Duration(milliseconds: 280),
+                    curve: Curves.easeOutCubic,
+                    child: ColoredBox(
+                      color: Theme.of(context).scaffoldBackgroundColor,
+                      child: const Center(
+                        child: GymLoader(size: GymLoaderSize.large),
+                      ),
+                    ),
                   ),
                 ),
               ),

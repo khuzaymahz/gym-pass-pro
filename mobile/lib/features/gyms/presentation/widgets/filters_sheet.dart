@@ -143,30 +143,12 @@ class FiltersSheet extends ConsumerWidget {
                   l: l,
                   gp: gp,
                 ),
-                const SizedBox(height: 28),
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: gp.accent,
-                      foregroundColor: gp.onLime,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(GPRadius.pill),
-                      ),
-                    ),
-                    child: Text(
-                      l.exploreFiltersDone,
-                      style: GPText.body(
-                        size: 15,
-                        color: gp.onLime,
-                        weight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
+                // No Done button. Filter taps apply live (each chip /
+                // toggle mutates Riverpod state and the map rebuilds
+                // immediately), and the drag handle is tap-to-dismiss
+                // — a separate Done CTA would just be a third path
+                // back to the same already-applied state. Removing
+                // it keeps the sheet honest about what it does.
               ],
             ),
           ),
