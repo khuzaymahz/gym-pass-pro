@@ -505,7 +505,7 @@ class HeroLogo extends ConsumerWidget {
 
 /// Tap recogniser that fires `onTap` **immediately** (no
 /// double-tap-wait delay) while still recognising a true double-tap
-/// when one arrives within a short window. Flutter's stock
+/// when one arrives within a generous window. Flutter's stock
 /// `GestureDetector` debounces single tap by `kDoubleTapTimeout`
 /// (~300 ms) when both `onTap` and `onDoubleTap` are wired — the
 /// recogniser has to wait to be sure no second tap is coming. On
@@ -520,13 +520,17 @@ class HeroLogo extends ConsumerWidget {
 /// max" — one continuous motion instead of "tap → wait → tap →
 /// tap-cancel → animate".
 ///
-/// 220 ms window is shorter than Flutter's 300 ms default — at the
-/// 1.4× chance of a missed double-tap a member would naturally
-/// double-tap faster than that, and at the 0.6× cost of a slightly
-/// later double-tap registering as two singles instead. The trade
-/// is intentional: snappy single-tap feedback wins on this control,
-/// where double-tap is a power-user shortcut and a rare-miss falls
-/// back to "tap again to keep going up" behaviour anyway.
+/// 320 ms window is *generous* (Flutter default is 300 ms, Apple's
+/// HIG recommends 300 ms). Earlier 220 ms was too tight — by the
+/// time members finished the first tap and started the second,
+/// more than 220 ms had often passed so the second tap registered
+/// as a fresh single instead of overriding to a double. 320 ms
+/// catches any natural double-tap rhythm while still keeping the
+/// single-tap response instant. The trade is small: a slow
+/// "two singles" gesture (300 ms apart) registers as a double
+/// instead — on this control that lifts the sheet to max, easy
+/// to recover from with one more tap (max → mid). The win on
+/// reliable double-tap detection outweighs the rare false-double.
 class _FastTapHandle extends StatefulWidget {
   const _FastTapHandle({
     required this.onTap,
@@ -543,7 +547,7 @@ class _FastTapHandle extends StatefulWidget {
 }
 
 class _FastTapHandleState extends State<_FastTapHandle> {
-  static const _doubleTapWindow = Duration(milliseconds: 220);
+  static const _doubleTapWindow = Duration(milliseconds: 320);
   DateTime? _lastTapAt;
 
   void _handleTap() {
