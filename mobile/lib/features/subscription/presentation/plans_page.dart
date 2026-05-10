@@ -1200,7 +1200,10 @@ class _MiniAvatar extends StatelessWidget {
       child: hasLogo
           ? CachedNetworkImage(
               imageUrl: resolved!,
-              fit: BoxFit.cover,
+              // `contain` so the entire partner logo fits inside
+              // the 22 px mini avatar — same rule as
+              // `GymPinMarker` and the rest of the logo surfaces.
+              fit: BoxFit.contain,
               width: 22,
               height: 22,
               memCacheWidth: pixelSize,

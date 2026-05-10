@@ -119,7 +119,11 @@ class GymLogo extends StatelessWidget {
         child: hasLogo
             ? CachedNetworkImage(
                 imageUrl: logoUrl!,
-                fit: BoxFit.cover,
+                // `contain` so the partner's entire logo fits
+                // inside the disc — see the matching note in
+                // `GymPinMarker`. Cover would slice padded or
+                // non-square uploads.
+                fit: BoxFit.contain,
                 width: size,
                 height: size,
                 // Decoded-bitmap dimensions; both axes set so a non-square
