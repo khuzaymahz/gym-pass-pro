@@ -97,15 +97,20 @@ async def get_payout(
     payout_id: UUID,
     svc: Annotated[AdminPayoutService, Depends(admin_payout_service)],
     _: Annotated[User, Depends(current_admin)],
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=200, ge=1, le=500, alias="pageSize"),
 ) -> AdminPayoutDetail:
-    """Drill-down: payout summary + every constituent ledger entry,
-    each joined to the checkin (scan time) and the user (display
-    name + phone for the reconciliation lens). Routed under the
-    same admin-payouts prefix as the list/generate/mark-paid
-    endpoints.
+    """Drill-down: payout summary + paginated ledger entries, each
+    joined to the checkin (scan time) and the user (display name +
+    phone for the reconciliation lens). Default page size of 200
+    covers most monthly payouts in one fetch; the cap at 500
+    bounds the largest response.
     """
     payout, gym = await svc.get_with_gym(payout_id)
-    rows = await svc.list_entries(payout_id)
+    offset = (page - 1) * page_size
+    rows, total = await svc.list_entries(
+        payout_id, limit=page_size, offset=offset
+    )
     entries = [
         AdminPayoutEntryRead(
             ledgerId=ledger.id,
@@ -133,6 +138,9 @@ async def get_payout(
             notes=payout.notes,
         ),
         entries=entries,
+        totalEntries=total,
+        page=page,
+        pageSize=page_size,
     )
 
 
@@ -145,14 +153,14 @@ async def mark_paid(
     admin: Annotated[User, Depends(current_admin)],
     session: Annotated[AsyncSession, Depends(db_session)],
 ) -> AdminPayoutRead:
-    payout = await svc.mark_paid(
+    payout, gym = await svc.mark_paid(
         payout_id, notes=body.notes, actor=authed_actor(request, admin)
     )
     await session.commit()
     return AdminPayoutRead(
         id=payout.id,
         gymId=payout.gym_id,
-        gymNameEn="",
+        gymNameEn=gym.name_en,
         periodStart=payout.period_start,
         periodEnd=payout.period_end,
         totalAmountJod=payout.total_amount_jod,

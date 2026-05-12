@@ -93,12 +93,18 @@ class AdminPayoutService:
 
     async def mark_paid(
         self, payout_id: UUID, *, notes: str | None, actor: Actor
-    ) -> Payout:
+    ) -> tuple[Payout, Gym]:
+        """Return the (payout, gym) pair so the admin response can render
+        the gym name without a second fetch. Idempotent for already-paid
+        payouts (returns the existing state)."""
         payout = await self.payouts.get(payout_id)
         if payout is None:
             raise AppError(ErrorCode.NOT_FOUND, "Payout not found.")
+        gym = await self.gyms.get(payout.gym_id)
+        if gym is None:
+            raise AppError(ErrorCode.NOT_FOUND, "Gym not found.")
         if payout.status == PayoutStatus.PAID:
-            return payout
+            return payout, gym
         await self.payouts.mark_paid(payout, now=utcnow(), notes=notes)
         await self.audit.log(
             actor=actor,
@@ -120,7 +126,7 @@ class AdminPayoutService:
                 "gymId": str(payout.gym_id),
             },
         )
-        return payout
+        return payout, gym
 
     async def pending_total(self) -> Decimal:
         return await self.payouts.pending_total()
@@ -140,11 +146,14 @@ class AdminPayoutService:
             raise AppError(ErrorCode.NOT_FOUND, "Gym not found.")
         return payout, gym
 
-    async def list_entries(self, payout_id: UUID):
+    async def list_entries(
+        self, payout_id: UUID, *, limit: int = 200, offset: int = 0
+    ):
         """Constituent ledger entries for the drill-down view —
-        the admin's reconciliation lens onto a payout. Service
-        layer wraps the repo call so the router stays thin and so
-        future filters (e.g. only-success-checkins) have a place
-        to live.
+        the admin's reconciliation lens onto a payout. Paginated to
+        protect against very large month-long payouts on busy gyms.
+        Returns (rows, total).
         """
-        return await self.ledger.list_for_payout(payout_id)
+        return await self.ledger.list_for_payout(
+            payout_id, limit=limit, offset=offset
+        )

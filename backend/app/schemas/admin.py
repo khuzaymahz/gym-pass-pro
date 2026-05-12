@@ -352,13 +352,18 @@ class AdminPayoutEntryRead(BaseModel):
 
 
 class AdminPayoutDetail(BaseModel):
-    """Full payout view: header summary + every constituent entry.
-    Powers the operator's "show me what made up this 50 JOD" page
-    so disputes can be reconciled without dropping into the DB.
+    """Full payout view: header summary + a page of constituent
+    entries. Powers the operator's "show me what made up this
+    50 JOD" page so disputes can be reconciled without dropping
+    into the DB. Entries are paginated (default 200, cap 500) so
+    a busy gym × month combination doesn't blow up the response.
     """
 
     payout: AdminPayoutRead
     entries: list[AdminPayoutEntryRead]
+    total_entries: int = Field(alias="totalEntries")
+    page: int
+    page_size: int = Field(alias="pageSize")
 
     model_config = ConfigDict(populate_by_name=True)
 

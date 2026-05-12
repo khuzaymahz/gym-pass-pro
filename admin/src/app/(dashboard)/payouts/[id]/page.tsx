@@ -51,7 +51,8 @@ export default async function PayoutDetailPage({ params }: Props) {
     notFound();
   }
 
-  const { payout, entries } = detail;
+  const { payout, entries, totalEntries, pageSize } = detail;
+  const truncated = totalEntries > entries.length;
 
   async function markPaid(notes?: string) {
     "use server";
@@ -60,12 +61,12 @@ export default async function PayoutDetailPage({ params }: Props) {
 
   const total = Number(payout.totalAmountJod);
   const computed = entries.reduce((sum, e) => sum + Number(e.amountJod), 0);
-  // Sanity diff between header total and the sum of constituent
-  // entries — exposes any reconciliation drift if the ledger has
-  // been mutated post-aggregation. Should always be zero for a
-  // healthy payout. Show as a quiet warning chip when it isn't.
+  // Drift check is only meaningful when the full ledger is in view —
+  // if the entry list is paginated (large payout), the page sum won't
+  // equal the header total. Suppress the warning in that case.
   const drift = total - computed;
   const driftAbs = Math.abs(drift);
+  const showDrift = !truncated && driftAbs > 0.005;
 
   return (
     <section className="flex flex-col gap-5">
@@ -114,12 +115,21 @@ export default async function PayoutDetailPage({ params }: Props) {
             <p className="text-[13px] text-paper">{payout.notes}</p>
           </div>
         ) : null}
-        {driftAbs > 0.005 ? (
+        {showDrift ? (
           <div className="col-span-2 sm:col-span-4 rounded-md border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-[12px] text-amber-200">
             {tDetail("driftWarning", {
               header: total.toFixed(2),
               computed: computed.toFixed(2),
               diff: drift.toFixed(2),
+            })}
+          </div>
+        ) : null}
+        {truncated ? (
+          <div className="col-span-2 sm:col-span-4 text-[11.5px] text-muted">
+            {tDetail("truncatedNote", {
+              shown: entries.length,
+              total: totalEntries,
+              pageSize,
             })}
           </div>
         ) : null}

@@ -109,23 +109,39 @@ class PayoutLedgerRepository:
         return int(result.rowcount or 0)
 
     async def list_for_payout(
-        self, payout_id: UUID
-    ) -> list[tuple[PayoutLedger, Checkin, User]]:
+        self,
+        payout_id: UUID,
+        *,
+        limit: int = 200,
+        offset: int = 0,
+    ) -> tuple[list[tuple[PayoutLedger, Checkin, User]], int]:
         """Drill-down: every ledger entry attached to a given payout,
         joined with the checkin (for scan time) and the user (for
         display name on the admin reconciliation page). Ordered
         chronologically so the operator reads left-to-right through
         the period the payout covers.
+
+        Paginated to prevent the admin page from blowing up on a busy
+        gym × month combination (5000+ checkins is plausible). Returns
+        `(rows, total)` so the UI can render a pager.
         """
+        count_stmt = (
+            select(func.count())
+            .select_from(PayoutLedger)
+            .where(PayoutLedger.payout_id == payout_id)
+        )
+        total = int((await self.session.execute(count_stmt)).scalar_one() or 0)
         stmt = (
             select(PayoutLedger, Checkin, User)
             .join(Checkin, Checkin.id == PayoutLedger.checkin_id)
             .join(User, User.id == Checkin.user_id)
             .where(PayoutLedger.payout_id == payout_id)
             .order_by(Checkin.scanned_at.asc())
+            .limit(limit)
+            .offset(offset)
         )
         rows = (await self.session.execute(stmt)).all()
-        return [(ledger, checkin, user) for ledger, checkin, user in rows]
+        return [(l, c, u) for l, c, u in rows], total
 
 
 class PayoutRepository:

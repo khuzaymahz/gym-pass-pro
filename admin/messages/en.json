@@ -351,6 +351,8 @@
       "idLabel": "User ID",
       "create": "Create login",
       "createHint": "Phone becomes the username. Share the password with the partner out of band — there is no email-invite flow yet.",
+      "show": "Show",
+      "hide": "Hide",
       "revoke": "Revoke login",
       "revokeHint": "Revoking signs the partner out everywhere and prevents future sign-in. Gym profile, photos, and history stay intact.",
       "revokeConfirm": "Revoke partner login for {phone}? They will be signed out immediately."
@@ -486,6 +488,7 @@
       "emptyTitle": "No entries",
       "emptyBody": "This payout has no ledger entries attached. That should not happen — investigate before marking it paid.",
       "driftWarning": "Header total ({header} JOD) and computed sum from entries ({computed} JOD) disagree by {diff} JOD. Investigate before marking paid.",
+      "truncatedNote": "Showing first {shown} of {total} entries. Use the API with ?page=N&pageSize={pageSize} to fetch the rest.",
       "col": {
         "member": "Member",
         "scannedAt": "Scanned",

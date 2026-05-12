@@ -43,6 +43,7 @@ export function GymOwnerPanel({
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -147,17 +148,27 @@ export function GymOwnerPanel({
           </label>
           <label className="field">
             <span className="field-label">{t("passwordLabel")}</span>
-            <input
-              type="text"
-              dir="ltr"
-              className="input input-sm num"
-              required
-              minLength={8}
-              maxLength={128}
-              autoComplete="new-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                dir="ltr"
+                className="input input-sm num w-full pr-12"
+                required
+                minLength={8}
+                maxLength={128}
+                autoComplete="new-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute inset-y-0 right-2 text-[11px] text-muted hover:text-paper"
+                tabIndex={-1}
+              >
+                {showPassword ? t("hide") : t("show")}
+              </button>
+            </div>
           </label>
           <div className="sm:col-span-3 flex items-center justify-between border-t border-line pt-3">
             {error ? (

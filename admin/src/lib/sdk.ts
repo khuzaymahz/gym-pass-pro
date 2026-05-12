@@ -241,6 +241,9 @@ export type AdminPayoutEntry = {
 export type AdminPayoutDetail = {
   payout: AdminPayout;
   entries: AdminPayoutEntry[];
+  totalEntries: number;
+  page: number;
+  pageSize: number;
 };
 
 export type AdminAuditEntry = {
