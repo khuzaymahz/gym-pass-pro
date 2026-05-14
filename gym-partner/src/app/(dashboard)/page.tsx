@@ -1,12 +1,10 @@
 import { getFormatter, getTranslations } from "next-intl/server";
 
 import { ChartPanel } from "@/components/dashboard/ChartPanel";
-import { HourStrip } from "@/components/dashboard/HourStrip";
 import { LaneChart } from "@/components/dashboard/LaneChart";
 import { Panel } from "@/components/dashboard/Panel";
 import { RecencyDot } from "@/components/dashboard/RecencyDot";
 import { TierBreakdown } from "@/components/dashboard/TierBreakdown";
-import { OccupancyBar } from "@/components/OccupancyBar";
 import { QuietFloor } from "@/components/QuietFloor";
 import { StatTile } from "@/components/StatTile";
 import { PartnerSDK } from "@/lib/sdk";
@@ -81,22 +79,11 @@ export default async function PartnerDashboardPage() {
       ? ((m.checkinsToday - medianLast7) / medianLast7) * 100
       : null;
 
-  const peakLast30 = checkinsSeries.length === 0 ? 0 : Math.max(...checkinsSeries);
-
   return (
     <section className="flex flex-col gap-6">
-      {/* Top status strip — page title on the start, live occupancy
-       *  bar on the end. The bar fills toward the 30-day peak and
-       *  flips amber past 70% so a quick glance answers "are we
-       *  busy right now?". */}
-      <header className="flex flex-col gap-4 border-b border-line pb-5">
-        <div className="flex items-baseline justify-between gap-4">
-          <div>
-            <h1 className="gauge text-[36px] text-paper">{t("title")}</h1>
-            <p className="text-[13px] text-muted">{t("subtitle")}</p>
-          </div>
-        </div>
-        <OccupancyBar today={m.checkinsToday} peakLast30={peakLast30} />
+      <header className="flex flex-col gap-2 border-b border-line pb-5">
+        <h1 className="gauge text-[36px] text-paper">{t("title")}</h1>
+        <p className="text-[13px] text-muted">{t("subtitle")}</p>
       </header>
 
       {/* KPI grid — gauge readouts. Static / cumulative tiles skip
@@ -193,17 +180,17 @@ export default async function PartnerDashboardPage() {
         </ChartPanel>
       </div>
 
-      {/* Distributions */}
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+      {/* Distributions — tier mix + recent activity. The "busy hours"
+       *  strip was here too but partners said it wasn't actionable
+       *  (they already know their busy hours from being on the floor)
+       *  so it's gone along with the occupancy bar in the header. */}
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <Panel title={t("tierMix")}>
           <TierBreakdown
             tiers={m.tierBreakdown}
             total={m.checkinsLast30Days}
             empty={t("noDataTiers")}
           />
-        </Panel>
-        <Panel title={t("hourMix")} subtitle={t("hourMixSubtitle")}>
-          <HourStrip hours={m.hourBreakdown} empty={t("noDataHours")} />
         </Panel>
         <Panel title={t("recentCheckins")}>
           {m.recentCheckins.length === 0 ? (
