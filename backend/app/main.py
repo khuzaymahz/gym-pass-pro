@@ -18,17 +18,17 @@ from app.core.redis_client import get_redis
 from app.db.session import get_engine
 
 from app.api.v1 import auth as auth_router
-from app.api.v1 import checkins as checkins_router
-from app.api.v1 import gyms as gyms_router
-from app.api.v1 import invoices as invoices_router
-from app.api.v1 import me as me_router
-from app.api.v1 import notifications as notifications_router
-from app.api.v1 import pauses as pauses_router
-from app.api.v1 import payment_methods as payment_methods_router
 from app.api.v1 import realtime as realtime_router
-from app.api.v1 import referrals as referrals_router
-from app.api.v1 import subscriptions as subscriptions_router
-from app.api.v1 import tickets as tickets_router
+from app.api.v1.member import checkins as checkins_router
+from app.api.v1.member import gyms as gyms_router
+from app.api.v1.member import invoices as invoices_router
+from app.api.v1.member import me as me_router
+from app.api.v1.member import notifications as notifications_router
+from app.api.v1.member import pauses as pauses_router
+from app.api.v1.member import payment_methods as payment_methods_router
+from app.api.v1.member import referrals as referrals_router
+from app.api.v1.member import subscriptions as subscriptions_router
+from app.api.v1.member import tickets as tickets_router
 from app.api.v1.admin import audit as admin_audit_router
 from app.api.v1.admin import checkins as admin_checkins_router
 from app.api.v1.admin import gyms as admin_gyms_router
