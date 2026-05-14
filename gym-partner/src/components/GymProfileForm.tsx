@@ -9,6 +9,7 @@ import { saveGymAction } from "@/app/(dashboard)/profile/actions";
 import PendingButton from "@/components/PendingButton";
 
 import { AmenitiesPicker } from "./AmenitiesPicker";
+import { HoursEditor } from "./HoursEditor";
 
 const CATEGORIES: GymUpdateBody["category"][] = [
   "gym",
@@ -40,6 +41,12 @@ export function GymProfileForm({ gym }: { gym: GymRead }) {
   const [amenities, setAmenities] = useState<string[]>(
     () => gym.amenities ?? [],
   );
+  // Opening hours is the same story — three different payload shapes
+  // produced by a single mode-switching editor, no clean way to round-
+  // trip through a hidden input. Keep it controlled.
+  const [openingHours, setOpeningHours] = useState<Record<string, unknown>>(
+    () => gym.openingHours ?? {},
+  );
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -61,6 +68,7 @@ export function GymProfileForm({ gym }: { gym: GymRead }) {
       // already enforces the 64-item cap, the lowercase normalization
       // and the de-duplication, so we forward the array as-is.
       amenities,
+      openingHours,
     };
     const result = await saveGymAction(body);
     setSaving(false);
@@ -176,6 +184,16 @@ export function GymProfileForm({ gym }: { gym: GymRead }) {
         <AmenitiesPicker value={amenities} onChange={setAmenities} />
       </Section>
 
+      {/* SECTION: Opening hours — mode-switching editor (24/7, same
+          every day, per-day). Persists in the same opaque payload
+          shape the Sidebar's `computeIsOpen` already reads. */}
+      <Section
+        title={t("sectionHours")}
+        hint={t("sectionHoursHint")}
+      >
+        <HoursEditor initial={gym.openingHours} onChange={setOpeningHours} />
+      </Section>
+
       <div className="flex items-center justify-end gap-3 border-t border-line pt-4">
         {status === "ok" ? (
           <span className="text-[12px] text-accent">{t("saved")}</span>
@@ -198,15 +216,20 @@ export function GymProfileForm({ gym }: { gym: GymRead }) {
 function Section({
   title,
   children,
+  hint,
 }: {
   title: string;
   children: React.ReactNode;
+  hint?: string;
 }) {
   return (
     <section className="flex flex-col gap-3">
-      <h3 className="text-[13px] font-semibold uppercase tracking-wide text-muted">
-        {title}
-      </h3>
+      <div className="flex flex-col gap-1">
+        <h3 className="text-[13px] font-semibold uppercase tracking-wide text-muted">
+          {title}
+        </h3>
+        {hint ? <p className="text-[12px] text-muted">{hint}</p> : null}
+      </div>
       {children}
     </section>
   );
