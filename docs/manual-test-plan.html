@@ -219,62 +219,108 @@
   }
 
   section {
-    margin-bottom: 28px;
-    scroll-margin-top: 140px;
+    margin-bottom: 18px;
+    scroll-margin-top: 160px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--bg-2);
+    overflow: hidden;
   }
-  section h2 {
-    margin: 0 0 4px;
-    font-size: 15px;
-    font-weight: 700;
+  /* Section header now acts as the click target to fold/unfold. */
+  .sec-head {
     display: flex;
     align-items: center;
     gap: 10px;
+    padding: 14px 16px;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 120ms;
+  }
+  .sec-head:hover { background: var(--bg-3); }
+  .sec-head h2 {
+    margin: 0;
+    font-size: 14.5px;
+    font-weight: 700;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+  .sec-head h2 .title-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .chevron {
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+    color: var(--muted);
+    transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  section.collapsed .chevron { transform: rotate(-90deg); }
+  section.collapsed .sec-body { display: none; }
+  .sec-body {
+    border-top: 1px solid var(--line);
   }
   section h2 .pill {
     font-family: ui-monospace, monospace;
     font-size: 10.5px;
     background: var(--bg-3);
     color: var(--muted);
-    padding: 2px 7px;
+    padding: 3px 8px;
     border-radius: 4px;
     font-weight: 500;
     letter-spacing: 0.04em;
+    flex-shrink: 0;
   }
   section h2 .pill.done {
     background: var(--lime);
     color: #0a0b0a;
   }
   section p.section-sub {
-    margin: 0 0 12px;
+    margin: 0;
     color: var(--muted-soft);
     font-size: 12.5px;
+    padding: 10px 16px 4px;
+    border-bottom: 1px solid var(--line);
   }
 
   ul.cases {
     list-style: none;
     margin: 0;
     padding: 0;
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    overflow: hidden;
-    background: var(--bg-2);
+    background: transparent;
   }
+  /*
+    Column widths:
+      36 — checkbox slot
+      62 — ID badge
+      minmax(180px, 0.95fr) — scenario column (slightly narrower)
+      minmax(220px, 1.4fr) — expected column (wider, since these
+        usually run longer than the trigger text)
+  */
   li.case {
     display: grid;
-    grid-template-columns: 36px 70px 1fr 1fr;
+    grid-template-columns: 36px 62px minmax(180px, 0.95fr) minmax(220px, 1.4fr);
     align-items: flex-start;
     padding: 10px 14px;
     border-bottom: 1px solid var(--line);
-    gap: 12px;
+    gap: 14px;
     transition: background-color 120ms;
+  }
+  li.case:nth-child(even) { background: rgba(255, 255, 255, 0.012); }
+  @media (prefers-color-scheme: light) {
+    li.case:nth-child(even) { background: rgba(0, 0, 0, 0.018); }
   }
   li.case:last-child { border-bottom: none; }
   li.case:hover { background: var(--bg-3); }
   li.case.done {
     background: linear-gradient(
       90deg,
-      rgba(211, 255, 58, 0.04),
-      transparent 80%
+      rgba(211, 255, 58, 0.05),
+      transparent 75%
     );
   }
   li.case.done .scenario,
@@ -346,15 +392,22 @@
   }
   .expected strong { color: var(--fg); font-weight: 600; }
 
-  /* Note row — separator + hint inside sections */
+  /* Group header — sub-section label inside a section (e.g. "2.1 ·
+     Sign-in (phone OTP path)" inside section 2). Sticky to the
+     section body so when a section is long enough to scroll, the
+     active group label stays visible at the top while you read. */
   .group-header {
-    padding: 10px 14px 6px;
-    font-size: 11px;
-    letter-spacing: 0.08em;
+    padding: 9px 14px;
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
+    font-weight: 600;
     color: var(--muted);
     background: var(--bg-3);
     border-bottom: 1px solid var(--line);
+    position: sticky;
+    top: 0;
+    z-index: 1;
   }
 
   footer {
@@ -429,6 +482,7 @@
         <button data-filter="pending">Pending</button>
         <button data-filter="done">Done</button>
       </div>
+      <button class="btn" id="toggle-all-btn" title="Expand / collapse every section">Expand all</button>
       <button class="btn" id="export-btn" title="Copy progress to clipboard">Export</button>
       <button class="btn btn-danger" id="reset-btn" title="Uncheck everything">Reset</button>
     </div>
@@ -848,7 +902,7 @@ const SECTIONS = [
     cases: [
       { id: "18.1", s: "Explore search with emoji 💪", e: "No match or normalised, no crash" },
       { id: "18.2", s: "Explore search with SQL-injection-ish text \" OR 1=1 --", e: "Treated as plain text, no error" },
-      { id: "18.3", s: "Explore search with XSS payload <script>alert(1)</script>", e: "Rendered as text, NOT executed" },
+      { id: "18.3", s: "Explore search with XSS payload <script>alert(1)<\/script>", e: "Rendered as text, NOT executed" },
       { id: "18.4", s: "Explore search 100 chars long", e: "Accepted, debounced, no jank" },
       { id: "18.5", s: "Explore search with single space", e: "Treated as empty, all results show" },
       { id: "18.6", s: "Explore search with leading/trailing space", e: "Trimmed" },
@@ -1264,10 +1318,14 @@ const SECTIONS = [
 const STORAGE_KEY = "gympass.testplan.v1";
 const FILTER_KEY = "gympass.testplan.filter";
 const SEARCH_KEY = "gympass.testplan.search";
+const COLLAPSE_KEY = "gympass.testplan.collapsed";
 
 let state = {};
 let activeFilter = "all";
 let activeSearch = "";
+// Set of section IDs that are currently collapsed. Default: all
+// collapsed (first launch) so the page opens as an overview.
+let collapsed = new Set();
 
 function loadState() {
   try {
@@ -1277,10 +1335,30 @@ function loadState() {
   }
   activeFilter = localStorage.getItem(FILTER_KEY) || "all";
   activeSearch = localStorage.getItem(SEARCH_KEY) || "";
+  const rawCollapsed = localStorage.getItem(COLLAPSE_KEY);
+  if (rawCollapsed === null) {
+    // First visit — collapse everything so the long list isn't
+    // overwhelming on first open.
+    collapsed = new Set(SECTIONS.map((s) => s.id));
+  } else {
+    try {
+      collapsed = new Set(JSON.parse(rawCollapsed));
+    } catch {
+      collapsed = new Set();
+    }
+  }
 }
 
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function saveCollapsed() {
+  localStorage.setItem(COLLAPSE_KEY, JSON.stringify([...collapsed]));
+}
+
+function isCollapsed(secId) {
+  return collapsed.has(secId);
 }
 
 function allCases() {
@@ -1355,14 +1433,28 @@ function renderSection(sec) {
         .join("")}
     </ul>`;
   }
+  // Collapsed by default — page opens as a 41-section overview, you
+  // expand the one you're testing right now. Persists per-section
+  // in localStorage so re-opening the page keeps your unfolded
+  // sections unfolded.
+  const collapsed = isCollapsed(sec.id);
   return `
-    <section id="${sec.id}">
-      <h2>
-        <span>${sec.num} · ${sec.title}</span>
-        <span class="${pillCls}" data-stats="${sec.id}">${stats.done}/${stats.total}</span>
-      </h2>
-      ${sec.sub ? `<p class="section-sub">${sec.sub}</p>` : ""}
-      ${inner}
+    <section id="${sec.id}" class="${collapsed ? "collapsed" : ""}" data-sec="${sec.id}">
+      <div class="sec-head" data-sec-toggle="${sec.id}">
+        <svg class="chevron" viewBox="0 0 16 16" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round"
+          stroke-linejoin="round">
+          <polyline points="4 6 8 10 12 6"></polyline>
+        </svg>
+        <h2>
+          <span class="title-text">${sec.num} · ${sec.title}</span>
+          <span class="${pillCls}" data-stats="${sec.id}">${stats.done}/${stats.total}</span>
+        </h2>
+      </div>
+      <div class="sec-body">
+        ${sec.sub ? `<p class="section-sub">${sec.sub}</p>` : ""}
+        ${inner}
+      </div>
     </section>
   `;
 }
@@ -1383,6 +1475,9 @@ function renderAll() {
   updateProgress();
   applyFilter();
   bindCheckboxes();
+  bindSectionHeaders();
+  bindNavAutoExpand();
+  updateToggleAllLabel();
 }
 
 function updateProgress() {
@@ -1418,6 +1513,9 @@ function updateProgress() {
 // Filter + search applied together — both must pass.
 function applyFilter() {
   const q = activeSearch.trim().toLowerCase();
+  const filterActive = activeFilter !== "all" || q.length > 0;
+  // Track which sections have at least one matching visible row.
+  const sectionsWithMatches = new Set();
   document.querySelectorAll("li.case[data-id]").forEach((row) => {
     const id = row.dataset.id;
     const checked = !!state[id];
@@ -1429,6 +1527,76 @@ function applyFilter() {
       if (!hay.includes(q)) visible = false;
     }
     row.classList.toggle("hidden", !visible);
+    if (visible) {
+      const sec = row.closest("section");
+      if (sec) sectionsWithMatches.add(sec.id);
+    }
+  });
+  // When a filter is active, auto-expand sections that have
+  // matches and hide sections that don't — otherwise the user
+  // types a query and sees nothing because everything's collapsed.
+  // When the filter resets, restore the user's collapse preferences.
+  document.querySelectorAll("section[data-sec]").forEach((sec) => {
+    if (!filterActive) {
+      sec.classList.toggle("collapsed", collapsed.has(sec.id));
+      sec.style.display = "";
+      return;
+    }
+    if (sectionsWithMatches.has(sec.id)) {
+      sec.classList.remove("collapsed");
+      sec.style.display = "";
+    } else {
+      sec.style.display = "none";
+    }
+  });
+}
+
+// Toggle a section's collapsed state. Bound to the .sec-head row.
+function toggleSection(secId) {
+  if (collapsed.has(secId)) collapsed.delete(secId);
+  else collapsed.add(secId);
+  saveCollapsed();
+  const el = document.getElementById(secId);
+  if (el) el.classList.toggle("collapsed");
+  updateToggleAllLabel();
+}
+
+function setAllCollapsed(collapse) {
+  collapsed = collapse ? new Set(SECTIONS.map((s) => s.id)) : new Set();
+  saveCollapsed();
+  document.querySelectorAll("section[data-sec]").forEach((el) => {
+    el.classList.toggle("collapsed", collapse);
+  });
+  updateToggleAllLabel();
+}
+
+function updateToggleAllLabel() {
+  const btn = document.getElementById("toggle-all-btn");
+  if (!btn) return;
+  const allCollapsed = SECTIONS.every((s) => collapsed.has(s.id));
+  btn.textContent = allCollapsed ? "Expand all" : "Collapse all";
+}
+
+function bindSectionHeaders() {
+  document.querySelectorAll("[data-sec-toggle]").forEach((el) => {
+    el.addEventListener("click", () => toggleSection(el.dataset.secToggle));
+  });
+}
+
+// When the user clicks a section nav anchor at the top, auto-expand
+// that section so they don't land on a collapsed header.
+function bindNavAutoExpand() {
+  document.querySelectorAll("nav.sections a").forEach((a) => {
+    a.addEventListener("click", () => {
+      const id = a.getAttribute("href").slice(1);
+      if (collapsed.has(id)) {
+        collapsed.delete(id);
+        saveCollapsed();
+        const el = document.getElementById(id);
+        if (el) el.classList.remove("collapsed");
+        updateToggleAllLabel();
+      }
+    });
   });
 }
 
@@ -1493,6 +1661,11 @@ document.addEventListener("keydown", (e) => {
 // ============================================================
 // Reset + export
 // ============================================================
+document.getElementById("toggle-all-btn").addEventListener("click", () => {
+  const allCollapsed = SECTIONS.every((s) => collapsed.has(s.id));
+  setAllCollapsed(!allCollapsed);
+});
+
 document.getElementById("reset-btn").addEventListener("click", () => {
   if (!confirm("Uncheck everything and start over?")) return;
   state = {};
