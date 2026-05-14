@@ -1,21 +1,30 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 
-import { setLocale } from "@/i18n/actions";
-import type { Locale } from "@/i18n/config";
+import { LOCALE_COOKIE, type Locale } from "@/i18n/config";
 
 /**
  * Compact locale-flip pill — globe icon + a two-letter label of the
  * locale you'll switch *to* (matches `project_language_toggle_shows_target.md`
  * memory: "EN/AR labels itself with where-a-tap-takes-you, not the
- * current locale"). Sized to live next to `ThemeToggle` at the top-end
- * of every page; the shared icon + label format makes both chips
- * recognisable at a glance instead of "what's this random letter".
+ * current locale").
+ *
+ * The cookie is written client-side here and `router.refresh()` re-
+ * renders the current route. We deliberately avoid the Server Action
+ * + `revalidatePath('/', 'layout')` route because in Next.js 15 dev
+ * mode, invalidating the layout cache often rotates the page's
+ * Server Action IDs — and the browser DOM still references the
+ * pre-flip IDs, so the next click on any form (e.g. the logo
+ * uploader on the profile page) 404s with "Failed to find Server
+ * Action". Writing the cookie directly + refreshing keeps action
+ * hashes stable.
  */
 export function LocaleToggle() {
   const t = useTranslations("nav");
+  const router = useRouter();
   const current = useLocale() as Locale;
   const [pending, startTransition] = useTransition();
   const target: Locale = current === "ar" ? "en" : "ar";
@@ -23,8 +32,14 @@ export function LocaleToggle() {
 
   function flip() {
     if (pending) return;
+    // One-year max-age (mirrors the old Server Action). `samesite=lax`
+    // keeps it sent on top-level navigations but not on cross-site
+    // GETs, which is what we want for an auth-adjacent preference.
+    const maxAge = 60 * 60 * 24 * 365;
+    document.cookie =
+      `${LOCALE_COOKIE}=${target}; path=/; max-age=${maxAge}; samesite=lax`;
     startTransition(() => {
-      void setLocale(target);
+      router.refresh();
     });
   }
 
@@ -33,18 +48,11 @@ export function LocaleToggle() {
       type="button"
       onClick={flip}
       disabled={pending}
-      // Same tonal register as ThemeToggle (surface + line border,
-      // hover bumps to surface-1) so the two chips read as one
-      // control cluster. Slightly wider than 36×36 because the
-      // label needs room — fixed `h-9` keeps vertical alignment
-      // identical to the theme chip beside it.
       className="inline-flex h-9 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-paper transition-colors duration-150 hover:bg-surface-1 hover:border-line-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 disabled:opacity-60"
       aria-label={
         target === "ar" ? t("localeSwitchToAr") : t("localeSwitchToEn")
       }
       title={target === "ar" ? t("localeSwitchToAr") : t("localeSwitchToEn")}
-      // Lock direction to LTR so glyph + label always render left-to-right,
-      // regardless of the page's text-direction.
       dir="ltr"
     >
       <svg

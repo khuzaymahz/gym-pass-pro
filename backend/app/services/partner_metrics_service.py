@@ -27,69 +27,80 @@ class PartnerMetricsService:
         self.ledger = ledger
         self.payouts = payouts
 
-    async def overview(self, gym_id: UUID) -> dict[str, Any]:
+    async def overview(
+        self,
+        gym_id: UUID,
+        *,
+        since: datetime | None = None,
+        until: datetime | None = None,
+    ) -> dict[str, Any]:
+        """Aggregate dashboard metrics for the given window.
+
+        When ``since`` is omitted, defaults to the start of the
+        current calendar month (preserves the legacy "MTD" behaviour).
+        When ``until`` is omitted, runs to "now". The "today" tile
+        and the "pending payout" tile are always anchored to the
+        current moment regardless of the window — they answer
+        questions about the present, not the period.
+        """
         now = datetime.now(UTC)
         start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        start_of_month = start_of_today.replace(day=1)
-        thirty_days_ago = start_of_today - timedelta(days=29)
+        if since is None:
+            since = start_of_today.replace(day=1)
+        if until is None:
+            until = now
 
         checkins_today = await self.checkins.count_success_for_gym_since(
             gym_id, start_of_today
         )
-        checkins_mtd = await self.checkins.count_success_for_gym_since(
-            gym_id, start_of_month
-        )
-        checkins_30 = await self.checkins.count_success_for_gym_since(
-            gym_id, thirty_days_ago
+        checkins_period = await self.checkins.count_success_for_gym_since(
+            gym_id, since
         )
 
-        unique_members_30 = await self.checkins.count_unique_members_for_gym_since(
-            gym_id, thirty_days_ago
+        unique_members_period = (
+            await self.checkins.count_unique_members_for_gym_since(gym_id, since)
         )
 
         # Sum of per-visit payouts earned by this gym in the period —
         # this is "what we owe you" from a successful-checkin standpoint,
         # regardless of whether a Payout aggregation has been generated.
-        revenue_mtd = await self.ledger.sum_for_gym_since(
-            gym_id, since=start_of_month
+        revenue_period = await self.ledger.sum_for_gym_since(
+            gym_id, since=since
         )
         pending_payout_total = await self.payouts.pending_total_for_gym(gym_id)
-        paid_payout_mtd = await self.payouts.paid_total_for_gym_since(
-            gym_id, since=start_of_month
+        paid_payout_period = await self.payouts.paid_total_for_gym_since(
+            gym_id, since=since
         )
 
         checkins_per_day = await self.checkins.count_per_day_for_gym_since(
-            gym_id, thirty_days_ago
+            gym_id, since
         )
         revenue_per_day = await self.ledger.sum_per_day_for_gym_since(
-            gym_id, since=thirty_days_ago
+            gym_id, since=since
         )
-        # Subscription tier captured at scan time = subscription on the
-        # checkin row. Members on a paused subscription with a
-        # scheduled tier-down don't get scanned through anyway, so the
-        # tier here is the active one. NULL subscription_id means a
-        # failed scan; the repo helper filters to success-only.
         tier_breakdown = await self.checkins.tier_breakdown_for_gym_since(
-            gym_id, thirty_days_ago
+            gym_id, since
         )
-        # Per-hour-of-day distribution so partners can see when their
-        # busy windows are. UTC-bucketed; partner-side renders as local
-        # by adding the +03 offset (Jordan is UTC+3 year-round, no DST).
         hour_breakdown = await self.checkins.hour_breakdown_for_gym_since(
-            gym_id, thirty_days_ago
+            gym_id, since
         )
         recent_checkins = await self.checkins.recent_with_user_for_gym(
             gym_id, limit=10
         )
 
+        # Wire field names stay backwards-compatible — fields named
+        # `*Mtd*` and `Last30Days` now reflect the chosen window. The
+        # partner UI displays them with a label that swaps to match
+        # the period selection, so the suffix is just a stable JSON
+        # key, not a semantic claim about "this month".
         return {
             "checkinsToday": checkins_today,
-            "checkinsThisMonth": checkins_mtd,
-            "checkinsLast30Days": checkins_30,
-            "uniqueMembersLast30Days": unique_members_30,
-            "revenueMtdJod": revenue_mtd,
+            "checkinsThisMonth": checkins_period,
+            "checkinsLast30Days": checkins_period,
+            "uniqueMembersLast30Days": unique_members_period,
+            "revenueMtdJod": revenue_period,
             "pendingPayoutTotalJod": pending_payout_total,
-            "paidPayoutMtdJod": paid_payout_mtd,
+            "paidPayoutMtdJod": paid_payout_period,
             "checkinsPerDay": [
                 {"day": d, "count": c} for d, c in checkins_per_day
             ],

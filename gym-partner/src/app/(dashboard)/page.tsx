@@ -5,9 +5,67 @@ import { LaneChart } from "@/components/dashboard/LaneChart";
 import { Panel } from "@/components/dashboard/Panel";
 import { RecencyDot } from "@/components/dashboard/RecencyDot";
 import { TierBreakdown } from "@/components/dashboard/TierBreakdown";
+import {
+  PERIOD_PRESETS,
+  PeriodSelector,
+  type PeriodPreset,
+} from "@/components/PeriodSelector";
 import { QuietFloor } from "@/components/QuietFloor";
 import { StatTile } from "@/components/StatTile";
 import { PartnerSDK } from "@/lib/sdk";
+
+/// Resolve URL search params into a (since, until) window.
+/// `mtd` is the default (preserves the original dashboard view) and
+/// is also what the backend produces when no params are supplied.
+function resolvePeriodWindow(
+  preset: PeriodPreset,
+  fromParam: string | undefined,
+  toParam: string | undefined,
+): { since: string | undefined; until: string | undefined; preset: PeriodPreset } {
+  const now = new Date();
+  const startOfToday = new Date(now);
+  startOfToday.setUTCHours(0, 0, 0, 0);
+
+  if (preset === "today") {
+    return {
+      since: startOfToday.toISOString(),
+      until: now.toISOString(),
+      preset,
+    };
+  }
+  if (preset === "week") {
+    const since = new Date(startOfToday);
+    since.setUTCDate(since.getUTCDate() - 6);
+    return { since: since.toISOString(), until: now.toISOString(), preset };
+  }
+  if (preset === "30d") {
+    const since = new Date(startOfToday);
+    since.setUTCDate(since.getUTCDate() - 29);
+    return { since: since.toISOString(), until: now.toISOString(), preset };
+  }
+  if (preset === "90d") {
+    const since = new Date(startOfToday);
+    since.setUTCDate(since.getUTCDate() - 89);
+    return { since: since.toISOString(), until: now.toISOString(), preset };
+  }
+  if (preset === "custom" && fromParam && toParam) {
+    // Date inputs return YYYY-MM-DD — anchor to UTC midnight at both
+    // ends, then push `until` to end-of-day so the closing date is
+    // included rather than truncated at 00:00.
+    const since = new Date(`${fromParam}T00:00:00.000Z`);
+    const until = new Date(`${toParam}T23:59:59.999Z`);
+    if (
+      Number.isFinite(since.getTime()) &&
+      Number.isFinite(until.getTime()) &&
+      since <= until
+    ) {
+      return { since: since.toISOString(), until: until.toISOString(), preset };
+    }
+  }
+  // Default — mtd. Omit the params so the backend's own default
+  // (start-of-month) is what answers.
+  return { since: undefined, until: undefined, preset: "mtd" };
+}
 
 function formatJod(value: string | number, opts?: { compact?: boolean }) {
   const num = typeof value === "string" ? Number.parseFloat(value) : value;
@@ -34,8 +92,25 @@ function weekOverWeek(series: readonly number[]): number | null {
   return ((recent - prior) / prior) * 100;
 }
 
-export default async function PartnerDashboardPage() {
+export default async function PartnerDashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ period?: string; from?: string; to?: string }>;
+}) {
   const t = await getTranslations("dashboard");
+  const tPeriod = await getTranslations("dashboard.period");
+  const sp = await searchParams;
+  const rawPreset = sp.period;
+  const preset: PeriodPreset = PERIOD_PRESETS.includes(
+    rawPreset as PeriodPreset,
+  )
+    ? (rawPreset as PeriodPreset)
+    : "mtd";
+  const { since, until, preset: resolvedPreset } = resolvePeriodWindow(
+    preset,
+    sp.from,
+    sp.to,
+  );
   // Locale-aware date/time formatter. Previously a hardcoded
   // `toLocaleString("en-GB", ...)` call rendered Arabic users a
   // British-English timestamp (`09 May 25, 14:30`) regardless of
@@ -55,7 +130,11 @@ export default async function PartnerDashboardPage() {
       return iso;
     }
   };
-  const m = await PartnerSDK.metrics();
+  const m = await PartnerSDK.metrics({ since, until });
+  // Label suffix surfaced on the period-scoped tiles ("Reps · MTD",
+  // "Reps · 30d", etc.). Driven by the resolved preset so a custom
+  // range still gets a meaningful label.
+  const periodSuffix = tPeriod(resolvedPreset);
 
   const checkinsSeries = m.checkinsPerDay.map((d) => d.count);
   const revenueSeries = m.revenuePerDay.map((d) =>
@@ -81,15 +160,24 @@ export default async function PartnerDashboardPage() {
 
   return (
     <section className="flex flex-col gap-6">
-      <header className="flex flex-col gap-2 border-b border-line pb-5">
-        <h1 className="gauge text-[36px] text-paper">{t("title")}</h1>
-        <p className="text-[13px] text-muted">{t("subtitle")}</p>
+      <header className="flex flex-col gap-4 border-b border-line pb-5">
+        <div className="flex flex-col gap-2">
+          <h1 className="gauge text-[36px] text-paper">{t("title")}</h1>
+          <p className="text-[13px] text-muted">{t("subtitle")}</p>
+        </div>
+        <PeriodSelector
+          current={resolvedPreset}
+          from={sp.from}
+          to={sp.to}
+        />
       </header>
 
-      {/* KPI grid — gauge readouts. Static / cumulative tiles skip
-       *  the sparkline and progress rail since their shape isn't a
-       *  meaningful trend. */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-7">
+      {/* KPI grid. Each tile that depends on the active period uses
+       *  the period-suffix substitution so the label always tells
+       *  the truth about which window the number reflects.
+       *  `checkinsToday` and `pendingPayout` always show "today" /
+       *  "right now" — they don't depend on the selector. */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
         <StatTile
           label={t("checkinsToday")}
           value={m.checkinsToday}
@@ -100,7 +188,7 @@ export default async function PartnerDashboardPage() {
           }}
         />
         <StatTile
-          label={t("checkinsThisMonth")}
+          label={t("checkinsPeriod", { period: periodSuffix })}
           value={m.checkinsThisMonth}
           delta={checkinsWoW}
           trend={{
@@ -109,20 +197,11 @@ export default async function PartnerDashboardPage() {
           }}
         />
         <StatTile
-          label={t("checkinsLast30")}
-          value={m.checkinsLast30Days}
-          delta={checkinsWoW}
-          trend={{
-            points: checkinsSeries.slice(-14),
-            ariaLabel: t("trendCheckinsAria"),
-          }}
-        />
-        <StatTile
-          label={t("uniqueMembers")}
+          label={t("uniqueMembers", { period: periodSuffix })}
           value={m.uniqueMembersLast30Days}
         />
         <StatTile
-          label={t("revenueMtd")}
+          label={t("revenuePeriod", { period: periodSuffix })}
           value={formatJod(m.revenueMtdJod, { compact: true })}
           unit={t("jod")}
           tone="ok"
@@ -139,7 +218,7 @@ export default async function PartnerDashboardPage() {
           tone="warn"
         />
         <StatTile
-          label={t("paidPayoutMtd")}
+          label={t("paidPeriod", { period: periodSuffix })}
           value={formatJod(m.paidPayoutMtdJod, { compact: true })}
           unit={t("jod")}
         />

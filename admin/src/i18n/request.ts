@@ -1,9 +1,10 @@
 import { cookies, headers } from "next/headers";
 import { getRequestConfig } from "next-intl/server";
 
-import { defaultLocale, isLocale, type Locale } from "./config";
+import { LOCALE_COOKIE, defaultLocale, isLocale, type Locale } from "./config";
 
-export const LOCALE_COOKIE = "admin_locale";
+// Re-export so callers importing from this module keep working.
+export { LOCALE_COOKIE };
 
 async function resolveLocale(): Promise<Locale> {
   const cookie = (await cookies()).get(LOCALE_COOKIE)?.value;

@@ -77,8 +77,14 @@ export const PartnerSDK = {
     return api("/api/v1/partner/me", { token: await serviceToken() });
   },
 
-  async metrics(): Promise<PartnerDashboardMetrics> {
-    return api("/api/v1/partner/gym/metrics/overview", {
+  async metrics(
+    range?: { since?: string; until?: string },
+  ): Promise<PartnerDashboardMetrics> {
+    const qs = new URLSearchParams();
+    if (range?.since) qs.set("since", range.since);
+    if (range?.until) qs.set("until", range.until);
+    const suffix = qs.toString() ? `?${qs.toString()}` : "";
+    return api(`/api/v1/partner/gym/metrics/overview${suffix}`, {
       token: await serviceToken(),
     });
   },

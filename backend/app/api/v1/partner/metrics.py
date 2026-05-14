@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 from app.api.deps import current_gym_owner, partner_metrics_service
 from app.core.exceptions import AppError, ErrorCode
@@ -17,13 +18,26 @@ router = APIRouter(prefix="/partner/gym/metrics", tags=["partner/gym/metrics"])
 async def overview(
     user: Annotated[User, Depends(current_gym_owner)],
     svc: Annotated[PartnerMetricsService, Depends(partner_metrics_service)],
+    since: datetime | None = Query(
+        default=None,
+        description="Window start (ISO datetime). Defaults to start of "
+        "current month when omitted — preserves the legacy MTD view.",
+    ),
+    until: datetime | None = Query(
+        default=None,
+        description="Window end (ISO datetime). Defaults to 'now'.",
+    ),
 ) -> PartnerDashboardMetrics:
     if user.gym_id is None:
         raise AppError(
             ErrorCode.AUTH_FORBIDDEN,
             "Partner account not linked to a gym.",
         )
-    data = await svc.overview(user.gym_id)
+    if since is not None and since.tzinfo is None:
+        since = since.replace(tzinfo=UTC)
+    if until is not None and until.tzinfo is None:
+        until = until.replace(tzinfo=UTC)
+    data = await svc.overview(user.gym_id, since=since, until=until)
     return PartnerDashboardMetrics(
         checkinsToday=data["checkinsToday"],
         checkinsThisMonth=data["checkinsThisMonth"],
