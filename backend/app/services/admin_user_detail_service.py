@@ -4,7 +4,7 @@ import asyncio
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, Awaitable, Callable
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -23,27 +23,31 @@ from app.db.models import (
     Payment,
     Plan,
     Referral,
+    Subscription,
     SupportTicket,
     User,
 )
+from app.repositories.audit_repo import AuditRepository
 from app.repositories.checkin_repo import CheckinRepository
 from app.repositories.payment_repo import PaymentRepository
 from app.repositories.referral_repo import ReferralRepository
 from app.repositories.subscription_repo import SubscriptionRepository
 from app.repositories.support_ticket_repo import SupportTicketRepository
 from app.repositories.user_repo import UserRepository
+from app.services.audit_service import AuditService
+from app.services.referral_service import ReferralService
 
 
 @dataclass(frozen=True)
 class SubscriptionHistoryItem:
-    subscription: "Subscription"  # noqa: F821 — type referenced below
+    subscription: Subscription
     plan: Plan | None
 
 
 @dataclass(frozen=True)
 class PaymentHistoryItem:
     payment: Payment
-    subscription: "Subscription" | None  # noqa: F821
+    subscription: Subscription | None
 
 
 @dataclass(frozen=True)
@@ -68,21 +72,15 @@ class UserDetail:
     last_active_at: datetime | None
 
 
-# Avoid a real import for the dataclass field annotation above.
-from app.db.models import Subscription  # noqa: E402
-
-
 class AdminUserDetailService:
     """Read-only aggregation for the admin user-detail page.
 
     Reads run in parallel via `asyncio.gather`, each in its own
     session because `AsyncSession` is not safe for concurrent use.
-
     Referral-code backfill (the one write this used to do mid-read)
-    has been moved into its own committed session — previously it
-    flushed on the request's shared session but no commit followed
-    (GET endpoints don't commit), so the code was effectively
-    rolled back at request end.
+    runs in its own committed session — previously it flushed on
+    the request's shared GET session that never committed, so the
+    backfilled code was effectively rolled back at request end.
     """
 
     def __init__(
@@ -91,59 +89,22 @@ class AdminUserDetailService:
     ) -> None:
         self._factory = session_factory
 
-    async def get(self, user_id: UUID) -> UserDetail:
-        # Step 1: load the user. Everything else depends on this row
-        # (or its FK to invited_by), so we can't parallelize the
-        # very first read.
+    async def _q(self, fn: Callable[[AsyncSession], Awaitable[Any]]) -> Any:
         async with self._factory() as s:
-            user = await UserRepository(s).get(user_id)
+            return await fn(s)
+
+    async def get(self, user_id: UUID) -> UserDetail:
+        user = await self._q(lambda s: UserRepository(s).get(user_id))
         if user is None:
             raise AppError(ErrorCode.NOT_FOUND, "User not found.")
 
-        # Step 2: backfill referral_code if missing. Its own session
-        # + explicit commit so the value persists; previously this
-        # write rode on the shared GET request session which never
-        # committed.
         referral_code = await self._ensure_referral_code(user)
 
-        # Step 3: every other read is independent — fire them all
-        # in parallel.
-        async def _invited_by():
-            if user.invited_by_user_id is None:
-                return None
-            async with self._factory() as s:
-                return await UserRepository(s).get(user.invited_by_user_id)
-
-        async def _sub_history():
-            async with self._factory() as s:
-                return await SubscriptionRepository(s).history_for_user(user.id)
-
-        async def _payment_history():
-            async with self._factory() as s:
-                return await PaymentRepository(s).history_for_user(
-                    user.id, limit=100
-                )
-
-        async def _tickets():
-            async with self._factory() as s:
-                return await SupportTicketRepository(s).history_for_user(
-                    user.id, limit=50
-                )
-
-        async def _recent_checkins():
-            async with self._factory() as s:
-                return await CheckinRepository(s).history_for_user(
-                    user.id, limit=25
-                )
-
-        async def _referrals_list():
-            async with self._factory() as s:
-                return await ReferralRepository(s).list_for_referrer(user.id)
-
-        async def _referral_counts():
-            async with self._factory() as s:
-                return await ReferralRepository(s).counts_for_referrer(user.id)
-
+        invited_by_fetch = (
+            self._q(lambda s: UserRepository(s).get(user.invited_by_user_id))
+            if user.invited_by_user_id is not None
+            else _none()
+        )
         (
             invited_by,
             sub_rows,
@@ -153,13 +114,13 @@ class AdminUserDetailService:
             referral_rows,
             referral_counts,
         ) = await asyncio.gather(
-            _invited_by(),
-            _sub_history(),
-            _payment_history(),
-            _tickets(),
-            _recent_checkins(),
-            _referrals_list(),
-            _referral_counts(),
+            invited_by_fetch,
+            self._q(lambda s: SubscriptionRepository(s).history_for_user(user.id)),
+            self._q(lambda s: PaymentRepository(s).history_for_user(user.id, limit=100)),
+            self._q(lambda s: SupportTicketRepository(s).history_for_user(user.id, limit=50)),
+            self._q(lambda s: CheckinRepository(s).history_for_user(user.id, limit=25)),
+            self._q(lambda s: ReferralRepository(s).list_for_referrer(user.id)),
+            self._q(lambda s: ReferralRepository(s).counts_for_referrer(user.id)),
         )
 
         subscription_history = [
@@ -169,11 +130,6 @@ class AdminUserDetailService:
             PaymentHistoryItem(payment=p, subscription=s) for p, s in payment_rows
         ]
         referrals = [ReferralItem(referral=r, invited=u) for r, u in referral_rows]
-
-        payment_method_summary = _summarize_payment_methods(payment_history)
-        totals = _compute_totals(
-            subscription_history, payment_history, tickets, referrals
-        )
 
         return UserDetail(
             user=user,
@@ -185,35 +141,32 @@ class AdminUserDetailService:
             referral_code=referral_code,
             referrals=referrals,
             referral_counts=referral_counts,
-            payment_method_summary=payment_method_summary,
-            totals=totals,
+            payment_method_summary=_summarize_payment_methods(payment_history),
+            totals=_compute_totals(
+                subscription_history, payment_history, tickets, referrals
+            ),
             last_active_at=user.last_active_at,
         )
 
     async def _ensure_referral_code(self, user: User) -> str:
         """Defensive backfill — most users have a code from signup;
-        legacy rows or migrated data may not. Runs in its own
-        session with an explicit commit so the value actually
-        persists, instead of riding on a shared GET-request session
-        that never commits.
+        legacy / migrated rows may not. Runs in its own session
+        with an explicit commit so the value actually persists
+        instead of riding on a shared GET-request session.
         """
         if user.referral_code:
             return user.referral_code
-        # Re-fetch + re-check inside the write session so we don't
-        # blindly overwrite a code another request wrote in the gap
-        # between the initial GET and this backfill.
         async with self._factory() as s:
+            # Re-fetch inside the write session — guards against
+            # racing another request that already backfilled.
             fresh = await UserRepository(s).get(user.id)
-            if fresh is None or fresh.referral_code:
-                return fresh.referral_code if fresh else ""
-            from app.services.referral_service import ReferralService
-            from app.repositories.referral_repo import ReferralRepository as _RR
-            from app.services.audit_service import AuditService
-            from app.repositories.audit_repo import AuditRepository
-
+            if fresh is None:
+                return ""
+            if fresh.referral_code:
+                return fresh.referral_code
             ref_svc = ReferralService(
                 users=UserRepository(s),
-                referrals=_RR(s),
+                referrals=ReferralRepository(s),
                 audit=AuditService(AuditRepository(s)),
             )
             code = await ref_svc.ensure_code_for_user(fresh)
@@ -221,15 +174,13 @@ class AdminUserDetailService:
             return code
 
 
+async def _none() -> None:
+    return None
+
+
 def _summarize_payment_methods(
     payments: list[PaymentHistoryItem],
 ) -> dict[str, Any]:
-    """Derive methods used from payment raw_response + method.
-
-    For CliQ: pull the alias/phone from raw_response if the provider included
-    it. For cards: surface last-4 if present. For apple_pay: just tag. All
-    fields are best-effort; mock gateway populates synthetic values.
-    """
     counts: dict[str, int] = {m.value: 0 for m in PaymentMethod}
     last_by_method: dict[str, dict[str, Any]] = {}
 
@@ -267,8 +218,11 @@ def _compute_totals(
     referrals: list[ReferralItem],
 ) -> dict[str, Any]:
     paid = sum(
-        (entry.payment.amount_jod for entry in payments
-         if entry.payment.status == PaymentStatus.SUCCEEDED),
+        (
+            entry.payment.amount_jod
+            for entry in payments
+            if entry.payment.status == PaymentStatus.SUCCEEDED
+        ),
         start=Decimal("0"),
     )
     active_sub = next(
@@ -282,7 +236,8 @@ def _compute_totals(
     open_ticket_count = sum(
         1
         for t in tickets
-        if t.status in {TicketStatus.OPEN, TicketStatus.IN_PROGRESS, TicketStatus.WAITING_USER}
+        if t.status
+        in {TicketStatus.OPEN, TicketStatus.IN_PROGRESS, TicketStatus.WAITING_USER}
     )
     converted_referrals = sum(
         1 for r in referrals if r.referral.status == ReferralStatus.CONVERTED
@@ -291,9 +246,7 @@ def _compute_totals(
         "totalPaidJod": paid,
         "subscriptionCount": len(subs),
         "hasActiveSubscription": active_sub is not None,
-        "activeTier": (
-            active_sub.subscription.tier.value if active_sub else None
-        ),
+        "activeTier": active_sub.subscription.tier.value if active_sub else None,
         "ticketCount": len(tickets),
         "openTicketCount": open_ticket_count,
         "referralCount": len(referrals),
