@@ -567,4 +567,36 @@ This is **review-only**. It exists so stakeholders can click through all 16 scre
 
 ---
 
+## 16 · Refactor triggers — when to do Phase B
+
+The backend evolved through **Phase A** (router folders by
+audience: `api/v1/member/`, `api/v1/admin/`, `api/v1/partner/`).
+**Phase B** is internal: move `services/`, `repositories/`,
+`schemas/`, and `models/` from flat files into per-domain folders
+under `app/domains/<concept>/`.
+
+Don't do Phase B preemptively. Do it the first time **any** of
+these triggers fires:
+
+| Trigger | Threshold | Action |
+|---|---|---|
+| `schemas/admin.py` line count | > 600 | Split into per-concept files: `schemas/admin/users.py`, `schemas/admin/payouts.py`, etc. The schemas you can't find first. |
+| Any single service file | > 400 lines OR > 20 methods | Extract into `app/domains/<concept>/service.py`. `auth_service.py` (59 awaits today) is the leading candidate. |
+| Cross-domain coupling | A service imports from > 3 other services | The implicit domain is now real. Make it explicit with a folder. |
+| Repo-per-table count | > 25 flat files in `repositories/` | Group by domain. |
+| Adding a 4th audience or new client | — | Reorganise before adding, not after. |
+
+When a trigger fires, the move is a `git mv`-heavy refactor with
+no logic change — same shape as the Phase A audience-folder move
+(commit `42b303e`). Don't combine the move with feature work in
+the same PR.
+
+### What NOT to use as a trigger
+
+- "It feels like the right time." (it doesn't — you're avoiding a real bug)
+- "We might split it into microservices someday." (we won't, see §1)
+- "Our team grew." (it probably hasn't — different problem)
+
+---
+
 *Next: read [tasks.md](tasks.md) for the phased implementation plan.*
