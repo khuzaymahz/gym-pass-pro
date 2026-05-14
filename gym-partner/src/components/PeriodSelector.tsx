@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 
 import { PERIOD_PRESETS, type PeriodPreset } from "@/lib/period";
 
@@ -12,6 +12,12 @@ import { PERIOD_PRESETS, type PeriodPreset } from "@/lib/period";
 /// back/forward navigation keep the partner's pick. The dashboard
 /// page is a server component that reads these params and forwards
 /// resolved (since, until) timestamps to the backend.
+///
+/// Click feedback uses optimistic state + useTransition so a tap on
+/// a chip flips the visible active chip *instantly*, then the server
+/// fetch runs in the background. Without this the chip stayed visually
+/// "old" for the ~300 ms server round-trip and the partner read the
+/// delay as "tap didn't register" → tapped again.
 
 export function PeriodSelector({
   current,
@@ -25,47 +31,66 @@ export function PeriodSelector({
   const t = useTranslations("dashboard.period");
   const router = useRouter();
   const params = useSearchParams();
+  const [pending, startTransition] = useTransition();
+  // Mirrors `current` but lets us paint a new selection BEFORE the
+  // server re-renders. React reverts this to the real `current` if
+  // the navigation gets cancelled / errors out.
+  const [optimisticPreset, setOptimisticPreset] = useOptimistic(current);
   // Local state for the date inputs in custom mode. Initialise from
   // URL so the inputs reflect what's currently active.
   const [customFrom, setCustomFrom] = useState<string>(from ?? "");
   const [customTo, setCustomTo] = useState<string>(to ?? "");
 
   function setPreset(next: PeriodPreset) {
-    const url = new URLSearchParams(params.toString());
-    if (next === "30d") {
-      // 30d is the default — drop the param to keep URLs clean
-      url.delete("period");
-    } else {
-      url.set("period", next);
-    }
-    if (next !== "custom") {
-      url.delete("from");
-      url.delete("to");
-    }
-    const qs = url.toString();
-    router.push(qs ? `/?${qs}` : "/");
+    if (next === optimisticPreset) return;
+    startTransition(() => {
+      // Optimistic flip + navigation inside one transition. React
+      // groups the two so the chip activates in the same paint
+      // tick that the navigation starts.
+      setOptimisticPreset(next);
+      const url = new URLSearchParams(params.toString());
+      if (next === "30d") {
+        url.delete("period");
+      } else {
+        url.set("period", next);
+      }
+      if (next !== "custom") {
+        url.delete("from");
+        url.delete("to");
+      }
+      const qs = url.toString();
+      router.push(qs ? `/?${qs}` : "/");
+    });
   }
 
   function applyCustom() {
     if (!customFrom || !customTo) return;
     if (customFrom > customTo) return;
-    const url = new URLSearchParams(params.toString());
-    url.set("period", "custom");
-    url.set("from", customFrom);
-    url.set("to", customTo);
-    router.push(`/?${url.toString()}`);
+    startTransition(() => {
+      setOptimisticPreset("custom");
+      const url = new URLSearchParams(params.toString());
+      url.set("period", "custom");
+      url.set("from", customFrom);
+      url.set("to", customTo);
+      router.push(`/?${url.toString()}`);
+    });
   }
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <div className="seg" role="radiogroup" aria-label={t("ariaLabel")}>
+      <div
+        className="seg"
+        role="radiogroup"
+        aria-label={t("ariaLabel")}
+        aria-busy={pending}
+      >
         {PERIOD_PRESETS.map((p) => (
           <button
             key={p}
             type="button"
             role="radio"
-            aria-checked={current === p}
-            className={current === p ? "is-active" : ""}
+            aria-checked={optimisticPreset === p}
+            className={optimisticPreset === p ? "is-active" : ""}
             onClick={() => setPreset(p)}
           >
             {t(p)}
@@ -73,7 +98,7 @@ export function PeriodSelector({
         ))}
       </div>
 
-      {current === "custom" ? (
+      {optimisticPreset === "custom" ? (
         <div className="flex items-end gap-2">
           <label className="field">
             <span className="field-label">{t("from")}</span>
@@ -100,7 +125,9 @@ export function PeriodSelector({
             type="button"
             className="btn-secondary btn-sm"
             onClick={applyCustom}
-            disabled={!customFrom || !customTo || customFrom > customTo}
+            disabled={
+              !customFrom || !customTo || customFrom > customTo || pending
+            }
           >
             {t("apply")}
           </button>
