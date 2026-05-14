@@ -5,13 +5,10 @@ import { LaneChart } from "@/components/dashboard/LaneChart";
 import { Panel } from "@/components/dashboard/Panel";
 import { RecencyDot } from "@/components/dashboard/RecencyDot";
 import { TierBreakdown } from "@/components/dashboard/TierBreakdown";
-import {
-  PERIOD_PRESETS,
-  PeriodSelector,
-  type PeriodPreset,
-} from "@/components/PeriodSelector";
+import { PeriodSelector } from "@/components/PeriodSelector";
 import { QuietFloor } from "@/components/QuietFloor";
 import { StatTile } from "@/components/StatTile";
+import { isPeriodPreset, type PeriodPreset } from "@/lib/period";
 import { PartnerSDK } from "@/lib/sdk";
 
 /// Resolve URL search params into a (since, until) window.
@@ -100,12 +97,7 @@ export default async function PartnerDashboardPage({
   const t = await getTranslations("dashboard");
   const tPeriod = await getTranslations("dashboard.period");
   const sp = await searchParams;
-  const rawPreset = sp.period;
-  const preset: PeriodPreset = PERIOD_PRESETS.includes(
-    rawPreset as PeriodPreset,
-  )
-    ? (rawPreset as PeriodPreset)
-    : "mtd";
+  const preset: PeriodPreset = isPeriodPreset(sp.period) ? sp.period : "mtd";
   const { since, until, preset: resolvedPreset } = resolvePeriodWindow(
     preset,
     sp.from,

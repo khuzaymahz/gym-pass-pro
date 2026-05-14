@@ -4,30 +4,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
+import { PERIOD_PRESETS, type PeriodPreset } from "@/lib/period";
+
 /// Period selector that drives all dashboard tiles, charts, and the
 /// recent-on-the-floor list. State is held in the URL as `?period=`
 /// (or `?from=YYYY-MM-DD&to=YYYY-MM-DD` for Custom), so refreshes and
 /// back/forward navigation keep the partner's pick. The dashboard
 /// page is a server component that reads these params and forwards
 /// resolved (since, until) timestamps to the backend.
-///
-/// Presets:
-///   - today    — today only, hour-level granularity in trend chart
-///   - week     — last 7 days
-///   - mtd      — start of current calendar month (default)
-///   - 30d      — last 30 days
-///   - 90d      — last 90 days
-///   - custom   — partner-picked from/to dates
-export type PeriodPreset = "today" | "week" | "mtd" | "30d" | "90d" | "custom";
-
-export const PERIOD_PRESETS: readonly PeriodPreset[] = [
-  "today",
-  "week",
-  "mtd",
-  "30d",
-  "90d",
-  "custom",
-];
 
 export function PeriodSelector({
   current,
