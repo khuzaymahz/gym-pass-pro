@@ -4,7 +4,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.enums import PayoutStatus
@@ -211,17 +211,52 @@ class PayoutRepository:
         return [(p, g) for p, g in rows], int(total)
 
     async def pending_total(self) -> Decimal:
-        stmt = select(func.coalesce(func.sum(Payout.total_amount_jod), 0)).where(
-            Payout.status == PayoutStatus.PENDING
+        """Money owed across all gyms but not yet paid.
+
+        Same logic as ``pending_total_for_gym`` (sum of ledger rows
+        that aren't tied to a paid Payout) but unscoped. Powers the
+        admin overview tile so it tracks reality, not just the
+        amount-already-bundled.
+        """
+        stmt = (
+            select(func.coalesce(func.sum(PayoutLedger.amount_jod), 0))
+            .select_from(PayoutLedger)
+            .outerjoin(Payout, PayoutLedger.payout_id == Payout.id)
+            .where(
+                or_(
+                    PayoutLedger.payout_id.is_(None),
+                    Payout.status == PayoutStatus.PENDING,
+                ),
+            )
         )
         return Decimal(str((await self.session.execute(stmt)).scalar_one()))
 
     async def pending_total_for_gym(self, gym_id: UUID) -> Decimal:
+        """Money the gym is owed but hasn't been paid yet.
+
+        Sourced from the ledger, not the payouts aggregation table:
+        a ledger row counts as "pending" if it is either NOT yet
+        bundled into a Payout (``payout_id IS NULL``) OR bundled
+        into a Payout that's still ``pending`` settlement. Only
+        rows linked to a ``paid`` Payout are excluded.
+
+        Previously this method summed the ``payouts`` table directly,
+        which returned 0 until an admin ran the monthly aggregator —
+        partners with real check-ins saw a 0 JOD widget despite
+        being owed money, because the ledger rows hadn't been
+        bundled yet. The widget label promises "what we owe you",
+        so the ledger is the right source of truth.
+        """
         stmt = (
-            select(func.coalesce(func.sum(Payout.total_amount_jod), 0))
+            select(func.coalesce(func.sum(PayoutLedger.amount_jod), 0))
+            .select_from(PayoutLedger)
+            .outerjoin(Payout, PayoutLedger.payout_id == Payout.id)
             .where(
-                Payout.gym_id == gym_id,
-                Payout.status == PayoutStatus.PENDING,
+                PayoutLedger.gym_id == gym_id,
+                or_(
+                    PayoutLedger.payout_id.is_(None),
+                    Payout.status == PayoutStatus.PENDING,
+                ),
             )
         )
         return Decimal(str((await self.session.execute(stmt)).scalar_one()))
