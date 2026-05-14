@@ -11,14 +11,15 @@ import { StatTile } from "@/components/StatTile";
 import { isPeriodPreset, type PeriodPreset } from "@/lib/period";
 import { PartnerSDK } from "@/lib/sdk";
 
-/// Resolve URL search params into a (since, until) window.
-/// `mtd` is the default (preserves the original dashboard view) and
-/// is also what the backend produces when no params are supplied.
+/// Resolve URL search params into a (since, until) window. `30d` is
+/// the default — generous enough to populate the trend chart, short
+/// enough that the numbers reflect recent activity rather than
+/// lifetime data.
 function resolvePeriodWindow(
   preset: PeriodPreset,
   fromParam: string | undefined,
   toParam: string | undefined,
-): { since: string | undefined; until: string | undefined; preset: PeriodPreset } {
+): { since: string; until: string; preset: PeriodPreset } {
   const now = new Date();
   const startOfToday = new Date(now);
   startOfToday.setUTCHours(0, 0, 0, 0);
@@ -33,11 +34,6 @@ function resolvePeriodWindow(
   if (preset === "week") {
     const since = new Date(startOfToday);
     since.setUTCDate(since.getUTCDate() - 6);
-    return { since: since.toISOString(), until: now.toISOString(), preset };
-  }
-  if (preset === "30d") {
-    const since = new Date(startOfToday);
-    since.setUTCDate(since.getUTCDate() - 29);
     return { since: since.toISOString(), until: now.toISOString(), preset };
   }
   if (preset === "90d") {
@@ -59,9 +55,10 @@ function resolvePeriodWindow(
       return { since: since.toISOString(), until: until.toISOString(), preset };
     }
   }
-  // Default — mtd. Omit the params so the backend's own default
-  // (start-of-month) is what answers.
-  return { since: undefined, until: undefined, preset: "mtd" };
+  // Fall-through default: 30d.
+  const since = new Date(startOfToday);
+  since.setUTCDate(since.getUTCDate() - 29);
+  return { since: since.toISOString(), until: now.toISOString(), preset: "30d" };
 }
 
 function formatJod(value: string | number, opts?: { compact?: boolean }) {
@@ -97,7 +94,7 @@ export default async function PartnerDashboardPage({
   const t = await getTranslations("dashboard");
   const tPeriod = await getTranslations("dashboard.period");
   const sp = await searchParams;
-  const preset: PeriodPreset = isPeriodPreset(sp.period) ? sp.period : "mtd";
+  const preset: PeriodPreset = isPeriodPreset(sp.period) ? sp.period : "30d";
   const { since, until, preset: resolvedPreset } = resolvePeriodWindow(
     preset,
     sp.from,

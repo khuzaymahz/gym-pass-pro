@@ -6,12 +6,11 @@
 /// directly gets a proxy reference that fails `.includes(...)` at
 /// runtime.
 
-export type PeriodPreset = "today" | "week" | "mtd" | "30d" | "90d" | "custom";
+export type PeriodPreset = "today" | "week" | "30d" | "90d" | "custom";
 
 export const PERIOD_PRESETS: readonly PeriodPreset[] = [
   "today",
   "week",
-  "mtd",
   "30d",
   "90d",
   "custom",
@@ -21,7 +20,6 @@ export function isPeriodPreset(value: string | undefined): value is PeriodPreset
   return (
     value === "today" ||
     value === "week" ||
-    value === "mtd" ||
     value === "30d" ||
     value === "90d" ||
     value === "custom"

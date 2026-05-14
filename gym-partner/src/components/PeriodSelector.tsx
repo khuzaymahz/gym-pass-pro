@@ -32,8 +32,8 @@ export function PeriodSelector({
 
   function setPreset(next: PeriodPreset) {
     const url = new URLSearchParams(params.toString());
-    if (next === "mtd") {
-      // mtd is the default — drop the param to keep URLs clean
+    if (next === "30d") {
+      // 30d is the default — drop the param to keep URLs clean
       url.delete("period");
     } else {
       url.set("period", next);
