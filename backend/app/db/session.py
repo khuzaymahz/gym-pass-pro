@@ -31,6 +31,19 @@ def _session_factory() -> async_sessionmaker[AsyncSession]:
     )
 
 
+def session_factory() -> async_sessionmaker[AsyncSession]:
+    """Public accessor for the cached session factory.
+
+    Most callers should depend on the FastAPI-managed `db_session` —
+    one session per request, automatic rollback on error. The factory
+    is for read-side parallelism cases where a service wants to run
+    several independent queries via `asyncio.gather`: each task takes
+    its own session from the factory, since `AsyncSession` is not
+    safe for concurrent use within one session.
+    """
+    return _session_factory()
+
+
 async def get_session() -> AsyncIterator[AsyncSession]:
     factory = _session_factory()
     async with factory() as session:

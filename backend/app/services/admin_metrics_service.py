@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.db.enums import Role
 from app.repositories.checkin_repo import CheckinRepository
@@ -19,32 +20,24 @@ from app.repositories.user_repo import UserRepository
 
 
 class AdminMetricsService:
-    """Dashboard aggregates. Everything here is a cheap point-in-time read
-    against indexed columns; we deliberately skip caching so admins always
-    see current state.
+    """Dashboard aggregates for the admin home page.
+
+    All reads are point-in-time and independent — they parallelize
+    cleanly via `asyncio.gather`. Each task takes its own session
+    from the factory because `AsyncSession` is not safe for
+    concurrent use within a single session. The shared `session` is
+    kept just for the connectivity probe in `_system_health`.
     """
 
     def __init__(
         self,
         session: AsyncSession,
-        users: UserRepository,
-        subs: SubscriptionRepository,
-        checkins: CheckinRepository,
-        payouts: PayoutRepository,
-        tickets: SupportTicketRepository,
-        gyms: GymRepository,
-        payments: PaymentRepository,
         redis: Redis,
+        session_factory: async_sessionmaker[AsyncSession],
     ) -> None:
         self.session = session
-        self.users = users
-        self.subs = subs
-        self.checkins = checkins
-        self.payouts = payouts
-        self.tickets = tickets
-        self.gyms = gyms
-        self.payments = payments
         self.redis = redis
+        self._factory = session_factory
 
     async def overview(self) -> dict[str, Any]:
         now = datetime.now(UTC)
@@ -54,38 +47,149 @@ class AdminMetricsService:
         seven_days_ahead = now + timedelta(days=7)
         prev_month_start = (start_of_month - timedelta(days=1)).replace(day=1)
 
-        member_count = await self.users.count_by_role(Role.MEMBER)
-        admin_count = await self.users.count_by_role(Role.ADMIN)
+        async def _members():
+            async with self._factory() as s:
+                return await UserRepository(s).count_by_role(Role.MEMBER)
 
-        gym_count = await self.gyms.count_active()
+        async def _admins():
+            async with self._factory() as s:
+                return await UserRepository(s).count_by_role(Role.ADMIN)
 
-        active_subs = await self.subs.count_active()
-        checkins_today = await self.checkins.count_since(start_of_today)
-        checkins_mtd = await self.checkins.count_since(start_of_month)
+        async def _gyms():
+            async with self._factory() as s:
+                return await GymRepository(s).count_active()
 
-        revenue_mtd = await self.payments.sum_succeeded_in_window(
-            start_of_month, None
+        async def _active_subs():
+            async with self._factory() as s:
+                return await SubscriptionRepository(s).count_active()
+
+        async def _checkins_today():
+            async with self._factory() as s:
+                return await CheckinRepository(s).count_since(start_of_today)
+
+        async def _checkins_mtd():
+            async with self._factory() as s:
+                return await CheckinRepository(s).count_since(start_of_month)
+
+        async def _revenue_mtd():
+            async with self._factory() as s:
+                return await PaymentRepository(s).sum_succeeded_in_window(
+                    start_of_month, None
+                )
+
+        async def _revenue_prev():
+            async with self._factory() as s:
+                return await PaymentRepository(s).sum_succeeded_in_window(
+                    prev_month_start, start_of_month
+                )
+
+        async def _pending_payout():
+            async with self._factory() as s:
+                return await PayoutRepository(s).pending_total()
+
+        async def _tier_counts():
+            async with self._factory() as s:
+                return await SubscriptionRepository(s).counts_by_tier()
+
+        async def _last7():
+            async with self._factory() as s:
+                return await CheckinRepository(s).count_per_day_last(
+                    days=7, now=now
+                )
+
+        async def _checkins_30():
+            async with self._factory() as s:
+                return await CheckinRepository(s).count_per_day_since(
+                    thirty_days_ago
+                )
+
+        async def _revenue_30():
+            async with self._factory() as s:
+                return await PaymentRepository(s).succeeded_per_day_since(
+                    thirty_days_ago
+                )
+
+        async def _signups_30():
+            async with self._factory() as s:
+                return await UserRepository(s).signups_per_day_since(
+                    thirty_days_ago
+                )
+
+        async def _top_gyms():
+            async with self._factory() as s:
+                return await GymRepository(s).top_by_checkins_since(
+                    start_of_month, limit=5
+                )
+
+        async def _recent_signups():
+            async with self._factory() as s:
+                return await UserRepository(s).recent_members(limit=8)
+
+        async def _recent_checkins():
+            async with self._factory() as s:
+                return await CheckinRepository(s).recent_with_user_and_gym(
+                    limit=8
+                )
+
+        async def _expiring():
+            async with self._factory() as s:
+                return await SubscriptionRepository(s).count_expiring_between(
+                    after=now, before=seven_days_ahead
+                )
+
+        async def _open_tickets():
+            async with self._factory() as s:
+                return await SupportTicketRepository(s).count_open()
+
+        async def _urgent_tickets():
+            async with self._factory() as s:
+                return await SupportTicketRepository(s).count_urgent_open()
+
+        (
+            member_count,
+            admin_count,
+            gym_count,
+            active_subs,
+            checkins_today,
+            checkins_mtd,
+            revenue_mtd,
+            revenue_prev_month,
+            pending_payout_total,
+            tier_counts,
+            last7,
+            checkins_30,
+            revenue_30,
+            signups_30,
+            top_gyms,
+            recent_signups,
+            recent_checkins,
+            expiring,
+            open_tickets,
+            urgent_tickets,
+            health,
+        ) = await asyncio.gather(
+            _members(),
+            _admins(),
+            _gyms(),
+            _active_subs(),
+            _checkins_today(),
+            _checkins_mtd(),
+            _revenue_mtd(),
+            _revenue_prev(),
+            _pending_payout(),
+            _tier_counts(),
+            _last7(),
+            _checkins_30(),
+            _revenue_30(),
+            _signups_30(),
+            _top_gyms(),
+            _recent_signups(),
+            _recent_checkins(),
+            _expiring(),
+            _open_tickets(),
+            _urgent_tickets(),
+            self._system_health(),
         )
-        revenue_prev_month = await self.payments.sum_succeeded_in_window(
-            prev_month_start, start_of_month
-        )
-
-        pending_payout_total = await self.payouts.pending_total()
-        tier_counts = await self.subs.counts_by_tier()
-        last7 = await self.checkins.count_per_day_last(days=7, now=now)
-        checkins_30 = await self.checkins.count_per_day_since(thirty_days_ago)
-        revenue_30 = await self.payments.succeeded_per_day_since(thirty_days_ago)
-        signups_30 = await self.users.signups_per_day_since(thirty_days_ago)
-
-        top_gyms = await self.gyms.top_by_checkins_since(start_of_month, limit=5)
-        recent_signups = await self.users.recent_members(limit=8)
-        recent_checkins = await self.checkins.recent_with_user_and_gym(limit=8)
-        expiring = await self.subs.count_expiring_between(
-            after=now, before=seven_days_ahead
-        )
-
-        open_tickets = await self.tickets.count_open()
-        urgent_tickets = await self.tickets.count_urgent_open()
 
         return {
             "memberCount": member_count,
@@ -116,14 +220,13 @@ class AdminMetricsService:
             "topGymsByCheckins": top_gyms,
             "recentSignups": recent_signups,
             "recentCheckins": recent_checkins,
-            "systemHealth": await self._system_health(),
+            "systemHealth": health,
         }
 
     async def _system_health(self) -> dict[str, str]:
-        # System health probe still goes through the raw session because
-        # it's not a domain query — `select(1)` against the configured
-        # engine is exactly the connectivity check we want, and a repo
-        # method here would be ceremony for ceremony's sake.
+        # Probes use the shared session — connectivity check, not
+        # a domain query. Spinning up a fresh session here would
+        # waste a pool slot just to do `SELECT 1`.
         db_ok = "ok"
         redis_ok = "ok"
         try:

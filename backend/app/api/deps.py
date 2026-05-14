@@ -254,19 +254,12 @@ def admin_user_service(
     return AdminUserService(users, audit)
 
 
-def admin_user_detail_service(
-    session: SessionDep,
-    users: Annotated[UserRepository, Depends(user_repo)],
-    subs: Annotated[SubscriptionRepository, Depends(subscription_repo)],
-    payments: Annotated[PaymentRepository, Depends(payment_repo)],
-    checkins: Annotated[CheckinRepository, Depends(checkin_repo)],
-    tickets: Annotated[SupportTicketRepository, Depends(support_ticket_repo)],
-    referrals: Annotated[ReferralRepository, Depends(referral_repo)],
-    ref_svc: Annotated[ReferralService, Depends(referral_service)],
-) -> AdminUserDetailService:
-    return AdminUserDetailService(
-        session, users, subs, payments, checkins, tickets, referrals, ref_svc
-    )
+def admin_user_detail_service() -> AdminUserDetailService:
+    # Pure read aggregator — uses the cached session factory directly
+    # for parallel queries. No per-request shared session needed.
+    from app.db.session import session_factory
+
+    return AdminUserDetailService(session_factory())
 
 
 def admin_plan_service(
@@ -294,18 +287,13 @@ def admin_payout_service(
 
 def admin_metrics_service(
     session: SessionDep,
-    users: Annotated[UserRepository, Depends(user_repo)],
-    subs: Annotated[SubscriptionRepository, Depends(subscription_repo)],
-    checkins: Annotated[CheckinRepository, Depends(checkin_repo)],
-    payouts: Annotated[PayoutRepository, Depends(payout_agg_repo)],
-    tickets: Annotated[SupportTicketRepository, Depends(support_ticket_repo)],
-    gyms: Annotated[GymRepository, Depends(gym_repo)],
-    payments: Annotated[PaymentRepository, Depends(payment_repo)],
     redis: Annotated[Redis, Depends(redis_client)],
 ) -> AdminMetricsService:
-    return AdminMetricsService(
-        session, users, subs, checkins, payouts, tickets, gyms, payments, redis
-    )
+    # Shared session is kept only for the system-health probe;
+    # every domain query runs on a fresh session for parallelism.
+    from app.db.session import session_factory
+
+    return AdminMetricsService(session, redis, session_factory())
 
 
 def admin_broadcast_service(
@@ -323,12 +311,13 @@ def support_ticket_service(
     return SupportTicketService(repo, audit)
 
 
-def partner_metrics_service(
-    checkins: Annotated[CheckinRepository, Depends(checkin_repo)],
-    ledger: Annotated[PayoutLedgerRepository, Depends(payout_repo)],
-    payouts: Annotated[PayoutRepository, Depends(payout_agg_repo)],
-) -> PartnerMetricsService:
-    return PartnerMetricsService(checkins, ledger, payouts)
+def partner_metrics_service() -> PartnerMetricsService:
+    # Takes the cached factory directly (no per-request shared
+    # session) because each metric query opens its own session for
+    # parallel execution. See PartnerMetricsService.overview.
+    from app.db.session import session_factory
+
+    return PartnerMetricsService(session_factory())
 
 
 def admin_partner_service(

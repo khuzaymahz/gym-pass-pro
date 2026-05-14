@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.exceptions import AppError, ErrorCode
 from app.db.enums import (
@@ -22,7 +23,6 @@ from app.db.models import (
     Payment,
     Plan,
     Referral,
-    Subscription,
     SupportTicket,
     User,
 )
@@ -32,19 +32,18 @@ from app.repositories.referral_repo import ReferralRepository
 from app.repositories.subscription_repo import SubscriptionRepository
 from app.repositories.support_ticket_repo import SupportTicketRepository
 from app.repositories.user_repo import UserRepository
-from app.services.referral_service import ReferralService
 
 
 @dataclass(frozen=True)
 class SubscriptionHistoryItem:
-    subscription: Subscription
+    subscription: "Subscription"  # noqa: F821 — type referenced below
     plan: Plan | None
 
 
 @dataclass(frozen=True)
 class PaymentHistoryItem:
     payment: Payment
-    subscription: Subscription | None
+    subscription: "Subscription" | None  # noqa: F821
 
 
 @dataclass(frozen=True)
@@ -69,63 +68,107 @@ class UserDetail:
     last_active_at: datetime | None
 
 
-class AdminUserDetailService:
-    """Read-only aggregation of everything the admin detail page needs.
+# Avoid a real import for the dataclass field annotation above.
+from app.db.models import Subscription  # noqa: E402
 
-    Assembles the user profile, tier history (all subscriptions with plan
-    details), payment methods + receipts, support tickets, recent check-ins,
-    and referral code/conversion stats. One round-trip per concern so we
-    don't leak unbounded data.
+
+class AdminUserDetailService:
+    """Read-only aggregation for the admin user-detail page.
+
+    Reads run in parallel via `asyncio.gather`, each in its own
+    session because `AsyncSession` is not safe for concurrent use.
+
+    Referral-code backfill (the one write this used to do mid-read)
+    has been moved into its own committed session — previously it
+    flushed on the request's shared session but no commit followed
+    (GET endpoints don't commit), so the code was effectively
+    rolled back at request end.
     """
 
     def __init__(
         self,
-        session: AsyncSession,
-        users: UserRepository,
-        subs: SubscriptionRepository,
-        payments: PaymentRepository,
-        checkins: CheckinRepository,
-        tickets: SupportTicketRepository,
-        referrals: ReferralRepository,
-        referral_svc: ReferralService,
+        session_factory: async_sessionmaker[AsyncSession],
     ) -> None:
-        self.session = session
-        self.users = users
-        self.subs = subs
-        self.payments = payments
-        self.checkins = checkins
-        self.tickets = tickets
-        self.referrals = referrals
-        self.referral_svc = referral_svc
+        self._factory = session_factory
 
     async def get(self, user_id: UUID) -> UserDetail:
-        user = await self.users.get(user_id)
+        # Step 1: load the user. Everything else depends on this row
+        # (or its FK to invited_by), so we can't parallelize the
+        # very first read.
+        async with self._factory() as s:
+            user = await UserRepository(s).get(user_id)
         if user is None:
             raise AppError(ErrorCode.NOT_FOUND, "User not found.")
 
-        invited_by: User | None = None
-        if user.invited_by_user_id is not None:
-            invited_by = await self.users.get(user.invited_by_user_id)
+        # Step 2: backfill referral_code if missing. Its own session
+        # + explicit commit so the value persists; previously this
+        # write rode on the shared GET request session which never
+        # committed.
+        referral_code = await self._ensure_referral_code(user)
 
-        sub_rows = await self.subs.history_for_user(user.id)
+        # Step 3: every other read is independent — fire them all
+        # in parallel.
+        async def _invited_by():
+            if user.invited_by_user_id is None:
+                return None
+            async with self._factory() as s:
+                return await UserRepository(s).get(user.invited_by_user_id)
+
+        async def _sub_history():
+            async with self._factory() as s:
+                return await SubscriptionRepository(s).history_for_user(user.id)
+
+        async def _payment_history():
+            async with self._factory() as s:
+                return await PaymentRepository(s).history_for_user(
+                    user.id, limit=100
+                )
+
+        async def _tickets():
+            async with self._factory() as s:
+                return await SupportTicketRepository(s).history_for_user(
+                    user.id, limit=50
+                )
+
+        async def _recent_checkins():
+            async with self._factory() as s:
+                return await CheckinRepository(s).history_for_user(
+                    user.id, limit=25
+                )
+
+        async def _referrals_list():
+            async with self._factory() as s:
+                return await ReferralRepository(s).list_for_referrer(user.id)
+
+        async def _referral_counts():
+            async with self._factory() as s:
+                return await ReferralRepository(s).counts_for_referrer(user.id)
+
+        (
+            invited_by,
+            sub_rows,
+            payment_rows,
+            tickets,
+            recent_checkins,
+            referral_rows,
+            referral_counts,
+        ) = await asyncio.gather(
+            _invited_by(),
+            _sub_history(),
+            _payment_history(),
+            _tickets(),
+            _recent_checkins(),
+            _referrals_list(),
+            _referral_counts(),
+        )
+
         subscription_history = [
             SubscriptionHistoryItem(subscription=s, plan=p) for s, p in sub_rows
         ]
-
-        payment_rows = await self.payments.history_for_user(user.id, limit=100)
         payment_history = [
             PaymentHistoryItem(payment=p, subscription=s) for p, s in payment_rows
         ]
-
-        tickets = await self.tickets.history_for_user(user.id, limit=50)
-        recent_checkins = await self.checkins.history_for_user(user.id, limit=25)
-
-        # Referral: ensure code exists (for older members, backfilled via
-        # migration, but defensive in case of manual inserts).
-        code = await self.referral_svc.ensure_code_for_user(user)
-        referral_rows = await self.referrals.list_for_referrer(user.id)
         referrals = [ReferralItem(referral=r, invited=u) for r, u in referral_rows]
-        referral_counts = await self.referrals.counts_for_referrer(user.id)
 
         payment_method_summary = _summarize_payment_methods(payment_history)
         totals = _compute_totals(
@@ -139,13 +182,43 @@ class AdminUserDetailService:
             payment_history=payment_history,
             tickets=tickets,
             recent_checkins=recent_checkins,
-            referral_code=code,
+            referral_code=referral_code,
             referrals=referrals,
             referral_counts=referral_counts,
             payment_method_summary=payment_method_summary,
             totals=totals,
             last_active_at=user.last_active_at,
         )
+
+    async def _ensure_referral_code(self, user: User) -> str:
+        """Defensive backfill — most users have a code from signup;
+        legacy rows or migrated data may not. Runs in its own
+        session with an explicit commit so the value actually
+        persists, instead of riding on a shared GET-request session
+        that never commits.
+        """
+        if user.referral_code:
+            return user.referral_code
+        # Re-fetch + re-check inside the write session so we don't
+        # blindly overwrite a code another request wrote in the gap
+        # between the initial GET and this backfill.
+        async with self._factory() as s:
+            fresh = await UserRepository(s).get(user.id)
+            if fresh is None or fresh.referral_code:
+                return fresh.referral_code if fresh else ""
+            from app.services.referral_service import ReferralService
+            from app.repositories.referral_repo import ReferralRepository as _RR
+            from app.services.audit_service import AuditService
+            from app.repositories.audit_repo import AuditRepository
+
+            ref_svc = ReferralService(
+                users=UserRepository(s),
+                referrals=_RR(s),
+                audit=AuditService(AuditRepository(s)),
+            )
+            code = await ref_svc.ensure_code_for_user(fresh)
+            await s.commit()
+            return code
 
 
 def _summarize_payment_methods(
