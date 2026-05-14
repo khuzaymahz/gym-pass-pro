@@ -3,23 +3,22 @@
 import { useEffect, useRef, useState } from "react";
 
 const DURATION_MS = 600;
-// cubic ease-out — settles a hair under 1.0 so the final frame
-// snaps to the precise number rather than asymptotically approaching it.
+
 function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3);
 }
 
 /**
- * Tween a number from 0 → `value` over ~600ms on mount. The
- * displayed number tracks the partner's prefers-reduced-motion
- * setting: when set, the count-up is skipped and the final value
- * is shown immediately — animations are decorative here, not
- * meaning-bearing.
+ * Tween a number toward `value` over ~600ms whenever `value` changes
+ * post-mount. The **first** render emits `value` directly — both on
+ * the server (SSR) and on the client's first paint — so the
+ * hydration tree matches. Without that, the previous implementation
+ * SSR'd the final value and then ran a `0 → value` tween from the
+ * client's first frame, producing a React hydration mismatch error.
  *
- * The tween is render-driven (re-render per RAF tick), which is
- * fine at the volume on the dashboard (≤ 8 stat cards) but should
- * not be reused in tight lists. For chart axes / row counts, render
- * the static value directly.
+ * Subsequent value updates (poll-driven dashboard refreshes) animate
+ * from the previous displayed value to the new one. Reduced-motion
+ * users get the snap-to-final behaviour throughout.
  */
 export function CountUp({
   value,
@@ -27,38 +26,33 @@ export function CountUp({
   className,
 }: {
   value: number;
-  /** Optional formatter so the same component can render integers,
-   *  decimals, currency, etc. without internal switches. */
   format?: (n: number) => string;
   className?: string;
 }) {
-  const [display, setDisplay] = useState<number>(() => {
-    if (typeof window === "undefined") return value;
-    if (
-      window.matchMedia &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    ) {
-      return value;
-    }
-    return 0;
-  });
-  // Track the current target so a value change mid-tween doesn't
-  // race the previous animation. Using a ref instead of state
-  // avoids re-running the effect on every re-render.
+  const [display, setDisplay] = useState<number>(value);
   const targetRef = useRef<number>(value);
+  const mountedRef = useRef<boolean>(false);
 
   useEffect(() => {
+    const previousTarget = targetRef.current;
     targetRef.current = value;
-    if (
+
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      return;
+    }
+
+    const reducedMotion =
       typeof window !== "undefined" &&
       window.matchMedia &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    ) {
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reducedMotion) {
       setDisplay(value);
       return;
     }
+
     const start = performance.now();
-    const from = 0;
+    const from = previousTarget;
     let raf = 0;
     const tick = (now: number) => {
       const elapsed = now - start;
@@ -72,8 +66,6 @@ export function CountUp({
     return () => cancelAnimationFrame(raf);
   }, [value]);
 
-  // Round during the tween so the eye doesn't see fractional decimals
-  // ticking up — hand the rounded number to the formatter unchanged.
   return (
     <span className={className} aria-label={format(value)}>
       {format(Math.round(display))}
