@@ -26,8 +26,13 @@ class Settings(BaseSettings):
     postgres_db: str = "gympass"
     postgres_host: str = "db"
     postgres_port: int = 5432
-    db_pool_size: int = 10
-    db_max_overflow: int = 20
+    # Pool sized for the parallel-read dashboard services: a single
+    # admin overview request can briefly take ~21 connections in
+    # gather; two concurrent admins would otherwise exhaust the
+    # pool. 20 + 40 = 60 concurrent connections supports several
+    # dashboard tabs + member traffic comfortably.
+    db_pool_size: int = 20
+    db_max_overflow: int = 40
 
     # Redis
     redis_url: RedisDsn = Field(default="redis://redis:6379/0")  # type: ignore[arg-type]
