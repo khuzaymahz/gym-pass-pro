@@ -34,6 +34,15 @@ services:
     # gunicorn with uvicorn workers — 4 is right for the small pre-prod
     # VM. Tune up only after observing CPU sat under load.
     command: ["uv", "run", "gunicorn", "app.main:app", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000", "-w", "4", "--access-logfile", "-"]
+    # `env_file` in the base compose targets `.env` (dev). On prod the
+    # secrets file is `.env.prod`. Compose merges the lists, so we
+    # listing it here means both are read at runtime — but since the
+    # dev `.env` doesn't exist on the VM, only the prod one is
+    # actually loaded. Setting `env_file: !reset` and re-declaring
+    # would be more surgical but Compose v2's `!reset` doesn't apply
+    # cleanly to list-shaped fields.
+    env_file:
+      - .env.prod
     volumes:
       - media_data:/app/media
     ports: !reset []
@@ -42,10 +51,14 @@ services:
 
   celery-worker:
     restart: always
+    env_file:
+      - .env.prod
     volumes: !reset []
 
   celery-beat:
     restart: always
+    env_file:
+      - .env.prod
     volumes: !reset []
 
   admin:
@@ -60,6 +73,8 @@ services:
         NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
         ADMIN_EXCHANGE_SECRET: ${ADMIN_EXCHANGE_SECRET}
     restart: always
+    env_file:
+      - .env.prod
     volumes: !reset []
     ports: !reset []
     environment:
@@ -76,6 +91,8 @@ services:
         NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
         ADMIN_EXCHANGE_SECRET: ${ADMIN_EXCHANGE_SECRET}
     restart: always
+    env_file:
+      - .env.prod
     volumes: !reset []
     ports: !reset []
     environment:
