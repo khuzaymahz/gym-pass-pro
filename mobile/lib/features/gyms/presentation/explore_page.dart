@@ -617,6 +617,18 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
       unawaited(_animateCameraTo(LatLng(gym.lat!, gym.lng!), zoom: 15));
     }
     setState(() => _selectedGym = gym);
+    // Collapse the bottom sheet so the SelectedGymCard isn't fighting
+    // for screen space with the gym-list's top row. Without this the
+    // sheet stays at whatever expansion the member left it at and a
+    // stray list row visibly stacks under the floating card — exactly
+    // the "what is this!?" overlap the user reported.
+    if (_sheetCtrl.isAttached && _sheetCtrl.size > exploreSheetMin + 0.02) {
+      _sheetCtrl.animateTo(
+        exploreSheetMin,
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeOutCubic,
+      );
+    }
   }
 
   /// List-row tap handler — same affordance as a pin tap (camera
