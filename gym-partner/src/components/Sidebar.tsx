@@ -66,6 +66,7 @@ export function Sidebar({
 }) {
   const t = useTranslations("nav");
   const tApp = useTranslations("app");
+  const tLegal = useTranslations("legal");
   const pathname = usePathname();
   const resolvedLogo = resolveMediaUrl(logoUrl);
   const initials = makeInitials(gymName);
@@ -145,6 +146,21 @@ export function Sidebar({
         >
           {tApp("signOut")}
         </button>
+        <div className="flex items-center gap-2 px-2 pt-1 text-[11px] text-muted">
+          <Link
+            href="/legal/terms"
+            className="hover:text-paper transition-colors"
+          >
+            {tLegal("navTerms")}
+          </Link>
+          <span className="text-line">·</span>
+          <Link
+            href="/legal/privacy"
+            className="hover:text-paper transition-colors"
+          >
+            {tLegal("navPrivacy")}
+          </Link>
+        </div>
       </div>
     </aside>
   );

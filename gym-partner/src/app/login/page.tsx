@@ -1,6 +1,7 @@
 "use client";
 
 import { signIn } from "next-auth/react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Suspense, useState } from "react";
@@ -212,6 +213,23 @@ export default function LoginPage() {
           </Suspense>
         </div>
         <p className="mt-3 text-[11px] text-muted">{t("footer")}</p>
+        <p className="mt-2 text-[11px] leading-relaxed text-muted">
+          {t("consentPrefix")}{" "}
+          <Link
+            href="/legal/terms"
+            className="text-paper underline decoration-line/60 underline-offset-2 hover:text-accent"
+          >
+            {t("consentLinkTerms")}
+          </Link>{" "}
+          {t("consentAnd")}{" "}
+          <Link
+            href="/legal/privacy"
+            className="text-paper underline decoration-line/60 underline-offset-2 hover:text-accent"
+          >
+            {t("consentLinkPrivacy")}
+          </Link>
+          .
+        </p>
       </div>
     </main>
   );
