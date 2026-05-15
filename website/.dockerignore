@@ -1,0 +1,15 @@
+node_modules
+.next
+.git
+.gitignore
+README.md
+Dockerfile
+.dockerignore
+*.log
+.env*
+# NOTE: do NOT exclude public/downloads/*.apk here — the APK file is
+# the whole point of the website container's `/downloads/` path.
+# `scripts/build-apk.sh` writes it into public/downloads/ before
+# `docker compose build`, so the docker context needs to be able to
+# see it. The APK is excluded from git (top-level .gitignore) but
+# included in the build context.

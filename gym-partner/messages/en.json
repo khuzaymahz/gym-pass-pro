@@ -23,6 +23,7 @@
   },
   "nav": {
     "dashboard": "Dashboard",
+    "qr": "QR",
     "profile": "Profile",
     "photos": "Photos",
     "checkins": "Check-ins",
@@ -252,5 +253,26 @@
     "pending": "Pending",
     "paid": "Paid",
     "noPayouts": "No payouts issued yet."
+  },
+  "qr": {
+    "title": "Gym QR",
+    "subtitle": "Print this once. Tape it at your entrance. Members scan it from the app to check in.",
+    "scanTarget": "Scan target",
+    "explainer": "The QR encodes a gym-pass.net link to your gym. Members with the app scan it from inside the app to check in; anyone else who scans it with a regular camera is taken to our website. Every check-in is verified server-side — tier, monthly allowance, replay protection — so a duplicate print can't unlock extra visits and a screenshot can't be forwarded.",
+    "brandPreview": "On-screen preview · brand colours",
+    "previewAria": "QR check-in code for {gymName}",
+    "loading": "Generating QR…",
+    "preparing": "Preparing…",
+    "downloadPng": "Download PNG",
+    "downloadSvg": "Download SVG",
+    "openPrint": "Open print view",
+    "copyPayload": "Copy QR payload",
+    "copied": "Copied ✓",
+    "hangingTips": "Where to put it",
+    "tipEyeLevel": "Eye-level near the door — members shouldn't have to crouch or stretch.",
+    "tipLamination": "Laminate or sleeve it before mounting. Tape glare blinds the camera.",
+    "tipFlatSurface": "Flat, matte surface. Curved or glossy mounts cause focus hunting.",
+    "tipNoReprint": "This QR is permanent. Re-printing the same file gives you an identical, valid copy — no need to ask us to regenerate.",
+    "printTagline": "Scan to check in with GymPass"
   }
 }
