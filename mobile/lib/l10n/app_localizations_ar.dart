@@ -339,6 +339,10 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get gymOpen247 => 'مفتوح 24/7';
   @override
+  String get audienceFemaleOnly => 'للسيدات فقط';
+  @override
+  String get audienceMaleOnly => 'للرجال فقط';
+  @override
   String gymKmAway(String km) => '$km كم';
   @override
   String get gymAbout => 'نبذة';

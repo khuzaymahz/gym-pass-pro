@@ -340,6 +340,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get gymOpen247 => 'OPEN 24/7';
   @override
+  String get audienceFemaleOnly => 'Women only';
+  @override
+  String get audienceMaleOnly => 'Men only';
+  @override
   String gymKmAway(String km) => '$km KM';
   @override
   String get gymAbout => 'About';

@@ -162,6 +162,8 @@
   "gymsEmpty": "لا توجد نتائج مطابقة",
   "gymsEmptyFavorites": "لم تحفظ أي نادٍ بعد — اضغط القلب على بطاقة النادي ليظهر هنا.",
   "gymOpen247": "مفتوح 24/7",
+  "audienceFemaleOnly": "للسيدات فقط",
+  "audienceMaleOnly": "للرجال فقط",
   "gymKmAway": "{km} كم",
   "@gymKmAway": {"placeholders": {"km": {"type": "String"}}},
   "gymAbout": "نبذة",

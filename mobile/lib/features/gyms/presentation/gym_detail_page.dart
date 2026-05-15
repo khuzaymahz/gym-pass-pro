@@ -317,6 +317,19 @@ class GymDetailPage extends ConsumerWidget {
                         const SizedBox(height: 14),
                         Text(gym.name.toUpperCase(),
                             style: GPText.display(34, color: gp.fg, height: 0.9),),
+                        // Audience badge — surfaces "Women only" /
+                        // "Men only" for single-sex venues so a
+                        // member who lands on the page from a deep
+                        // link / share sees the policy before they
+                        // try to scan in. Mixed gyms render no badge
+                        // (open-to-everyone is the implicit default).
+                        if (gymSummary?.audienceGender == 'female_only' ||
+                            gymSummary?.audienceGender == 'male_only') ...[
+                          const SizedBox(height: 8),
+                          _AudienceBadge(
+                            audience: gymSummary!.audienceGender!,
+                          ),
+                        ],
                         const SizedBox(height: 14),
                         Row(
                           children: [
@@ -703,7 +716,51 @@ String _resolvePhotoUrl(String mediaBase, String url) {
 /// Riverpod providers each time the server pushes a matching event.
 /// Result: a partner saving a profile / logo / photo change is
 /// reflected on this page within a frame, no pull-to-refresh needed.
-///
+/// Single-sex audience badge — shown above the gym name when the
+/// venue is `female_only` or `male_only`. Same colour language as
+/// the admin pill: pink for women-only, blue for men-only. No badge
+/// for mixed (the open-to-everyone default).
+class _AudienceBadge extends StatelessWidget {
+  const _AudienceBadge({required this.audience});
+
+  final String audience;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final isFemale = audience == 'female_only';
+    final color = isFemale
+        ? const Color(0xFFEC4899)
+        : const Color(0xFF60A5FA);
+    final label = isFemale ? l.audienceFemaleOnly : l.audienceMaleOnly;
+    final icon = isFemale ? Icons.female : Icons.male;
+    return Container(
+      padding: const EdgeInsetsDirectional.fromSTEB(8, 4, 10, 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(GPRadius.pill),
+        border: Border.all(color: color.withValues(alpha: 0.45)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Text(
+            label.toUpperCase(),
+            style: GPText.mono(
+              size: 10,
+              letterSpacing: 1.2,
+              color: color,
+              weight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Stays a thin wrapper rather than refactoring the whole detail
 /// page to ConsumerStatefulWidget — minimal blast radius, the
 /// build tree above is unchanged.

@@ -162,6 +162,8 @@
   "gymsEmpty": "No matching gyms",
   "gymsEmptyFavorites": "No favorites yet — tap the heart on any club to save it here.",
   "gymOpen247": "OPEN 24/7",
+  "audienceFemaleOnly": "Women only",
+  "audienceMaleOnly": "Men only",
   "gymKmAway": "{km} KM",
   "@gymKmAway": {"placeholders": {"km": {"type": "String"}}},
   "gymAbout": "About",

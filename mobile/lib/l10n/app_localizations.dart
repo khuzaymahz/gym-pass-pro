@@ -192,6 +192,8 @@ abstract class AppLocalizations {
   String get gymsEmpty;
   String get gymsEmptyFavorites;
   String get gymOpen247;
+  String get audienceFemaleOnly;
+  String get audienceMaleOnly;
   String gymKmAway(String km);
   String get gymAbout;
   String get gymAmenityWifi;
