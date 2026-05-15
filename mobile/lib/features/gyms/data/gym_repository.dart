@@ -19,9 +19,18 @@ class GymRepository {
   /// Fetches all active gyms in a single page. The home page uses this to
   /// derive accurate per-category counts and the gyms list reuses the same
   /// data so both surfaces agree on what's actually live in the network.
+  ///
+  /// `requireAuth: true` attaches the bearer token via the auth
+  /// interceptor when the member is signed in — the backend uses the
+  /// caller's profile gender to filter out single-sex gyms that don't
+  /// match (a male member never receives `female_only` rows, and
+  /// vice versa). The endpoint is also reachable anonymously: a
+  /// signed-out caller gets the mixed-only subset.
   Future<List<GymSummary>> listAll() async {
-    final response = await _client
-        .get<Map<String, dynamic>>('/api/v1/gyms?pageSize=100');
+    final response = await _client.get<Map<String, dynamic>>(
+      '/api/v1/gyms?pageSize=100',
+      authed: true,
+    );
     final data = response.data;
     if (data == null) return const [];
     final items = (data['items'] as List<dynamic>? ?? const [])
