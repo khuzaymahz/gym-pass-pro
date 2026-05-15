@@ -1,10 +1,8 @@
 import "server-only";
 
-import { getServerSession } from "next-auth";
-
 import { api, ApiError } from "@/lib/api";
-import { authOptions } from "@/lib/auth";
 import { env } from "@/lib/env";
+import { serviceToken } from "@/lib/sdk";
 
 export type GymRead = {
   id: string;
@@ -32,28 +30,21 @@ export type GymRead = {
 
 export type Page<T> = { items: T[]; total: number; page: number; pageSize: number };
 
-async function token(): Promise<string> {
-  const session = await getServerSession(authOptions);
-  const t = session?.serviceToken;
-  if (!t) throw new Error("No service token on session.");
-  return t;
-}
-
 export async function listGyms(page = 1, pageSize = 20): Promise<Page<GymRead>> {
   return api(`/api/v1/admin/gyms?page=${page}&pageSize=${pageSize}`, {
-    token: await token(),
+    token: await serviceToken(),
   });
 }
 
 export async function getGym(id: string): Promise<GymRead> {
-  return api(`/api/v1/admin/gyms/${id}`, { token: await token() });
+  return api(`/api/v1/admin/gyms/${id}`, { token: await serviceToken() });
 }
 
 export async function createGym(body: Partial<GymRead>): Promise<GymRead> {
   return api(`/api/v1/admin/gyms`, {
     method: "POST",
     body: JSON.stringify(body),
-    token: await token(),
+    token: await serviceToken(),
   });
 }
 
@@ -64,14 +55,14 @@ export async function updateGym(
   return api(`/api/v1/admin/gyms/${id}`, {
     method: "PATCH",
     body: JSON.stringify(body),
-    token: await token(),
+    token: await serviceToken(),
   });
 }
 
 export async function deleteGym(id: string): Promise<void> {
   return api(`/api/v1/admin/gyms/${id}`, {
     method: "DELETE",
-    token: await token(),
+    token: await serviceToken(),
   });
 }
 
@@ -90,14 +81,14 @@ export type GymPhotoUpdate = {
 };
 
 export async function listGymPhotos(gymId: string): Promise<GymPhotoRead[]> {
-  return api(`/api/v1/admin/gyms/${gymId}/photos`, { token: await token() });
+  return api(`/api/v1/admin/gyms/${gymId}/photos`, { token: await serviceToken() });
 }
 
 export async function uploadGymPhoto(
   gymId: string,
   formData: FormData,
 ): Promise<GymPhotoRead> {
-  const bearer = await token();
+  const bearer = await serviceToken();
   const response = await fetch(
     `${env.API_BASE_URL}/api/v1/admin/gyms/${gymId}/photos`,
     {
@@ -128,7 +119,7 @@ export async function updateGymPhoto(
   return api(`/api/v1/admin/gyms/${gymId}/photos/${photoId}`, {
     method: "PATCH",
     body: JSON.stringify(body),
-    token: await token(),
+    token: await serviceToken(),
   });
 }
 
@@ -138,7 +129,7 @@ export async function deleteGymPhoto(
 ): Promise<void> {
   return api(`/api/v1/admin/gyms/${gymId}/photos/${photoId}`, {
     method: "DELETE",
-    token: await token(),
+    token: await serviceToken(),
   });
 }
 
@@ -151,7 +142,7 @@ export async function uploadGymLogo(
   gymId: string,
   formData: FormData,
 ): Promise<GymRead> {
-  const bearer = await token();
+  const bearer = await serviceToken();
   const response = await fetch(
     `${env.API_BASE_URL}/api/v1/admin/gyms/${gymId}/logo`,
     {
@@ -177,7 +168,7 @@ export async function uploadGymLogo(
 export async function deleteGymLogo(gymId: string): Promise<GymRead> {
   return api(`/api/v1/admin/gyms/${gymId}/logo`, {
     method: "DELETE",
-    token: await token(),
+    token: await serviceToken(),
   });
 }
 
@@ -198,7 +189,7 @@ export async function getGymOwner(
 ): Promise<GymOwnerRead | null> {
   return api<GymOwnerRead | null>(
     `/api/v1/admin/gyms/${gymId}/owner`,
-    { token: await token() },
+    { token: await serviceToken() },
   );
 }
 
@@ -209,13 +200,13 @@ export async function createGymOwner(
   return api(`/api/v1/admin/gyms/${gymId}/owner`, {
     method: "POST",
     body: JSON.stringify(body),
-    token: await token(),
+    token: await serviceToken(),
   });
 }
 
 export async function deleteGymOwner(gymId: string): Promise<void> {
   return api(`/api/v1/admin/gyms/${gymId}/owner`, {
     method: "DELETE",
-    token: await token(),
+    token: await serviceToken(),
   });
 }

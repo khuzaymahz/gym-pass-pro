@@ -1,9 +1,7 @@
 import "server-only";
 
-import { getServerSession } from "next-auth";
-
 import { api } from "@/lib/api";
-import { authOptions } from "@/lib/auth";
+import { serviceToken } from "@/lib/sdk";
 
 export type ReferralPerson = {
   id: string;
@@ -29,13 +27,6 @@ export type Page<T> = {
   pageSize: number;
 };
 
-async function token(): Promise<string> {
-  const session = await getServerSession(authOptions);
-  const t = session?.serviceToken;
-  if (!t) throw new Error("No service token on session.");
-  return t;
-}
-
 /// Paginated list across all referrals. `status` narrows to pending
 /// vs converted; default is "everything", sorted newest first.
 export async function listReferrals({
@@ -52,6 +43,6 @@ export async function listReferrals({
   params.set("page", String(page));
   params.set("pageSize", String(pageSize));
   return api(`/api/v1/admin/referrals?${params.toString()}`, {
-    token: await token(),
+    token: await serviceToken(),
   });
 }
