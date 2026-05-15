@@ -52,6 +52,13 @@ services:
     build:
       context: ./admin
       target: runner
+      # Build-time secrets — admin's lib/env.ts validates these via
+      # Zod at module load; the build can't finish without them.
+      # Not baked into the runtime bundle (the runner reads them
+      # fresh from env_file at container start).
+      args:
+        NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+        ADMIN_EXCHANGE_SECRET: ${ADMIN_EXCHANGE_SECRET}
     restart: always
     volumes: !reset []
     ports: !reset []
@@ -65,6 +72,9 @@ services:
     build:
       context: ./gym-partner
       target: runner
+      args:
+        NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+        ADMIN_EXCHANGE_SECRET: ${ADMIN_EXCHANGE_SECRET}
     restart: always
     volumes: !reset []
     ports: !reset []
