@@ -278,6 +278,18 @@ class CheckinRepository:
     async def recent_with_user_for_gym(
         self, gym_id: UUID, *, limit: int
     ) -> list[dict[str, Any]]:
+        """Recent successful check-ins at this gym, partner-facing.
+
+        Member names are masked to "First L." per the partner PII
+        policy (see `app/utils/pii.py`). Phone/email never enter
+        this projection — partners have no contact relationship
+        with the member. The repo is named explicitly `_for_gym`
+        (i.e. partner-scoped); if an admin-side equivalent is ever
+        needed, give it its own method rather than peeling the
+        mask off here.
+        """
+        from app.utils.pii import mask_name_for_partner
+
         stmt = (
             select(Checkin, User)
             .join(User, User.id == Checkin.user_id)
@@ -293,7 +305,9 @@ class CheckinRepository:
             {
                 "id": str(c.id),
                 "userId": str(u.id),
-                "userName": u.name or u.first_name or None,
+                "userName": mask_name_for_partner(
+                    u.name, first_name=u.first_name, last_name=u.last_name
+                ),
                 "scannedAt": c.scanned_at.isoformat(),
             }
             for c, u in rows
