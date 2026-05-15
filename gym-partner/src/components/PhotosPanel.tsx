@@ -78,22 +78,38 @@ export function PhotosPanel({ initial }: { initial: GymPhoto[] }) {
     // the magic bytes and stores it as-is.
     data.append("file", croppedFile);
     startTransition(async () => {
-      const res = await uploadPhotoAction(data);
-      if (!res.ok) {
-        setError(res.error ?? t("errorUploadGeneric"));
-        return;
+      // Guard the transition so a thrown Server Action (network
+      // timeout, server crash) still releases `pending`. Without
+      // try/catch the button stays disabled forever and the
+      // partner has to refresh.
+      try {
+        const res = await uploadPhotoAction(data);
+        if (!res.ok) {
+          setError(res.error ?? t("errorUploadGeneric"));
+          return;
+        }
+        URL.revokeObjectURL(staged.url);
+        setStaged(null);
+        router.refresh();
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : t("errorUploadGeneric"),
+        );
       }
-      URL.revokeObjectURL(staged.url);
-      setStaged(null);
-      router.refresh();
     });
   }
 
   function onDelete(id: string) {
     startTransition(async () => {
-      const res = await deletePhotoAction(id);
-      if (!res.ok) setError(res.error ?? t("errorDeleteGeneric"));
-      router.refresh();
+      try {
+        const res = await deletePhotoAction(id);
+        if (!res.ok) setError(res.error ?? t("errorDeleteGeneric"));
+        router.refresh();
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : t("errorDeleteGeneric"),
+        );
+      }
     });
   }
 
