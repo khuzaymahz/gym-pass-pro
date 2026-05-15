@@ -945,12 +945,15 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
                         ),
                     ],
                   ),
-                  // Required by CARTO's CC-BY 3.0 licence.
+                  // Attribution: required by CARTO's CC-BY 3.0 licence
+                  // (basemap tiles) AND by OpenStreetMap's ODbL (map
+                  // data + POI rows that the dev seed imports from
+                  // OSM; see backend/scripts/seed.py OSM_GYMS).
                   const RichAttributionWidget(
                     alignment: AttributionAlignment.bottomLeft,
                     attributions: [
                       TextSourceAttribution(
-                        '© OpenStreetMap, © CARTO',
+                        '© OpenStreetMap contributors, © CARTO',
                         prependCopyright: false,
                       ),
                     ],

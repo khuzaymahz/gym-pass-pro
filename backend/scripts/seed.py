@@ -56,6 +56,81 @@ GYMS: list[tuple[str, str, str, str, str, "Category", "Tier", float, float]] = [
     ("ayla-wellness",   "Ayla Wellness Club", "آيلا للعافية",        "Tala Bay",     "Aqaba", Category.GYM,      Tier.DIAMOND,  29.5267, 35.0019),
 ]
 
+# OpenStreetMap-imported venues. Provenance is encoded in the slug
+# (`<name>-<osm_id>` or `osm-<id>` when the name has no Latin glyphs)
+# so an admin can trace a row back to its OSM source. Categories
+# default to GYM because OSM's `sport` tag is sparse in Jordan; an
+# admin should re-categorise these as part of real partner onboarding.
+# Tier assignment is a deterministic scatter (osm_id % 9 weighted
+# toward silver/gold) — it carries no claim about the venue's actual
+# quality and exists only to make tier-filtering visible in dev.
+#
+# License: OSM data is © OpenStreetMap contributors, ODbL. The
+# explore-map UI attributes both CARTO (tiles) and OSM (POIs).
+#
+# Data quality notes: a handful of OSM nodes in Jordan are
+# mistagged (commercial complexes / tourism agencies wearing a
+# `leisure=sports_centre` tag). They survive into the seed because
+# fixing OSM upstream is the right place to clean them, not here.
+# An admin can deactivate them via the gym list when they show up.
+#
+# Tuple shape matches GYMS above.
+OSM_GYMS: list[tuple[str, str, str, str, str, "Category", "Tier", float, float]] = [
+    ('fitness-masters-1932930595', 'Fitness Masters', 'Fitness Masters', 'Amman', 'Amman', Category.GYM, Tier.SILVER, 32.026201, 35.855839),
+    ('fitness-gym-2522315951', 'Fitness Gym', 'Fitness Gym', 'Amman', 'Amman', Category.GYM, Tier.DIAMOND, 31.955426, 35.928051),
+    ('caucasian-club-4172942049', 'Caucasian Club', 'النادي القوقازي', 'Zarqa', 'Zarqa', Category.GYM, Tier.PLATINUM, 32.061387, 36.088014),
+    ('wider-4220680924', 'Wider', 'ويدر', 'Zarqa', 'Zarqa', Category.GYM, Tier.SILVER, 32.064402, 36.09066),
+    ('slim-gym-4306967706', 'Slim Gym للسيدات', 'Slim Gym للسيدات', 'Sukhna', 'Zarqa', Category.GYM, Tier.GOLD, 32.129825, 36.069527),
+    ('power-fitness-center-5388251221', 'Power Fitness Center', 'مركز قوة اللياقة', 'Zarqa', 'Zarqa', Category.GYM, Tier.SILVER, 32.094656, 36.087657),
+    ('spark-health-club-5624592021', 'Spark Health Club', 'نادي سبارك الصحي', 'Amman', 'Amman', Category.GYM, Tier.SILVER, 31.9797, 35.895242),
+    ('osm-6264279695', 'نادي بيت يافا الرياضي', 'نادي بيت يافا الرياضي', 'Irbid', 'Irbid', Category.GYM, Tier.SILVER, 32.519288, 35.782998),
+    ('osm-6774433359', 'نادي الوقت المميز للياقة والسباحة', 'نادي الوقت المميز للياقة والسباحة', 'Amman', 'Amman', Category.GYM, Tier.PLATINUM, 31.916862, 35.937926),
+    ('golds-gym-7205564385', "Gold's Gym", 'جولدز جم', 'Amman', 'Amman', Category.GYM, Tier.SILVER, 31.97967, 35.840287),
+    ('osm-7281810265', 'وقت اللياقه', 'وقت اللياقه', 'Irbid', 'Irbid', Category.GYM, Tier.GOLD, 32.532387, 35.854902),
+    ('osm-7284362999', 'ابراج الرياضة', 'ابراج الرياضة', 'Irbid', 'Irbid', Category.GYM, Tier.GOLD, 32.540805, 35.851438),
+    ('osm-7284664788', 'الأمل للسياحة والسفر', 'الأمل للسياحة والسفر', 'Irbid', 'Irbid', Category.GYM, Tier.PLATINUM, 32.54633, 35.855615),
+    ('osm-7284778606', 'المستوى للسياحة والسفر', 'المستوى للسياحة والسفر', 'Irbid', 'Irbid', Category.GYM, Tier.SILVER, 32.547503, 35.85471),
+    ('osm-7284992368', 'no name fation and more;بلعاوي', 'no name fation and more;بلعاوي', 'Irbid', 'Irbid', Category.GYM, Tier.GOLD, 32.548992, 35.85387),
+    ('dr-protein-7287554673', 'Dr protein', 'Dr protein', 'Irbid', 'Irbid', Category.GYM, Tier.SILVER, 32.539314, 35.851489),
+    ('sams-gym-7287602301', 'SAMS GYM', 'SAMS GYM', 'Irbid', 'Irbid', Category.GYM, Tier.SILVER, 32.539758, 35.851352),
+    ('quicksand-9065749018', 'Quicksand', 'Quicksand', 'Amman', 'Amman', Category.GYM, Tier.GOLD, 31.942431, 35.889998),
+    ('golds-gym-9065756717', "Gold's Gym", "Gold's Gym", 'Amman', 'Amman', Category.GYM, Tier.DIAMOND, 31.946136, 35.88628),
+    ('osm-9655322251', 'مجمع أبقراط', 'مجمع أبقراط', 'Irbid', 'Irbid', Category.GYM, Tier.GOLD, 32.530413, 35.891554),
+    ('osm-9655322255', 'مجمع زينب نجيب العبيد خريس', 'مجمع زينب نجيب العبيد خريس', 'Irbid', 'Irbid', Category.GYM, Tier.DIAMOND, 32.527135, 35.896156),
+    ('osm-9655335327', 'مجمع الحاج سليم عبدالله خصاونة', 'مجمع الحاج سليم عبدالله خصاونة', 'Irbid', 'Irbid', Category.GYM, Tier.GOLD, 32.534935, 35.88522),
+    ('osm-9655363168', 'مركز الحتامله', 'مركز الحتامله', 'Irbid', 'Irbid', Category.GYM, Tier.PLATINUM, 32.52852, 35.894284),
+    ('smart-buy-9655374241', 'Smart Buy', 'Smart Buy', 'Irbid', 'Irbid', Category.GYM, Tier.SILVER, 32.523347, 35.877121),
+    ('osm-9655389323', 'مجمع السيف التجاري', 'مجمع السيف التجاري', 'Irbid', 'Irbid', Category.GYM, Tier.DIAMOND, 32.520932, 35.872196),
+    ('grams-gym-9716237862', 'Grams Gym', 'Grams Gym', 'Amman', 'Amman', Category.GYM, Tier.PLATINUM, 31.946136, 35.847183),
+    ('hulk-gym-10000011949', 'Hulk GYM', 'Hulk GYM', 'Amman', 'Amman', Category.GYM, Tier.PLATINUM, 31.959848, 35.837461),
+    ('badiya-by-barbedu-13267604827', 'Badiya By BarBedu', 'Badiya By BarBedu', 'Amman', 'Amman', Category.GYM, Tier.SILVER, 31.955117, 35.924063),
+    ('elite-one-gym-13288693100', 'Elite One Gym', 'Elite One Gym', 'Amman', 'Amman', Category.GYM, Tier.GOLD, 31.9501, 35.883959),
+    ('we-fit-13371963022', 'We Fit', 'We Fit', 'Amman', 'Amman', Category.GYM, Tier.SILVER, 31.955257, 35.927441),
+    ('strong-arms-gym-13530375201', 'Strong Arms GYM', 'سترونق آرمز جيم', 'Zarqa', 'Zarqa', Category.GYM, Tier.GOLD, 32.100473, 36.097237),
+    ('360-gym-13531438701', '360 GYM', '٣٦٠ جيم', 'Zarqa', 'Zarqa', Category.GYM, Tier.SILVER, 32.097442, 36.102675),
+    ('safa-fitness-13684981801', 'Safa Fitness', 'سافا فتنيس', 'Zarqa', 'Zarqa', Category.GYM, Tier.GOLD, 32.099823, 36.091726),
+    ('sunset-gym-13732688471', 'Sunset Gym', 'Sunset Gym', 'Amman', 'Amman', Category.GYM, Tier.GOLD, 31.918124, 35.956222),
+    ('osm-168057589', 'صالة رياضة', 'صالة رياضة', 'Zarqa', 'Zarqa', Category.GYM, Tier.GOLD, 32.101707, 36.184123),
+    ('osm-168057590', 'صالة عثمان بدير', 'صالة عثمان بدير', 'Zarqa', 'Zarqa', Category.GYM, Tier.GOLD, 32.101271, 36.184124),
+    ('sport-activities-complex-180109487', 'Sport Activities Complex', 'مجمع النشاطات الرياضية', 'Amman', 'Amman', Category.GYM, Tier.SILVER, 32.013364, 35.871605),
+    ('abu-nuseir-club-185443120', 'Abu Nuseir Club', 'Abu Nuseir Club', 'Amman', 'Amman', Category.GYM, Tier.SILVER, 32.061926, 35.885867),
+    ('rizeup-gym-200004754', 'Rizeup Gym', 'Rizeup Gym', 'Amman', 'Amman', Category.GYM, Tier.GOLD, 31.971256, 35.832934),
+    ('orthodox-club-265950065', 'Orthodox Club', 'النادي الأرثوذكسي', 'Amman', 'Amman', Category.GYM, Tier.SILVER, 31.947619, 35.896588),
+    ('dojo-285605748', 'Dojo', 'دوجو', 'Amman', 'Amman', Category.MARTIAL, Tier.SILVER, 31.986908, 35.909116),
+    ('osm-396475220', 'النادي الرياضي', 'النادي الرياضي', 'Zarqa', 'Zarqa', Category.GYM, Tier.SILVER, 32.333105, 36.240846),
+    ('osm-460954983', 'صالة رياضة', 'صالة رياضة', 'Zarqa', 'Zarqa', Category.GYM, Tier.GOLD, 32.100545, 36.184266),
+    ('powerhut-522463750', 'PowerHut', 'PowerHut', 'Amman', 'Amman', Category.GYM, Tier.PLATINUM, 31.969271, 35.89882),
+    ('jordan-taekwondo-federation-633909925', 'Jordan Taekwondo Federation', 'اتحاد التايكوندو الأردني', 'Amman', 'Amman', Category.MARTIAL, Tier.SILVER, 31.948386, 35.927185),
+    ('revolution-ladies-gym-651686882', 'Revolution Ladies Gym', 'ريفولوشن جيم للسيدات', 'Amman', 'Amman', Category.GYM, Tier.GOLD, 32.01063, 35.862698),
+    ('sports-hall-1098931426', 'Sports Hall', 'صالة رياضة', 'Madaba', 'Madaba', Category.GYM, Tier.PLATINUM, 31.777893, 35.799112),
+]
+
+# Merge: curated dev set takes priority; OSM additions fill out the
+# rest of the Jordan footprint with real venues. De-dup by slug —
+# curated wins if both sources somehow share a slug (none do today).
+_curated_slugs = {g[0] for g in GYMS}
+GYMS = GYMS + [g for g in OSM_GYMS if g[0] not in _curated_slugs]
+
 TIER_MONTHLY_PRICE: dict[Tier, Decimal] = {
     Tier.SILVER: Decimal("25"),
     Tier.GOLD: Decimal("45"),
@@ -228,6 +303,14 @@ async def main() -> None:
             "Zarqa": "الزرقاء",
             "Irbid": "إربد",
             "Aqaba": "العقبة",
+            "Madaba": "مادبا",
+            "Mafraq": "المفرق",
+            "Salt": "السلط",
+            "Jerash": "جرش",
+            "Ajloun": "عجلون",
+            "Karak": "الكرك",
+            "Tafilah": "الطفيلة",
+            "Ma'an": "معان",
         }
         # Gyms — idempotent per slug. A previous version of this seed
         # short-circuited if ANY gym existed, which made it impossible
