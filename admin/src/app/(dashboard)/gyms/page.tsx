@@ -24,11 +24,10 @@ type SearchParams = {
 
 const PAGE_SIZE = 30;
 
-export default async function GymsPage({
-  searchParams,
-}: {
-  searchParams: SearchParams;
+export default async function GymsPage(props: {
+  searchParams: Promise<SearchParams>;
 }) {
+  const searchParams = await props.searchParams;
   const t = await getTranslations("gyms");
   const tStats = await getTranslations("gyms.stats");
   const tFilters = await getTranslations("gyms.filters");

@@ -271,17 +271,35 @@ class CheckinService:
     async def _resolve_gym(self, qr_payload: str) -> Gym | None:
         """QR formats accepted, in priority order:
 
-        1. `gympass:<uuid>` — production printable QR
-        2. Plain UUID — legacy / direct
-        3. Plain slug (e.g. `iron-forge`) — used by the mobile dev
+        1. `https://gym-pass.net/g/<uuid>` — production printable QR.
+           Stored as a real URL so a member without the app gets a
+           friendly browser landing (handled at the edge by nginx)
+           instead of an unhandled `gympass:` URI scheme prompt.
+        2. `gympass:<uuid>` — legacy printable QR. Older prints in
+           the wild still scan; kept for back-compat.
+        3. Plain UUID — direct / API-level.
+        4. Plain slug (e.g. `iron-forge`) — used by the mobile dev
            panel's "Scan Silver / Gold / ..." shortcuts so testers
            can exercise the real backend round-trip without needing
            a printed code. Slug lookup is gated on no-leading-colon
-           so it never collides with the `gympass:` prefix.
+           and no-slash so it never collides with the URL or
+           `gympass:` prefix forms.
         """
         payload = qr_payload.strip()
-        if payload.startswith("gympass:"):
-            payload = payload.split(":", 1)[1]
+        # Strip the HTTPS prefix first so the trailing UUID flows
+        # through the same UUID-or-slug branch as the bare forms.
+        # We match both apex and `www.` for forgiveness against
+        # camera apps that auto-add the canonical host.
+        for prefix in ("https://gym-pass.net/g/", "https://www.gym-pass.net/g/"):
+            if payload.startswith(prefix):
+                payload = payload[len(prefix) :]
+                break
+        else:
+            if payload.startswith("gympass:"):
+                payload = payload.split(":", 1)[1]
+        # A trailing slash or query string from a manual URL paste
+        # would otherwise fail the UUID parse — strip them.
+        payload = payload.split("?", 1)[0].split("#", 1)[0].rstrip("/")
         try:
             gym_id = UUID(payload)
         except ValueError:

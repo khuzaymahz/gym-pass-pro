@@ -13,6 +13,7 @@ const STATUS_FILTERS: (CheckinStatus | "all")[] = [
   "all",
   "success",
   "tier_locked",
+  "gender_locked",
   "no_visits",
   "expired",
 ];
@@ -20,6 +21,11 @@ const STATUS_FILTERS: (CheckinStatus | "all")[] = [
 const TONE: Record<CheckinStatus, "ok" | "warn" | "bad"> = {
   success: "ok",
   tier_locked: "warn",
+  // Gender-mismatch rejections are warnings rather than errors: the
+  // partner sees them so they know the gate fired, but they're not
+  // operational failures (no member-app or backend bug; the gym just
+  // restricts entry by gender and the scanner correctly enforced it).
+  gender_locked: "warn",
   no_visits: "warn",
   expired: "bad",
   invalid_qr: "bad",

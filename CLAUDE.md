@@ -14,10 +14,15 @@
 | Surface | Status | Location | Notes |
 |---|---|---|---|
 | Design system | ✅ Authoritative | [design/](design/) | Imported from Claude Design bundle — tokens, preview cards, member-app UI kit. **Source of visual truth.** |
-| Member prototype (web) | 🟡 Working HTML/JSX | [Gym pass Mobile App/](Gym%20pass%20Mobile%20App/) + Vite scaffold at repo root | Clickable prototype of 16 screens. Used for stakeholder review; **not** the shipping app. |
-| Member app (production) | 🔴 Not started | `mobile/` (planned) | Flutter, per design spec §14. |
-| Backend API | 🔴 Not started | `backend/` (planned) | FastAPI + PostgreSQL. |
-| Admin dashboard | 🔴 Not started | `admin/` (planned) | Next.js + next-intl. |
+| Member prototype (web) | 🟡 Working HTML/JSX | [Gym pass Mobile App/](Gym%20pass%20Mobile%20App/) + Vite scaffold at repo root | Legacy clickable prototype of 16 screens. Used for early stakeholder review; **not** the shipping app. |
+| Backend API | 🟢 Pre-prod deployed | [backend/](backend/) | FastAPI 0.135 + SQLAlchemy 2 async + Alembic. 15 migrations applied. Live at `https://api.gym-pass.net`. |
+| Member app (production) | 🟢 Built, side-load only | [mobile/](mobile/) | Flutter 3.38, full registration + tier picker + QR scanner. APK distributed via `gym-pass.net/downloads/gympass.apk` (built off-VM, scp'd in). Store listings deferred. |
+| Admin dashboard | 🟢 Pre-prod deployed | [admin/](admin/) | Next.js 15 + next-intl, NextAuth → backend service-JWT exchange. Live at `https://admin.gym-pass.net`. |
+| Gym partner portal | 🟢 Pre-prod deployed | [gym-partner/](gym-partner/) | Next.js 15 + next-intl. QR generator at `/qr`, live check-ins feed, payouts view. Live at `https://partner.gym-pass.net`. |
+| Marketing website | 🟢 Pre-prod deployed | [website/](website/) | Next.js 15 shell serving Claude-Design `RegisterFlow.html` verbatim from `public/`. Live at `https://gym-pass.net`. Also serves the APK download. |
+| Reverse proxy / TLS | 🟢 Live | [nginx/](nginx/) | Four vhosts + shared `ssl.conf` snippet + Cloudflare real-IP rewriting. Cloudflare Origin Cert valid 15 years; no certbot. |
+
+**Pre-prod environment:** running on a single VM (35.203.162.232) behind Cloudflare. Stack brought up by [scripts/deploy.sh](scripts/deploy.sh); runbook in [docs/deploy.md](docs/deploy.md). `APP_ENV=development` — OTP fixed to `1234`, payments mocked, no real SMS. Real `production` mode is gated on a real SMS provider + payment gateway (see §15).
 
 **Rule:** don't pretend a surface exists before it does. If you're scaffolding a new surface, follow the layout in §3 and call it out in the PR.
 
@@ -66,9 +71,10 @@ gym-pass-pro/
 ├── package.json                      # Vite prototype host (root)
 ├── index.html                        # Vite entry (loads design/ prototype)
 ├── vite.config.js
-├── docker-compose.yml                # Dev stack (once backend/admin land)
-├── docker-compose.prod.yml           # Prod overrides
-├── .env.example
+├── docker-compose.yml                # Dev stack — hot-reload + per-service ports exposed
+├── docker-compose.prod.yml           # Prod overlay — restart:always, ports unpublished except nginx
+├── .env.example                      # Dev defaults
+├── .env.prod.example                 # Prod template (copy to .env.prod on the VM)
 ├── .gitignore
 │
 ├── design/                           # 🎨 SOURCE OF VISUAL TRUTH (read-only)
@@ -91,17 +97,26 @@ gym-pass-pro/
 │
 ├── docs/                             # 📚 Engineering references
 │   ├── architecture.md               # Layered architecture + SOLID rationale
-│   ├── tasks.md                      # Phased implementation plan (ground truth for work)
+│   ├── tasks.md                      # Phased implementation plan
 │   ├── database-schema.md            # DB tables, relations, indexes
 │   ├── api-standards.md              # Endpoint conventions, error codes, versioning
-│   └── git-instructions.md           # Branching, commit, PR, release rules
+│   ├── git-instructions.md           # Branching, commit, PR, release rules
+│   ├── admin-run.md                  # Admin-app dev/run instructions
+│   ├── gotchas.md                    # Working gotchas + Phase B triggers
+│   ├── manual-test-plan.html         # Manual QA matrix
+│   └── deploy.md                     # 🚀 VM bring-up + deploy runbook
 │
-├── backend/                          # FastAPI service (planned — see docs/architecture.md §2)
-├── admin/                            # Next.js admin dashboard (planned — see docs/architecture.md §3)
-├── mobile/                           # Flutter member app (planned — see docs/architecture.md §4)
-├── nginx/                            # TLS-terminating reverse proxy (planned)
+├── backend/                          # FastAPI service — live at api.gym-pass.net
+├── admin/                            # Next.js admin dashboard — live at admin.gym-pass.net
+├── gym-partner/                      # Next.js partner portal — live at partner.gym-pass.net
+├── website/                          # Next.js marketing shell — live at gym-pass.net
+├── mobile/                           # Flutter member app (APK side-loaded from /downloads/)
+├── nginx/                            # TLS-terminating reverse proxy (Cloudflare Origin Cert)
+│   ├── conf.d/                       # Four vhosts (api / admin / partner / website) + cloudflare.conf
+│   ├── snippets/ssl.conf             # Shared TLS block, mounted by every vhost
+│   └── certs/                        # gym-pass.net.{pem,key} — gitignored; placed at deploy time
 ├── skills-lib/                       # Vendored Claude skills (read-only reference)
-└── scripts/                          # dev.sh, seed.py, reset.sh (planned)
+└── scripts/                          # deploy.sh, build-apk.sh, seed.py
 ```
 
 **Folder boundaries are strict:** `backend/` must not import from `admin/` or `mobile/`, and vice versa. Cross-service contracts live in the OpenAPI schema that FastAPI emits; the admin consumes it through a generated client.
@@ -197,7 +212,13 @@ Supported method tags in v1: `card`, `cliq`, `apple_pay`, `google_pay`. Dev mode
 
 ## 11 · docker-compose (pointer)
 
-Dev and prod stack topology — services, ports, volumes, nginx routing, certbot flow — live in [docs/architecture.md §7](docs/architecture.md).
+Dev stack: `docker-compose.yml` — bind-mounted source for hot reload, each Next service bound to its own host port.
+
+Prod overlay: `docker-compose.prod.yml` — services pinned to `target: runner`, ports unpublished except nginx 80/443, `env_file: [.env.prod]` per service, `restart: always`. Build-args (`NEXTAUTH_SECRET`, `ADMIN_EXCHANGE_SECRET`) are read from `.env.prod` at build time so the Next.js apps' Zod env-schemas pass during `next build`.
+
+TLS: Cloudflare Origin Cert mounted from `nginx/certs/gym-pass.net.{pem,key}` — gitignored, placed on the VM at deploy time. No certbot. Zone TLS mode must be **Full (strict)** in the Cloudflare panel.
+
+Full topology — services, ports, volumes, nginx vhosts, Cloudflare real-IP rewriting — in [docs/architecture.md §7](docs/architecture.md). End-to-end VM bring-up + deploy runbook in [docs/deploy.md](docs/deploy.md).
 
 ---
 
@@ -288,11 +309,15 @@ cd mobile && flutter test
 
 ## 15 · Open questions (update in PRs as they resolve)
 
-- Which **SMS provider** for production? (Twilio / Unifonic / local Jordan provider?)
+- Which **SMS provider** for production? (Twilio / Unifonic / local Jordan provider?) — pre-prod runs `APP_ENV=development` with OTP `1234`; flipping to real `production` mode is gated on this.
 - Which **payment gateway** for production? Stripe is ruled out.
-- **Gym-owner portal** in v2 or keep reports email-based?
+- **APK distribution** — currently a single `app-release.apk` served from `gym-pass.net/downloads/`. Play Store + App Store listings deferred until SMS + payments are live.
 - **Push notifications** — FCM + APNs directly, or through a service like OneSignal?
-- **Observability stack** — Sentry alone, or Sentry + Grafana + Loki from day one?
+- **Observability stack** — Sentry alone, or Sentry + Grafana + Loki from day one? Pre-prod ships only stdout logging via Docker.
+
+**Resolved:**
+- ~~**Gym-owner portal** in v2 or keep reports email-based?~~ → Shipped: [gym-partner/](gym-partner/) (live at `partner.gym-pass.net`).
+- ~~**TLS strategy** — Let's Encrypt via certbot, or Cloudflare Origin Cert?~~ → Cloudflare Origin Cert (15-year validity, no renewal automation needed).
 
 ---
 
@@ -303,4 +328,8 @@ cd mobile && flutter test
 - DB schema: [docs/database-schema.md](docs/database-schema.md)
 - API standards: [docs/api-standards.md](docs/api-standards.md)
 - Git flow: [docs/git-instructions.md](docs/git-instructions.md)
+- Gotchas + Phase B triggers: [docs/gotchas.md](docs/gotchas.md)
+- VM bring-up + deploy runbook: [docs/deploy.md](docs/deploy.md)
+- Admin dev run: [docs/admin-run.md](docs/admin-run.md)
+- Marketing site (design + serving): [website/README.md](website/README.md)
 - Design system: [design/README.md](design/README.md), [design/project/README.md](design/project/README.md)

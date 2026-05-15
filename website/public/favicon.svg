@@ -1,0 +1,7 @@
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <rect width="64" height="64" rx="14" fill="#0E0E0F"></rect>
+  <text x="50%" y="50%" font-family="Archivo Black, Archivo, Inter Tight, sans-serif" font-weight="900" font-style="italic" font-size="32" letter-spacing="-2" text-anchor="middle" dominant-baseline="central">
+    <tspan fill="#F5F5F5">G</tspan><tspan fill="#FFB400">P</tspan>
+  </text>
+</svg>

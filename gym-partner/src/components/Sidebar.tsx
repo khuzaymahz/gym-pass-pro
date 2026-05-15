@@ -12,7 +12,13 @@ import { DEFAULT_LOGO_ALIGNMENT, type LogoAlignment } from "@/lib/sdk-types";
 
 import { Wordmark } from "./Wordmark";
 
-type NavKey = "dashboard" | "profile" | "photos" | "checkins" | "payouts";
+type NavKey =
+  | "dashboard"
+  | "profile"
+  | "qr"
+  | "photos"
+  | "checkins"
+  | "payouts";
 
 // Opening-hours payload is opaque on the wire (`Record<string, unknown>`)
 // because the editor isn't shipped yet. The seed writes `{24_7: true}`
@@ -40,8 +46,16 @@ type OpeningHoursShape = {
   sun?: DaySpec;
 };
 
+// QR sits second in the nav — right after the dashboard and ahead
+// of the editing surfaces (profile / photos). Reasoning: it's the
+// asset most partners touch first ("print this and tape it at the
+// door") and the one they re-open most often (when a printed copy
+// gets damaged or someone joins their staff). Below it are the
+// edit/admin views; the check-ins + payouts logs come last as the
+// readback surfaces.
 const NAV_ITEMS: { href: string; key: NavKey }[] = [
   { href: "/", key: "dashboard" },
+  { href: "/qr", key: "qr" },
   { href: "/profile", key: "profile" },
   { href: "/photos", key: "photos" },
   { href: "/checkins", key: "checkins" },
@@ -366,6 +380,26 @@ function NavIcon({ name, active }: { name: NavKey; active: boolean }) {
           <circle cx="6" cy="10" r="1.2" />
           <line x1="9" y1="9.5" x2="12" y2="9.5" />
           <line x1="9" y1="11.5" x2="12" y2="11.5" />
+        </svg>
+      );
+    case "qr":
+      // QR pattern — three finder modules in the corners + a few
+      // body modules. Stylised, not a real QR; readable as "QR
+      // code" at 18px without competing with the `checkins` icon
+      // (which uses corner brackets for the scan-target frame).
+      return (
+        <svg viewBox="0 0 16 16" fill="currentColor" className={cls} aria-hidden>
+          <path d="M2 2h4v4H2V2zm1 1v2h2V3H3z" />
+          <path d="M10 2h4v4h-4V2zm1 1v2h2V3h-2z" />
+          <path d="M2 10h4v4H2v-4zm1 1v2h2v-2H3z" />
+          <rect x="8" y="8" width="1.5" height="1.5" />
+          <rect x="11" y="8" width="1.5" height="1.5" />
+          <rect x="13.5" y="9.5" width="1.5" height="1.5" />
+          <rect x="8" y="11" width="1.5" height="1.5" />
+          <rect x="10.5" y="11.5" width="1.5" height="1.5" />
+          <rect x="13" y="12" width="1.5" height="1.5" />
+          <rect x="8" y="13.5" width="1.5" height="1.5" />
+          <rect x="11" y="14" width="1.5" height="1.5" />
         </svg>
       );
     case "photos":

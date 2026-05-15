@@ -138,8 +138,20 @@ def create_app() -> FastAPI:
 
     media_dir = Path(settings.media_root)
     media_dir.mkdir(parents=True, exist_ok=True)
+    # `media_url_prefix` is used in two places: (1) here, as a
+    # Starlette mount path which MUST be path-only ("/media"); and
+    # (2) in upload handlers when composing public URLs, where
+    # operators may want a full origin like "https://api.gym-pass.net/media"
+    # so the URL is portable across hosts. Extract just the path
+    # component so the mount works under either form.
+    from urllib.parse import urlparse
+
+    parsed = urlparse(settings.media_url_prefix)
+    mount_path = parsed.path or settings.media_url_prefix
+    if not mount_path.startswith("/"):
+        mount_path = "/" + mount_path
     app.mount(
-        settings.media_url_prefix,
+        mount_path,
         StaticFiles(directory=str(media_dir), check_dir=False),
         name="media",
     )
