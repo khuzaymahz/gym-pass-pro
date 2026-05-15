@@ -10,6 +10,7 @@ import '../../../core/di/providers.dart';
 import '../../../core/realtime/realtime_client.dart';
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
+import '../../../core/widgets/gym_loader.dart';
 import '../../../core/widgets/gym_logo.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
@@ -106,6 +107,16 @@ class GymDetailPage extends ConsumerWidget {
         gymSummary == null;
     if (isUnknownSlug) {
       return _NotFound(slug: slug);
+    }
+    // Loading state: the slug isn't in the hardcoded `GPGym.seed` and
+    // the backend response hasn't landed yet. Render a skeleton
+    // instead of falling through to `_resolveGym` — without this
+    // branch the page would render the seed-first fallback (Iron
+    // Forge) for ~one frame while the network request was in flight,
+    // producing an obvious "wrong gym flashes for a second" bug
+    // every time a member tapped any non-seed gym.
+    if (_seedGym() == null && !gymSummaryAsync.hasValue) {
+      return _LoadingDetailSkeleton(slug: slug);
     }
     // Authoritative view-model: prefer the live backend summary so
     // every OSM-imported gym renders its own name / category / tier
@@ -1035,6 +1046,85 @@ class _PhotoSliderState extends State<_PhotoSlider> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Skeleton shown while the backend gym summary is in flight for a
+/// slug that isn't part of the hardcoded `GPGym.seed` list (i.e.
+/// every gym onboarded by an admin / imported from OSM). Without
+/// this, the page would render the seed-first fallback (Iron Forge)
+/// for the ~150-400 ms between mount and first network response,
+/// producing the "every gym briefly looks like Iron Forge" bug.
+///
+/// The skeleton mirrors the page's actual silhouette — hero block,
+/// title bar, body slot — so the real page slides in without a
+/// layout shift when the data lands.
+class _LoadingDetailSkeleton extends StatelessWidget {
+  const _LoadingDetailSkeleton({required this.slug});
+  final String slug;
+
+  @override
+  Widget build(BuildContext context) {
+    final gp = context.gp;
+    return Scaffold(
+      backgroundColor: gp.bg,
+      body: SafeArea(
+        child: Stack(
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Hero block — solid neutral panel, matches the 400-px
+                // photo slider height the real page renders.
+                Container(
+                  height: 400,
+                  decoration: BoxDecoration(
+                    color: gp.bg2,
+                    border: Border(
+                      bottom: BorderSide(color: gp.line),
+                    ),
+                  ),
+                  child: const Center(
+                    child: GymLoader(size: GymLoaderSize.large),
+                  ),
+                ),
+                const SizedBox(height: 28),
+                // Title placeholder bar.
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Container(
+                    height: 24,
+                    width: 220,
+                    decoration: BoxDecoration(
+                      color: gp.bg2,
+                      borderRadius: BorderRadius.circular(GPRadius.sm),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Subtitle placeholder bar.
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Container(
+                    height: 14,
+                    width: 140,
+                    decoration: BoxDecoration(
+                      color: gp.bg2,
+                      borderRadius: BorderRadius.circular(GPRadius.sm),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const PositionedDirectional(
+              top: 12,
+              start: 20,
+              child: BackBtn(fallback: '/explore'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
