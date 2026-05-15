@@ -12,11 +12,13 @@ import { listGyms, resolvePhotoUrl, type GymRead } from "@/lib/gyms";
 
 const CATEGORY_OPTIONS = ["gym", "crossfit", "martial", "yoga"] as const;
 const TIER_OPTIONS = ["silver", "gold", "platinum", "diamond"] as const;
+const AUDIENCE_OPTIONS = ["mixed", "female_only", "male_only"] as const;
 
 type SearchParams = {
   page?: string;
   category?: string;
   tier?: string;
+  audience?: string;
   q?: string;
 };
 
@@ -39,6 +41,9 @@ export default async function GymsPage({
     | (typeof CATEGORY_OPTIONS)[number]
     | undefined;
   const tier = searchParams.tier as (typeof TIER_OPTIONS)[number] | undefined;
+  const audience = searchParams.audience as
+    | (typeof AUDIENCE_OPTIONS)[number]
+    | undefined;
   const q = (searchParams.q ?? "").trim().toLowerCase();
 
   // Pull a big enough window for client-side filter; the backend endpoint
@@ -48,6 +53,7 @@ export default async function GymsPage({
 
   if (category) items = items.filter((g) => g.category.toLowerCase() === category);
   if (tier) items = items.filter((g) => g.requiredTier === tier);
+  if (audience) items = items.filter((g) => g.audienceGender === audience);
   if (q) {
     items = items.filter(
       (g) =>
@@ -78,6 +84,7 @@ export default async function GymsPage({
     const merged: SearchParams = {
       category: searchParams.category,
       tier: searchParams.tier,
+      audience: searchParams.audience,
       q: searchParams.q,
       page: searchParams.page,
       ...overrides,
@@ -130,12 +137,23 @@ export default async function GymsPage({
           hrefFor={(o) => hrefFor({ tier: o, page: undefined })}
           allLabel={tFilters("allTiers")}
         />
+        <Segmented
+          value={audience}
+          options={AUDIENCE_OPTIONS}
+          labelFor={(o) => tFilters(`audience.${o}`)}
+          hrefFor={(o) => hrefFor({ audience: o, page: undefined })}
+          allLabel={tFilters("allAudiences")}
+        />
         <div className="ml-auto">
           <SearchInput
             defaultValue={searchParams.q}
             placeholder={tFilters("search")}
             action="/gyms"
-            hidden={{ category: searchParams.category, tier: searchParams.tier }}
+            hidden={{
+              category: searchParams.category,
+              tier: searchParams.tier,
+              audience: searchParams.audience,
+            }}
           />
         </div>
       </FilterBar>
@@ -161,6 +179,7 @@ export default async function GymsPage({
                 <th>{tTable("area")}</th>
                 <th>{tTable("category")}</th>
                 <th>{tTable("tier")}</th>
+                <th>{tTable("audience")}</th>
                 <th className="num">{tTable("perVisit")}</th>
                 <th className="num">{tTable("photos")}</th>
                 <th>{tTable("status")}</th>
@@ -224,6 +243,9 @@ function GymRow({
       <td>
         <span className="kbd capitalize">{g.requiredTier}</span>
       </td>
+      <td>
+        <AudiencePill audience={g.audienceGender} />
+      </td>
       <td className="num">
         <span className="text-paper">{g.perVisitRateJod}</span>
         <span className="ml-1 text-[10.5px] text-muted">JOD</span>
@@ -245,6 +267,24 @@ function GymRow({
       </td>
     </tr>
   );
+}
+
+function AudiencePill({ audience }: { audience: GymRead["audienceGender"] }) {
+  if (audience === "female_only") {
+    return (
+      <span className="inline-flex items-center rounded-md border border-pink-300/30 bg-pink-300/10 px-2 py-0.5 text-[11px] font-medium text-pink-200">
+        Women only
+      </span>
+    );
+  }
+  if (audience === "male_only") {
+    return (
+      <span className="inline-flex items-center rounded-md border border-blue-300/30 bg-blue-300/10 px-2 py-0.5 text-[11px] font-medium text-blue-200">
+        Men only
+      </span>
+    );
+  }
+  return <span className="text-[12px] text-muted">Open</span>;
 }
 
 function GymThumb({ logoUrl, name }: { logoUrl?: string | null; name: string }) {

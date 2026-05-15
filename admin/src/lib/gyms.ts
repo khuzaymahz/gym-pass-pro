@@ -15,6 +15,7 @@ export type GymRead = {
   phone?: string | null;
   category: string;
   requiredTier: string;
+  audienceGender: "mixed" | "female_only" | "male_only";
   perVisitRateJod: string;
   lat: string;
   lng: string;

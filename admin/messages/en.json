@@ -301,6 +301,12 @@
         "yoga": "Yoga"
       },
       "allTiers": "All tiers",
+      "allAudiences": "All audiences",
+      "audience": {
+        "mixed": "Mixed",
+        "female_only": "Women only",
+        "male_only": "Men only"
+      },
       "search": "Search name, area, slug…"
     },
     "table": {
@@ -308,6 +314,7 @@
       "area": "Area",
       "category": "Category",
       "tier": "Tier",
+      "audience": "Audience",
       "perVisit": "Per visit",
       "photos": "Photos",
       "status": "Status",
