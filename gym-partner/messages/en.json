@@ -129,6 +129,13 @@
     "error": "Couldn't save.",
     "tier": "Required tier",
     "tierLocked": "(managed by GymPass team)",
+    "audience": "Audience",
+    "audienceHint": "Who can check in. Members of the wrong gender are blocked at the QR scan.",
+    "audiences": {
+      "mixed": "Open to everyone",
+      "female_only": "Women only",
+      "male_only": "Men only"
+    },
     "logoTitle": "Gym logo",
     "logoSubtitle": "The brand mark members see in the GymPass app and on the partner portal sidebar.",
     "logoUpload": "Upload logo",

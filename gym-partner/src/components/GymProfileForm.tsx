@@ -18,6 +18,12 @@ const CATEGORIES: GymUpdateBody["category"][] = [
   "yoga",
 ];
 
+const AUDIENCES: GymUpdateBody["audienceGender"][] = [
+  "mixed",
+  "female_only",
+  "male_only",
+];
+
 // Mirrors backend `schemas/gym.py::GymUpdate`. Drift here drops the
 // UX hint to "you can type forever" while the backend silently 422s.
 const FIELD_LIMITS = {
@@ -64,6 +70,9 @@ export function GymProfileForm({ gym }: { gym: GymRead }) {
       area: trimmed("area"),
       phone: trimmed("phone") || null,
       category: data.get("category") as GymUpdateBody["category"],
+      audienceGender: data.get(
+        "audienceGender",
+      ) as GymUpdateBody["audienceGender"],
       // Pulled from controlled state, not the FormData. The picker
       // already enforces the 64-item cap, the lowercase normalization
       // and the de-duplication, so we forward the array as-is.
@@ -173,6 +182,25 @@ export function GymProfileForm({ gym }: { gym: GymRead }) {
               disabled
             />
             <span className="field-hint">{t("tierLocked")}</span>
+          </label>
+          {/* Audience policy. Declared by the partner so the member
+              app knows who can check in. Backend enforces it: a
+              member of the wrong gender scanning a single-sex gym
+              gets CHECKIN_GENDER_LOCKED before the visit is counted. */}
+          <label className="field">
+            <span className="field-label">{t("audience")}</span>
+            <select
+              name="audienceGender"
+              className="select input-sm"
+              defaultValue={gym.audienceGender ?? "mixed"}
+            >
+              {AUDIENCES.map((a) => (
+                <option key={a} value={a}>
+                  {t(`audiences.${a}`)}
+                </option>
+              ))}
+            </select>
+            <span className="field-hint">{t("audienceHint")}</span>
           </label>
         </div>
       </Section>

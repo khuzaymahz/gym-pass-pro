@@ -22,9 +22,11 @@ export type Page<T> = {
 
 export type Tier = "silver" | "gold" | "platinum" | "diamond";
 export type Category = "gym" | "crossfit" | "martial" | "yoga";
+export type AudienceGender = "mixed" | "female_only" | "male_only";
 export type CheckinStatus =
   | "success"
   | "tier_locked"
+  | "gender_locked"
   | "no_visits"
   | "expired"
   | "invalid_qr"
@@ -53,6 +55,7 @@ export type GymRead = {
   phone: string | null;
   category: Category;
   requiredTier: Tier;
+  audienceGender: AudienceGender;
   perVisitRateJod: string;
   amenities: string[];
   openingHours: Record<string, unknown>;
@@ -75,6 +78,7 @@ export type GymUpdateBody = Partial<{
   lng: number;
   phone: string | null;
   category: Category;
+  audienceGender: AudienceGender;
   amenities: string[];
   openingHours: Record<string, unknown>;
   coverImageUrl: string | null;
