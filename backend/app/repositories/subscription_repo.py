@@ -4,7 +4,7 @@ from collections.abc import Iterable
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import and_, func, or_, select, update
+from sqlalchemy import and_, func, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.enums import SubscriptionStatus, Tier
@@ -30,6 +30,22 @@ class SubscriptionRepository:
         stmt = select(Subscription).where(Subscription.id.in_(ids_list))
         rows = (await self.session.execute(stmt)).scalars().all()
         return {row.id: row for row in rows}
+
+    async def lock_user_for_purchase(self, user_id: UUID) -> None:
+        """Postgres advisory lock keyed on user_id, held for the rest
+        of this transaction. Serializes concurrent purchase flows so
+        a double-tap on Pay (or two open tabs) can't both pass the
+        active-sub check, charge twice, and crash on the unique
+        constraint at activate-time — which would leave a stranded
+        payment without a paired subscription.
+
+        `pg_advisory_xact_lock` blocks if another transaction holds
+        the same key; releases automatically at commit/rollback.
+        """
+        await self.session.execute(
+            text("SELECT pg_advisory_xact_lock(hashtext(:k))"),
+            {"k": f"sub-purchase:{user_id}"},
+        )
 
     async def active_for_user(self, user_id: UUID) -> Subscription | None:
         stmt = select(Subscription).where(

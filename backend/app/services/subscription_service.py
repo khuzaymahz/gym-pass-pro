@@ -69,6 +69,12 @@ class SubscriptionService:
         payment_method_id: UUID | None = None,
         actor: Actor,
     ) -> Subscription:
+        # Serialize concurrent purchase attempts from the same user
+        # so a double-tap on Pay / two open tabs can't both pass the
+        # active-sub read check, charge twice, and crash on the
+        # unique constraint at activate-time. Lock auto-releases at
+        # transaction end. See SubscriptionRepository.lock_user_for_purchase.
+        await self.subs.lock_user_for_purchase(user.id)
         existing = await self.subs.active_for_user(user.id)
         if existing is not None:
             raise AppError(
