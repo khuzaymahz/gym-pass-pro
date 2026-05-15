@@ -61,6 +61,7 @@
       "apply": "Apply"
     },
     "checkinsTrend": "Check-in cadence",
+    "checkinsLast30": "Last 30 days",
     "revenueTrend": "Revenue stroke",
     "tierMix": "Tier mix",
     "hourMix": "Busy hours",
