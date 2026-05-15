@@ -617,18 +617,34 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
       unawaited(_animateCameraTo(LatLng(gym.lat!, gym.lng!), zoom: 15));
     }
     setState(() => _selectedGym = gym);
-    // Collapse the bottom sheet so the SelectedGymCard isn't fighting
-    // for screen space with the gym-list's top row. Without this the
-    // sheet stays at whatever expansion the member left it at and a
-    // stray list row visibly stacks under the floating card — exactly
-    // the "what is this!?" overlap the user reported.
-    if (_sheetCtrl.isAttached && _sheetCtrl.size > exploreSheetMin + 0.02) {
-      _sheetCtrl.animateTo(
-        exploreSheetMin,
-        duration: const Duration(milliseconds: 320),
-        curve: Curves.easeOutCubic,
-      );
-    }
+    _forceSheetToMin();
+  }
+
+  /// Collapse the bottom sheet to its handle-peek size unconditionally.
+  ///
+  /// Used after a pin tap so the SelectedGymCard isn't stacked on top
+  /// of the gym-list's first row. The previous implementation called
+  /// `animateTo` directly, which was cancelled when a member tapped
+  /// a pin mid-drag (their finger was still on the sheet, the active
+  /// gesture won, and the sheet settled wherever they released it —
+  /// the "didn't close entirely" bug). Two changes that make it
+  /// robust against an in-flight drag:
+  ///
+  ///   1. Run via `addPostFrameCallback` so the collapse happens
+  ///      AFTER the current gesture frame, not racing with it.
+  ///   2. Use `jumpTo` (instant) instead of `animateTo` — there's
+  ///      no animation for the active gesture to override.
+  ///
+  /// The gesture itself ends naturally when the member lifts their
+  /// finger; by then the sheet is already at min and any small drag-
+  /// down inertia they had is absorbed by the min-snap boundary.
+  void _forceSheetToMin() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_sheetCtrl.isAttached) return;
+      if (_sheetCtrl.size > exploreSheetMin + 0.001) {
+        _sheetCtrl.jumpTo(exploreSheetMin);
+      }
+    });
   }
 
   /// List-row tap handler — same affordance as a pin tap (camera
@@ -647,13 +663,11 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
       unawaited(_animateCameraTo(LatLng(gym.lat!, gym.lng!), zoom: 15));
     }
     setState(() => _selectedGym = gym);
-    if (_sheetCtrl.isAttached && _sheetCtrl.size > exploreSheetMin + 0.02) {
-      _sheetCtrl.animateTo(
-        exploreSheetMin,
-        duration: const Duration(milliseconds: 320),
-        curve: Curves.easeOutCubic,
-      );
-    }
+    // Share the same robust post-frame jump as the marker-tap path.
+    // animateTo here can race with a fling-momentum that's still
+    // settling the sheet — using jumpTo via addPostFrameCallback
+    // keeps the collapse atomic.
+    _forceSheetToMin();
   }
 
   bool _matches(
