@@ -15,13 +15,45 @@ from app.db.session import get_engine
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from app.utils.ids import uuid7
 
-GYMS = [
-    ("iron-forge", "Iron Forge", "ايرون فورج", "Abdoun", Category.GYM, Tier.SILVER, 31.955, 35.877),
-    ("bedford-yoga", "Bedford Yoga", "بدفورد لليوغا", "Sweifieh", Category.YOGA, Tier.GOLD, 31.969, 35.869),
-    ("fortis-boxing", "Fortis Boxing", "فورتس للملاكمة", "Jabal Amman", Category.MARTIAL, Tier.PLATINUM, 31.954, 35.932),
-    ("apex-crossfit", "Apex CrossFit", "إيبكس كروسفت", "Khalda", Category.CROSSFIT, Tier.GOLD, 31.988, 35.830),
-    ("halo-studio", "Halo Studio", "هالو ستديو", "Abdoun", Category.YOGA, Tier.SILVER, 31.958, 35.880),
-    ("core-athletic", "Core Athletic", "كور أثليتيك", "Dabouq", Category.GYM, Tier.DIAMOND, 32.010, 35.820),
+# Dev seed gym network — real Jordan locations + plausible gym
+# names following local naming conventions. Lat/lng are accurate
+# for the AREA centre (verify the exact coordinate against a real
+# venue when a partner actually onboards). Areas span:
+#   Amman (10) · Zarqa (2) · Irbid (2) · Aqaba (1)
+# Tier mix: 5 silver / 5 gold / 4 platinum / 2 diamond.
+# Category mix: 8 gym / 3 crossfit / 3 yoga / 2 martial.
+#
+# Tuple shape: (slug, name_en, name_ar, area, city, category, tier, lat, lng)
+GYMS: list[tuple[str, str, str, str, str, "Category", "Tier", float, float]] = [
+    # ── Amman: upscale (Abdoun, Dabouq, 5th Circle) ──
+    ("iron-forge",      "Iron Forge",         "آيرون فورج",          "Abdoun",       "Amman", Category.GYM,      Tier.SILVER,   31.9560, 35.8786),
+    ("halo-studio",     "Halo Studio",        "هالو ستوديو",          "Abdoun",       "Amman", Category.YOGA,     Tier.SILVER,   31.9582, 35.8801),
+    ("core-athletic",   "Core Athletic",      "كور أثلتك",           "Dabouq",       "Amman", Category.GYM,      Tier.DIAMOND,  32.0083, 35.8200),
+    ("apex-crossfit",   "Apex CrossFit",      "إيبكس كروسفت",        "Khalda",       "Amman", Category.CROSSFIT, Tier.GOLD,     31.9882, 35.8307),
+    ("pulse-fitness",   "Pulse Fitness",      "بَلْس فِتنِس",          "5th Circle",   "Amman", Category.GYM,      Tier.PLATINUM, 31.9550, 35.9050),
+    ("zen-yoga",        "Zen Yoga House",     "زن لليوغا",            "Jabal Webdeh", "Amman", Category.YOGA,     Tier.GOLD,     31.9580, 35.9128),
+
+    # ── Amman: residential / family-friendly ──
+    ("bedford-yoga",    "Bedford Yoga",       "بدفورد لليوغا",        "Sweifieh",     "Amman", Category.YOGA,     Tier.GOLD,     31.9693, 35.8688),
+    ("body-master",     "Body Master Gym",    "بودي ماستر",          "Tlaa al-Ali",  "Amman", Category.GYM,      Tier.SILVER,   31.9836, 35.8500),
+    ("nordic-fit",      "Nordic Fitness",     "نوردك فتنس",          "Jubeiha",      "Amman", Category.GYM,      Tier.SILVER,   32.0167, 35.8806),
+    ("fortis-boxing",   "Fortis Boxing Club", "فورتس للملاكمة",      "Jabal Amman",  "Amman", Category.MARTIAL,  Tier.PLATINUM, 31.9540, 35.9319),
+
+    # ── Amman: north / sweileh / shmeisani ──
+    ("the-floor",       "The Floor CrossFit", "ذا فلور كروسفت",      "Sweileh",      "Amman", Category.CROSSFIT, Tier.GOLD,     32.0367, 35.8400),
+    ("royal-pilates",   "Royal Pilates",      "رويال للبيلاتيس",      "Shmeisani",    "Amman", Category.YOGA,     Tier.PLATINUM, 31.9682, 35.9046),
+    ("strength-academy","Strength Academy",   "أكاديمية القوة",       "Wasfi al-Tal", "Amman", Category.GYM,      Tier.GOLD,     31.9893, 35.8783),
+
+    # ── Zarqa ──
+    ("zarqa-power",     "Zarqa Power Gym",    "نادي الزرقاء للقوة",   "Zarqa Centre", "Zarqa", Category.GYM,      Tier.SILVER,   32.0728, 36.0876),
+    ("phoenix-mma",     "Phoenix MMA",        "فينكس للفنون القتالية","Zarqa New",    "Zarqa", Category.MARTIAL,  Tier.GOLD,     32.0850, 36.1010),
+
+    # ── Irbid ──
+    ("irbid-athletic",  "Irbid Athletic",     "إربد الرياضي",         "Hashmi",       "Irbid", Category.GYM,      Tier.GOLD,     32.5556, 35.8500),
+    ("northern-crossfit","Northern CrossFit", "الشمال كروسفت",        "Yarmouk",      "Irbid", Category.CROSSFIT, Tier.PLATINUM, 32.5430, 35.8650),
+
+    # ── Aqaba ──
+    ("ayla-wellness",   "Ayla Wellness Club", "آيلا للعافية",        "Tala Bay",     "Aqaba", Category.GYM,      Tier.DIAMOND,  29.5267, 35.0019),
 ]
 
 TIER_MONTHLY_PRICE: dict[Tier, Decimal] = {
@@ -114,6 +146,46 @@ GYM_PHOTOS: dict[str, list[tuple[str, str, str]]] = {
         ("https://images.unsplash.com/photo-1593079831268-3381b0db4a77?w=1200", "Recovery zone", "منطقة التعافي"),
         ("https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=1200", "Cardio", "الكارديو"),
     ],
+    "pulse-fitness": [
+        ("https://images.unsplash.com/photo-1605296867424-35fc25c9212a?w=1200", "Cardio floor", "صالة الكارديو"),
+        ("https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=1200", "Functional zone", "منطقة التدريب الوظيفي"),
+    ],
+    "zen-yoga": [
+        ("https://images.unsplash.com/photo-1545205597-3d9d02c29597?w=1200", "Main studio", "الاستوديو الرئيسي"),
+        ("https://images.unsplash.com/photo-1591291621164-2c6367723315?w=1200", "Meditation room", "غرفة التأمل"),
+    ],
+    "body-master": [
+        ("https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=1200", "Strength floor", "أرضية القوة"),
+    ],
+    "nordic-fit": [
+        ("https://images.unsplash.com/photo-1576678927484-cc907957088c?w=1200", "Group class", "صف جماعي"),
+    ],
+    "the-floor": [
+        ("https://images.unsplash.com/photo-1526506118085-60ce8714f8c5?w=1200", "Rig + rowers", "المنصة والمجاديف"),
+        ("https://images.unsplash.com/photo-1517466787929-bc90951d0974?w=1200", "Olympic platforms", "منصات الرفع"),
+    ],
+    "royal-pilates": [
+        ("https://images.unsplash.com/photo-1601925260368-ae2f83cf8b7f?w=1200", "Reformer studio", "استوديو الريفورمر"),
+    ],
+    "strength-academy": [
+        ("https://images.unsplash.com/photo-1583500178690-f7ddeae9b1b9?w=1200", "Powerlifting", "رفع الأثقال"),
+    ],
+    "zarqa-power": [
+        ("https://images.unsplash.com/photo-1574680178050-55c6a6a96e0a?w=1200", "Main hall", "الصالة الرئيسية"),
+    ],
+    "phoenix-mma": [
+        ("https://images.unsplash.com/photo-1517438476312-10d79c5f25a9?w=1200", "Mat area", "منطقة الحصير"),
+    ],
+    "irbid-athletic": [
+        ("https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1200", "Training floor", "أرضية التدريب"),
+    ],
+    "northern-crossfit": [
+        ("https://images.unsplash.com/photo-1518611012118-696072aa579a?w=1200", "Box", "القاعة"),
+    ],
+    "ayla-wellness": [
+        ("https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=1200", "Cardio overlook", "إطلالة الكارديو"),
+        ("https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=1200", "Pool deck", "حافة المسبح"),
+    ],
 }
 
 
@@ -149,39 +221,54 @@ async def main() -> None:
                 )
             )
 
-        # Gyms
+        # Arabic city name lookup so addresses render natively in the
+        # mobile app's AR locale.
+        ar_city = {
+            "Amman": "عمّان",
+            "Zarqa": "الزرقاء",
+            "Irbid": "إربد",
+            "Aqaba": "العقبة",
+        }
+        # Gyms — idempotent per slug. A previous version of this seed
+        # short-circuited if ANY gym existed, which made it impossible
+        # to grow the dev network in-place when this list was expanded
+        # to cover the full Jordan footprint. Now we insert any slug
+        # that isn't already present and leave existing rows (with
+        # their checkins / photos / payouts) untouched.
         existing_gyms = (await session.execute(select(Gym))).scalars().all()
-        if not existing_gyms:
-            for slug, name_en, name_ar, area, category, tier, lat, lng in GYMS:
-                gym = Gym(
-                    id=uuid7(),
-                    slug=slug,
-                    name_en=name_en,
-                    name_ar=name_ar,
-                    address_en=f"{area}, Amman",
-                    address_ar=f"{area}, عمّان",
-                    area=area,
-                    lat=Decimal(str(lat)),
-                    lng=Decimal(str(lng)),
-                    category=category,
-                    required_tier=tier,
-                    per_visit_rate_jod=Decimal("2.00"),
-                    amenities=["wifi", "parking", "showers"],
-                    opening_hours={"24_7": True},
-                )
-                session.add(gym)
-                await session.flush()
-                for order, (url, alt_en, alt_ar) in enumerate(GYM_PHOTOS.get(slug, [])):
-                    session.add(
-                        GymPhoto(
-                            id=uuid7(),
-                            gym_id=gym.id,
-                            url=url,
-                            sort_order=order,
-                            alt_text_en=alt_en,
-                            alt_text_ar=alt_ar,
-                        )
+        existing_slugs = {g.slug for g in existing_gyms}
+        for slug, name_en, name_ar, area, city, category, tier, lat, lng in GYMS:
+            if slug in existing_slugs:
+                continue
+            gym = Gym(
+                id=uuid7(),
+                slug=slug,
+                name_en=name_en,
+                name_ar=name_ar,
+                address_en=f"{area}, {city}",
+                address_ar=f"{area}, {ar_city.get(city, city)}",
+                area=area,
+                lat=Decimal(str(lat)),
+                lng=Decimal(str(lng)),
+                category=category,
+                required_tier=tier,
+                per_visit_rate_jod=Decimal("2.00"),
+                amenities=["wifi", "parking", "showers"],
+                opening_hours={"24_7": True},
+            )
+            session.add(gym)
+            await session.flush()
+            for order, (url, alt_en, alt_ar) in enumerate(GYM_PHOTOS.get(slug, [])):
+                session.add(
+                    GymPhoto(
+                        id=uuid7(),
+                        gym_id=gym.id,
+                        url=url,
+                        sort_order=order,
+                        alt_text_en=alt_en,
+                        alt_text_ar=alt_ar,
                     )
+                )
 
         # Cleanup: a previous version of this seed wrote unsplash
         # gallery URLs into `logo_url`, which mis-uses the field
