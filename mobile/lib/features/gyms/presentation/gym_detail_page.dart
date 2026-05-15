@@ -42,7 +42,35 @@ class GymDetailPage extends ConsumerWidget {
     return null;
   }
 
-  GPGym get gym => _seedGym() ?? GPGym.seed.first;
+  /// View-model for this page. Resolution order:
+  ///   1. The live `gymSummary` from the backend — authoritative for
+  ///      every gym in the DB (the 18 curated + the 47 OSM-imported
+  ///      + anything an admin onboards later). This is the only
+  ///      path that reflects real, current state.
+  ///   2. The 6-entry hardcoded `GPGym.seed` (rendered as an
+  ///      *initial placeholder only*, while the backend response is
+  ///      in flight, for the original demo slugs).
+  ///   3. `GPGym.seed.first` as the absolute last-resort placeholder.
+  ///      The `isUnknownSlug` guard below bails out before this can
+  ///      surface in any persistent state.
+  ///
+  /// The previous shape — `_seedGym() ?? GPGym.seed.first` — silently
+  /// fell to the placeholder for every non-seed slug, which made
+  /// every OSM-imported gym page render as Iron Forge.
+  GPGym _resolveGym(GymSummary? summary) {
+    if (summary != null) {
+      return GPGym(
+        slug: summary.slug,
+        name: summary.nameEn,
+        area: summary.area ?? '',
+        category: summary.category ?? 'gym',
+        tier: summary.tier ?? 'silver',
+        lat: summary.lat ?? 0,
+        lng: summary.lng ?? 0,
+      );
+    }
+    return _seedGym() ?? GPGym.seed.first;
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -55,7 +83,6 @@ class GymDetailPage extends ConsumerWidget {
     final userRank = ref.watch(
       subscriptionProvider.select((s) => s.tier?.rank ?? 0),
     );
-    final included = gym.tierObj.rank <= userRank;
     // Suppress the scan CTA right after the member has actually checked in
     // here — the pass was just used, so a second tap inside the same training
     // window would only invite a duplicate scan and a wasted visit.
@@ -80,6 +107,11 @@ class GymDetailPage extends ConsumerWidget {
     if (isUnknownSlug) {
       return _NotFound(slug: slug);
     }
+    // Authoritative view-model: prefer the live backend summary so
+    // every OSM-imported gym renders its own name / category / tier
+    // instead of falling back to Iron Forge.
+    final gym = _resolveGym(gymSummary);
+    final included = gym.tierObj.rank <= userRank;
     final remoteLogo = gymSummary?.logoUrl;
     final logoUrl =
         remoteLogo == null ? null : _resolvePhotoUrl(mediaBase, remoteLogo);
@@ -130,7 +162,7 @@ class GymDetailPage extends ConsumerWidget {
                 data: (photos) => photos.isEmpty
                     ? KeyedSubtree(
                         key: const ValueKey('hero-fallback'),
-                        child: _heroFallback(gp),
+                        child: _heroFallback(gp, gym),
                       )
                     : KeyedSubtree(
                         key: const ValueKey('hero-slider'),
@@ -152,11 +184,11 @@ class GymDetailPage extends ConsumerWidget {
                 // the gradient stable until real photos arrive.
                 loading: () => KeyedSubtree(
                   key: const ValueKey('hero-fallback'),
-                  child: _heroFallback(gp),
+                  child: _heroFallback(gp, gym),
                 ),
                 error: (_, __) => KeyedSubtree(
                   key: const ValueKey('hero-fallback'),
-                  child: _heroFallback(gp),
+                  child: _heroFallback(gp, gym),
                 ),
               ),
             ),
@@ -301,7 +333,7 @@ class GymDetailPage extends ConsumerWidget {
                             // coords (fallback). Hidden entirely when
                             // the GPS hasn't resolved yet — a "—"
                             // would just add chrome with no signal.
-                            ..._buildDistanceRow(ref, gp, l, gymSummary),
+                            ..._buildDistanceRow(ref, gp, l, gymSummary, gym),
                           ],
                         ),
                         const SizedBox(height: 18),
@@ -355,7 +387,7 @@ class GymDetailPage extends ConsumerWidget {
     );
   }
 
-  Widget _heroFallback(GpColors gp) {
+  Widget _heroFallback(GpColors gp, GPGym gym) {
     return ShaderMask(
       shaderCallback: (rect) => const LinearGradient(
         begin: Alignment.topCenter,
@@ -380,7 +412,7 @@ class GymDetailPage extends ConsumerWidget {
                 child: Align(
                   alignment: Alignment.center,
                   child: Icon(
-                    _categoryIcon(),
+                    _categoryIcon(gym),
                     size: 220,
                     color: gym.color,
                   ),
@@ -393,7 +425,7 @@ class GymDetailPage extends ConsumerWidget {
     );
   }
 
-  IconData _categoryIcon() {
+  IconData _categoryIcon(GPGym gym) {
     switch (gym.category) {
       case 'yoga':
         return Icons.self_improvement;
@@ -435,6 +467,7 @@ class GymDetailPage extends ConsumerWidget {
     GpColors gp,
     AppLocalizations l,
     GymSummary? summary,
+    GPGym gym,
   ) {
     final user = ref.watch(userPositionProvider);
     if (user == null) return const [];
