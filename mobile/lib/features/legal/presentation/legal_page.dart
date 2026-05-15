@@ -45,12 +45,12 @@ class LegalPage extends StatelessWidget {
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
-            SliverToBoxAdapter(
+            const SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 8, 18, 0),
+                padding: EdgeInsets.fromLTRB(18, 8, 18, 0),
                 child: Row(
                   children: [
-                    const BackBtn(),
+                    BackBtn(),
                   ],
                 ),
               ),
