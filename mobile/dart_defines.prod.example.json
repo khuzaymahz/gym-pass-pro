@@ -1,0 +1,13 @@
+{
+  "_comment": "Production build defines baked into the APK. Copy to dart_defines.prod.json (gitignored) before running scripts/build-apk.sh. Changing any value here means rebuilding the APK — these are compiled into the bundle, not read at runtime.",
+
+  "API_BASE_URL": "https://api.gym-pass.net",
+  "WEB_BASE_URL": "https://gym-pass.net",
+  "APP_ENV": "development",
+
+  "_GOOGLE_MAPS_KEY_help": "Optional. Google Cloud project API key with Static Maps API enabled. Without it, the Explore page renders the OSM map only (no static-preview card). Safe to leave empty for pre-prod.",
+  "GOOGLE_MAPS_KEY": "",
+
+  "_GOOGLE_OAUTH_CLIENT_ID_help": "Optional. OAuth 2.0 Web client id (NOT Android). Backend's JWKS verifier accepts ID tokens minted by this client. Leave empty to disable Google Sign-In; phone OTP login still works.",
+  "GOOGLE_OAUTH_CLIENT_ID": ""
+}

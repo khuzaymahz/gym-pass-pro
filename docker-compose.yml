@@ -156,8 +156,25 @@ services:
     depends_on:
       - backend
 
+  # Public marketing site — apex domain (gym-pass.net). No backend
+  # dependency at runtime: the marketing surface is static / ISR and
+  # links to api/admin/partner subdomains by URL only. Bind-mounted
+  # for hot reload like the other Next services.
+  website:
+    build:
+      context: ./website
+      target: dev
+    environment:
+      NODE_ENV: development
+    volumes:
+      - ./website:/app
+      - website_node_modules:/app/node_modules
+    ports:
+      - "3004:3004"
+
 volumes:
   db_data:
   admin_node_modules:
   gym_partner_node_modules:
+  website_node_modules:
   media_data:
