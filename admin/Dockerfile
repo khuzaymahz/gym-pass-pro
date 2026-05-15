@@ -28,6 +28,11 @@ RUN npm run build
 
 FROM base AS runner
 ENV NODE_ENV=production
+# Next.js standalone runner reads PORT from env. Without it the
+# `node server.js` binds 3000, but nginx upstream points at 3001
+# — must keep these aligned with the port nginx proxies to.
+ENV PORT=3001
+ENV HOSTNAME=0.0.0.0
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
