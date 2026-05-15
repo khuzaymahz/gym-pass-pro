@@ -124,15 +124,26 @@ class AdminMetricsService:
     async def _system_health(self) -> dict[str, str]:
         # Probes share the request session — `SELECT 1` isn't worth a
         # fresh pool slot.
+        import structlog
+
+        log = structlog.get_logger(__name__)
         db_ok = "ok"
         redis_ok = "ok"
         try:
             await self.session.execute(select(1))
-        except SQLAlchemyError:
+        except SQLAlchemyError as exc:
+            log.warning("health.db_probe_failed", error=str(exc))
             db_ok = "error"
         try:
             await self.redis.ping()
-        except Exception:
+        except Exception as exc:
+            # Catch-all here is intentional — Redis client raises
+            # several unrelated exception types (ConnectionError,
+            # TimeoutError, ResponseError, …). The health probe
+            # cares only about reach/no-reach, not which kind. But
+            # always log so a degraded Redis surfaces in the
+            # operator's logs instead of disappearing.
+            log.warning("health.redis_probe_failed", error=str(exc))
             redis_ok = "error"
         return {"db": db_ok, "redis": redis_ok, "api": "ok"}
 
