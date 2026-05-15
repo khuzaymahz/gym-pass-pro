@@ -112,6 +112,11 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  # Generated app_localizations*.dart files in lib/l10n are committed
+  # to the repo. Re-generate by temporarily flipping this to `true`,
+  # running `flutter gen-l10n --arb-dir=lib/l10n --template-arb-file=app_en.arb
+  # --output-dir=lib/l10n --output-localization-file=app_localizations.dart
+  # --output-class=AppLocalizations`, then flipping back.
   generate: false
 
   assets:

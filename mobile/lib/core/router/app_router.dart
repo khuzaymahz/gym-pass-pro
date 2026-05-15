@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/data/user_profile.dart';
+import '../../features/legal/presentation/privacy_page.dart';
+import '../../features/legal/presentation/terms_page.dart';
 import '../../features/auth/presentation/auth_controller.dart';
 import '../../features/subscription/data/subscription_state.dart';
 import '../../features/auth/presentation/forgot_password_page.dart';
@@ -112,6 +114,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         '/otp',
         '/register',
         '/forgot-password',
+        '/legal/terms',
+        '/legal/privacy',
       ];
       final isPublic = publicPaths.any(path.startsWith);
 
@@ -224,6 +228,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/subscription', pageBuilder: (_, __) => _fastPage(const MySubscriptionPage())),
       GoRoute(path: '/notifications', pageBuilder: (_, __) => _fastPage(const NotificationsPage())),
       GoRoute(path: '/settings', pageBuilder: (_, __) => _fastPage(const SettingsPage())),
+      GoRoute(path: '/legal/terms', pageBuilder: (_, __) => _fastPage(const TermsPage())),
+      GoRoute(path: '/legal/privacy', pageBuilder: (_, __) => _fastPage(const PrivacyPage())),
       GoRoute(path: '/help', pageBuilder: (_, __) => _fastPage(const HelpPage())),
       GoRoute(path: '/support', pageBuilder: (_, __) => _fastPage(const ContactSupportPage())),
       GoRoute(path: '/faq', pageBuilder: (_, __) => _fastPage(const FaqPage())),

@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -734,30 +733,20 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                       text: l.terms,
                       style: linkStyle,
                       // TapGestureRecognizer is the only way to make
-                      // a TextSpan inside a Text.rich tappable. We
-                      // own the recognizer instance per-build (cheap)
-                      // and use a bottom-sheet overlay instead of
-                      // a full-screen route so the member doesn't
-                      // lose their signup state on cancel.
+                      // a TextSpan inside a Text.rich tappable. The
+                      // signup form state survives — go_router pushes
+                      // on top, doesn't unmount this widget — so the
+                      // member returns to the same partly-filled form
+                      // when they pop the legal page.
                       recognizer: TapGestureRecognizer()
-                        ..onTap = () => _openPolicySheet(
-                              context,
-                              l,
-                              title: l.terms,
-                              body: l.termsBody,
-                            ),
+                        ..onTap = () => context.push('/legal/terms'),
                     ),
                     TextSpan(text: ' ${l.and} '),
                     TextSpan(
                       text: l.privacyPolicy,
                       style: linkStyle,
                       recognizer: TapGestureRecognizer()
-                        ..onTap = () => _openPolicySheet(
-                              context,
-                              l,
-                              title: l.privacyPolicy,
-                              body: l.privacyPolicyBody,
-                            ),
+                        ..onTap = () => context.push('/legal/privacy'),
                     ),
                     const TextSpan(text: '.'),
                   ],
@@ -770,93 +759,4 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     );
   }
 
-  /// Bottom-sheet overlay that surfaces the Terms / Privacy Policy
-  /// content without leaving the registration flow. Smooth slide-up
-  /// from the bottom (`isScrollControlled: true` so it can take
-  /// most of the viewport for long policy text), draggable handle
-  /// at the top so the member can dismiss with a flick.
-  Future<void> _openPolicySheet(
-    BuildContext context,
-    AppLocalizations l, {
-    required String title,
-    required String body,
-  }) async {
-    HapticFeedback.selectionClick();
-    final gp = context.gp;
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withValues(alpha: 0.45),
-      builder: (sheetCtx) {
-        final mq = MediaQuery.of(sheetCtx);
-        return DraggableScrollableSheet(
-          initialChildSize: 0.78,
-          minChildSize: 0.4,
-          maxChildSize: 0.92,
-          expand: false,
-          builder: (innerCtx, scrollCtrl) => ClipRRect(
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(GPRadius.xl2),
-            ),
-            child: Container(
-              color: gp.bg2,
-              child: Column(
-                children: [
-                  // Drag handle — Material standard for sheet
-                  // dismissal affordance.
-                  Padding(
-                    padding: const EdgeInsets.only(top: 10, bottom: 14),
-                    child: Container(
-                      width: 40,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        color: gp.line2,
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsetsDirectional.fromSTEB(
-                        24, 0, 24, 14,),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            title,
-                            style: GPText.display(24, color: gp.fg, height: 1.0),
-                          ),
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.close_rounded, color: gp.muted),
-                          onPressed: () => Navigator.of(sheetCtx).pop(),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Divider(color: gp.line, height: 1),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      controller: scrollCtrl,
-                      padding: EdgeInsets.fromLTRB(
-                        24, 18, 24, 24 + mq.viewPadding.bottom,
-                      ),
-                      child: Text(
-                        body,
-                        style: GPText.body(
-                          size: 14,
-                          color: gp.fg,
-                          height: 1.55,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
 }
