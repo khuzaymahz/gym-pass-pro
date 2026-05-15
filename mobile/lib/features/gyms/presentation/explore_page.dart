@@ -1102,10 +1102,15 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
                   ),
                 ),
               ),
-              // 2. Locate-me FAB — fixed position above the minimized
-              //    sheet.
+              // 2. Locate-me FAB — sits above whichever bottom
+              //    surface is currently showing (the SelectedGymCard
+              //    when a gym is focused, otherwise the minimised
+              //    list sheet). The card is ~110 px tall + 12 px gap;
+              //    the sheet handle peek is ~sheetMin * H + 12 px.
               PositionedDirectional(
-                bottom: MediaQuery.sizeOf(context).height * exploreSheetMin + 12,
+                bottom: _selectedGym != null
+                    ? 130
+                    : MediaQuery.sizeOf(context).height * exploreSheetMin + 12,
                 end: 16,
                 child: LocateMeButton(
                   onTap: _onLocateMe,
@@ -1113,22 +1118,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
                   loading: _locating,
                 ),
               ),
-              // 3. Selected-gym profile card — slides up from above
-              //    the bottom sheet when a pin is tapped.
-              if (_selectedGym != null)
-                PositionedDirectional(
-                  start: 12,
-                  end: 12,
-                  bottom:
-                      MediaQuery.sizeOf(context).height * exploreSheetMin + 12,
-                  child: SelectedGymCard(
-                    gym: _selectedGym!,
-                    distanceMeters: _distanceToGym(_selectedGym!),
-                    onTap: () => context.push('/gyms/${_selectedGym!.slug}'),
-                    onClose: () => setState(() => _selectedGym = null),
-                  ),
-                ),
-              // 4. Top chrome — search + filter, glass-blurred over
+              // 3. Top chrome — search + filter, glass-blurred over
               //    the live map.
               ExploreTopBar(
                 searchCtrl: _searchCtrl,
@@ -1136,18 +1126,41 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
                 activeFilterCount: activeFilterCount,
                 onOpenFilters: () => _openFiltersSheet(context),
               ),
-              // 5. Bottom sheet — the "slider" with the gym list.
-              GymListSheet(
-                controller: _sheetCtrl,
-                onTapHandle: _expandSheet,
-                onDoubleTapHandle: _expandSheetMax,
-                gyms: visible,
-                query: query,
-                isLoading: isLoadingGyms,
-                hasError: hasError,
-                onGymSelect: _selectGymFromList,
-                distanceFor: _distanceToGym,
-              ),
+              // 4. Bottom-of-screen surface — list sheet OR the
+              //    selected-gym card. Mutually exclusive: when a pin
+              //    or list row is tapped, the gym list is fully
+              //    replaced by the focused card so the two can't
+              //    stack visually (the "what is this!?" overlap a
+              //    member reported when tapping mid-drag).
+              //
+              //    When the member dismisses the card (× button or
+              //    tapping the map background), the sheet
+              //    re-mounts at its initial size (handle peek), which
+              //    is the right "back to overview" affordance.
+              if (_selectedGym != null)
+                PositionedDirectional(
+                  start: 12,
+                  end: 12,
+                  bottom: 12,
+                  child: SelectedGymCard(
+                    gym: _selectedGym!,
+                    distanceMeters: _distanceToGym(_selectedGym!),
+                    onTap: () => context.push('/gyms/${_selectedGym!.slug}'),
+                    onClose: () => setState(() => _selectedGym = null),
+                  ),
+                )
+              else
+                GymListSheet(
+                  controller: _sheetCtrl,
+                  onTapHandle: _expandSheet,
+                  onDoubleTapHandle: _expandSheetMax,
+                  gyms: visible,
+                  query: query,
+                  isLoading: isLoadingGyms,
+                  hasError: hasError,
+                  onGymSelect: _selectGymFromList,
+                  distanceFor: _distanceToGym,
+                ),
             ],
           );
         },
