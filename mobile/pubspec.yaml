@@ -85,6 +85,11 @@ dependencies:
   # the LatLng class.
   flutter_map: ^7.0.2
   latlong2: ^0.9.1
+  # `http` is a transitive dep via flutter_map's NetworkTileProvider;
+  # declared explicitly because the resilient tile-provider wrapper
+  # in features/gyms/presentation/widgets/resilient_tile_provider.dart
+  # imports it directly (timeout-on-send pattern).
+  http: ^1.2.2
 
   # Image caching — disk + memory cache for `/api/v1/gyms/.../photos`
   # and partner-uploaded logos. Backed by `flutter_cache_manager`

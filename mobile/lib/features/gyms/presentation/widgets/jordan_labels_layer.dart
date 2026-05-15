@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 
 import '../../data/jordan_border.dart';
+import 'resilient_tile_provider.dart';
 
 /// Renders a labels-only tile layer clipped to Jordan's outline so
 /// place names ONLY appear inside the country. The base layer (no-
@@ -37,9 +38,14 @@ class JordanLabelsLayer extends StatelessWidget {
         subdomains: const ['a', 'b', 'c', 'd'],
         retinaMode: false,
         userAgentPackageName: 'net.gympass.gympass',
-        // Labels-only tiles fail noisily (404 on a CARTO outage) but
-        // the base layer below stays — no need to surface these
-        // errors as loud as the base ones.
+        // Same resilient provider as the base layer — short timeout,
+        // zero retries, silent failures. The labels overlay is a
+        // nice-to-have on top of the base tiles, so when CARTO is
+        // unreachable it just renders blank instead of cascading
+        // into the same ANR pattern as the base layer used to.
+        tileProvider: ResilientTileProvider(),
+        keepBuffer: 1,
+        panBuffer: 0,
       ),
     );
   }

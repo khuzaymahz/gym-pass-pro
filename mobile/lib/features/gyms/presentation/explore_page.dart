@@ -23,6 +23,7 @@ import 'widgets/gym_list_sheet.dart';
 import 'widgets/gym_pin_marker.dart';
 import 'widgets/jordan_labels_layer.dart';
 import 'widgets/locate_me_button.dart';
+import 'widgets/resilient_tile_provider.dart';
 import 'widgets/selected_gym_card.dart';
 
 /// Explore tab — **map-first**, Uber/Careem layout.
@@ -874,6 +875,19 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
                     subdomains: const ['a', 'b', 'c', 'd'],
                     retinaMode: false,
                     userAgentPackageName: 'net.gympass.gympass',
+                    // Resilient tile provider: per-request timeout +
+                    // zero retries + silent failures. Without this,
+                    // each unreachable CARTO tile blocks for ~30s ×
+                    // 3 retries, exhausting the connection pool and
+                    // ANR-ing the app when the CDN is unreachable.
+                    // See `ResilientTileProvider` for the rationale.
+                    tileProvider: ResilientTileProvider(),
+                    // Halve the off-screen tile buffer so a viewport
+                    // never schedules more than the visible set + a
+                    // single ring of neighbours. Cuts the in-flight
+                    // request budget roughly in half on a fresh pan.
+                    keepBuffer: 1,
+                    panBuffer: 0,
                     // tileBuilder fires per build for every tile in
                     // the visible viewport. The `tile.loadFinishedAt`
                     // field is non-null once flutter_map has finished
