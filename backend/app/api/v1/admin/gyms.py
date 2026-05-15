@@ -17,6 +17,7 @@ from app.api.deps import (
 )
 from app.config import get_settings
 from app.core.exceptions import AppError, ErrorCode
+from app.db.enums import AudienceGender
 from app.db.models import User
 from app.realtime import publish as realtime_publish
 from app.repositories.gym_photo_repo import GymPhotoRepository
@@ -35,11 +36,17 @@ async def list_all(
     svc: Annotated[GymService, Depends(gym_service)],
     photos: Annotated[GymPhotoRepository, Depends(gym_photo_repo)],
     _: Annotated[User, Depends(current_admin)],
+    audience: AudienceGender | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100, alias="pageSize"),
 ) -> Page[GymRead]:
-    rows, total = await svc.list(
-        area=None, category=None, tier=None, q=None, page=page, page_size=page_size
+    # Admin sees ALL gyms by default. Optional `audience` query param
+    # narrows to a single audience value when an operator wants to
+    # inspect e.g. only female-only venues.
+    rows, total = await svc.list_unfiltered(
+        area=None, category=None, tier=None, q=None,
+        audience=audience,
+        page=page, page_size=page_size,
     )
     counts = await photos.count_by_gym_ids([r.id for r in rows])
     items = []

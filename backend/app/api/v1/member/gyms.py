@@ -5,8 +5,9 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 
-from app.api.deps import gym_photo_repo, gym_service
+from app.api.deps import current_user, gym_photo_repo, gym_service
 from app.db.enums import Category, Tier
+from app.db.models import User
 from app.repositories.gym_photo_repo import GymPhotoRepository
 from app.schemas.common import Page
 from app.schemas.gym import GymRead
@@ -19,6 +20,7 @@ router = APIRouter(prefix="/gyms", tags=["gyms"])
 @router.get("", response_model=Page[GymRead])
 async def list_gyms(
     svc: Annotated[GymService, Depends(gym_service)],
+    user: Annotated[User, Depends(current_user)],
     area: str | None = Query(default=None),
     category: Category | None = Query(default=None),
     tier: Tier | None = Query(default=None),
@@ -26,8 +28,13 @@ async def list_gyms(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100, alias="pageSize"),
 ) -> Page[GymRead]:
+    # Audience visibility is enforced server-side from the caller's
+    # profile gender — a male member never receives `female_only`
+    # rows and vice versa. `prefer_not_to_say` / unset sees only
+    # mixed gyms.
     rows, total = await svc.list(
         area=area, category=category, tier=tier, q=q,
+        viewer_gender=user.gender,
         page=page, page_size=page_size,
     )
     return Page[GymRead](

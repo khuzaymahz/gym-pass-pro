@@ -7,7 +7,7 @@ from uuid import UUID
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.enums import Category, CheckinStatus, Tier
+from app.db.enums import AudienceGender, Category, CheckinStatus, Tier
 from app.db.models import Checkin, Gym
 from app.utils.ids import uuid7
 
@@ -79,6 +79,13 @@ class GymRepository:
         category: Category | None = None,
         max_tier: Tier | None = None,
         q: str | None = None,
+        # Server-enforced visibility by audience. Member endpoints pass
+        # the caller's profile gender here so a male member never sees
+        # `female_only` gyms (and vice versa) — admin and partner
+        # endpoints pass None to disable the filter. The set is the
+        # list of audience values that should remain visible.
+        audience_in: list[AudienceGender] | None = None,
+        audience: AudienceGender | None = None,
         page: int = 1,
         page_size: int = 20,
     ) -> tuple[list[Gym], int]:
@@ -90,6 +97,10 @@ class GymRepository:
         if max_tier is not None:
             allowed = [t for t in Tier if t.rank <= max_tier.rank]
             conditions.append(Gym.required_tier.in_(allowed))
+        if audience_in is not None:
+            conditions.append(Gym.audience_gender.in_(audience_in))
+        if audience is not None:
+            conditions.append(Gym.audience_gender == audience)
         if q:
             # Escape SQL `%`/`_` wildcards in user input — see
             # user_repo.py for the full rationale.

@@ -54,6 +54,7 @@ class PaymentStatus(StrEnum):
 class CheckinStatus(StrEnum):
     SUCCESS = "success"
     TIER_LOCKED = "tier_locked"
+    GENDER_LOCKED = "gender_locked"
     NO_VISITS = "no_visits"
     EXPIRED = "expired"
     INVALID_QR = "invalid_qr"
@@ -119,6 +120,22 @@ class ReferralStatus(StrEnum):
     EXPIRED = "expired"
 
 
+class AudienceGender(StrEnum):
+    """Which members a gym serves.
+
+    `mixed` is the everyone-welcome default — most commercial gyms
+    in Jordan are mixed. `female_only` and `male_only` exist because
+    a meaningful chunk of the local market is single-sex (women-only
+    studios are common; men-only is rarer but exists for some
+    martial-arts dojos and barbell halls). Members can filter by this
+    on the explore page and partners declare it on their gym profile.
+    """
+
+    MIXED = "mixed"
+    FEMALE_ONLY = "female_only"
+    MALE_ONLY = "male_only"
+
+
 ENUM_DEFINITIONS: dict[str, type[StrEnum]] = {
     "tier_enum": Tier,
     "category_enum": Category,
@@ -135,4 +152,5 @@ ENUM_DEFINITIONS: dict[str, type[StrEnum]] = {
     "ticket_status_enum": TicketStatus,
     "gender_enum": Gender,
     "referral_status_enum": ReferralStatus,
+    "audience_gender_enum": AudienceGender,
 }

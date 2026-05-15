@@ -4,7 +4,13 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from app.core.exceptions import AppError, ErrorCode
-from app.db.enums import CheckinStatus, SubscriptionStatus, Tier
+from app.db.enums import (
+    AudienceGender,
+    CheckinStatus,
+    Gender,
+    SubscriptionStatus,
+    Tier,
+)
 from app.db.models import Checkin, Gym, User
 from app.repositories.checkin_repo import CheckinRepository
 from app.repositories.gym_repo import GymRepository
@@ -158,6 +164,46 @@ class CheckinService:
                 details={"requiredTier": gym.required_tier.value,
                          "userTier": sub.tier.value},
             )
+
+        # Gender-audience check: a male member scanning at a
+        # `female_only` gym (or vice versa) is refused. An undeclared
+        # gender (None / prefer_not_to_say) cannot match a single-sex
+        # audience either — the gym would verify gender at the door
+        # anyway, so we surface the same failure here. Mixed gyms are
+        # always reachable. Failure rows are audited so a partner can
+        # see when scans bounced on this gate.
+        if gym.audience_gender != AudienceGender.MIXED:
+            allowed_gender = (
+                Gender.MALE
+                if gym.audience_gender == AudienceGender.MALE_ONLY
+                else Gender.FEMALE
+            )
+            if user.gender != allowed_gender:
+                await self.checkins.create(
+                    user_id=user.id, gym_id=gym.id, subscription_id=sub.id,
+                    status=CheckinStatus.GENDER_LOCKED,
+                    failure_reason=(
+                        f"audience={gym.audience_gender.value}"
+                        f" user_gender="
+                        f"{user.gender.value if user.gender else 'unset'}"
+                    ),
+                    ip_address=actor.ip_address, user_agent=actor.user_agent,
+                )
+                label = (
+                    "Women-only"
+                    if gym.audience_gender == AudienceGender.FEMALE_ONLY
+                    else "Men-only"
+                )
+                raise AppError(
+                    ErrorCode.CHECKIN_GENDER_LOCKED,
+                    f"{label} gym — check-in not available.",
+                    details={
+                        "audienceGender": gym.audience_gender.value,
+                        "userGender": (
+                            user.gender.value if user.gender else None
+                        ),
+                    },
+                )
 
         # Visit budget — same per-period cap for every tier. The cap is
         # *per billing period*, not lifetime: counting from

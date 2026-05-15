@@ -6,7 +6,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.db.enums import Category, Tier
+from app.db.enums import AudienceGender, Category, Tier
 
 
 class LogoAlignment(BaseModel):
@@ -45,6 +45,9 @@ class GymBase(BaseModel):
     phone: str | None = Field(default=None, max_length=32)
     category: Category
     required_tier: Tier = Field(alias="requiredTier", default=Tier.SILVER)
+    audience_gender: AudienceGender = Field(
+        alias="audienceGender", default=AudienceGender.MIXED,
+    )
     # Per-visit payout to the gym in JOD. Negative makes no sense
     # (we'd be charging the gym), and a stray very-large number
     # would silently bleed the payout ledger; cap at 100 JOD which
@@ -89,6 +92,9 @@ class GymUpdate(BaseModel):
     phone: str | None = Field(default=None, max_length=32)
     category: Category | None = None
     required_tier: Tier | None = Field(alias="requiredTier", default=None)
+    audience_gender: AudienceGender | None = Field(
+        alias="audienceGender", default=None,
+    )
     per_visit_rate_jod: Decimal | None = Field(
         alias="perVisitRateJod",
         default=None,
