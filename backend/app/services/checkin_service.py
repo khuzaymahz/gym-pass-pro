@@ -166,12 +166,13 @@ class CheckinService:
             )
 
         # Gender-audience check: a male member scanning at a
-        # `female_only` gym (or vice versa) is refused. An undeclared
-        # gender (None / prefer_not_to_say) cannot match a single-sex
-        # audience either — the gym would verify gender at the door
-        # anyway, so we surface the same failure here. Mixed gyms are
-        # always reachable. Failure rows are audited so a partner can
-        # see when scans bounced on this gate.
+        # `female_only` gym (or vice versa) is refused. A member with
+        # a null gender (legacy row predating the mandatory-gender
+        # form) cannot match a single-sex audience either — the gym
+        # would verify gender at the door anyway, so we surface the
+        # same failure here. Mixed gyms are always reachable. Failure
+        # rows are audited so a partner can see when scans bounced on
+        # this gate.
         if gym.audience_gender != AudienceGender.MIXED:
             allowed_gender = (
                 Gender.MALE

@@ -105,13 +105,21 @@ class TicketStatus(StrEnum):
 
 
 class Gender(StrEnum):
+    """Member's declared gender.
+
+    Two values only — the registration form makes one of them
+    mandatory, and the value drives gym-audience visibility (a male
+    member never sees a `female_only` venue and vice versa, see
+    `gym_service.audience_visible_for`).
+
+    A historic `prefer_not_to_say` value still exists in the Postgres
+    `gender_enum` (added by migration 0010) but is no longer surfaced
+    in Python or any UI; the seed audit confirmed zero rows used it
+    before it was retired.
+    """
+
     MALE = "male"
     FEMALE = "female"
-    # Privacy-respecting opt-out — added so onboarding doesn't force
-    # disclosure. Backend treats this exactly like the other variants
-    # (no special-casing); UI surfaces it as the third option in the
-    # gender picker.
-    PREFER_NOT_TO_SAY = "prefer_not_to_say"
 
 
 class ReferralStatus(StrEnum):

@@ -16,20 +16,24 @@ def audience_visible_for(member_gender: Gender | None) -> list[AudienceGender]:
 
     * Male → `mixed` + `male_only`
     * Female → `mixed` + `female_only`
-    * Prefer-not-to-say / unset → `mixed` only
+    * None (anonymous / pre-signup browse) → no filter — every
+      audience is returned so the unauthenticated landing on the
+      explore tab sees the full network. Once they finish signup
+      the registration form has set a gender and the filter kicks
+      in on the next call.
 
-    Undisclosed gender gets only mixed gyms because a single-sex venue
-    typically verifies gender at the door; surfacing one to a caller
-    whose gender we can't assert sets them up for a friction-y
-    in-person rejection. Matches the check-in pipeline, which rejects
-    single-sex scans by undeclared callers.
+    The "None → no filter" branch is the *only* time a caller can
+    see opposite-gender single-sex gyms. After registration, gender
+    is always Male or Female — the form makes it mandatory.
     """
 
     if member_gender == Gender.MALE:
         return [AudienceGender.MIXED, AudienceGender.MALE_ONLY]
     if member_gender == Gender.FEMALE:
         return [AudienceGender.MIXED, AudienceGender.FEMALE_ONLY]
-    return [AudienceGender.MIXED]
+    # Anonymous: no filter. List every audience so a signed-out
+    # caller can browse the whole network during signup evaluation.
+    return list(AudienceGender)
 
 
 class GymService:
