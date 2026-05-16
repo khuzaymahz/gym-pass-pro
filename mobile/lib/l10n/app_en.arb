@@ -103,6 +103,8 @@
   "homeNoPlanCta": "See plans",
   "homeNearYou": "Near you",
   "homeNoGymsYet": "No partner gyms in the network yet. Pull to refresh.",
+  "homeOfflineNoCache": "You're offline. Connect and pull to refresh to see gyms near you.",
+  "offlineBannerMessage": "You're offline — showing your saved list.",
   "homeCategories": "Categories",
   "categoryGym": "GYM",
   "categoryCross": "CROSS",

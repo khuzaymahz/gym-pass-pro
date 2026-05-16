@@ -220,6 +220,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeNoGymsYet =>
       'No partner gyms in the network yet. Pull to refresh.';
   @override
+  String get homeOfflineNoCache =>
+      "You're offline. Connect and pull to refresh to see gyms near you.";
+  @override
+  String get offlineBannerMessage =>
+      "You're offline — showing your saved list.";
+  @override
   String get homeCategories => 'Categories';
   @override
   String get categoryGym => 'GYM';

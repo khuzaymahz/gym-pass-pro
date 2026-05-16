@@ -113,6 +113,14 @@ dependencies:
   # no UI of its own.
   app_links: ^6.3.2
 
+  # Real network-state detection. Drives the offline banner, the
+  # "you're offline, here's your cached list" empty-states, and
+  # auto-invalidation of cached providers when connectivity is
+  # restored. Replaces the previous "fetch returned empty" guess at
+  # offline state — which couldn't distinguish "we couldn't reach
+  # the backend" from "the backend says there are zero gyms."
+  connectivity_plus: ^6.0.5
+
   # Image caching — disk + memory cache for `/api/v1/gyms/.../photos`
   # and partner-uploaded logos. Backed by `flutter_cache_manager`
   # (LRU disk cache with a 30-day TTL by default), so the hero photo

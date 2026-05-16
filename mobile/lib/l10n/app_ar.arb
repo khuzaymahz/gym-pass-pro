@@ -103,6 +103,8 @@
   "homeNoPlanCta": "شوف الباقات",
   "homeNearYou": "قريبة منك",
   "homeNoGymsYet": "لا توجد أندية شريكة في الشبكة بعد. اسحب للتحديث.",
+  "homeOfflineNoCache": "أنت غير متصل. اتصل بالإنترنت ثم اسحب للتحديث لعرض الأندية القريبة منك.",
+  "offlineBannerMessage": "أنت غير متصل — نعرض قائمتك المحفوظة.",
   "homeCategories": "الأنواع",
   "categoryGym": "جيم",
   "categoryCross": "كروس",
