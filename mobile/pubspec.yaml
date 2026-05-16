@@ -145,6 +145,14 @@ dev_dependencies:
   custom_lint: ^0.7.3
   riverpod_lint: ^2.6.1
 
+  # Generates every Android density bucket + every iOS @1x/@2x/@3x
+  # size from the two source PNGs in assets/branding/. Run with
+  # `dart run flutter_launcher_icons` whenever the source icons
+  # change. The generated PNGs are committed (the generator runs
+  # at dev-time, not at app-build time) so flutter build doesn't
+  # depend on the package.
+  flutter_launcher_icons: ^0.14.1
+
 flutter:
   uses-material-design: true
   # Generated app_localizations*.dart files in lib/l10n are committed
@@ -156,6 +164,7 @@ flutter:
 
   assets:
     - assets/fonts/
+    - assets/branding/
 
   fonts:
     - family: Archivo
@@ -196,3 +205,40 @@ flutter:
     - family: Cairo
       fonts:
         - asset: assets/fonts/Cairo-VariableFont_slnt_wght.ttf
+
+# ─── App icons ────────────────────────────────────────────────────
+# Light/dark theme-aware launcher icons.
+#
+# Source images live in `assets/branding/`:
+#   - app_icon_light.png  (1024×1024, white background)
+#   - app_icon_dark.png   (1024×1024, black background)
+#
+# Generate every Android density bucket + every iOS @1x/@2x/@3x
+# size from those two PNGs with:
+#
+#   dart run flutter_launcher_icons
+#
+# On iOS 18+ the system swaps between light and dark variants
+# automatically based on Settings → Display & Brightness. On older
+# iOS we ship the light variant only (Apple's appearances API
+# didn't exist before iOS 18). On Android 13+ the system's
+# "themed icons" feature can monochrome-tint the foreground; the
+# monochrome layer is the same dumbbell glyph isolated from the
+# light icon.
+flutter_launcher_icons:
+  # iOS — light is the default; dark is picked up via the
+  # appearances mechanism that flutter_launcher_icons writes into
+  # AppIcon.appiconset/Contents.json.
+  ios: true
+  remove_alpha_ios: true
+  image_path: "assets/branding/app_icon_light.png"
+  image_path_ios_dark_transparent: "assets/branding/app_icon_dark.png"
+
+  # Android — adaptive icon (Android 8+) with the lime brand colour
+  # as the background and the wordmark as the foreground. The
+  # monochrome layer feeds Android 13+ themed icons.
+  android: "ic_launcher"
+  adaptive_icon_background: "#FAFAF9"
+  adaptive_icon_foreground: "assets/branding/app_icon_light.png"
+  adaptive_icon_monochrome: "assets/branding/app_icon_light.png"
+  min_sdk_android: 21

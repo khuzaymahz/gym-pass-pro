@@ -9,7 +9,7 @@ import type { ReactNode } from 'react';
 export const metadata: Metadata = {
   title: 'GymPass — One subscription. Every gym.',
   description:
-    'One subscription, every partner gym in Jordan. Sign in by phone, pick a tier, scan a static QR at the door. No card. No contract. No kiosk.',
+    'One subscription, every partner gym in Jordan. Sign in by phone, pick a tier, scan a static QR at the door. No card. No contract. No front desk.',
   metadataBase: new URL('https://gym-pass.net'),
   openGraph: {
     title: 'GymPass — One subscription. Every gym.',
