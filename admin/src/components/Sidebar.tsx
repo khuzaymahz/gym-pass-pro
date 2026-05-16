@@ -23,10 +23,12 @@ export default function Sidebar({
   email,
   openTicketCount = 0,
   urgentTicketCount = 0,
+  pendingApplicationCount = 0,
 }: {
   email: string;
   openTicketCount?: number;
   urgentTicketCount?: number;
+  pendingApplicationCount?: number;
 }) {
   const pathname = usePathname();
   const tBrand = useTranslations("brand");
@@ -53,6 +55,14 @@ export default function Sidebar({
       titleKey: "network",
       items: [
         { href: "/gyms", labelKey: "gyms" },
+        {
+          href: "/partner-applications",
+          labelKey: "partnerApplications",
+          mark:
+            pendingApplicationCount > 0
+              ? { count: pendingApplicationCount, urgent: true }
+              : undefined,
+        },
         { href: "/users", labelKey: "users" },
       ],
     },

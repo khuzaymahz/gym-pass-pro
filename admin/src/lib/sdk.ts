@@ -617,4 +617,78 @@ export const AdminSDK = {
       token: await serviceToken(),
     });
   },
+
+  // Partner-application review queue.
+  async listPartnerApplications(params: {
+    status?: ApplicationStatus;
+    page?: number;
+    pageSize?: number;
+  }): Promise<Page<PartnerApplicationRead>> {
+    return api(
+      `/api/v1/admin/partner-applications${qs(params)}`,
+      { token: await serviceToken() },
+    );
+  },
+  async getPartnerApplication(id: string): Promise<PartnerApplicationRead> {
+    return api(`/api/v1/admin/partner-applications/${id}`, {
+      token: await serviceToken(),
+    });
+  },
+  async pendingApplicationCount(): Promise<number> {
+    const r = (await api(
+      `/api/v1/admin/partner-applications/pending-count`,
+      { token: await serviceToken() },
+    )) as { pending: number };
+    return r.pending;
+  },
+  async approvePartnerApplication(
+    id: string,
+    notes: string | null,
+  ): Promise<PartnerApplicationRead> {
+    return api(`/api/v1/admin/partner-applications/${id}/approve`, {
+      method: "POST",
+      body: JSON.stringify({ notes }),
+      token: await serviceToken(),
+    });
+  },
+  async rejectPartnerApplication(
+    id: string,
+    notes: string,
+  ): Promise<PartnerApplicationRead> {
+    return api(`/api/v1/admin/partner-applications/${id}/reject`, {
+      method: "POST",
+      body: JSON.stringify({ notes }),
+      token: await serviceToken(),
+    });
+  },
+};
+
+export type ApplicationStatus = "pending" | "approved" | "rejected";
+
+export type PartnerApplicationRead = {
+  id: string;
+  status: ApplicationStatus;
+  ownerName: string;
+  ownerPhone: string;
+  ownerEmail: string | null;
+  gymNameEn: string;
+  gymNameAr: string;
+  gymArea: string;
+  gymAddressEn: string;
+  gymAddressAr: string;
+  gymLat: string;
+  gymLng: string;
+  gymCategory: string;
+  gymAudienceGender: "mixed" | "female_only" | "male_only";
+  gymPhone: string | null;
+  amenities: string[];
+  openingHours: Record<string, unknown>;
+  logoUrl: string | null;
+  photoUrls: string[];
+  adminNotes: string | null;
+  reviewedAt: string | null;
+  approvedGymId: string | null;
+  approvedOwnerUserId: string | null;
+  createdAt: string;
+  updatedAt: string;
 };

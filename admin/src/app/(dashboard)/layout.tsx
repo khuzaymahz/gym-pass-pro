@@ -20,6 +20,7 @@ export default async function DashboardLayout({
 
   let openTicketCount = 0;
   let urgentTicketCount = 0;
+  let pendingApplicationCount = 0;
   try {
     const stats = await AdminSDK.ticketStats();
     openTicketCount = stats.open + stats.inProgress + stats.waitingUser;
@@ -32,6 +33,13 @@ export default async function DashboardLayout({
   } catch {
     // tolerate backend hiccup in the shell
   }
+  try {
+    pendingApplicationCount = await AdminSDK.pendingApplicationCount();
+  } catch {
+    // partner-applications endpoint may not exist yet on pre-prod
+    // backends running an older image; the badge just hides itself
+    // when the count is 0 (default).
+  }
 
   return (
     <div className="flex min-h-screen bg-ink text-paper">
@@ -39,6 +47,7 @@ export default async function DashboardLayout({
         email={session.user.email}
         openTicketCount={openTicketCount}
         urgentTicketCount={urgentTicketCount}
+        pendingApplicationCount={pendingApplicationCount}
       />
       <main className="flex-1 overflow-x-hidden">
         <div className="mx-auto w-full max-w-[1280px] px-10 py-8">
