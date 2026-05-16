@@ -1,0 +1,81 @@
+# ${WEBSITE_DOMAIN} → marketing website (Claude-Design RegisterFlow
+# prototype served as / via a Next.js rewrite from
+# `public/register-flow.html`).
+#
+# `${WEBSITE_DOMAIN}` resolves to `stg.gym-pass.net` in staging and
+# `gym-pass.net` in production. In production we also serve
+# `www.gym-pass.net` and redirect to the bare apex; staging skips
+# that since there's no `www.stg.gym-pass.net` DNS record.
+
+upstream website_upstream {
+    server website:3004;
+}
+
+# Redirect HTTP → HTTPS. Cloudflare will always send HTTPS to the
+# origin when the zone TLS mode is Full (strict), but leaving :80
+# open serves Cloudflare's own health probes and lets us fall back
+# to "Flexible" mode in a pinch without an outage.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${WEBSITE_DOMAIN};
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name ${WEBSITE_DOMAIN};
+
+    include /etc/nginx/snippets/ssl.conf;
+
+    # Generic security headers. The Next.js next.config.js already
+    # emits these per response, but nginx-side belt-and-braces means
+    # even static files (the APK download, sitemap.xml, robots.txt,
+    # /register-flow.html) get them too.
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options DENY always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+
+    # Public scan-redirect path. The printable QR (generated in the
+    # gym-partner portal) encodes `https://<website-domain>/g/<gym-uuid>`
+    # so anyone scanning the code with a generic phone camera — i.e.
+    # before they have GymPass installed — is taken somewhere sane
+    # instead of seeing a "no app handles `gympass:` scheme" prompt.
+    #
+    # Note: 302 (not 301) so we can change the destination without
+    # caches pinning the redirect to the wrong URL.
+    location /g/ {
+        return 302 https://$host/;
+    }
+
+    # APK download — explicit content-type + attachment so mobile
+    # browsers offer "Install" instead of trying to render bytes.
+    # The file itself lands here via `scripts/build-apk.sh`. The
+    # 24h cache is long enough that returning visitors don't re-
+    # download, short enough that a fresh build propagates fast.
+    location = /downloads/gympass.apk {
+        proxy_pass         http://website_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header   Host $host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+
+        add_header Content-Type "application/vnd.android.package-archive" always;
+        add_header Content-Disposition 'attachment; filename="gympass.apk"' always;
+        add_header Cache-Control "public, max-age=86400, must-revalidate" always;
+    }
+
+    location / {
+        proxy_pass         http://website_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header   Host $host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_set_header   Upgrade $http_upgrade;
+        proxy_set_header   Connection "upgrade";
+        proxy_read_timeout 60s;
+    }
+}
