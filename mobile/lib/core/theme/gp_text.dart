@@ -3,22 +3,29 @@ import 'package:flutter/material.dart';
 import 'gp_tokens.dart';
 
 class GPText {
-  // Archivo / Inter / InstrumentSerif are Latin-only. Cairo is bundled as the
-  // Arabic-script fallback so AR text renders in a designed face instead of
-  // whatever the platform sans happens to be (was Roboto on Android, blurry
-  // on some devices). Roboto / sans-serif remain at the tail for any glyph
-  // Cairo doesn't cover.
-  static const List<String> _fallback = ['Cairo', 'Roboto', 'sans-serif'];
+  // Archivo / Inter / InstrumentSerif are Latin-only. Tajawal is the
+  // primary Arabic fallback (cleaner letterforms + better x-height
+  // for small UI sizes than Cairo); Cairo stays in the chain so any
+  // glyph Tajawal lacks still renders in a designed face rather than
+  // dropping to Roboto's smaller-quality AR rendering. Roboto /
+  // sans-serif remain at the tail for the rare missing glyph.
+  static const List<String> _fallback = [
+    'Tajawal',
+    'Cairo',
+    'Roboto',
+    'sans-serif',
+  ];
 
   /// Arabic-first fallback chain. When a `Text` is *known* to render
   /// Arabic (e.g. `DisplayText` reading the locale via context), we
-  /// promote Cairo to the primary family rather than relying on
-  /// glyph-by-glyph fallback. Falling back from Archivo to Cairo
-  /// works for shaping, but Flutter applies Archivo's variation axes
-  /// (wdth) and `FontStyle.italic` to the Cairo fallback even though
-  /// Cairo doesn't expose those — which produced the disconnected,
-  /// sliced-up letters in بلاتيني / ذهبي the user flagged.
-  static const List<String> _arabicFallback = ['Roboto', 'sans-serif'];
+  /// promote Tajawal to the primary family rather than relying on
+  /// glyph-by-glyph fallback. Falling back from Archivo to a
+  /// secondary family works for shaping, but Flutter applies
+  /// Archivo's variation axes (wdth) and `FontStyle.italic` to the
+  /// fallback even though Arabic faces don't expose those — which
+  /// produced the disconnected, sliced-up letters in بلاتيني / ذهبي
+  /// the user flagged.
+  static const List<String> _arabicFallback = ['Cairo', 'Roboto', 'sans-serif'];
 
   // Archivo is a variable font with wght (100-900) + wdth (62-125) axes.
   // Pushing wght to 900 and wdth to narrower 88 produces a more editorial,
@@ -44,8 +51,8 @@ class GPText {
     );
   }
 
-  /// Arabic display style — Cairo at heavy weight, **upright**, with
-  /// non-negative letter spacing so ligatures stay intact.
+  /// Arabic display style — Tajawal at heavy weight, **upright**,
+  /// with non-negative letter spacing so ligatures stay intact.
   /// `letterSpacing: -size*0.045` and `fontStyle: italic` work for
   /// Latin display heads but break Arabic letter joining at the
   /// baseline (the user reported بلاتيني / ذهبي rendering as
@@ -57,20 +64,20 @@ class GPText {
     double height = 1.1,
   }) {
     return TextStyle(
-      fontFamily: 'Cairo',
+      fontFamily: 'Tajawal',
       fontFamilyFallback: _arabicFallback,
       fontWeight: FontWeight.w800,
       fontSize: size,
       height: height,
       // Slight positive tracking improves the perceived weight without
-      // separating the letters. Cairo at w800 is already condensed.
+      // separating the letters. Tajawal at w800 is already condensed.
       letterSpacing: 0,
       color: color,
     );
   }
 
   /// Locale-aware picker used by `DisplayText`. EN gets the editorial
-  /// italic Archivo; AR gets upright Cairo.
+  /// italic Archivo; AR gets upright Tajawal.
   static TextStyle displayFor(
     String languageCode,
     double size, {

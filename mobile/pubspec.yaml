@@ -173,6 +173,26 @@ flutter:
         - asset: assets/fonts/InstrumentSerif-Regular.ttf
         - asset: assets/fonts/InstrumentSerif-Italic.ttf
           style: italic
+    # Tajawal — primary Arabic family across the app. Replaces
+    # Cairo for body, headlines, and labels: cleaner letterforms,
+    # better x-height for small UI sizes, and more breathing room
+    # at body. Five static weights bundled to match the same range
+    # the variable Cairo file gave us (300 / 400 / 500 / 700 / 800).
+    - family: Tajawal
+      fonts:
+        - asset: assets/fonts/Tajawal-Light.ttf
+          weight: 300
+        - asset: assets/fonts/Tajawal-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Tajawal-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Tajawal-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Tajawal-ExtraBold.ttf
+          weight: 800
+    # Cairo kept as the Arabic fallback only — if Tajawal lacks a
+    # glyph (e.g. a rare ligature) the system picks Cairo next
+    # instead of dropping to Roboto's smaller-quality AR rendering.
     - family: Cairo
       fonts:
         - asset: assets/fonts/Cairo-VariableFont_slnt_wght.ttf
