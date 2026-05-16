@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'dart:io' show Platform;
 
 import '../../../core/router/app_router.dart' show checkinBranchKey;
 
@@ -30,6 +34,13 @@ class _CheckinPageState extends ConsumerState<CheckinPage>
     detectionSpeed: DetectionSpeed.noDuplicates,
     facing: CameraFacing.back,
   );
+
+  /// Last camera-start error. Surfaced via the inline error card below
+  /// the camera frame so a black preview is never silent — the member
+  /// always sees the reason ("permission denied" / generic) and a
+  /// retry CTA. `null` means the camera is either running or hasn't
+  /// been started yet.
+  MobileScannerException? _cameraError;
 
   late final AnimationController _scan = AnimationController(
     vsync: this,
@@ -76,16 +87,35 @@ class _CheckinPageState extends ConsumerState<CheckinPage>
   /// confirmation is on screen (camera widget swapped out for the
   /// validation card). Stop is idempotent on `mobile_scanner`, so
   /// calling it from multiple lifecycle paths is safe.
-  void _syncCamera() {
+  ///
+  /// `start()` returns a `Future` that completes with the resolved
+  /// camera state — or rejects with `MobileScannerException` if the
+  /// permission was denied, the camera is in use by another app, etc.
+  /// Previously the future was fire-and-forgotten, so a denied
+  /// permission produced a black preview with zero feedback. Now we
+  /// `await` it, surface the error into `_cameraError`, and the
+  /// build path swaps the camera tile out for an inline error card
+  /// with Retry / Open settings.
+  Future<void> _syncCamera() async {
     final pending =
         ref.read(checkinControllerProvider).pendingGym != null;
     final shouldRun = _branchVisible && !pending;
     if (shouldRun) {
       if (!_scan.isAnimating) _scan.repeat();
-      _controller.start();
+      try {
+        await _controller.start();
+        if (!mounted) return;
+        if (_cameraError != null) {
+          setState(() => _cameraError = null);
+        }
+      } on MobileScannerException catch (err) {
+        if (!mounted) return;
+        setState(() => _cameraError = err);
+        _scan.stop();
+      }
     } else {
       _scan.stop();
-      _controller.stop();
+      await _controller.stop();
     }
   }
 
@@ -235,9 +265,34 @@ class _CheckinPageState extends ConsumerState<CheckinPage>
                                   // (no shift when the user lands on the
                                   // tab) while letting the native handler
                                   // stay torn down.
-                                  if (_branchVisible)
+                                  if (_branchVisible && _cameraError == null)
                                     MobileScanner(
                                       controller: _controller,
+                                      // Without an errorBuilder, a
+                                      // permission denial / camera-busy
+                                      // failure produces a silent black
+                                      // surface. We capture the error
+                                      // into `_cameraError` so the
+                                      // next build swaps the scanner
+                                      // tile out for the error card,
+                                      // and we render a plain
+                                      // placeholder in the meantime
+                                      // so there is never a black hole.
+                                      errorBuilder:
+                                          (context, error, _) {
+                                        WidgetsBinding.instance
+                                            .addPostFrameCallback((_) {
+                                          if (!mounted) return;
+                                          if (_cameraError == error) {
+                                            return;
+                                          }
+                                          setState(
+                                            () => _cameraError = error,
+                                          );
+                                          _scan.stop();
+                                        });
+                                        return Container(color: gp.bg2);
+                                      },
                                       onDetect: (capture) {
                                         final raw = capture.barcodes
                                             .map((b) => b.rawValue)
@@ -254,6 +309,8 @@ class _CheckinPageState extends ConsumerState<CheckinPage>
                                     )
                                   else
                                     Container(color: gp.bg2),
+                                  if (_cameraError != null)
+                                    _cameraErrorOverlay(l, gp),
                                   _cornerBrackets(),
                                   _scanLine(frameSize),
                                   // Swipe overlay. On Android, MobileScanner's
@@ -421,6 +478,93 @@ class _CheckinPageState extends ConsumerState<CheckinPage>
       alignment: Alignment.center,
       child: const GymLoader(size: GymLoaderSize.large),
     );
+  }
+
+  /// Overlay shown inside the scanner frame when `MobileScanner` fails
+  /// to start (permission denied, camera in use, missing hardware).
+  /// Surfaces a Retry that re-attempts `_controller.start()` and an
+  /// Open-Settings deep link for the permission-denied case so the
+  /// member can grant camera access without leaving the app.
+  Widget _cameraErrorOverlay(AppLocalizations l, GpColors gp) {
+    final isPermission =
+        _cameraError?.errorCode == MobileScannerErrorCode.permissionDenied;
+    final title = isPermission
+        ? l.checkinCameraPermissionTitle
+        : l.checkinCameraGenericError;
+    final body = isPermission ? l.checkinCameraPermissionBody : '';
+    return Positioned.fill(
+      child: Container(
+        color: gp.bg2,
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+        alignment: Alignment.center,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isPermission
+                  ? Icons.no_photography_outlined
+                  : Icons.videocam_off_outlined,
+              color: gp.mutedSoft,
+              size: 36,
+            ),
+            const SizedBox(height: 14),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: GPText.body(size: 14, color: gp.fg, height: 1.35),
+            ),
+            if (body.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                body,
+                textAlign: TextAlign.center,
+                style: GPText.body(
+                    size: 12.5, color: gp.mutedSoft, height: 1.4,),
+              ),
+            ],
+            const SizedBox(height: 18),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                PillButton(
+                  label: l.checkinCameraRetry,
+                  variant: PillVariant.ghost,
+                  onPressed: () async {
+                    setState(() => _cameraError = null);
+                    if (!_scan.isAnimating) _scan.repeat();
+                    await _syncCamera();
+                  },
+                ),
+                if (isPermission)
+                  PillButton(
+                    label: l.checkinCameraOpenSettings,
+                    onPressed: _openAppSettings,
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openAppSettings() async {
+    // iOS exposes the per-app settings page via the `app-settings:`
+    // URL scheme; Android has no equivalent URL scheme, so we fall
+    // back to the system Settings app and the user navigates to
+    // Apps → GymPass → Permissions. A future iteration can swap in
+    // `permission_handler.openAppSettings()` for a one-tap path on
+    // Android.
+    final Uri uri = Platform.isIOS
+        ? Uri.parse('app-settings:')
+        : Uri.parse('package:net.gympass.gympass');
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      // best-effort: nothing to fall back to
+    }
   }
 
   Widget _lockedPreviewBanner(AppLocalizations l, GpColors gp) {

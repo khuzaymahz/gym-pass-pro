@@ -131,10 +131,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // beats bouncing to `/plans` with no context for why — the member
       // sees the specific gym they wanted to enter and the concrete tier
       // they'd need to unlock it.
+      // Routes that genuinely need an active subscription to make
+      // sense (/subscription = your-plan summary, /welcome = the
+      // post-checkout success page). /billing intentionally does
+      // NOT require one — a member without a plan should see an
+      // empty "no invoices yet" state when they tap Invoices from
+      // the profile menu, not get force-shoved into the plan picker.
       const subscriptionRequiredPaths = [
         '/subscription',
         '/welcome',
-        '/billing',
       ];
       final requiresSubscription =
           subscriptionRequiredPaths.any(path.startsWith);

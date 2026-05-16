@@ -178,3 +178,16 @@ final appPreferencesProvider =
     'ProviderScope with an override built from loadAppPreferences().',
   );
 });
+
+/// Raw SharedPreferences handle so other features (favourites,
+/// recently-viewed, etc.) can read/write durable, non-secret state
+/// without re-paying the `getInstance()` cost. `main()` overrides
+/// this with the instance produced by [loadAppPreferences]. Reading
+/// the provider without that override throws so we don't silently
+/// fall back to in-memory state that resets on cold start.
+final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
+  throw StateError(
+    'sharedPreferencesProvider was read before main() injected the '
+    'sync-loaded SharedPreferences handle.',
+  );
+});

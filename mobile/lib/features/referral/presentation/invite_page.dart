@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../../core/deep_link/deep_link_handler.dart';
 import '../../../core/di/providers.dart';
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
@@ -26,6 +27,28 @@ class InvitePage extends ConsumerStatefulWidget {
 class _InvitePageState extends ConsumerState<InvitePage> {
   final _claimController = TextEditingController();
   bool _claimSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Consume a referral code captured by the deep-link handler — set
+    // when the OS routed `https://gym-pass.net/invite/<code>` (or the
+    // `gympass://invite/<code>` custom-scheme variant) to the app
+    // while it was launching or running. We pre-fill the claim input
+    // so the friend's code arrives on the page without retyping; we
+    // do NOT auto-submit because every claim has irreversible
+    // consequences (one-shot per account) and the member should still
+    // tap Claim consciously. The slot is cleared in the same frame so
+    // a stale code can't be replayed across a page revisit.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final pending = ref.read(pendingReferralCodeProvider);
+      if (pending != null && pending.isNotEmpty) {
+        _claimController.text = pending;
+        ref.read(pendingReferralCodeProvider.notifier).state = null;
+      }
+    });
+  }
 
   @override
   void dispose() {

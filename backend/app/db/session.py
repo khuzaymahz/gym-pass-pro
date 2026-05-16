@@ -1,12 +1,38 @@
 from __future__ import annotations
 
+import json
 from collections.abc import AsyncIterator
+from decimal import Decimal
 from functools import lru_cache
+from typing import Any
+from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.ext.asyncio.engine import AsyncEngine
 
 from app.config import get_settings
+
+
+def _json_default(value: Any) -> Any:
+    """JSON fallback for types the stdlib encoder doesn't know about.
+
+    Audit-log diffs in particular regularly contain Decimal (price /
+    JOD amount) and UUID (entity_id, foreign keys) values that were
+    raising `TypeError: Object of type Decimal is not JSON serializable`
+    when asyncpg tried to encode the row, aborting the whole
+    transaction. Decimal serialises to its canonical string so JOD
+    amounts round-trip losslessly (`Decimal("45.00")` → `"45.00"`,
+    not `45.0`). UUIDs and other types fall back to `str()`.
+    """
+    if isinstance(value, Decimal):
+        return str(value)
+    if isinstance(value, UUID):
+        return str(value)
+    return str(value)
+
+
+def _json_serializer(payload: Any) -> str:
+    return json.dumps(payload, default=_json_default)
 
 
 @lru_cache
@@ -18,6 +44,28 @@ def get_engine() -> AsyncEngine:
         max_overflow=settings.db_max_overflow,
         pool_pre_ping=True,
         future=True,
+        json_serializer=_json_serializer,
+    )
+
+
+def make_engine() -> AsyncEngine:
+    """Build a fresh AsyncEngine bound to the caller's event loop.
+
+    Celery workers run each task inside its own short-lived
+    `asyncio.run(...)` loop. Reusing the process-cached engine across
+    those loops fails with `RuntimeError: Future attached to a
+    different loop` because asyncpg's connection pool tracks the loop
+    that owned the first task. Tasks therefore call `make_engine()`
+    inside their async entry-point and dispose it on the way out.
+    """
+    settings = get_settings()
+    return create_async_engine(
+        settings.sqlalchemy_url(),
+        pool_size=settings.db_pool_size,
+        max_overflow=settings.db_max_overflow,
+        pool_pre_ping=True,
+        future=True,
+        json_serializer=_json_serializer,
     )
 
 

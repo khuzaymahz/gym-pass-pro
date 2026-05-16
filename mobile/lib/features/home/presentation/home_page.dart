@@ -695,6 +695,15 @@ class _CategoryGrid extends ConsumerWidget {
 /// goes through it so we can't accidentally show a hardcoded `seed`
 /// row in a list that's supposed to be live.
 GPGym _gymSummaryToGPGym(GymSummary s, {required bool isAr}) {
+  return gymSummaryToGPGym(s, isAr: isAr);
+}
+
+/// Public version of the adapter so favourites / explore / any other
+/// surface that renders backend gyms through the existing `GymRow`
+/// widget can reuse the same field mapping. Kept in this file because
+/// home was the first consumer; importing from here is fine since the
+/// file is already on the hot path.
+GPGym gymSummaryToGPGym(GymSummary s, {required bool isAr}) {
   return GPGym(
     slug: s.slug,
     name: isAr && s.nameAr.isNotEmpty ? s.nameAr : s.nameEn,

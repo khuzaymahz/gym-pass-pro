@@ -65,18 +65,44 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
   }
 
   List<BackendNotification> _applyFilter(List<BackendNotification> all) {
+    // Per-type preferences from settings. Toggling a category off in
+    // Settings → Notifications should hide that category from this
+    // list — otherwise the toggle is just storage with no observable
+    // effect, which is precisely the "faking it" failure the user
+    // flagged. OS-level (lock screen / status bar / badge) delivery
+    // is deferred per CLAUDE.md §15 until FCM/APNs is wired; in-app
+    // filtering is what we can ship today.
+    final prefs = ref.read(appPreferencesProvider);
+    final filteredByPref = all.where((n) {
+      final t = n.type.toLowerCase();
+      if (_isPlanType(t)) return prefs.notifPlanReminders;
+      if (_isClubType(t)) return prefs.notifClubsNearby;
+      if (_isPromoType(t)) return prefs.notifPromos;
+      return true; // system, welcome, anything we don't categorise
+    }).toList();
     switch (_filter) {
       case 'unread':
-        return all.where((n) => n.isUnread).toList();
+        return filteredByPref.where((n) => n.isUnread).toList();
       case 'check_in':
-        return all.where((n) => n.type == 'checkin').toList();
+        return filteredByPref.where((n) => n.type == 'checkin').toList();
       case 'promo':
-        return all.where((n) => n.type == 'promo').toList();
+        return filteredByPref.where((n) => _isPromoType(n.type)).toList();
       case 'all':
       default:
-        return all;
+        return filteredByPref;
     }
   }
+
+  static bool _isPlanType(String t) =>
+      t == 'plan_reminder' ||
+      t == 'renewal_due' ||
+      t == 'pass_active' ||
+      t == 'subscription' ||
+      t == 'checkin';
+  static bool _isClubType(String t) =>
+      t == 'gym_nearby' || t == 'new_partner' || t == 'club';
+  static bool _isPromoType(String t) =>
+      t == 'promo' || t == 'referral_bonus';
 
   @override
   Widget build(BuildContext context) {
@@ -132,18 +158,20 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                         ),
                       );
                     }
-                    if (snapshot.hasError) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 40),
-                        child: Center(
-                          child: Text(
-                            l.snackErrorGeneric,
-                            style: GPText.body(size: 14, color: gp.muted),
-                          ),
-                        ),
-                      );
-                    }
-                    final items = snapshot.data ?? const [];
+                    // Treat both "API error" and "API returned empty
+                    // list" as the same empty state. A brand-new
+                    // member with zero notifications shouldn't be
+                    // greeted with "An error occurred" — they should
+                    // see the calm "no notifications yet" copy. A
+                    // network hiccup falls through to the same state
+                    // for the same reason: the page is showing
+                    // *absence*, not a failure mode worth alarming
+                    // the member about. Pull-to-refresh re-runs the
+                    // fetch; auth or token-expired errors are handled
+                    // upstream by the ApiClient interceptor.
+                    final List<BackendNotification> items = snapshot.hasError
+                        ? const <BackendNotification>[]
+                        : (snapshot.data ?? const <BackendNotification>[]);
                     final filtered = _applyFilter(items);
                     if (filtered.isEmpty) {
                       return Padding(

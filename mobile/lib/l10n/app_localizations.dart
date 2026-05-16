@@ -163,6 +163,7 @@ abstract class AppLocalizations {
   String get exploreNoMatches;
   String get exploreFiltersTitle;
   String get exploreFiltersReset;
+  String get exploreFiltersResetDone;
   String get exploreFiltersDone;
   String get exploreFiltersCategorySection;
   String get exploreFiltersTierSection;
@@ -228,6 +229,11 @@ abstract class AppLocalizations {
   String get checkinLockedBannerTitle;
   String get checkinLockedBannerBody;
   String get checkinSeePlansCta;
+  String get checkinCameraPermissionTitle;
+  String get checkinCameraPermissionBody;
+  String get checkinCameraOpenSettings;
+  String get checkinCameraRetry;
+  String get checkinCameraGenericError;
   String get checkinBackHome;
   String get checkinVisitGym;
   String get checkinSuccessTitle;
@@ -766,6 +772,7 @@ abstract class AppLocalizations {
 
   // Support channel actions (added for E2E wiring)
   String get supportEmail;
+  String get supportEmailDefaultSubject;
   String get supportWhatsapp;
   String supportChannelCopied(String value);
   String supportSentWithRef(String ref);
@@ -773,10 +780,12 @@ abstract class AppLocalizations {
 
   // Report attachment picker (added for E2E wiring)
   String get reportAttachPickerTitle;
-  String get reportAttachScreenshot;
   String get reportAttachCameraRoll;
   String get reportAttachPhoto;
   String get reportAttachRemove;
+  String get reportAttachPickFailed;
+  String get reportAttachCameraDenied;
+  String get reportAttachGalleryDenied;
 
   // Billing receipt sheet (added for E2E wiring)
   String get billingReceiptTitle;
@@ -786,6 +795,8 @@ abstract class AppLocalizations {
   String get billingReceiptTotalLabel;
   String get billingReceiptSendEmail;
   String get billingReceiptEmailQueued;
+  String get billingReceiptDownload;
+  String billingReceiptDownloadSubject(String id);
   String get billingReceiptCloseBtn;
 
   // Security change-phone (added for E2E wiring)

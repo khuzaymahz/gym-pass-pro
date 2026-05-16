@@ -57,8 +57,19 @@
 	     links AVCaptureDevice. Apple rejects any build that links the
 	     camera APIs without this key, even if the app never opens the
 	     scanner. The string is shown the first time the member taps
-	     "Scan to check in". -->
+	     "Scan to check in" — and again the first time a member taps
+	     "Take a photo" on the bug-report attach-evidence sheet. -->
 	<key>NSCameraUsageDescription</key>
-	<string>GymPass uses the camera to scan the QR code at gym entrances when you check in.</string>
+	<string>GymPass uses the camera to scan QR codes at check-in and to capture photos when you report an issue.</string>
+	<!-- Photo library string is required by image_picker for the
+	     bug-report attach-evidence flow ("Choose from camera roll"). -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>GymPass needs access to your photos so you can attach a screenshot when reporting an issue.</string>
+	<!-- Apple split the "saving to camera roll" permission out from
+	     the read permission in iOS 11. We don't currently save to the
+	     library, but image_picker links the AssetsLibrary framework, so
+	     Apple rejects builds without this string. -->
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>GymPass may save edited photos back to your library when you attach them to a report.</string>
 </dict>
 </plist>

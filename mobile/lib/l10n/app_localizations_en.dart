@@ -278,6 +278,8 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get exploreFiltersReset => 'Reset';
   @override
+  String get exploreFiltersResetDone => 'Filters cleared';
+  @override
   String get exploreFiltersDone => 'Done';
   @override
   String get exploreFiltersCategorySection => 'Category';
@@ -412,6 +414,18 @@ class AppLocalizationsEn extends AppLocalizations {
       "You don't have an active plan yet. Scanning a gym's QR will open its profile so you can preview access; check-ins unlock once you subscribe.";
   @override
   String get checkinSeePlansCta => 'See plans';
+  @override
+  String get checkinCameraPermissionTitle => 'Camera access needed';
+  @override
+  String get checkinCameraPermissionBody =>
+      "GymPass uses your camera to scan the gym's QR code at check-in. We never record video.";
+  @override
+  String get checkinCameraOpenSettings => 'Open settings';
+  @override
+  String get checkinCameraRetry => 'Retry';
+  @override
+  String get checkinCameraGenericError =>
+      "We couldn't start your camera. Try again, or check that no other app is using it.";
   @override
   String get checkinBackHome => 'Back to home';
   @override
@@ -804,7 +818,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get inviteHeadlineAccent => 'pass.';
   @override
   String get inviteBlurb =>
-      'Your friends unlock a free week. You earn a reward when they subscribe.';
+      'Share GymPass with your friends. Both of you get rewarded when they subscribe.';
   @override
   String get inviteYourCode => 'YOUR CODE';
   @override
@@ -1533,6 +1547,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get supportEmail => 'support@gym-pass.net';
   @override
+  String get supportEmailDefaultSubject =>
+      'GymPass support · I need help';
+  @override
   String get supportWhatsapp => '+962 7 9000 0100';
   @override
   String supportChannelCopied(String value) => 'Copied $value to clipboard.';
@@ -1545,13 +1562,19 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get reportAttachPickerTitle => 'Attach evidence';
   @override
-  String get reportAttachScreenshot => 'Recent screenshot';
-  @override
-  String get reportAttachCameraRoll => 'Photo from camera roll';
+  String get reportAttachCameraRoll => 'Choose from camera roll';
   @override
   String get reportAttachPhoto => 'Take a photo';
   @override
   String get reportAttachRemove => 'Remove attachment';
+  @override
+  String get reportAttachPickFailed => "Couldn't load the photo. Try again.";
+  @override
+  String get reportAttachCameraDenied =>
+      'Camera permission denied. Enable it in Settings to take a photo.';
+  @override
+  String get reportAttachGalleryDenied =>
+      'Photo library permission denied. Enable it in Settings to pick a photo.';
 
   @override
   String get billingReceiptTitle => 'Receipt';
@@ -1568,6 +1591,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get billingReceiptEmailQueued =>
       'Receipt queued — emailed within a minute.';
+  @override
+  String get billingReceiptDownload => 'Download receipt';
+  @override
+  String billingReceiptDownloadSubject(String id) => 'GymPass receipt $id';
   @override
   String get billingReceiptCloseBtn => 'Close';
 

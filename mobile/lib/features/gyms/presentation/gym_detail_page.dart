@@ -17,6 +17,7 @@ import '../../../core/widgets/overline.dart';
 import '../../../core/widgets/pill_button.dart';
 import '../../../core/widgets/tier_chip.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../core/prefs/app_preferences.dart';
 import '../../subscription/data/subscription_state.dart';
 import '../data/gym_photo.dart';
 import '../data/gym_photos_repository.dart';
@@ -24,7 +25,66 @@ import '../data/gym_repository.dart';
 import '../data/gym_summary.dart';
 import '../data/home_region_store.dart';
 
-final favoritedGymsProvider = StateProvider<Set<String>>((_) => <String>{});
+/// Persisted favourite-gym slugs. Backed by [SharedPreferences] under
+/// the `pref.favorited_gyms` key so the heart-tap survives app
+/// restarts. Previously this was a plain in-memory `StateProvider`,
+/// which is why members were tapping favourites, leaving the app,
+/// and coming back to an empty list. The notifier reads the saved
+/// CSV on construction (synchronous read off the cached prefs
+/// handle) and writes back on every mutation; failures during the
+/// write are swallowed because losing one tap to disk is preferable
+/// to crashing the UI.
+const _kFavoritedGymsKey = 'pref.favorited_gyms';
+
+class FavoritedGymsNotifier extends StateNotifier<Set<String>> {
+  FavoritedGymsNotifier(this._shared) : super(_hydrate(_shared));
+
+  final SharedPreferences _shared;
+
+  static Set<String> _hydrate(SharedPreferences shared) {
+    final raw = shared.getStringList(_kFavoritedGymsKey);
+    if (raw == null || raw.isEmpty) return <String>{};
+    return raw.toSet();
+  }
+
+  void _persist() {
+    _shared
+        .setStringList(_kFavoritedGymsKey, state.toList(growable: false))
+        .ignore();
+  }
+
+  /// Idempotent — adding an already-favourited slug is a no-op.
+  /// Returns true when the slug was newly added (UI can show a
+  /// confirmation snack), false when it was already present.
+  bool add(String slug) {
+    if (state.contains(slug)) return false;
+    state = {...state, slug};
+    _persist();
+    return true;
+  }
+
+  bool remove(String slug) {
+    if (!state.contains(slug)) return false;
+    state = {...state}..remove(slug);
+    _persist();
+    return true;
+  }
+
+  /// Toggle and return the resulting membership ("did we just add it?").
+  bool toggle(String slug) {
+    if (state.contains(slug)) {
+      remove(slug);
+      return false;
+    }
+    add(slug);
+    return true;
+  }
+}
+
+final favoritedGymsProvider =
+    StateNotifierProvider<FavoritedGymsNotifier, Set<String>>((ref) {
+  return FavoritedGymsNotifier(ref.watch(sharedPreferencesProvider));
+});
 
 class GymDetailPage extends ConsumerWidget {
   final String slug;
@@ -204,18 +264,27 @@ class GymDetailPage extends ConsumerWidget {
               ),
             ),
           ),
+          // Subtle top vignette so the floating back / fav / share
+          // buttons stay legible over any hero photo. Originally this
+          // faded from `gp.bg` (≈white in light mode) at 85% alpha —
+          // which painted a heavy white wash across the top third of
+          // the photo and bleached gym imagery in light mode. The
+          // buttons already have an opaque `bg3` fill + border, so we
+          // only need a *gentle* darkening at the very top, applied
+          // theme-agnostically. ~28% black for 96 px feels like
+          // photographic vignetting rather than a UI scrim.
           Positioned(
             top: 0,
             left: 0,
             right: 0,
-            height: 140,
+            height: 96,
             child: IgnorePointer(
               child: DecoratedBox(
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [gp.bg.withValues(alpha: 0.85), Colors.transparent],
+                    colors: [Color(0x47000000), Color(0x00000000)],
                   ),
                 ),
               ),
@@ -238,12 +307,9 @@ class GymDetailPage extends ConsumerWidget {
                       IconBtn(
                         icon: isFav ? Icons.favorite : Icons.favorite_border,
                         onPressed: () {
-                          final current =
-                              ref.read(favoritedGymsProvider.notifier).state;
-                          final next = Set<String>.from(current);
-                          final added = next.add(slug);
-                          if (!added) next.remove(slug);
-                          ref.read(favoritedGymsProvider.notifier).state = next;
+                          final added = ref
+                              .read(favoritedGymsProvider.notifier)
+                              .toggle(slug);
                           ScaffoldMessenger.of(context)
                             ..hideCurrentSnackBar()
                             ..showSnackBar(

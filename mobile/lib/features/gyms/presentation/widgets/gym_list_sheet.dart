@@ -29,6 +29,27 @@ const double exploreSheetAutoOpen = 0.45;
 // settle anywhere up to `maxChildSize`).
 const double exploreSheetMax = 0.80;
 
+/// Render the count strip that sits above the gym list inside the
+/// sheet. Behaviour by filter state:
+///
+///   * No category filter (`"all"`) → bare count, no "gyms" word.
+///     The number alone is enough context when the list is the
+///     whole network.
+///   * A category filter active → bare count too (e.g. just "3").
+///     The chip on the filter rail above already says "CrossFit",
+///     so duplicating it inside the sheet adds redundancy not
+///     clarity (per user feedback "no need for a word there just
+///     counting").
+///
+/// Empty / single-result strings still flow through the localised
+/// `exploreNoMatches` / `exploreOneGymCount` keys so AR/EN copy
+/// stays cohesive.
+String _countLabel(AppLocalizations l, int n, String activeCategory) {
+  if (n == 0) return l.exploreNoMatches;
+  if (n == 1) return l.exploreOneGymCount;
+  return n.toString();
+}
+
 /// Bottom sheet — the "slider" that holds the gym list. Floats over
 /// the live map; drags between [exploreSheetMin] (sheet just shows
 /// the handle + count) and [exploreSheetMax] (sheet covers most of
@@ -44,6 +65,7 @@ class GymListSheet extends ConsumerWidget {
     this.onDoubleTapHandle,
     required this.gyms,
     required this.query,
+    required this.activeCategory,
     required this.isLoading,
     required this.hasError,
     required this.onGymSelect,
@@ -62,6 +84,13 @@ class GymListSheet extends ConsumerWidget {
   final VoidCallback? onDoubleTapHandle;
   final List<GymSummary> gyms;
   final String query;
+  /// Currently-selected category filter — drives the count label
+  /// so a list filtered by e.g. CrossFit reads "3 CrossFit boxes"
+  /// instead of the generic "3 gyms". When the filter is `"all"`
+  /// the label is just the bare count (no "gyms" word, per
+  /// product brief — the count alone is enough context when no
+  /// filter is active).
+  final String activeCategory;
   final bool isLoading;
   final bool hasError;
 
@@ -143,9 +172,7 @@ class GymListSheet extends ConsumerWidget {
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(20, 2, 20, 10),
                         child: Text(
-                          gyms.length == 1
-                              ? l.exploreOneGymCount
-                              : l.exploreGymCount(gyms.length),
+                          _countLabel(l, gyms.length, activeCategory),
                           style: GPText.mono(
                             size: 11,
                             letterSpacing: 1.4,

@@ -20,6 +20,12 @@ celery_app.conf.update(
     timezone="Asia/Amman",
     enable_utc=True,
     task_default_queue="default",
+    # Cancel in-flight long tasks when the broker connection drops
+    # instead of letting them silently leak transactions. Without
+    # this, a Redis hiccup leaves the task hanging until the broker
+    # comes back and a fresh worker picks the same task up again,
+    # producing duplicate audit-log rows.
+    worker_cancel_long_running_tasks_on_connection_loss=True,
     beat_schedule={
         # Hourly cadence (was daily). With the `_EXPIRE_BATCH_SIZE`
         # cap inside the task, a backlog drains across multiple ticks

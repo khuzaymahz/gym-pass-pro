@@ -17,6 +17,21 @@ export default async function DashboardLayout({
   if (!session?.user?.email) {
     redirect("/login");
   }
+  // A session without a serviceToken means the JWT-callback exchange
+  // failed on refresh and the dashboard would 401 every call. Bounce
+  // back to /login so the user re-authenticates instead of staring at
+  // a wall of broken widgets. The serviceExpiresAt sanity-check
+  // catches the slow-clock case where the token is technically
+  // present but already expired (`exp < now`).
+  if (!session.serviceToken) {
+    redirect("/login");
+  }
+  if (
+    session.serviceExpiresAt &&
+    Date.parse(session.serviceExpiresAt) <= Date.now()
+  ) {
+    redirect("/login");
+  }
 
   let openTicketCount = 0;
   let urgentTicketCount = 0;

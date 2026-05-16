@@ -1,5 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
@@ -18,10 +22,21 @@ class ReportIssuePage extends ConsumerStatefulWidget {
 
 class _ReportIssuePageState extends ConsumerState<ReportIssuePage> {
   String? _category;
-  String? _attachmentName;
+  /// Real picked attachment from camera or gallery. The previous
+  /// implementation stored a fabricated filename string ("Screenshot
+  /// 2026-05-16.png") that never actually pointed at anything; now
+  /// we hold the live `XFile` so the report submission can ship the
+  /// basename to the backend (and a future iteration can upload the
+  /// bytes). Stays null when no attachment is picked, which is also
+  /// the only state where the "Remove" affordance is hidden — the
+  /// previous sheet always showed remove even on a fresh report
+  /// because the options were treated as a generic list rather than
+  /// real actions.
+  XFile? _attachment;
   bool _submitting = false;
   final _gymCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
+  final _picker = ImagePicker();
 
   @override
   void dispose() {
@@ -43,7 +58,7 @@ class _ReportIssuePageState extends ConsumerState<ReportIssuePage> {
           category: _category!,
           description: _descCtrl.text.trim(),
           gym: gym.isEmpty ? null : gym,
-          attachment: _attachmentName,
+          attachment: _attachment?.name,
         );
     if (!mounted) return;
     setState(() => _submitting = false);
@@ -51,26 +66,27 @@ class _ReportIssuePageState extends ConsumerState<ReportIssuePage> {
     if (!mounted) return;
     setState(() {
       _category = null;
-      _attachmentName = null;
+      _attachment = null;
       _gymCtrl.clear();
       _descCtrl.clear();
     });
   }
 
+  /// Open the attach-evidence sheet. Each row maps to a real action:
+  ///   - Camera roll → `image_picker.pickImage(source: gallery)`
+  ///   - Take a photo → `image_picker.pickImage(source: camera)`
+  ///   - Remove → drop the current attachment (shown only when one
+  ///     is present)
+  ///
+  /// Previously this sheet stored fabricated filenames against each
+  /// option as if the user had selected one from a list — the member
+  /// saw "Screenshot 2026-05-16.png" attach without anything actually
+  /// happening, and remove sat alongside the picker options as if
+  /// it were just another file source. Now each row triggers the
+  /// matching system intent and the picked `XFile` becomes the live
+  /// attachment.
   Future<void> _pickAttachment(AppLocalizations l, GpColors gp) async {
-    final today = DateTime.now();
-    final iso = '${today.year}-${today.month.toString().padLeft(2, '0')}-'
-        '${today.day.toString().padLeft(2, '0')}';
-    final options = <(IconData, String, String?)>[
-      (Icons.screenshot_outlined, l.reportAttachScreenshot,
-          'Screenshot $iso.png',),
-      (Icons.photo_library_outlined, l.reportAttachCameraRoll,
-          'camera-roll-$iso.jpg',),
-      (Icons.photo_camera_outlined, l.reportAttachPhoto,
-          'capture-$iso.jpg',),
-      if (_attachmentName != null)
-        (Icons.delete_outline, l.reportAttachRemove, null),
-    ];
+    final hasAttachment = _attachment != null;
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: gp.bg2,
@@ -98,53 +114,81 @@ class _ReportIssuePageState extends ConsumerState<ReportIssuePage> {
               const SizedBox(height: 16),
               DisplayText(l.reportAttachPickerTitle, size: 22),
               const SizedBox(height: 14),
-              for (final o in options)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(GPRadius.lg),
-                      onTap: () {
-                        setState(() => _attachmentName = o.$3);
-                        Navigator.of(ctx).pop();
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: gp.bg3,
-                          borderRadius: BorderRadius.circular(GPRadius.lg),
-                          border: Border.all(color: gp.line),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              o.$1,
-                              size: 20,
-                              color: o.$3 == null ? GP.danger : gp.accentInk,
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Text(
-                                o.$2,
-                                style: GPText.body(
-                                  size: 14,
-                                  color: o.$3 == null ? GP.danger : gp.fg,
-                                  weight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
+              _AttachOption(
+                icon: Icons.photo_camera_outlined,
+                label: l.reportAttachPhoto,
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _pickFromSource(l, ImageSource.camera);
+                },
+              ),
+              const SizedBox(height: 8),
+              _AttachOption(
+                icon: Icons.photo_library_outlined,
+                label: l.reportAttachCameraRoll,
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _pickFromSource(l, ImageSource.gallery);
+                },
+              ),
+              if (hasAttachment) ...[
+                const SizedBox(height: 8),
+                _AttachOption(
+                  icon: Icons.delete_outline,
+                  label: l.reportAttachRemove,
+                  danger: true,
+                  onTap: () {
+                    setState(() => _attachment = null);
+                    Navigator.of(ctx).pop();
+                  },
                 ),
+              ],
             ],
           ),
         ),
       ),
     );
+  }
+
+  /// Hand off to `image_picker` for the requested source. On a denial
+  /// or platform error we surface a snackbar instead of silently
+  /// reverting — the member tapped expecting an outcome, so they
+  /// deserve to know if nothing happened. Quality is capped at 1600 px
+  /// long-edge so a 12-MP back-camera photo doesn't bloat the eventual
+  /// upload to the backend.
+  Future<void> _pickFromSource(
+    AppLocalizations l,
+    ImageSource source,
+  ) async {
+    try {
+      final picked = await _picker.pickImage(
+        source: source,
+        maxWidth: 1600,
+        maxHeight: 1600,
+        imageQuality: 82,
+        preferredCameraDevice: CameraDevice.rear,
+      );
+      if (!mounted) return;
+      if (picked == null) return;
+      setState(() => _attachment = picked);
+    } on PlatformException catch (err) {
+      if (!mounted) return;
+      final isDenied = err.code == 'photo_access_denied' ||
+          err.code == 'camera_access_denied';
+      final message = isDenied
+          ? (source == ImageSource.camera
+              ? l.reportAttachCameraDenied
+              : l.reportAttachGalleryDenied)
+          : l.reportAttachPickFailed;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(message)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(l.reportAttachPickFailed)));
+    }
   }
 
   Future<void> _showConfirmation(
@@ -340,7 +384,8 @@ class _ReportIssuePageState extends ConsumerState<ReportIssuePage> {
   }
 
   Widget _attachmentTile(AppLocalizations l, GpColors gp) {
-    final attached = _attachmentName != null;
+    final attachment = _attachment;
+    final attached = attachment != null;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -357,39 +402,67 @@ class _ReportIssuePageState extends ConsumerState<ReportIssuePage> {
                   : gp.line,
             ),
           ),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                color: gp.accentInk.withValues(alpha: 0.15),
-                border: Border.all(
-                    color: gp.accentInk.withValues(alpha: 0.4),),
+          child: Row(
+            children: [
+              // Real thumbnail when attached, neutral placeholder otherwise.
+              // Image.file is fine here — the XFile path is a temp dir
+              // owned by image_picker and survives the page lifetime.
+              if (attached)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.file(
+                    File(attachment.path),
+                    width: 44,
+                    height: 44,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      width: 44,
+                      height: 44,
+                      color: gp.accentInk.withValues(alpha: 0.15),
+                      alignment: Alignment.center,
+                      child: Icon(Icons.broken_image_outlined,
+                          size: 20, color: gp.accentInk,),
+                    ),
+                  ),
+                )
+              else
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    color: gp.accentInk.withValues(alpha: 0.15),
+                    border: Border.all(
+                      color: gp.accentInk.withValues(alpha: 0.4),
+                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(
+                    Icons.image_outlined,
+                    size: 18,
+                    color: gp.accentInk,
+                  ),
+                ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  attached ? attachment.name : l.reportAttachPlaceholder,
+                  style: GPText.body(
+                    size: 14,
+                    color: gp.fg,
+                    weight: FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              alignment: Alignment.center,
-              child: Icon(
-                attached ? Icons.check : Icons.image_outlined,
+              Icon(
+                attached ? Icons.edit_outlined : Icons.add,
                 size: 18,
-                color: gp.accentInk,
+                color: gp.muted,
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                _attachmentName ?? l.reportAttachPlaceholder,
-                style: GPText.body(
-                    size: 14, color: gp.fg, weight: FontWeight.w500,),
-              ),
-            ),
-            Icon(
-              attached ? Icons.edit_outlined : Icons.add,
-              size: 18,
-              color: gp.muted,
-            ),
-          ],
-        ),
+            ],
+          ),
         ),
       ),
     );
@@ -427,6 +500,63 @@ class _ReportIssuePageState extends ConsumerState<ReportIssuePage> {
         ),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      ),
+    );
+  }
+}
+
+/// Single row inside the attach-evidence sheet. Kept as a private
+/// widget so the `danger` styling (red icon + red label, used by
+/// the Remove option) doesn't sprinkle conditionals across the
+/// caller. Each row is a real action — taps invoke camera /
+/// gallery / remove — so the row is responsible for dismissing the
+/// sheet via the onTap caller.
+class _AttachOption extends StatelessWidget {
+  const _AttachOption({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.danger = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool danger;
+
+  @override
+  Widget build(BuildContext context) {
+    final gp = context.gp;
+    final color = danger ? GP.danger : gp.accentInk;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(GPRadius.lg),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: gp.bg3,
+            borderRadius: BorderRadius.circular(GPRadius.lg),
+            border: Border.all(color: gp.line),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, size: 20, color: color),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  label,
+                  style: GPText.body(
+                    size: 14,
+                    color: danger ? GP.danger : gp.fg,
+                    weight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -277,6 +277,8 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get exploreFiltersReset => 'إعادة تعيين';
   @override
+  String get exploreFiltersResetDone => 'تمت إزالة الفلاتر';
+  @override
   String get exploreFiltersDone => 'تم';
   @override
   String get exploreFiltersCategorySection => 'الفئة';
@@ -412,6 +414,18 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get checkinSeePlansCta => 'عرض الباقات';
   @override
+  String get checkinCameraPermissionTitle => 'نحتاج إذن الكاميرا';
+  @override
+  String get checkinCameraPermissionBody =>
+      'يستخدم جيم باس الكاميرا لمسح رمز QR الخاص بالصالة عند تسجيل الحضور. لا يتم تسجيل أي فيديو.';
+  @override
+  String get checkinCameraOpenSettings => 'فتح الإعدادات';
+  @override
+  String get checkinCameraRetry => 'إعادة المحاولة';
+  @override
+  String get checkinCameraGenericError =>
+      'تعذّر تشغيل الكاميرا. حاول مجدداً، أو تأكد من عدم استخدام تطبيق آخر لها.';
+  @override
   String get checkinBackHome => 'العودة للرئيسية';
   @override
   String get checkinVisitGym => 'عرض النادي';
@@ -488,7 +502,7 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String plansSubscribeTo(String tier) => 'اشترك بـ$tier';
   @override
-  String get plansSkipForNow => 'تخطَّ هلق';
+  String get plansSkipForNow => 'تخطَّ';
   @override
   String get plansVisitsPerMonth => 'زيارة/شهر';
   @override
@@ -806,7 +820,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get inviteHeadlineAccent => 'الاشتراك.';
   @override
   String get inviteBlurb =>
-      'أصدقاؤك يحصلون على أسبوع مجاني. أنت تحصل على مكافأة عند اشتراكهم.';
+      'شارك جيم باس مع أصدقائك. تحصلون أنتم الاثنان على مكافأة عند اشتراكهم.';
   @override
   String get inviteYourCode => 'رمزك';
   @override
@@ -1528,6 +1542,9 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get supportEmail => 'support@gym-pass.net';
   @override
+  String get supportEmailDefaultSubject =>
+      'دعم جيم باس · أحتاج مساعدة';
+  @override
   String get supportWhatsapp => '+962 7 9000 0100';
   @override
   String supportChannelCopied(String value) => 'تم نسخ $value.';
@@ -1540,13 +1557,19 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get reportAttachPickerTitle => 'إرفاق دليل';
   @override
-  String get reportAttachScreenshot => 'لقطة شاشة حديثة';
-  @override
-  String get reportAttachCameraRoll => 'صورة من معرض الصور';
+  String get reportAttachCameraRoll => 'اختيار من معرض الصور';
   @override
   String get reportAttachPhoto => 'التقاط صورة';
   @override
   String get reportAttachRemove => 'إزالة المرفق';
+  @override
+  String get reportAttachPickFailed => 'تعذّر تحميل الصورة. حاول مرة أخرى.';
+  @override
+  String get reportAttachCameraDenied =>
+      'تم رفض إذن الكاميرا. فعّله من الإعدادات لالتقاط صورة.';
+  @override
+  String get reportAttachGalleryDenied =>
+      'تم رفض إذن معرض الصور. فعّله من الإعدادات لاختيار صورة.';
 
   @override
   String get billingReceiptTitle => 'إيصال';
@@ -1563,6 +1586,10 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get billingReceiptEmailQueued =>
       'تم إرسال الإيصال إلى بريدك خلال دقيقة.';
+  @override
+  String get billingReceiptDownload => 'تنزيل الإيصال';
+  @override
+  String billingReceiptDownloadSubject(String id) => 'إيصال جيم باس $id';
   @override
   String get billingReceiptCloseBtn => 'إغلاق';
 

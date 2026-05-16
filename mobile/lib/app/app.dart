@@ -4,6 +4,7 @@ import 'package:gympass/l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/deep_link/deep_link_handler.dart';
 import '../core/prefs/app_preferences.dart';
 import '../core/router/app_router.dart';
 import '../core/theme/app_theme.dart';
@@ -21,7 +22,27 @@ class GymPassApp extends ConsumerWidget {
     // active so the status bar icons stay readable, so we use a
     // `Builder` that reads `Theme.of(context).brightness` after the
     // theme resolves.
-    return MaterialApp.router(
+    return ProviderScope(
+      overrides: [
+        deepLinkHandlerProvider.overrideWith(
+          (ref) => DeepLinkHandler(router: router, ref: ref),
+        ),
+      ],
+      child: const _DeepLinkBootstrap(),
+    );
+  }
+}
+
+class _DeepLinkBootstrap extends ConsumerWidget {
+  const _DeepLinkBootstrap();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final router = ref.watch(appRouterProvider);
+    final prefs = ref.watch(appPreferencesProvider);
+    final lang = prefs.locale.languageCode;
+    return DeepLinkScope(
+      child: MaterialApp.router(
       title: 'GymPass',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(languageCode: lang),
@@ -54,6 +75,7 @@ class GymPassApp extends ConsumerWidget {
           child: child ?? const SizedBox.shrink(),
         );
       },
+      ),
     );
   }
 }

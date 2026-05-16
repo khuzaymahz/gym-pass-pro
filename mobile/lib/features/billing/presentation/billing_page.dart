@@ -104,7 +104,7 @@ class BillingPage extends ConsumerWidget {
               const SizedBox(height: 10),
               _HistoryList(
                 billing: billing,
-                onOpenInvoice: (inv) => _openReceipt(context, l, inv),
+                onOpenInvoice: (inv) => _openReceipt(context, inv),
               ),
               ],
             ),
@@ -154,19 +154,8 @@ class BillingPage extends ConsumerWidget {
     );
   }
 
-  Future<void> _openReceipt(
-    BuildContext context,
-    AppLocalizations l,
-    Invoice invoice,
-  ) async {
-    await ReceiptSheet.show(
-      context: context,
-      invoice: invoice,
-      onEmailQueued: () {
-        if (!context.mounted) return;
-        _snack(context, l.billingReceiptEmailQueued);
-      },
-    );
+  Future<void> _openReceipt(BuildContext context, Invoice invoice) async {
+    await ReceiptSheet.show(context: context, invoice: invoice);
   }
 
   void _snack(BuildContext context, String message) {
