@@ -80,9 +80,9 @@ class DisplayText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Locale-aware: EN gets the editorial italic+condensed Archivo;
-    // AR gets upright Cairo so letters stay joined at the baseline.
+    // AR gets upright Tajawal so letters stay joined at the baseline.
     // Previously every locale used `display` (Archivo + italic +
-    // negative letterSpacing), which fell back to Cairo glyph-by-
+    // negative letterSpacing), which fell back to the AR face glyph-by-
     // glyph while still applying italic skew and negative tracking —
     // breaking ligatures and producing the disconnected
     // بلاتيني / ذهبي the user flagged. Upper-casing also doesn't
@@ -118,7 +118,7 @@ class SerifAccent extends StatelessWidget {
   Widget build(BuildContext context) {
     // Same locale rationale as DisplayText: InstrumentSerif is
     // Latin-only and its italic style/lower-case treatment is
-    // meaningless for Arabic. Render AR with upright Cairo at a
+    // meaningless for Arabic. Render AR with upright Tajawal at a
     // lighter weight so it still reads as the "accent" half of the
     // headline pair without slicing Arabic glyphs.
     final lang = Localizations.localeOf(context).languageCode;
@@ -127,8 +127,8 @@ class SerifAccent extends StatelessWidget {
       return Text(
         text,
         style: TextStyle(
-          fontFamily: 'Cairo',
-          fontFamilyFallback: const ['Roboto', 'sans-serif'],
+          fontFamily: 'Tajawal',
+          fontFamilyFallback: const ['Cairo', 'Roboto', 'sans-serif'],
           fontSize: size * 0.82,
           fontWeight: FontWeight.w500,
           height: 1.0,
