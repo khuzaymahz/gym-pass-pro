@@ -5,8 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../features/referral/data/referral_state.dart';
-
 /// Receives incoming deep links — both cold-start (the app was
 /// launched by tapping a link) and warm (the OS routes a new link
 /// into an already-running app) — and forwards them to the
