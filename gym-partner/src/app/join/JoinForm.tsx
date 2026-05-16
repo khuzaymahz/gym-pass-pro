@@ -5,7 +5,13 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { resolveMediaUrl } from "@/lib/media";
+import { normalizeJordanianPhone } from "@/lib/phone";
 import type { AudienceGender, Category } from "@/lib/sdk-types";
+import {
+  MAX_UPLOAD_MB,
+  validateImageFile,
+  type ImageValidationError,
+} from "@/lib/upload";
 
 const CATEGORIES: Category[] = ["gym", "crossfit", "martial", "yoga"];
 const AUDIENCES: AudienceGender[] = ["mixed", "female_only", "male_only"];
@@ -33,7 +39,27 @@ export function JoinForm() {
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
   const [photoUploading, setPhotoUploading] = useState(false);
 
+  function imageValidationMessage(err: ImageValidationError): string {
+    // Mirror the backend's two reject paths into localized strings.
+    // The ARB-equivalent join.errorImageType / join.errorImageSize
+    // keys already exist; if they ever drift, the fallback string
+    // keeps the form usable rather than blank.
+    if (err === "too_large") {
+      return t("errorImageSize", { max: MAX_UPLOAD_MB });
+    }
+    return t("errorImageType");
+  }
+
   async function uploadFile(file: File): Promise<string> {
+    // Frontend-side MIME + size check before the network call. The
+    // backend's `sniff_image` is the source of truth (re-validates
+    // magic bytes regardless), but failing fast here means a 5 MB
+    // HEIC photo doesn't waste the operator's mobile-data uploading
+    // bytes that the backend will reject on receipt.
+    const reason = validateImageFile(file);
+    if (reason) {
+      throw new Error(imageValidationMessage(reason));
+    }
     const fd = new FormData();
     fd.append("file", file);
     const res = await fetch(`${apiBase}/api/v1/partner-applications/upload`, {
@@ -71,6 +97,15 @@ export function JoinForm() {
       setError(t("errorTooManyPhotos", { max: MAX_PHOTOS }));
       return;
     }
+    // Validate every file up-front so the first reject doesn't
+    // partially upload its siblings.
+    for (const file of files) {
+      const reason = validateImageFile(file);
+      if (reason) {
+        setError(imageValidationMessage(reason));
+        return;
+      }
+    }
     setError(null);
     setPhotoUploading(true);
     try {
@@ -96,7 +131,7 @@ export function JoinForm() {
     const phone = String(fd.get("ownerPhone") ?? "").trim();
     const body = {
       ownerName: String(fd.get("ownerName") ?? "").trim(),
-      ownerPhone: phone.startsWith("+") ? phone : `+962${phone.replace(/^0/, "")}`,
+      ownerPhone: normalizeJordanianPhone(phone),
       ownerEmail: String(fd.get("ownerEmail") ?? "").trim() || null,
       password: String(fd.get("password") ?? ""),
       gymNameEn: String(fd.get("gymNameEn") ?? "").trim(),

@@ -36,25 +36,29 @@ export default async function DashboardLayout({
   let openTicketCount = 0;
   let urgentTicketCount = 0;
   let pendingApplicationCount = 0;
-  try {
-    const stats = await AdminSDK.ticketStats();
-    openTicketCount = stats.open + stats.inProgress + stats.waitingUser;
-    const urgent = await AdminSDK.listTickets({
-      priority: "urgent",
-      page: 1,
-      pageSize: 1,
-    });
-    urgentTicketCount = urgent.total;
-  } catch {
-    // tolerate backend hiccup in the shell
+  // Fire the three sidebar-badge fetches in parallel. Previously
+  // these ran sequentially in two `await` chains: a slow backend
+  // turned a 200ms shell render into 600ms+. `Promise.allSettled`
+  // keeps the fault-tolerance of the original (each fetch may
+  // 500 on a pre-prod hiccup without dragging the others down).
+  const [statsResult, urgentResult, applicationsResult] = await Promise.allSettled([
+    AdminSDK.ticketStats(),
+    AdminSDK.listTickets({ priority: "urgent", page: 1, pageSize: 1 }),
+    AdminSDK.pendingApplicationCount(),
+  ]);
+  if (statsResult.status === "fulfilled") {
+    const s = statsResult.value;
+    openTicketCount = s.open + s.inProgress + s.waitingUser;
   }
-  try {
-    pendingApplicationCount = await AdminSDK.pendingApplicationCount();
-  } catch {
-    // partner-applications endpoint may not exist yet on pre-prod
-    // backends running an older image; the badge just hides itself
-    // when the count is 0 (default).
+  if (urgentResult.status === "fulfilled") {
+    urgentTicketCount = urgentResult.value.total;
   }
+  if (applicationsResult.status === "fulfilled") {
+    pendingApplicationCount = applicationsResult.value;
+  }
+  // applicationsResult may reject on a backend image without the
+  // partner-applications endpoint; the badge silently hides
+  // (count stays 0).
 
   return (
     <div className="flex min-h-screen bg-ink text-paper">

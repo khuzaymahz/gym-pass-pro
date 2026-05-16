@@ -5,12 +5,37 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { Component, type ReactNode, useEffect, useState } from "react";
 
 import { resolveMediaUrl } from "@/lib/media";
 import { DEFAULT_LOGO_ALIGNMENT, type LogoAlignment } from "@/lib/sdk-types";
 
 import { Wordmark } from "./Wordmark";
+
+/// Defensive boundary around the GymStatusCard. The card consumes a
+/// freeform `openingHours` payload from the backend; while
+/// `computeIsOpen` is defensive against missing / wrong-shaped data,
+/// any client-side render error inside the card would otherwise
+/// take down the entire dashboard shell with it (the whole sidebar
+/// would unmount). This boundary swaps the card for a minimal
+/// status row so a malformed payload never costs the operator
+/// their navigation.
+class GymStatusBoundary extends Component<
+  { children: ReactNode; fallback: ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error: Error) {
+    // eslint-disable-next-line no-console
+    console.error("[Sidebar.GymStatusBoundary] caught:", error);
+  }
+  render() {
+    return this.state.hasError ? this.props.fallback : this.props.children;
+  }
+}
 
 type NavKey =
   | "dashboard"
@@ -99,14 +124,39 @@ export function Sidebar({
         <div className="flex justify-center">
           <Wordmark size={22} />
         </div>
-        <GymStatusCard
-          gymName={gymName}
-          phone={phone}
-          logoUrl={resolvedLogo}
-          logoAlignment={alignment}
-          initials={initials}
-          openingHours={openingHours ?? null}
-        />
+        <GymStatusBoundary
+          fallback={
+            <div
+              className="steel flex items-center gap-3 rounded-md p-2.5"
+              role="status"
+            >
+              <span
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded bg-line text-[11px] font-semibold uppercase tracking-wide text-paper"
+                aria-hidden
+              >
+                {initials}
+              </span>
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <p
+                  className="truncate text-[14px] font-semibold leading-tight text-paper"
+                  title={gymName}
+                >
+                  {gymName}
+                </p>
+                <span className="text-[11px] text-muted">{phone}</span>
+              </div>
+            </div>
+          }
+        >
+          <GymStatusCard
+            gymName={gymName}
+            phone={phone}
+            logoUrl={resolvedLogo}
+            logoAlignment={alignment}
+            initials={initials}
+            openingHours={openingHours ?? null}
+          />
+        </GymStatusBoundary>
       </div>
 
       {/* Icon-first nav with a sliding accent rail. Row height,

@@ -45,38 +45,39 @@ export default async function GymsPage(props: {
     | undefined;
   const q = (searchParams.q ?? "").trim().toLowerCase();
 
-  // Pull a big enough window for client-side filter; the backend endpoint
-  // does not yet support these filters server-side. Backend caps pageSize at 100.
-  const firstPage = await listGyms(1, 100);
-  let items = firstPage.items;
+  // Filters now ship to the backend (`/api/v1/admin/gyms` accepts
+  // category/tier/audience/q server-side as of the staging cutover).
+  // We fire the filtered page request + an unfiltered first-100 in
+  // parallel: the filtered call drives the visible table; the
+  // unfiltered call drives the four StatTile aggregates (active
+  // count + per-tier breakdown) so those numbers describe the whole
+  // network, not just the current filter. `Promise.all` keeps the
+  // shell render to one round-trip's wall time instead of two.
+  const [filteredPage, statsPage] = await Promise.all([
+    listGyms({
+      page: pageParam,
+      pageSize: PAGE_SIZE,
+      category,
+      tier,
+      audience,
+      q: q || undefined,
+    }),
+    listGyms(1, 100),
+  ]);
 
-  if (category) items = items.filter((g) => g.category.toLowerCase() === category);
-  if (tier) items = items.filter((g) => g.requiredTier === tier);
-  if (audience) items = items.filter((g) => g.audienceGender === audience);
-  if (q) {
-    items = items.filter(
-      (g) =>
-        g.nameEn.toLowerCase().includes(q) ||
-        g.nameAr.includes(q) ||
-        g.area.toLowerCase().includes(q) ||
-        g.slug.toLowerCase().includes(q),
-    );
-  }
-
-  const total = items.length;
+  const total = filteredPage.total;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const page = Math.min(pageParam, totalPages);
-  const offset = (page - 1) * PAGE_SIZE;
-  const pageItems = items.slice(offset, offset + PAGE_SIZE);
+  const pageItems = filteredPage.items;
 
-  const activeCount = firstPage.items.filter((g) => g.isActive).length;
+  const activeCount = statsPage.items.filter((g) => g.isActive).length;
   const tierCounts: Record<string, number> = {
     silver: 0,
     gold: 0,
     platinum: 0,
     diamond: 0,
   };
-  for (const g of firstPage.items)
+  for (const g of statsPage.items)
     tierCounts[g.requiredTier] = (tierCounts[g.requiredTier] ?? 0) + 1;
 
   const hrefFor = (overrides: Partial<SearchParams>) => {
@@ -101,7 +102,7 @@ export default async function GymsPage(props: {
       <Toolbar
         title={t("title")}
         description={t("description")}
-        count={{ label: t("onNetwork"), value: firstPage.items.length }}
+        count={{ label: t("onNetwork"), value: statsPage.total }}
         actions={
           <Link href="/gyms/new" className="btn-primary">
             {t("addGym")}
@@ -110,11 +111,11 @@ export default async function GymsPage(props: {
       />
 
       <div className="grid grid-cols-2 gap-2 md:grid-cols-6">
-        <StatTile label={tStats("total")} value={firstPage.items.length} />
+        <StatTile label={tStats("total")} value={statsPage.total} />
         <StatTile
           label={tStats("active")}
           value={activeCount}
-          tone={activeCount === firstPage.items.length ? "ok" : "default"}
+          tone={activeCount === statsPage.total ? "ok" : "default"}
         />
         <StatTile label={tStats("silver")} value={tierCounts.silver} />
         <StatTile label={tStats("gold")} value={tierCounts.gold} />
@@ -164,7 +165,7 @@ export default async function GymsPage(props: {
             total === 0 ? tEmpty("noMatchHint") : tEmpty("noRowsHint")
           }
           action={
-            firstPage.items.length === 0
+            statsPage.total === 0
               ? { href: "/gyms/new", label: t("addGym") }
               : undefined
           }

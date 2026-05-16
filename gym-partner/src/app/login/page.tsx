@@ -9,18 +9,7 @@ import { Suspense, useState } from "react";
 import { LocaleToggle } from "@/components/LocaleToggle";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Wordmark } from "@/components/Wordmark";
-
-function normalizePhone(input: string): string {
-  // Tolerant inbound shape: members and partners alike commonly type
-  // their number as `0791234567` or `791234567`. We canonicalize to
-  // E.164 (+9627XXXXXXXX) before sending so the backend regex
-  // matches without surprise.
-  const digits = input.replace(/\D/g, "");
-  if (digits.startsWith("962")) return `+${digits}`;
-  if (digits.startsWith("0")) return `+962${digits.slice(1)}`;
-  if (digits.length === 9 && digits.startsWith("7")) return `+962${digits}`;
-  return input.startsWith("+") ? input : `+${digits}`;
-}
+import { normalizeJordanianPhone as normalizePhone } from "@/lib/phone";
 
 function LoginForm() {
   const t = useTranslations("auth");
