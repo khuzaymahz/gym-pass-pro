@@ -212,6 +212,19 @@ export default function LoginPage() {
             <LoginForm />
           </Suspense>
         </div>
+        {/* Public "Join Us" affordance — a gym owner without an
+            account submits the application form, which lands in
+            the admin review queue. Approved partners come back
+            here and log in normally. */}
+        <div className="mt-4 flex items-center justify-center gap-2 text-[12.5px]">
+          <span className="text-muted">{t("joinPrompt")}</span>
+          <Link
+            href="/join"
+            className="font-semibold text-accent underline decoration-accent/40 underline-offset-2 hover:text-paper"
+          >
+            {t("joinCta")}
+          </Link>
+        </div>
         <p className="mt-3 text-[11px] text-muted">{t("footer")}</p>
         <p className="mt-2 text-[11px] leading-relaxed text-muted">
           {t("consentPrefix")}{" "}
