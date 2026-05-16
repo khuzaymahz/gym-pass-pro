@@ -4,7 +4,7 @@ class AppEnv {
     required this.webBaseUrl,
     required this.googleOAuthClientId,
     required this.googleMapsKey,
-    required this.isDev,
+    required this.appEnv,
   });
 
   final String apiBaseUrl;
@@ -24,10 +24,41 @@ class AppEnv {
   /// leave blank during scaffolding (helper renders a placeholder).
   final String googleMapsKey;
 
-  /// True while the real backend (`backend/`) doesn't exist yet. Lets the
-  /// mobile app mock OTP requests locally instead of hammering a missing
-  /// endpoint and surfacing `DioException` / `AUTH_OTP_LOCKED` to the user.
-  final bool isDev;
+  /// Raw env string: `development`, `staging`, or `production`.
+  /// Prefer the intent-named getters (`useMockAuth`, `isProduction`,
+  /// `isStaging`) over this field at call sites — that way adding a
+  /// fourth env value later is a single decision per intent, not a
+  /// code search.
+  final String appEnv;
+
+  /// True only when the backend would return the dev OTP `1234`.
+  /// Concretely: `appEnv == 'development'`. Both staging and
+  /// production exercise the real OTP path (mock-SMS in staging
+  /// still produces a *random* 4-digit code that the operator reads
+  /// from `docker compose logs -f backend`).
+  ///
+  /// Used by:
+  ///   - The OTP page's "Dev mode: use 1234" hint visibility.
+  ///   - Any other dev-only fast-paths the auth flow chose to keep.
+  bool get useMockAuth => appEnv == 'development';
+
+  /// True only when shipping to production. Drives anything
+  /// production-strict (e.g. hiding debug menus, refusing to talk
+  /// to non-HTTPS API URLs).
+  bool get isProduction => appEnv == 'production';
+
+  /// True when the app is pointed at the staging stack
+  /// (`stg-api.gym-pass.net`). Same network shape as production but
+  /// real OTP path; the OTP code itself is in the backend logs.
+  bool get isStaging => appEnv == 'staging';
+
+  /// Back-compat alias. Old call sites read `env.isDev` to mean
+  /// "use the mock-OTP fast path". Some of those call sites are
+  /// genuinely "dev only" (e.g. visible debug chrome) — those
+  /// should migrate to `useMockAuth` or `isProduction` over time.
+  /// Kept as a property so existing code compiles unchanged.
+  @Deprecated('Prefer useMockAuth / isProduction / isStaging')
+  bool get isDev => appEnv == 'development';
 
   static const _apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
@@ -45,29 +76,26 @@ class AppEnv {
     'GOOGLE_MAPS_KEY',
     defaultValue: '',
   );
-  // Set APP_ENV=production at build time (--dart-define=APP_ENV=production)
-  // to flip the client out of its offline/mock OTP path and talk to the
-  // configured apiBaseUrl for real. Any other value keeps the dev mocks.
+  /// Build-time env selector. Three legal values:
+  ///   - `development` (default) — talks to local dev backend on
+  ///     `http://10.0.2.2:8000`, dev OTP `1234` works.
+  ///   - `staging` — talks to whatever `API_BASE_URL` resolves to,
+  ///     typically `https://stg-api.gym-pass.net`. Real OTP path;
+  ///     code is in backend logs because SMS is mocked.
+  ///   - `production` — same shape as staging but talks to the
+  ///     production API and expects real SMS delivery.
+  ///
+  /// Set via `--dart-define=APP_ENV=staging`.
   static const _appEnv = String.fromEnvironment(
     'APP_ENV',
     defaultValue: 'development',
   );
 
-  static const dev = AppEnv(
+  static const current = AppEnv(
     apiBaseUrl: _apiBaseUrl,
     webBaseUrl: _webBaseUrl,
     googleOAuthClientId: _googleClient,
     googleMapsKey: _googleMapsKey,
-    isDev: true,
+    appEnv: _appEnv,
   );
-
-  static const prod = AppEnv(
-    apiBaseUrl: _apiBaseUrl,
-    webBaseUrl: _webBaseUrl,
-    googleOAuthClientId: _googleClient,
-    googleMapsKey: _googleMapsKey,
-    isDev: false,
-  );
-
-  static AppEnv get current => _appEnv == 'production' ? prod : dev;
 }

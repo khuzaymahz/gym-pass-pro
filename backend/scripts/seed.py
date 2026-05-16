@@ -432,10 +432,11 @@ GYM_PHOTOS: dict[str, list[tuple[str, str, str]]] = {
 
 async def main() -> None:
     settings = get_settings()
-    if not settings.is_dev:
+    if not settings.should_seed_demo_data:
         raise SystemExit(
-            "seed.py refuses to run when APP_ENV is not 'development'. "
-            "Production data must come through real signup/admin flows."
+            f"seed.py refuses to run when APP_ENV={settings.app_env!r}. "
+            "Demo data lives only in development; staging and production "
+            "data must come through real signup/admin flows."
         )
     engine = get_engine()
     factory = async_sessionmaker(engine, expire_on_commit=False)

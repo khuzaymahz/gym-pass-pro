@@ -16,7 +16,12 @@ class Settings(BaseSettings):
     )
 
     # App
-    app_env: Literal["development", "production"] = "development"
+    # Three values, one policy per. `development` is frictionless local
+    # work (mock-OTP `1234`, mock payments, demo seed allowed). `staging`
+    # is production-like but with SMS + payments still mocked — the
+    # only legitimate non-development mocks per CLAUDE.md §15.
+    # `production` flips both providers to real adapters.
+    app_env: Literal["development", "staging", "production"] = "development"
     app_name: str = "gympass-backend"
     log_level: str = "INFO"
 
@@ -105,8 +110,63 @@ class Settings(BaseSettings):
     # segments without double-slashes.
     share_base_url: str = "https://gym-pass.net"
 
+    # Intent-named policy properties. Read these from feature code, not
+    # `is_dev` or `app_env` directly — that way adding a fourth env
+    # value later is a single policy decision per property, not a code
+    # search across the repo. Naming convention: `should_*` for
+    # behaviour gates, `is_*` for env identity.
+    #
+    # `is_dev` stays for backwards compatibility with existing
+    # callers and as a shorthand for "development specifically". New
+    # code should prefer the intent-named flags.
     @property
     def is_dev(self) -> bool:
+        return self.app_env == "development"
+
+    @property
+    def is_staging(self) -> bool:
+        return self.app_env == "staging"
+
+    @property
+    def is_production(self) -> bool:
+        return self.app_env == "production"
+
+    @property
+    def should_mock_sms(self) -> bool:
+        """True when the SMS provider should be the no-op mock that
+        logs the OTP code instead of sending it. Driven off
+        `sms_provider`, not `app_env`, so a future "real-SMS staging
+        dry-run" needs only an env-var flip, not a code change."""
+        return self.sms_provider == "mock"
+
+    @property
+    def should_mock_payments(self) -> bool:
+        return self.payment_provider == "mock"
+
+    @property
+    def should_seed_demo_data(self) -> bool:
+        """Demo seed (admin bootstrap user + demo member + sample
+        gyms) runs only in development. Staging and production seed
+        nothing automatically — they get real data from migrations +
+        operator action."""
+        return self.app_env == "development"
+
+    @property
+    def should_relax_cors(self) -> bool:
+        """Development echoes any `localhost:*` origin. Staging and
+        production lock to the configured admin/partner hostnames."""
+        return self.app_env == "development"
+
+    @property
+    def should_enforce_secret_strength(self) -> bool:
+        """Both staging and production require real (non-sentinel,
+        ≥32-char) JWT / admin-exchange / postgres secrets. Development
+        accepts the `changeme-*` defaults so a fresh clone boots."""
+        return self.app_env in ("staging", "production")
+
+    @property
+    def should_enable_debug(self) -> bool:
+        """FastAPI `debug=True` only in development."""
         return self.app_env == "development"
 
     # Values that are obvious "fill this in before prod" placeholders. Any
@@ -125,13 +185,18 @@ class Settings(BaseSettings):
     )
 
     def validate_production_safety(self) -> None:
-        """Fail fast in production if critical secrets still have dev defaults.
+        """Fail fast in staging or production if critical secrets still
+        have dev defaults.
 
         Called from `create_app()`. Raised here rather than in a Pydantic
         validator so dev runs (and unit tests that construct Settings
-        directly) aren't blocked.
+        directly) aren't blocked. Both staging and production enforce
+        secret-strength via `should_enforce_secret_strength`; the only
+        difference is that production *also* requires a strong admin
+        bootstrap password (operators may keep the dev bootstrap user
+        across the staging reset cycle).
         """
-        if self.is_dev:
+        if not self.should_enforce_secret_strength:
             return
         problems: list[str] = []
         if self.jwt_secret in self._DEV_SENTINELS or len(self.jwt_secret) < 32:
@@ -146,7 +211,10 @@ class Settings(BaseSettings):
             )
         if self.postgres_password in self._DEV_SENTINELS:
             problems.append("POSTGRES_PASSWORD must not be a dev default")
-        if (
+        # Admin bootstrap password is only strictly required in
+        # production — staging may keep a short operator-known
+        # password without blocking startup.
+        if self.is_production and (
             self.admin_bootstrap_password is None
             or self.admin_bootstrap_password in self._DEV_SENTINELS
             or len(self.admin_bootstrap_password) < 12
@@ -155,8 +223,9 @@ class Settings(BaseSettings):
                 "ADMIN_BOOTSTRAP_PASSWORD must be set and >= 12 chars in production"
             )
         if problems:
+            env_label = self.app_env
             raise RuntimeError(
-                "Refusing to start in production with insecure defaults:\n  - "
+                f"Refusing to start in {env_label} with insecure defaults:\n  - "
                 + "\n  - ".join(problems)
             )
 
@@ -174,23 +243,33 @@ class Settings(BaseSettings):
         )
 
     def cors_origins(self) -> list[str]:
-        if self.is_dev:
+        if self.should_relax_cors:
             # Dev was previously a wildcard `*`, which is convenient
             # but means any browser tab on any domain can hit the
             # local backend. Limit to the actual surfaces we run
-            # locally — admin (3001), mobile web preview (5173),
-            # plus the backend itself (8000) for `/docs`. Add more
-            # ports here if a new local surface lands.
+            # locally — admin (3001/3000), partner (3003), website
+            # preview (3004), mobile web preview (5173), plus the
+            # backend itself (8000) for `/docs`. Add more ports here
+            # if a new local surface lands.
             return [
+                "http://localhost:3000",
+                "http://127.0.0.1:3000",
                 "http://localhost:3001",
                 "http://127.0.0.1:3001",
                 "http://localhost:3003",
                 "http://127.0.0.1:3003",
+                "http://localhost:3004",
+                "http://127.0.0.1:3004",
                 "http://localhost:5173",
                 "http://127.0.0.1:5173",
                 "http://localhost:8000",
                 "http://127.0.0.1:8000",
             ]
+        # Staging + production both lock CORS to the configured
+        # hostnames. The env vars resolve to `stg-admin.gym-pass.net`
+        # / `stg-partner.gym-pass.net` in staging and `admin.` /
+        # `partner.` in production — same code path, different
+        # env-var values.
         return [
             f"https://{self.admin_domain}",
             f"https://{self.partner_domain}",

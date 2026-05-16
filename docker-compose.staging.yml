@@ -1,6 +1,17 @@
-# Production overlay. Apply with:
-#   docker compose -f docker-compose.yml -f docker-compose.prod.yml \
-#                  --env-file .env.prod up -d --build
+# Staging overlay. Apply with:
+#   docker compose -f docker-compose.yml -f docker-compose.staging.yml \
+#                  --env-file .env.staging up -d --build
+#
+# Staging lives on a single VM under the stg.gym-pass.net DNS zone:
+#   stg.gym-pass.net           → website
+#   stg-api.gym-pass.net       → backend
+#   stg-admin.gym-pass.net     → admin
+#   stg-partner.gym-pass.net   → gym-partner
+#
+# The Cloudflare Origin Cert that already serves *.gym-pass.net covers
+# every stg-* subdomain, so the same cert mount serves both staging
+# and (eventually) production — only the env-var-resolved hostnames
+# in nginx vhost templates differ.
 #
 # Differences from the dev compose:
 #   - db / redis / backend / admin / gym-partner / website all DROP
@@ -9,16 +20,15 @@
 #     network. This is the load-bearing security boundary — if any of
 #     these get re-published, raw Postgres / Redis / backend become
 #     internet-reachable.
-#   - APP_ENV is sourced from .env.prod (defaults to "development"
-#     because the pre-prod brief is: no real SMS, no real payments,
-#     dev OTP "1234" works, just enough infra to test the mobile
-#     build against the real subdomains).
+#   - APP_ENV is fixed to "staging". The backend's intent-named flags
+#     (should_mock_sms, should_mock_payments, should_enforce_secret_strength)
+#     turn on the production-shape behaviours while keeping SMS +
+#     payments mocked per CLAUDE.md §15.
 #   - certbot is gone. TLS is terminated with a Cloudflare Origin
 #     Certificate mounted from ./nginx/certs (gitignored). Valid 15
 #     years; no renewal automation needed.
-#   - website service added — Next.js shell serving the Claude-Design
-#     RegisterFlow prototype (public/register-flow.html) at the apex
-#     gym-pass.net, plus the /downloads/gympass.apk artefact.
+#   - website service serves the marketing landing at stg.gym-pass.net,
+#     plus the /downloads/gympass.apk artefact.
 
 services:
   db:
@@ -31,35 +41,32 @@ services:
 
   backend:
     restart: always
-    # gunicorn with uvicorn workers — 4 is right for the small pre-prod
+    # gunicorn with uvicorn workers — 4 is right for the small staging
     # VM. Tune up only after observing CPU sat under load.
     command: ["uv", "run", "gunicorn", "app.main:app", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000", "-w", "4", "--access-logfile", "-"]
-    # `env_file` in the base compose targets `.env` (dev). On prod the
-    # secrets file is `.env.prod`. Compose merges the lists, so we
-    # listing it here means both are read at runtime — but since the
-    # dev `.env` doesn't exist on the VM, only the prod one is
-    # actually loaded. Setting `env_file: !reset` and re-declaring
-    # would be more surgical but Compose v2's `!reset` doesn't apply
-    # cleanly to list-shaped fields.
     env_file:
-      - .env.prod
+      - .env.staging
     volumes:
       - media_data:/app/media
     ports: !reset []
     environment:
-      APP_ENV: ${APP_ENV:-development}
+      APP_ENV: staging
 
   celery-worker:
     restart: always
     env_file:
-      - .env.prod
+      - .env.staging
     volumes: !reset []
+    environment:
+      APP_ENV: staging
 
   celery-beat:
     restart: always
     env_file:
-      - .env.prod
+      - .env.staging
     volumes: !reset []
+    environment:
+      APP_ENV: staging
 
   admin:
     build:
@@ -74,14 +81,14 @@ services:
         ADMIN_EXCHANGE_SECRET: ${ADMIN_EXCHANGE_SECRET}
     restart: always
     env_file:
-      - .env.prod
+      - .env.staging
     volumes: !reset []
     ports: !reset []
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_API_URL: https://${API_DOMAIN:-api.gym-pass.net}
+      NEXT_PUBLIC_API_URL: https://${API_DOMAIN:-stg-api.gym-pass.net}
       BACKEND_API_URL: http://backend:8000
-      NEXTAUTH_URL: https://${ADMIN_DOMAIN:-admin.gym-pass.net}
+      NEXTAUTH_URL: https://${ADMIN_DOMAIN:-stg-admin.gym-pass.net}
 
   gym-partner:
     build:
@@ -92,14 +99,14 @@ services:
         ADMIN_EXCHANGE_SECRET: ${ADMIN_EXCHANGE_SECRET}
     restart: always
     env_file:
-      - .env.prod
+      - .env.staging
     volumes: !reset []
     ports: !reset []
     environment:
       NODE_ENV: production
       API_BASE_URL: http://backend:8000
-      NEXT_PUBLIC_API_URL: https://${API_DOMAIN:-api.gym-pass.net}
-      NEXTAUTH_URL: https://${PARTNER_DOMAIN:-partner.gym-pass.net}
+      NEXT_PUBLIC_API_URL: https://${API_DOMAIN:-stg-api.gym-pass.net}
+      NEXTAUTH_URL: https://${PARTNER_DOMAIN:-stg-partner.gym-pass.net}
 
   website:
     build:
@@ -117,9 +124,27 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    # Resolve ${API_DOMAIN}/${ADMIN_DOMAIN}/${PARTNER_DOMAIN}/${WEBSITE_DOMAIN}
+    # in the vhost templates at container start. The nginx official
+    # image walks NGINX_ENVSUBST_TEMPLATE_DIR, applies envsubst with
+    # NGINX_ENVSUBST_FILTER as a positive filter (so unrelated `$var`
+    # references in Lua-style snippets aren't accidentally replaced),
+    # and writes the rendered files into /etc/nginx/conf.d/.
+    environment:
+      NGINX_ENVSUBST_TEMPLATE_DIR: /etc/nginx/templates
+      NGINX_ENVSUBST_TEMPLATE_SUFFIX: .template
+      NGINX_ENVSUBST_OUTPUT_DIR: /etc/nginx/conf.d
+      NGINX_ENVSUBST_FILTER: '^(API|ADMIN|PARTNER|WEBSITE)_DOMAIN$$'
+      API_DOMAIN: ${API_DOMAIN:-stg-api.gym-pass.net}
+      ADMIN_DOMAIN: ${ADMIN_DOMAIN:-stg-admin.gym-pass.net}
+      PARTNER_DOMAIN: ${PARTNER_DOMAIN:-stg-partner.gym-pass.net}
+      WEBSITE_DOMAIN: ${WEBSITE_DOMAIN:-stg.gym-pass.net}
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      # Templates rendered into /etc/nginx/conf.d at container start.
+      # The dev compose mounts ./nginx/conf.d directly; for staging we
+      # mount the templates so envsubst can rewrite hostnames per env.
+      - ./nginx/templates:/etc/nginx/templates:ro
       - ./nginx/snippets:/etc/nginx/snippets:ro
       # Cloudflare Origin Cert + private key, copied to the VM at
       # deploy time. Gitignored. Cert can be world-readable (0644);
