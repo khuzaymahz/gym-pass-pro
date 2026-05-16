@@ -23,6 +23,7 @@ from app.repositories.gym_photo_repo import GymPhotoRepository
 from app.repositories.gym_repo import GymRepository
 from app.repositories.notification_repo import NotificationRepository
 from app.repositories.otp_repo import OtpRepository
+from app.repositories.partner_application_repo import PartnerApplicationRepository
 from app.repositories.payment_method_repo import PaymentMethodRepository
 from app.repositories.payment_repo import PaymentRepository
 from app.repositories.payout_repo import PayoutLedgerRepository, PayoutRepository
@@ -47,6 +48,7 @@ from app.services.audit_service import Actor, AuditService
 from app.services.auth_service import AuthService
 from app.services.checkin_service import CheckinService
 from app.services.gym_service import GymService
+from app.services.partner_application_service import PartnerApplicationService
 from app.services.partner_checkin_read_service import PartnerCheckinReadService
 from app.services.partner_metrics_service import PartnerMetricsService
 from app.services.pause_service import PauseService
@@ -225,6 +227,24 @@ def gym_service(
     audit: Annotated[AuditService, Depends(audit_service)],
 ) -> GymService:
     return GymService(repo, audit)
+
+
+def partner_application_repo(
+    session: SessionDep,
+) -> PartnerApplicationRepository:
+    return PartnerApplicationRepository(session)
+
+
+def partner_application_service(
+    session: SessionDep,
+    repo: Annotated[
+        PartnerApplicationRepository, Depends(partner_application_repo)
+    ],
+    gyms: Annotated[GymRepository, Depends(gym_repo)],
+    users: Annotated[UserRepository, Depends(user_repo)],
+    audit: Annotated[AuditService, Depends(audit_service)],
+) -> PartnerApplicationService:
+    return PartnerApplicationService(repo, gyms, users, audit, session)
 
 
 def payment_method_service(

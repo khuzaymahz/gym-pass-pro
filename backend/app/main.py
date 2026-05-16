@@ -18,6 +18,7 @@ from app.core.redis_client import get_redis
 from app.db.session import get_engine
 
 from app.api.v1 import auth as auth_router
+from app.api.v1 import partner_applications as partner_applications_router
 from app.api.v1 import realtime as realtime_router
 from app.api.v1.member import checkins as checkins_router
 from app.api.v1.member import gyms as gyms_router
@@ -32,6 +33,9 @@ from app.api.v1.member import tickets as tickets_router
 from app.api.v1.admin import audit as admin_audit_router
 from app.api.v1.admin import checkins as admin_checkins_router
 from app.api.v1.admin import gyms as admin_gyms_router
+from app.api.v1.admin import (
+    partner_applications as admin_partner_applications_router,
+)
 from app.api.v1.admin import metrics as admin_metrics_router
 from app.api.v1.admin import notifications as admin_notifications_router
 from app.api.v1.admin import owners as admin_owners_router
@@ -111,7 +115,14 @@ def create_app() -> FastAPI:
     app.include_router(payment_methods_router.router, prefix=v1_prefix)
     app.include_router(invoices_router.router, prefix=v1_prefix)
     app.include_router(pauses_router.router, prefix=v1_prefix)
+    # Public (unauthenticated) partner-application routes — the
+    # "Join Us" submit + the staging-media upload. Lives at v1 root
+    # because the caller is anonymous (not member / admin / partner).
+    app.include_router(partner_applications_router.router, prefix=v1_prefix)
     app.include_router(admin_gyms_router.router, prefix=v1_prefix)
+    app.include_router(
+        admin_partner_applications_router.router, prefix=v1_prefix
+    )
     app.include_router(admin_users_router.router, prefix=v1_prefix)
     app.include_router(admin_plans_router.router, prefix=v1_prefix)
     app.include_router(admin_subscriptions_router.router, prefix=v1_prefix)
