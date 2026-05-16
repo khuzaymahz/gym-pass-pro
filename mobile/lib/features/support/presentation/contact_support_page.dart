@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
@@ -105,12 +106,70 @@ class _ContactSupportPageState extends ConsumerState<ContactSupportPage> {
     );
   }
 
-  Future<void> _copyToClipboard(AppLocalizations l, String value) async {
-    await Clipboard.setData(ClipboardData(text: value));
+  /// Open a deep-link URL (`tel:`, `mailto:`, `https://wa.me/`) in
+  /// the matching OS app. Falls back to copying the source value to
+  /// the clipboard with a toast when no handler is registered (no
+  /// SIM in the device for `tel:`, no mail client for `mailto:`,
+  /// WhatsApp not installed for the WA link) — so the member always
+  /// walks away with the contact info, just sometimes via a
+  /// less-direct path.
+  Future<void> _launchOrCopy(
+    AppLocalizations l, {
+    required Uri uri,
+    required String fallbackValue,
+  }) async {
+    bool launched = false;
+    try {
+      launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      launched = false;
+    }
+    if (launched || !mounted) return;
+    // Fallback: copy + toast. Better than a silent no-op when the
+    // dialer / mail / WhatsApp app can't be opened on this device.
+    await Clipboard.setData(ClipboardData(text: fallbackValue));
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(l.supportChannelCopied(value))));
+      ..showSnackBar(
+        SnackBar(content: Text(l.supportChannelCopied(fallbackValue))),
+      );
+  }
+
+  Future<void> _callPhone(AppLocalizations l, String phone) async {
+    // tel: URIs must be pure digits (optionally with a leading +).
+    // Spaces and dashes in the display value would be silently
+    // stripped by some dialers, rejected as malformed by others.
+    final digits = phone.replaceAll(RegExp(r'[^\d+]'), '');
+    await _launchOrCopy(
+      l,
+      uri: Uri(scheme: 'tel', path: digits),
+      fallbackValue: phone,
+    );
+  }
+
+  Future<void> _emailSupport(AppLocalizations l, String email) async {
+    // Prefill subject so the operator's inbox lands the message in
+    // the right queue instead of arriving as "(no subject)".
+    final uri = Uri(
+      scheme: 'mailto',
+      path: email,
+      query: 'subject=${Uri.encodeQueryComponent(l.supportEmailDefaultSubject)}',
+    );
+    await _launchOrCopy(l, uri: uri, fallbackValue: email);
+  }
+
+  Future<void> _openWhatsapp(AppLocalizations l, String phone) async {
+    // wa.me requires the number in international form without `+`
+    // or spaces. `https://wa.me/9627XXX...` opens WhatsApp on Android
+    // / iOS / web. A `text=` param prefills the chat compose so the
+    // operator sees context immediately.
+    final digits = phone.replaceAll(RegExp(r'[^\d]'), '');
+    final uri = Uri.parse(
+      'https://wa.me/$digits'
+      '?text=${Uri.encodeQueryComponent(l.supportEmailDefaultSubject)}',
+    );
+    await _launchOrCopy(l, uri: uri, fallbackValue: phone);
   }
 
   @override
@@ -150,7 +209,7 @@ class _ContactSupportPageState extends ConsumerState<ContactSupportPage> {
                 subtitle: l.supportChannelCallSubtitle,
                 trailing: l.supportSupportPhone,
                 gp: gp,
-                onTap: () => _copyToClipboard(l, l.supportSupportPhone),
+                onTap: () => _callPhone(l, l.supportSupportPhone),
               ),
               const SizedBox(height: 10),
               _channelCard(
@@ -158,7 +217,7 @@ class _ContactSupportPageState extends ConsumerState<ContactSupportPage> {
                 title: l.supportChannelEmailTitle,
                 subtitle: l.supportChannelEmailSubtitle,
                 gp: gp,
-                onTap: () => _copyToClipboard(l, l.supportEmail),
+                onTap: () => _emailSupport(l, l.supportEmail),
               ),
               const SizedBox(height: 10),
               _channelCard(
@@ -167,7 +226,7 @@ class _ContactSupportPageState extends ConsumerState<ContactSupportPage> {
                 subtitle: l.supportChannelWhatsappSubtitle,
                 gp: gp,
                 accent: GP.success,
-                onTap: () => _copyToClipboard(l, l.supportWhatsapp),
+                onTap: () => _openWhatsapp(l, l.supportWhatsapp),
               ),
               const SizedBox(height: 28),
               _sectionLabel(l.supportMessageLabel, gp),

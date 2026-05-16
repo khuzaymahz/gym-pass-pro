@@ -18,12 +18,20 @@ class ExploreTopBar extends StatelessWidget {
     required this.searchFocus,
     required this.activeFilterCount,
     required this.onOpenFilters,
+    this.onResetFilters,
   });
 
   final TextEditingController searchCtrl;
   final FocusNode searchFocus;
   final int activeFilterCount;
   final VoidCallback onOpenFilters;
+
+  /// Long-press handler for a quick reset gesture: clear every
+  /// active filter without opening the sheet. Wired only when there
+  /// is at least one active filter (otherwise there's nothing to
+  /// reset, and we don't want to teach a press-and-hold gesture
+  /// against an empty state).
+  final VoidCallback? onResetFilters;
 
   @override
   Widget build(BuildContext context) {
@@ -58,6 +66,7 @@ class ExploreTopBar extends StatelessWidget {
               child: _FilterIconButton(
                 activeCount: activeFilterCount,
                 onTap: onOpenFilters,
+                onLongPress: activeFilterCount > 0 ? onResetFilters : null,
               ),
             ),
           ),
@@ -142,10 +151,16 @@ class _FilterIconButton extends StatelessWidget {
   const _FilterIconButton({
     required this.activeCount,
     required this.onTap,
+    this.onLongPress,
   });
 
   final int activeCount;
   final VoidCallback onTap;
+
+  /// Long-press to reset all active filters in one gesture. Hidden
+  /// (null) when no filter is active so we don't teach a hidden
+  /// affordance against an inert state.
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -155,6 +170,7 @@ class _FilterIconButton extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
+        onLongPress: onLongPress,
         borderRadius: BorderRadius.circular(GPRadius.pill),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 240),

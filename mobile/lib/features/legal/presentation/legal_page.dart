@@ -40,58 +40,99 @@ class LegalPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final gp = context.gp;
+    final topInset = MediaQuery.viewPaddingOf(context).top;
+    // Sticky back button: rendered as a floating Stack layer over the
+    // scroll view, not as the first sliver. Previously a
+    // `SliverToBoxAdapter` placed the back button inside the
+    // CustomScrollView, so scrolling down (legal content is long —
+    // 10+ sections) scrolled the back button off-screen and members
+    // had to scroll back to the top before they could leave the page.
+    // The floating button stays anchored to the safe-area top in
+    // both LTR + RTL via `PositionedDirectional`.
     return Scaffold(
       backgroundColor: gp.bg,
-      body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            const SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(18, 8, 18, 0),
-                child: Row(
-                  children: [
-                    BackBtn(),
-                  ],
-                ),
+      body: Stack(
+        children: [
+          // Slight scrim under the floating back button so it stays
+          // legible when content scrolls behind it. Theme-agnostic
+          // 28% black on a 64-px fade matches the gym-detail hero.
+          CustomScrollView(
+            slivers: [
+              // Leading slot replaces the old in-scroll back button —
+              // we still want the title block to clear the floating
+              // button at the top of the viewport, so a fixed-height
+              // spacer reserves the same visual area.
+              SliverToBoxAdapter(
+                child: SizedBox(height: topInset + 56),
               ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(22, 22, 22, 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Overline(subtitle),
-                    const SizedBox(height: 8),
-                    Text(
-                      title.toUpperCase(),
-                      style: GPText.display(34, color: gp.fg, height: 0.9),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '$lastUpdatedLabel · $lastUpdated',
-                      style: GPText.mono(
-                        size: 10.5,
-                        letterSpacing: 1.4,
-                        color: gp.muted,
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(22, 6, 22, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Overline(subtitle),
+                      const SizedBox(height: 8),
+                      Text(
+                        title.toUpperCase(),
+                        style: GPText.display(34, color: gp.fg, height: 0.9),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 8),
+                      Text(
+                        '$lastUpdatedLabel · $lastUpdated',
+                        style: GPText.mono(
+                          size: 10.5,
+                          letterSpacing: 1.4,
+                          color: gp.muted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(22, 12, 22, 48),
+                sliver: SliverList.builder(
+                  itemCount: sections.length,
+                  itemBuilder: (_, i) => _SectionView(
+                    index: i + 1,
+                    section: sections[i],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          // Top scrim so scrolled content doesn't bleed into the
+          // floating back button. Gradient fade so the boundary
+          // never reads as a hard bar.
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: topInset + 56,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      gp.bg,
+                      gp.bg.withValues(alpha: 0.86),
+                      gp.bg.withValues(alpha: 0),
+                    ],
+                    stops: const [0.0, 0.55, 1.0],
+                  ),
                 ),
               ),
             ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(22, 12, 22, 48),
-              sliver: SliverList.builder(
-                itemCount: sections.length,
-                itemBuilder: (_, i) => _SectionView(
-                  index: i + 1,
-                  section: sections[i],
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+          PositionedDirectional(
+            top: topInset + 8,
+            start: 18,
+            child: const BackBtn(),
+          ),
+        ],
       ),
     );
   }

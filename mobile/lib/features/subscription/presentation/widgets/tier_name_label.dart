@@ -74,6 +74,24 @@ class _TierNameLabelState extends State<TierNameLabel>
     super.dispose();
   }
 
+  /// Locale-aware text spacing. Latin reads well at 1.4–1.8 px of
+  /// tracking; Arabic letters connect at the baseline, so any
+  /// positive letter spacing forces a gap between letters that
+  /// should join — that's the "cuts" in بلاتيني / ذهبي the user
+  /// flagged. AR uses 0, EN/etc. keeps the caller's value.
+  double get _effectiveLetterSpacing {
+    final lang = Localizations.maybeLocaleOf(context)?.languageCode;
+    return lang == 'ar' ? 0 : widget.letterSpacing;
+  }
+
+  String get _effectiveLabel {
+    final lang = Localizations.maybeLocaleOf(context)?.languageCode;
+    // toUpperCase has no effect on Arabic glyphs but signals
+    // "I'm a label" in Latin; keep that asymmetry — AR stays
+    // canonical.
+    return lang == 'ar' ? widget.label : widget.label.toUpperCase();
+  }
+
   @override
   Widget build(BuildContext context) {
     final gp = context.gp;
@@ -96,10 +114,10 @@ class _TierNameLabelState extends State<TierNameLabel>
   /// no animation, the lowest visual weight in the four-tier stack.
   Widget _silver(GpColors gp) {
     return Text(
-      widget.label.toUpperCase(),
+      _effectiveLabel,
       style: GPText.mono(
         size: widget.fontSize,
-        letterSpacing: widget.letterSpacing,
+        letterSpacing: _effectiveLetterSpacing,
         color: widget.tier.readableOn(gp),
         weight: FontWeight.w600,
       ),
@@ -134,10 +152,10 @@ class _TierNameLabelState extends State<TierNameLabel>
           ),
         ),
         Text(
-          widget.label.toUpperCase(),
+          _effectiveLabel,
           style: GPText.mono(
             size: widget.fontSize,
-            letterSpacing: widget.letterSpacing,
+            letterSpacing: _effectiveLetterSpacing,
             color: inkColor,
             weight: FontWeight.w800,
           ),
@@ -177,10 +195,10 @@ class _TierNameLabelState extends State<TierNameLabel>
           },
           blendMode: BlendMode.srcIn,
           child: Text(
-            widget.label.toUpperCase(),
+            _effectiveLabel,
             style: GPText.mono(
               size: widget.fontSize,
-              letterSpacing: widget.letterSpacing,
+              letterSpacing: _effectiveLetterSpacing,
               // ShaderMask paints over white, so any opaque colour
               // here works — picking white keeps the glyphs at full
               // chroma when the gradient lands its bright stop on
@@ -209,10 +227,10 @@ class _TierNameLabelState extends State<TierNameLabel>
           clipBehavior: Clip.none,
           children: [
             Text(
-              widget.label.toUpperCase(),
+              _effectiveLabel,
               style: GPText.mono(
                 size: widget.fontSize,
-                letterSpacing: widget.letterSpacing,
+                letterSpacing: _effectiveLetterSpacing,
                 color: diamondColor,
                 weight: FontWeight.w800,
               ),

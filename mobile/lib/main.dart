@@ -32,6 +32,7 @@ Future<void> main() async {
       appPreferencesProvider.overrideWith(
         (ref) => AppPreferencesNotifier(prefs.shared, prefs.initial),
       ),
+      sharedPreferencesProvider.overrideWithValue(prefs.shared),
     ],
     child: const GymPassApp(),
   ),);

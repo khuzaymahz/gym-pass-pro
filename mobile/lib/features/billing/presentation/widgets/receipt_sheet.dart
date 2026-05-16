@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../../core/format/money_format.dart';
 import '../../../../core/theme/gp_text.dart';
@@ -13,10 +14,18 @@ const int _vatPercent = 16;
 class ReceiptSheet {
   const ReceiptSheet._();
 
+  /// Open the receipt for an invoice in a modal bottom sheet. The
+  /// primary CTA is **Download**: it formats the receipt as plain
+  /// text (gym + amount + VAT + total + payment ref) and hands it to
+  /// the OS share sheet via `share_plus`. The member can then save to
+  /// Files, save to Drive, send via WhatsApp, etc. — whatever they
+  /// have installed. The previous "Send to email" CTA was a stub
+  /// (mocked SMTP never actually sent the mail) so a tap produced a
+  /// trust-eroding snackbar with no follow-up. Direct download is
+  /// the honest behaviour and works fully offline.
   static Future<void> show({
     required BuildContext context,
     required Invoice invoice,
-    required VoidCallback onEmailQueued,
   }) {
     final gp = context.gp;
     return showModalBottomSheet<void>(
@@ -27,20 +36,15 @@ class ReceiptSheet {
         borderRadius:
             BorderRadius.vertical(top: Radius.circular(GPRadius.xl2)),
       ),
-      builder: (sheetCtx) =>
-          _ReceiptBody(invoice: invoice, onEmailQueued: onEmailQueued),
+      builder: (sheetCtx) => _ReceiptBody(invoice: invoice),
     );
   }
 }
 
 class _ReceiptBody extends StatelessWidget {
-  const _ReceiptBody({
-    required this.invoice,
-    required this.onEmailQueued,
-  });
+  const _ReceiptBody({required this.invoice});
 
   final Invoice invoice;
-  final VoidCallback onEmailQueued;
 
   @override
   Widget build(BuildContext context) {
@@ -133,12 +137,9 @@ class _ReceiptBody extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             PillButton(
-              label: l.billingReceiptSendEmail,
-              trailingIcon: Icons.mail_outline,
-              onPressed: () {
-                Navigator.of(context).pop();
-                onEmailQueued();
-              },
+              label: l.billingReceiptDownload,
+              trailingIcon: Icons.file_download_outlined,
+              onPressed: () => _downloadReceipt(context, l, subtotal, tax),
             ),
             const SizedBox(height: 8),
             Center(
@@ -159,6 +160,45 @@ class _ReceiptBody extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Format the receipt as plain text and hand it to the OS share
+  /// sheet. The user picks the destination — Files, Drive, WhatsApp,
+  /// Mail, etc. This is what "Download" actually means on mobile:
+  /// not a hidden file in /sdcard/Downloads but an explicit
+  /// destination the user controls. Once `share_plus` resolves we
+  /// close the sheet so the billing list is the next thing the user
+  /// sees, not a stale receipt overlay.
+  Future<void> _downloadReceipt(
+    BuildContext context,
+    AppLocalizations l,
+    int subtotal,
+    int tax,
+  ) async {
+    final body = _formatReceiptText(l, subtotal, tax);
+    final subject = l.billingReceiptDownloadSubject(invoice.id);
+    final navigator = Navigator.of(context);
+    try {
+      await Share.share(body, subject: subject);
+    } finally {
+      if (navigator.mounted) navigator.pop();
+    }
+  }
+
+  String _formatReceiptText(AppLocalizations l, int subtotal, int tax) {
+    final total = MoneyFormat.jod(l, invoice.amountJod);
+    final lines = <String>[
+      'GymPass',
+      l.billingReceiptTitle,
+      '',
+      '${l.billingReceiptItemsLabel.toLowerCase()}: ${invoice.id}',
+      l.billingInvoicePaid(invoice.iso, invoice.amountJod),
+      '',
+      '${l.billingReceiptLineBase}: ${MoneyFormat.jod(l, subtotal)}',
+      '${l.billingReceiptLineTax(tax)}: ${MoneyFormat.jod(l, tax)}',
+      '${l.billingReceiptTotalLabel}: $total',
+    ];
+    return lines.join('\n');
   }
 }
 

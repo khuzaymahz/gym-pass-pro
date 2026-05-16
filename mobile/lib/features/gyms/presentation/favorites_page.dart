@@ -9,6 +9,8 @@ import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
 import '../../../core/widgets/pill_button.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../home/presentation/home_page.dart' show gymSummaryToGPGym;
+import '../data/gym_repository.dart';
 import 'gym_detail_page.dart' show favoritedGymsProvider;
 import 'gyms_filter_state.dart';
 
@@ -17,10 +19,17 @@ import 'gyms_filter_state.dart';
 /// order. Tapping a row routes into the gym profile; an empty state
 /// prompts the member to head to Explore and start saving.
 ///
-/// Why a dedicated page (vs. a filter on the gyms list)? The list
-/// page is map-adjacent and dense; the You menu entry promises a
-/// focused "here are my saved spots" view. The same set powers the
-/// Explore filter — single source of truth in [favoritedGymsProvider].
+/// Source of truth: the live `gymsListProvider` (backend
+/// `/api/v1/gyms`). Previously this surface filtered the local
+/// `GPGym.seed` list, which is why members who favourited
+/// backend-only gyms (every real Jordan gym is backend-seeded —
+/// `GPGym.seed` is the legacy hardcoded prototype set) saw an empty
+/// list even though their heart-taps had been recorded correctly.
+/// Per CLAUDE.md rule 9, no surface may rely on the local seed to
+/// hide a backend failure. If `gymsListProvider` is still hydrating
+/// we render skeleton placeholders; on error we render the same
+/// empty state, which is correct behaviour (we don't lie about
+/// having data).
 class FavoritesPage extends ConsumerWidget {
   const FavoritesPage({super.key});
 
@@ -29,11 +38,19 @@ class FavoritesPage extends ConsumerWidget {
     final l = AppLocalizations.of(context);
     final gp = context.gp;
     final favorites = ref.watch(favoritedGymsProvider);
-    final saved = GPGym.seed
+    final isAr = Localizations.localeOf(context).languageCode == 'ar';
+    final gymsAsync = ref.watch(gymsListProvider);
+    final allGyms = gymsAsync.valueOrNull ?? const [];
+    final saved = allGyms
         .where((g) => favorites.contains(g.slug))
+        .map((s) => (
+              gpgym: gymSummaryToGPGym(s, isAr: isAr),
+              logoUrl: s.logoUrl,
+            ))
         .toList()
-      ..sort((a, b) => a.name.compareTo(b.name));
+      ..sort((a, b) => a.gpgym.name.compareTo(b.gpgym.name));
     final topInset = MediaQuery.viewPaddingOf(context).top;
+    final isLoading = gymsAsync.isLoading && allGyms.isEmpty;
     return Scaffold(
       backgroundColor: gp.bg,
       body: Stack(
@@ -60,21 +77,30 @@ class FavoritesPage extends ConsumerWidget {
                 ),
                 const SizedBox(height: 14),
                 Expanded(
-                  child: saved.isEmpty
-                      ? _empty(context, ref, l, gp)
-                      : ListView.separated(
-                          padding: const EdgeInsets.only(top: 4, bottom: 24),
-                          itemCount: saved.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 10),
-                          itemBuilder: (context, i) {
-                            final g = saved[i];
-                            return GymRow(
-                              gym: g,
-                              onTap: () => context.push('/gyms/${g.slug}'),
-                            );
-                          },
-                        ),
+                  child: isLoading
+                      ? const Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : saved.isEmpty
+                          ? _empty(context, ref, l, gp)
+                          : ListView.separated(
+                              padding: const EdgeInsets.only(
+                                top: 4,
+                                bottom: 24,
+                              ),
+                              itemCount: saved.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 10),
+                              itemBuilder: (context, i) {
+                                final entry = saved[i];
+                                return GymRow(
+                                  gym: entry.gpgym,
+                                  logoUrl: entry.logoUrl,
+                                  onTap: () => context
+                                      .push('/gyms/${entry.gpgym.slug}'),
+                                );
+                              },
+                            ),
                 ),
               ],
             ),

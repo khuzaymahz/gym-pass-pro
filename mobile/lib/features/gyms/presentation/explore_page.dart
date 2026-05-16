@@ -717,6 +717,31 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
     return n;
   }
 
+  /// Reset every filter back to its default — wired to the
+  /// long-press gesture on the filter pill so members can clear a
+  /// stack of active filters without opening the sheet. Triggers a
+  /// medium-weight haptic so the gesture feels distinct from a tap
+  /// (which produces a lighter selectionClick), and surfaces a
+  /// snackbar so the action is visible even when no chips were
+  /// rendered on screen at the moment of reset.
+  void _resetFilters(BuildContext context) {
+    HapticFeedback.mediumImpact();
+    ref.read(gymsCategoryFilterProvider.notifier).state = 'all';
+    ref.read(gymsTierFilterProvider.notifier).state = const <String>{};
+    ref.read(gymsFavoritesOnlyProvider.notifier).state = false;
+    ref.read(gymsSearchQueryProvider.notifier).state = '';
+    _searchCtrl.clear();
+    final l = AppLocalizations.of(context);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(l.exploreFiltersResetDone),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+  }
+
   Future<void> _openFiltersSheet(BuildContext context) async {
     HapticFeedback.selectionClick();
     // Tapping the filter button is a clear "I want to see and refine
@@ -1125,6 +1150,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
                 searchFocus: _searchFocus,
                 activeFilterCount: activeFilterCount,
                 onOpenFilters: () => _openFiltersSheet(context),
+                onResetFilters: () => _resetFilters(context),
               ),
               // 4. Bottom-of-screen surface — list sheet OR the
               //    selected-gym card. Mutually exclusive: when a pin
@@ -1156,6 +1182,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
                   onDoubleTapHandle: _expandSheetMax,
                   gyms: visible,
                   query: query,
+                  activeCategory: category,
                   isLoading: isLoadingGyms,
                   hasError: hasError,
                   onGymSelect: _selectGymFromList,

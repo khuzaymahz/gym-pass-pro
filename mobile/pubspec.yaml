@@ -91,6 +91,28 @@ dependencies:
   # imports it directly (timeout-on-send pattern).
   http: ^1.2.2
 
+  # Phone / email / WhatsApp deep-link launcher. Used by the support
+  # page to open `tel:`, `mailto:` and `wa.me/` URIs in the OS apps
+  # (dialer, Gmail, WhatsApp) with pre-filled subjects + bodies,
+  # so a tap doesn't just copy text to clipboard.
+  url_launcher: ^6.3.0
+
+  # Camera + gallery picker. Used by the bug-report attach-evidence
+  # flow so "Take a photo" opens the camera and "Photo from camera
+  # roll" opens the OS picker. Previously the sheet just set a fake
+  # filename; image_picker is what turns it into an end-to-end real
+  # attachment flow.
+  image_picker: ^1.1.2
+
+  # Incoming deep-link receiver. Listens for both cold-start ("app
+  # opened by tapping a link") and hot ("app already running, OS
+  # routes a link in") events. Used to handle `gympass://gyms/<slug>`
+  # custom-scheme URLs and `https://gym-pass.net/gyms/<slug>` /
+  # `/invite/<code>` web URLs when the OS hands them off to the app
+  # (Android intent-filter / iOS Universal Link). Pure event stream;
+  # no UI of its own.
+  app_links: ^6.3.2
+
   # Image caching — disk + memory cache for `/api/v1/gyms/.../photos`
   # and partner-uploaded logos. Backed by `flutter_cache_manager`
   # (LRU disk cache with a 30-day TTL by default), so the hero photo

@@ -79,10 +79,25 @@ class DisplayText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Locale-aware: EN gets the editorial italic+condensed Archivo;
+    // AR gets upright Cairo so letters stay joined at the baseline.
+    // Previously every locale used `display` (Archivo + italic +
+    // negative letterSpacing), which fell back to Cairo glyph-by-
+    // glyph while still applying italic skew and negative tracking —
+    // breaking ligatures and producing the disconnected
+    // بلاتيني / ذهبي the user flagged. Upper-casing also doesn't
+    // change Arabic glyphs (no case distinction) so we apply
+    // toUpperCase unconditionally and let the AR path render the
+    // canonical letterforms.
+    final lang = Localizations.localeOf(context).languageCode;
+    final isAr = lang == 'ar';
+    final display = isAr
+        ? GPText.displayArabic(size, color: color ?? context.gp.fg)
+        : GPText.display(size, color: color ?? context.gp.fg, height: height ?? 0.92);
     return Text(
-      text.toUpperCase(),
+      isAr ? text : text.toUpperCase(),
       textAlign: align,
-      style: GPText.display(size, color: color ?? context.gp.fg, height: height ?? 0.92),
+      style: display,
     );
   }
 }
@@ -101,6 +116,26 @@ class SerifAccent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Same locale rationale as DisplayText: InstrumentSerif is
+    // Latin-only and its italic style/lower-case treatment is
+    // meaningless for Arabic. Render AR with upright Cairo at a
+    // lighter weight so it still reads as the "accent" half of the
+    // headline pair without slicing Arabic glyphs.
+    final lang = Localizations.localeOf(context).languageCode;
+    final isAr = lang == 'ar';
+    if (isAr) {
+      return Text(
+        text,
+        style: TextStyle(
+          fontFamily: 'Cairo',
+          fontFamilyFallback: const ['Roboto', 'sans-serif'],
+          fontSize: size * 0.82,
+          fontWeight: FontWeight.w500,
+          height: 1.0,
+          color: color ?? context.gp.accentInk,
+        ),
+      );
+    }
     return Text(
       text.toLowerCase(),
       style: GPText.serifAccent(size, color: color ?? context.gp.accentInk),

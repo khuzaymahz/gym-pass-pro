@@ -10,6 +10,16 @@ class GPText {
   // Cairo doesn't cover.
   static const List<String> _fallback = ['Cairo', 'Roboto', 'sans-serif'];
 
+  /// Arabic-first fallback chain. When a `Text` is *known* to render
+  /// Arabic (e.g. `DisplayText` reading the locale via context), we
+  /// promote Cairo to the primary family rather than relying on
+  /// glyph-by-glyph fallback. Falling back from Archivo to Cairo
+  /// works for shaping, but Flutter applies Archivo's variation axes
+  /// (wdth) and `FontStyle.italic` to the Cairo fallback even though
+  /// Cairo doesn't expose those — which produced the disconnected,
+  /// sliced-up letters in بلاتيني / ذهبي the user flagged.
+  static const List<String> _arabicFallback = ['Roboto', 'sans-serif'];
+
   // Archivo is a variable font with wght (100-900) + wdth (62-125) axes.
   // Pushing wght to 900 and wdth to narrower 88 produces a more editorial,
   // compressed display — closer to a dedicated display face like Anton
@@ -19,6 +29,7 @@ class GPText {
     FontVariation('wdth', 88),
   ];
 
+  /// English (Latin) display style — italic + condensed Archivo.
   static TextStyle display(double size, {Color color = GP.paper, double height = 0.92}) {
     return TextStyle(
       fontFamily: 'Archivo',
@@ -31,6 +42,45 @@ class GPText {
       letterSpacing: -size * 0.045,
       color: color,
     );
+  }
+
+  /// Arabic display style — Cairo at heavy weight, **upright**, with
+  /// non-negative letter spacing so ligatures stay intact.
+  /// `letterSpacing: -size*0.045` and `fontStyle: italic` work for
+  /// Latin display heads but break Arabic letter joining at the
+  /// baseline (the user reported بلاتيني / ذهبي rendering as
+  /// disconnected glyphs). This style is what `DisplayText` and
+  /// `SerifAccent` pick at runtime when the active locale is `ar`.
+  static TextStyle displayArabic(
+    double size, {
+    Color color = GP.paper,
+    double height = 1.1,
+  }) {
+    return TextStyle(
+      fontFamily: 'Cairo',
+      fontFamilyFallback: _arabicFallback,
+      fontWeight: FontWeight.w800,
+      fontSize: size,
+      height: height,
+      // Slight positive tracking improves the perceived weight without
+      // separating the letters. Cairo at w800 is already condensed.
+      letterSpacing: 0,
+      color: color,
+    );
+  }
+
+  /// Locale-aware picker used by `DisplayText`. EN gets the editorial
+  /// italic Archivo; AR gets upright Cairo.
+  static TextStyle displayFor(
+    String languageCode,
+    double size, {
+    Color color = GP.paper,
+    double height = 0.92,
+  }) {
+    if (languageCode == 'ar') {
+      return displayArabic(size, color: color);
+    }
+    return display(size, color: color, height: height);
   }
 
   static TextStyle display1({Color color = GP.paper}) => display(54, color: color, height: 0.88);
