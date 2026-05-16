@@ -6,6 +6,12 @@ import type { CheckinStatus } from "@/lib/sdk";
 const CHECKIN_TONE: Record<CheckinStatus, "ok" | "warn" | "bad" | "mute"> = {
   success: "ok",
   tier_locked: "warn",
+  // `gender_locked` shares the same operator semantics as
+  // `tier_locked` — both are "access correctly denied at the door,"
+  // not a system fault. Same warn tone keeps the dashboard's
+  // recent-activity stream readable without inflating bad-tone
+  // signals.
+  gender_locked: "warn",
   no_visits: "warn",
   expired: "bad",
   invalid_qr: "bad",
