@@ -4,13 +4,15 @@
 >
 > **Deployment model — the durable end-state.** Three docker-compose configurations, one base + two overlays, sharing the same images and code, differing only in env vars and overlay shape:
 >
-> - **`docker-compose.yml`** (base) — local development; hot reload; ports exposed; `APP_ENV=development` (OTP=`1234`, payments mocked, permissive CORS).
-> - **`docker-compose.staging.yml`** (overlay) — production-like staging; **the same file runs on your laptop *and* on a VM staging server**; `APP_ENV=staging`; real secrets; SMS + payments still mocked; nginx terminates TLS at 80/443. Environment-specific bits (hostnames, certs, `.env.staging`) are file-mounted and gitignored, so the compose file itself is portable.
-> - **`docker-compose.prod.yml`** (overlay) — production; `APP_ENV=production`; real SMS + payment providers; identical shape to staging; differs only in env vars and provider adapters.
+> - **`docker-compose.yml`** (base) — local development; hot reload; ports exposed; `APP_ENV=development` (OTP=`1234`, payments mocked, permissive CORS). **Local development hits the containers directly on their host ports** (`localhost:8000` backend, `localhost:3000` admin, `localhost:3003` partner, `localhost:3004` website) — no hostname trickery, no mkcert, no `/etc/hosts` edits. The mobile app uses `--dart-define=API_BASE_URL=http://10.0.2.2:8000` on the Android emulator or the laptop's LAN IP on a real device.
+> - **`docker-compose.staging.yml`** (overlay) — production-like staging deployed to a single VM. Public hostnames live under the `stg.gym-pass.net` zone: **`stg.gym-pass.net`** (website), **`stg-api.gym-pass.net`**, **`stg-admin.gym-pass.net`**, **`stg-partner.gym-pass.net`**. nginx terminates TLS at 80/443 using a Cloudflare Origin Cert covering `*.gym-pass.net`; `APP_ENV=staging`; real secrets; SMS + payments still mocked.
+> - **`docker-compose.prod.yml`** (overlay) — production. Same shape as staging; apex `gym-pass.net` + `api.`, `admin.`, `partner.` subdomains; `APP_ENV=production`; real SMS + payment providers. Differs from staging only in env vars and provider adapters.
 >
-> The deliverables of this plan are: (1) those three compose files + the env templates (`.env.example`, `.env.staging.example`, `.env.prod.example`), (2) nginx vhost templates that resolve `${SERVER_NAME}` at startup so the same vhost works for `*.gym-pass.local` and `*.gym-pass.net`, (3) the architecture and codegen work in §3, §3.7, §4.6, §6.0, §6.2.
+> The deliverables of this plan are: (1) those three compose files + the env templates (`.env.example`, `.env.staging.example`, `.env.prod.example`), (2) four nginx vhost templates resolved via `envsubst` at container start so the same templates serve `stg-*.gym-pass.net` in staging and the bare-name subdomains in production, (3) the architecture and codegen work in §3, §3.7, §4.6, §6.0, §6.2.
 >
 > The full unedited per-surface handoffs are preserved in **Appendices A–E**. The master synthesis (§0–§6) cross-references them by section.
+
+> **v7 revision — drop `*.gym-pass.local` and mkcert.** Earlier drafts had the staging compose file portable across "laptop with mkcert certs" and "VM with real cert". Empirically that's both more work and less useful than the simpler split: **local dev hits container ports directly** (no TLS, no hostnames, no CA install on each platform) and **staging lives on a single VM with public DNS + Cloudflare Origin Cert**. The mkcert per-platform CA-install recipe (Android emulator, iOS Simulator, real device) was the longest section of the original Phase A and the most error-prone — and the laptop-with-TLS-staging that motivated it was never actually used. Removed in v7. Phase A and §6.1 below are rewritten around the simpler model.
 
 ---
 
@@ -56,7 +58,7 @@ app_env: Literal["development", "staging", "production"] = "development"
 - Requires real `POSTGRES_PASSWORD`
 - **Relaxes** `ADMIN_BOOTSTRAP_PASSWORD` length (operator may keep dev creds)
 - Keeps SMS + payment providers on `"mock"`
-- Tightens CORS to the configured admin/partner origins (no wildcard) — these will be `https://admin.gym-pass.local` / `https://partner.gym-pass.local` in your local staging setup
+- Tightens CORS to the configured admin/partner origins (no wildcard) — these will be `https://stg-admin.gym-pass.net` / `https://stg-partner.gym-pass.net` in staging and `https://admin.gym-pass.net` / `https://partner.gym-pass.net` in production
 - Keeps `debug=False` and the production error envelope
 
 Also (Appendix A §4): replace `print(...)` in `app/providers/sms/mock_sms.py:25` with `log.info("mock_sms", phone=..., code=...)` so staging logs route through structlog.
@@ -362,7 +364,8 @@ No app imports another app's source. No app reads another app's DB tables.
 ### 4.4 Flutter (`apps/mobile/`)
 
 - [ ] Split `AppEnv.isDev` into `useMockAuth` + `isProduction` (§1.4).
-- [ ] Build APK with `--dart-define=API_BASE_URL=https://10.0.2.2:8443 --dart-define=APP_ENV=staging` (emulator) or `--dart-define=API_BASE_URL=https://<lan-ip>:8443` (real device).
+- [ ] Build APK against staging: `flutter build apk --release --dart-define=API_BASE_URL=https://stg-api.gym-pass.net --dart-define=APP_ENV=staging`.
+- [ ] For dev iteration: `flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000 --dart-define=APP_ENV=development` (emulator) or `http://<laptop-lan-ip>:8000` (real device on same Wi-Fi).
 - [ ] Test the realtime WS over `wss://` to local staging.
 - [ ] Token-refresh stress test on a throttled connection.
 - [ ] Locale toggle test on `/settings` — no widget orphans.
@@ -488,57 +491,57 @@ Annotations:
 - **Codegen folders are not hand-edited.** Their source is `apps/backend/app/schemas/` + the OpenAPI emission. They commit to git so app builds don't depend on a network call to the backend, but they regenerate in CI when backend schemas change.
 - **No app reads another app's source.** Cross-app contract is the wire (HTTPS + WS).
 - **No app reads the database except backend.** Admin doesn't touch Postgres directly.
-- **`infra/` is *local* tooling.** Compose files, nginx vhost templates for `*.gym-pass.local`, mkcert-generated certs. No remote-deploy assumptions baked in. When you later choose a production target, that target gets its own folder.
+- **`infra/` is the operator's toolbox.** Compose files, nginx vhost templates (one set serves both `stg-*.gym-pass.net` and the production `api./admin./partner./` apex via `${API_DOMAIN}` envsubst), and deploy/smoke scripts. The Cloudflare Origin Cert at `nginx/certs/` covers `*.gym-pass.net` for both staging and production.
 
-### 6.1 Phase A — Portable staging compose + nginx reverse proxy (1–2 evenings, NO architecture changes)
+### 6.1 Phase A — Staging compose + per-surface fixes (1–2 evenings, NO architecture changes)
 
-Goal: ship a `docker-compose.staging.yml` overlay that runs the same way on your laptop and on a VM, plus the per-surface fixes from §1 so `APP_ENV=staging` actually works end-to-end.
+Goal: ship a `docker-compose.staging.yml` overlay deployed to a single VM under the `stg.gym-pass.net` zone, plus the per-surface fixes from §1 so `APP_ENV=staging` actually works end-to-end. Local development continues to hit container ports directly (`localhost:3000` admin / `localhost:8000` backend / etc.) — no TLS, no hostname trickery, no CA install on the laptop.
 
 The current repo already has `docker-compose.prod.yml` doing roughly the right shape (target: `runner`, ports hidden, env-file driven, nginx mounting Cloudflare Origin Cert). It is mislabeled — today it's effectively a staging-grade overlay because SMS + payments are mocked. The cleanest path is to **rename it to `docker-compose.staging.yml`** and create a separate, slimmer `docker-compose.prod.yml` in Phase C that flips just the env vars and provider adapters.
 
+**Staging DNS plan (`stg.gym-pass.net` zone):**
+
+| Hostname | Routes to | Cloudflare DNS | Cert |
+|---|---|---|---|
+| `stg.gym-pass.net` | website container | A → VM IP, proxied | Cloudflare Origin Cert (`*.gym-pass.net` + apex) |
+| `stg-api.gym-pass.net` | backend container | A → VM IP, proxied | same wildcard |
+| `stg-admin.gym-pass.net` | admin container | A → VM IP, proxied | same wildcard |
+| `stg-partner.gym-pass.net` | partner container | A → VM IP, proxied | same wildcard |
+
+The Cloudflare Origin Cert that already serves production (`*.gym-pass.net`) covers every `stg-*` host as well — one cert, both environments. No certbot, no mkcert.
+
 Order matters; each step has clean acceptance.
 
-**Step 1 — Backend `staging` env value + safety branch** (§1.1). Unlocks every downstream step. Without it, `APP_ENV=staging` is rejected at boot.
+**Step 1 — Backend `staging` env value + intent-named flags** (§1.1, see also v6 revision). Unlocks every downstream step. Without it, `APP_ENV=staging` is rejected at boot.
 
 **Step 2 — Rename + retune the overlay.**
 
 - `git mv docker-compose.prod.yml docker-compose.staging.yml`
 - Change `env_file: .env.prod` → `env_file: .env.staging` on every service.
-- In the staging overlay, set `APP_ENV=staging` explicitly.
-- Replace hardcoded hostnames in nginx vhost templates with `${API_DOMAIN}` / `${ADMIN_DOMAIN}` / `${PARTNER_DOMAIN}` / `${WEBSITE_DOMAIN}` and resolve them at container start via `envsubst < /etc/nginx/templates/*.template > /etc/nginx/conf.d/*.conf` (nginx official image supports this natively via `NGINX_ENVSUBST_TEMPLATE_DIR`).
-- Cert mount stays at `./nginx/certs/`. The file is gitignored; the operator drops in the right cert per environment (mkcert on laptop, Cloudflare Origin Cert / Let's Encrypt on VM).
+- Set `APP_ENV=staging` explicitly in the overlay.
+- Replace hardcoded hostnames in nginx vhost templates with `${API_DOMAIN}` / `${ADMIN_DOMAIN}` / `${PARTNER_DOMAIN}` / `${WEBSITE_DOMAIN}` and resolve them at container start via `envsubst` (the nginx official image supports this natively via `NGINX_ENVSUBST_TEMPLATE_DIR=/etc/nginx/templates`). One template set serves both environments; only the env-var values differ.
+- Cert mount stays at `./nginx/certs/`. The file is gitignored; the operator drops the Cloudflare Origin Cert in.
 
-**Step 3 — Two `.env.staging` profiles.** Same template, different values:
+**Step 3 — `.env.staging.example` template** committed to git; the actual `.env.staging` is gitignored and lives on the VM only.
 
-- *Laptop.* Hostnames `api.gym-pass.local` etc. (added to `/etc/hosts`); cert from `mkcert "*.gym-pass.local"`. mkcert installs its own CA into the system trust store, so browsers and the Android emulator (after installing the root CA) accept it.
-- *VM staging server.* Hostnames `staging-api.gym-pass.net` etc.; cert is a real Cloudflare Origin Cert or Let's Encrypt cert at the same `./nginx/certs/` path. Zero compose-file changes.
+```bash
+# .env.staging.example — staging on stg.gym-pass.net
+APP_ENV=staging
+API_DOMAIN=stg-api.gym-pass.net
+ADMIN_DOMAIN=stg-admin.gym-pass.net
+PARTNER_DOMAIN=stg-partner.gym-pass.net
+WEBSITE_DOMAIN=stg.gym-pass.net
 
-Provide `.env.staging.example` in git as the canonical template. The actual `.env.staging` is gitignored.
+# Real secrets (≥32 chars; the staging branch in validate_production_safety rejects dev sentinels)
+JWT_SECRET=<generate via `openssl rand -hex 32`>
+ADMIN_EXCHANGE_SECRET=<generate via `openssl rand -hex 32`>
+POSTGRES_PASSWORD=<generate via `openssl rand -hex 32`>
+NEXTAUTH_SECRET=<generate via `openssl rand -hex 32`>
 
-> **v6 revision — explicit per-platform mkcert recipe.** "mkcert installs its own CA into the system trust store" is true on macOS and Linux desktop browsers, but it's incomplete for the four platforms that consume the cert in this project. Pin the exact recipes in `infra/scripts/mkcert.sh` so the operator isn't googling them per machine:
->
-> ```bash
-> # 1) Generate (one-time per laptop):
-> mkcert -install                                         # macOS Keychain / Linux trust store / Windows cert store
-> mkcert -cert-file infra/tls/gym-pass.local.pem \
->        -key-file  infra/tls/gym-pass.local.key \
->        "*.gym-pass.local" "gym-pass.local" localhost 127.0.0.1
->
-> # 2) Android emulator — needs the mkcert CA pushed in:
-> adb root && adb remount
-> adb push "$(mkcert -CAROOT)/rootCA.pem" /system/etc/security/cacerts/$(openssl x509 -in "$(mkcert -CAROOT)/rootCA.pem" -hash -noout).0
-> adb shell chmod 644 /system/etc/security/cacerts/*.0
-> adb reboot
->
-> # 3) iOS Simulator — drag the CA into the Simulator window:
-> open -a Simulator
-> open "$(mkcert -CAROOT)/rootCA.pem"
-> # Then Settings → General → About → Certificate Trust Settings → enable mkcert
->
-> # 4) Real Android device — same as emulator but use Settings → Security → Install from storage.
-> ```
->
-> Without this step, the mobile app silently fails TLS against the laptop stack and the operator wastes a day on "but my browser works."
+# Providers still mocked in staging (real ones flip in .env.prod)
+SMS_PROVIDER=mock
+PAYMENTS_PROVIDER=mock
+```
 
 **Step 4 — Surgical per-surface fixes** (parallelisable):
 
@@ -548,9 +551,17 @@ Provide `.env.staging.example` in git as the canonical template. The actual `.en
 - Design 3 token fixes (§1.5).
 - Backend cleanup: replace the `print()` in `mock_sms.py:25` (§1.1).
 
-**Step 5 — Makefile shortcuts.** Replace the current `prod-up`/`prod-down` recipes:
+**Step 5 — Makefile shortcuts** (replacing the current `prod-up` / `prod-down`):
 
 ```makefile
+# Local dev — containers exposed on their host ports, no nginx, no TLS.
+dev-up:
+	docker compose up -d --build
+
+dev-down:
+	docker compose down
+
+# Staging — deploys to the VM via SSH context, or run locally for compose-validation.
 staging-up:
 	docker compose -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging up -d --build
 
@@ -561,28 +572,33 @@ staging-logs:
 	docker compose -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging logs -f
 ```
 
-**Step 6 — Smoke-test target.** Move the smoke loop from `scripts/deploy.sh` into a thin `scripts/smoke.sh` that takes the base URL as an argument. Same script runs against `https://api.gym-pass.local` and `https://staging-api.gym-pass.net`.
+**Step 6 — Smoke-test target.** Move the smoke loop from `scripts/deploy.sh` into a thin `scripts/smoke.sh` that takes the base URL as an argument. The same script runs against `http://localhost:8000` (dev) and `https://stg-api.gym-pass.net` (staging).
 
-**Step 7 — Mobile dart-defines for staging.** Document two recipes in `mobile/README.md`:
+**Step 7 — Mobile dart-defines.** Document the three recipes in `mobile/README.md`:
 
 ```bash
-# Against laptop staging stack (emulator)
-flutter run --dart-define=API_BASE_URL=https://api.gym-pass.local --dart-define=APP_ENV=staging
-# Against laptop staging stack (real device on same Wi-Fi)
-flutter run --dart-define=API_BASE_URL=https://<laptop-lan-ip>:443 --dart-define=APP_ENV=staging
-# Against VM staging server
-flutter run --dart-define=API_BASE_URL=https://staging-api.gym-pass.net --dart-define=APP_ENV=staging
+# Local dev (Android emulator → host machine via 10.0.2.2)
+flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000 --dart-define=APP_ENV=development
+
+# Local dev (real device on the same Wi-Fi as the laptop)
+flutter run --dart-define=API_BASE_URL=http://<laptop-lan-ip>:8000 --dart-define=APP_ENV=development
+
+# Against the staging VM
+flutter run --dart-define=API_BASE_URL=https://stg-api.gym-pass.net --dart-define=APP_ENV=staging
+
+# Pre-prod APK build pointed at staging
+flutter build apk --release --dart-define=API_BASE_URL=https://stg-api.gym-pass.net --dart-define=APP_ENV=staging
 ```
 
-Only the URL changes; the app is identical.
+Only the URL + env name changes; the app code is identical. `APP_ENV=development` keeps the mock-OTP fast path; `APP_ENV=staging` exercises the real OTP path against the mocked-SMS staging backend (which logs the code to structlog so testers can read it).
 
 **Acceptance criteria for Phase A:**
 
-- `make staging-up` runs cleanly on the laptop with `mkcert`-issued certs in `nginx/certs/`.
-- The same `docker-compose.yml + docker-compose.staging.yml` brings the stack up on a fresh VM with a real cert dropped into the same path — *no compose changes*.
+- `make dev-up` runs the full stack on `localhost:{3000,3003,3004,8000}` with no nginx, no TLS, mock SMS + mock payments. Admin and partner can sign in via container-direct URLs.
+- `make staging-up` runs the same stack on the VM, with nginx fronting `stg-api.gym-pass.net`, `stg-admin.gym-pass.net`, `stg-partner.gym-pass.net`, `stg.gym-pass.net`. Cloudflare Origin Cert at `nginx/certs/gym-pass.net.{pem,key}` covers the whole zone.
 - All five per-surface checklists in §4 are green.
-- The mobile app, run with the staging dart-define, completes a real OTP cycle (mock-SMS logged through structlog) and a check-in.
-- nginx serves `https://${ADMIN_DOMAIN}` to the admin container, `https://${PARTNER_DOMAIN}` to the partner container, `https://${API_DOMAIN}` to the backend container, `https://${WEBSITE_DOMAIN}` to the marketing container. WS upgrades pass through.
+- A pre-prod APK built with `APP_ENV=staging` completes an OTP cycle (mock-SMS code logged through structlog at `stg-api.gym-pass.net`) and a check-in.
+- WebSocket upgrades pass through nginx at `wss://stg-api.gym-pass.net/api/v1/realtime/ws`.
 
 ### 6.2 Phase B — Structure, contract, and refactor reorganization (1–2 weeks, interleave with feature work)
 
@@ -859,10 +875,10 @@ Phase A delivered a staging stack identical in shape to what production will loo
 
 ### D.7 Concrete staging-prep checklist (local-staging adjusted)
 - [ ] Split `AppEnv.isDev` into `useMockAuth` + `isProduction`.
-- [ ] `--dart-define=API_BASE_URL=https://10.0.2.2:8443 --dart-define=APP_ENV=staging` builds and runs (emulator with local mkcert cert installed).
-- [ ] Or real device with mkcert root CA installed on the device + LAN IP.
+- [ ] `--dart-define=API_BASE_URL=https://stg-api.gym-pass.net --dart-define=APP_ENV=staging` builds and a release APK signs in against the VM staging stack.
+- [ ] Dev iteration: `--dart-define=API_BASE_URL=http://10.0.2.2:8000 --dart-define=APP_ENV=development` (emulator) or LAN IP (real device).
 - [ ] Cold-start latency measurement.
-- [ ] WS auth handshake on `wss://api.gym-pass.local:8443/realtime/ws` (or LAN IP).
+- [ ] WS auth handshake on `wss://stg-api.gym-pass.net/api/v1/realtime/ws` (staging) or `ws://localhost:8000/api/v1/realtime/ws` (dev).
 - [ ] Biometric fallback on a device without fingerprint.
 - [ ] Token-refresh stress test on throttled 3G.
 - [ ] Locale toggle on `/settings`.
@@ -937,7 +953,8 @@ The master synthesis (§0–§6) is the canonical action list. Appendices A–E 
 - 2026-05-16 v3 — Synthesized from five `code-reviewer` sub-agents.
 - 2026-05-16 v4 — Added §3.7 (module dependency rules), §4.6 (coding conventions), §6.0 (target architecture). Folded SOLID offenders into Phase B (§5 Phase column). Mobile signing + `network_security_config` moved to §2 production prep. Phase B drops GHCR, Cloudflare tunnel, rsync-APK.
 - 2026-05-16 v5 — **Three-compose deployment model finalised** as the durable end-state: `docker-compose.yml` (dev base) + `docker-compose.staging.yml` (portable: laptop **and** VM) + `docker-compose.prod.yml` (Phase C copy-from-staging). §6.1 Phase A rewritten around delivering the staging overlay with env-driven nginx vhosts (`${API_DOMAIN}`, `${ADMIN_DOMAIN}`, `${PARTNER_DOMAIN}`, `${WEBSITE_DOMAIN}`) — same file runs on laptop with mkcert certs and on a VM with Cloudflare/Let's Encrypt certs, both mounted at `./nginx/certs/`. §6.3 Phase C made concrete around a `docker-compose.prod.yml` copy-from-staging plus real SMS/payment providers. The architecture work (§3, §3.7, §4.6, §6.0, §6.2) is unchanged — durable for the future.
-- 2026-05-16 v6 (this version) — **Second-pass revisions after one round of pre-prod field use.** Concrete changes:
+- 2026-05-16 v7 (this version) — **Staging-hostname strategy simplified.** Dropped the `*.gym-pass.local` / mkcert path entirely. Local dev hits container ports directly (no TLS, no hostnames, no CA install). Staging lives on a single VM under `stg.gym-pass.net` with four hostnames (`stg.`, `stg-api.`, `stg-admin.`, `stg-partner.`) served by the existing Cloudflare Origin Cert (`*.gym-pass.net` covers both staging and production). §6.1 rewritten around the simpler model; mkcert per-platform recipe deleted; §4 checklists + dart-define recipes updated.
+- 2026-05-16 v6 — **Second-pass revisions after one round of pre-prod field use.** Concrete changes:
    1. **§1.1 (staging env)** — introduce intent-named policy flags (`should_mock_sms`, `should_seed_demo_data`, etc.) instead of carving a `staging` branch around scattered `is_dev` checks. Collapses the env matrix from per-flag-per-env to policy-per-intent.
    2. **§1.6 (new)** — operational gaps the plan omitted: `audit_log` monthly partitioning + retention task, Postgres backup script + cron, realtime WS auth-expired typed close-frame handshake.
    3. **§2.10** — `freezed` migration moved out of production blockers and into Phase B §6.2 step 7 (it's a refactor, not a quality gate).
