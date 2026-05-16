@@ -216,6 +216,11 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get homeNoGymsYet => 'لا توجد أندية شريكة في الشبكة بعد. اسحب للتحديث.';
   @override
+  String get homeOfflineNoCache =>
+      'أنت غير متصل. اتصل بالإنترنت ثم اسحب للتحديث لعرض الأندية القريبة منك.';
+  @override
+  String get offlineBannerMessage => 'أنت غير متصل — نعرض قائمتك المحفوظة.';
+  @override
   String get homeCategories => 'الأنواع';
   @override
   String get categoryGym => 'جيم';
