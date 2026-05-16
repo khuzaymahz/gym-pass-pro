@@ -31,8 +31,34 @@ export type GymRead = {
 
 export type Page<T> = { items: T[]; total: number; page: number; pageSize: number };
 
-export async function listGyms(page = 1, pageSize = 20): Promise<Page<GymRead>> {
-  return api(`/api/v1/admin/gyms?page=${page}&pageSize=${pageSize}`, {
+export type GymListFilters = {
+  page?: number;
+  pageSize?: number;
+  category?: string;
+  tier?: string;
+  audience?: string;
+  q?: string;
+};
+
+export async function listGyms(
+  filtersOrPage: GymListFilters | number = 1,
+  pageSize = 20,
+): Promise<Page<GymRead>> {
+  // Back-compat: callers passing positional (page, pageSize) still
+  // work. New callers pass a filter bag so server-side pagination +
+  // filtering compose cleanly without a 100-row client-side dance.
+  const filters: GymListFilters =
+    typeof filtersOrPage === "number"
+      ? { page: filtersOrPage, pageSize }
+      : filtersOrPage;
+  const qs = new URLSearchParams();
+  qs.set("page", String(filters.page ?? 1));
+  qs.set("pageSize", String(filters.pageSize ?? 20));
+  if (filters.category) qs.set("category", filters.category);
+  if (filters.tier) qs.set("tier", filters.tier);
+  if (filters.audience) qs.set("audience", filters.audience);
+  if (filters.q) qs.set("q", filters.q);
+  return api(`/api/v1/admin/gyms?${qs.toString()}`, {
     token: await serviceToken(),
   });
 }

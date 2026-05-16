@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 
 import StatusPill from "@/components/StatusPill";
 import Toolbar from "@/components/Toolbar";
+import { env } from "@/lib/env";
 import { AdminSDK } from "@/lib/sdk";
 
 import { ReviewActions } from "./ReviewActions";
@@ -10,12 +11,16 @@ import { ReviewActions } from "./ReviewActions";
 export const dynamic = "force-dynamic";
 
 function mediaUrl(raw: string): string {
-  // Backend issues URLs as `/media/applications/<id>/<file>` or
-  // `https://api.gym-pass.net/media/...` depending on settings.
-  // Either is fine inside an <img src>; pass through.
+  // Backend issues URLs as `/media/applications/<id>/<file>` or an
+  // absolute URL depending on settings. Either is fine inside an
+  // <img src>; absolute passes through; relative gets prefixed with
+  // the env-validated API base. Previously this fell back to a
+  // hardcoded `https://api.gym-pass.net` literal that bypassed the
+  // Zod env-schema check — staging builds would silently serve
+  // images from the wrong host. `env.API_BASE_URL` is the single
+  // source of truth.
   if (raw.startsWith("http")) return raw;
-  const base = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.gym-pass.net";
-  return `${base}${raw}`;
+  return `${env.API_BASE_URL}${raw}`;
 }
 
 export default async function PartnerApplicationDetailPage(props: {
