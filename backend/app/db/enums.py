@@ -128,6 +128,23 @@ class ReferralStatus(StrEnum):
     EXPIRED = "expired"
 
 
+class ApplicationStatus(StrEnum):
+    """Lifecycle states for a partner onboarding application.
+
+    `pending` — submitted via the public partner /join form, no gym
+    or user created yet, awaiting admin review.
+    `approved` — admin clicked Approve; a `Gym` and a gym-owner
+    `User` were created from the application, both back-referenced
+    via FK so the audit trail is preserved.
+    `rejected` — admin clicked Reject; the row stays for audit but
+    no gym/user is created.
+    """
+
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
 class AudienceGender(StrEnum):
     """Which members a gym serves.
 
@@ -161,4 +178,5 @@ ENUM_DEFINITIONS: dict[str, type[StrEnum]] = {
     "gender_enum": Gender,
     "referral_status_enum": ReferralStatus,
     "audience_gender_enum": AudienceGender,
+    "application_status_enum": ApplicationStatus,
 }

@@ -6,6 +6,7 @@ from app.db.models.gym import Gym
 from app.db.models.gym_photo import GymPhoto
 from app.db.models.notification import Notification
 from app.db.models.otp import OtpCode
+from app.db.models.partner_application import PartnerApplication
 from app.db.models.payment import Payment
 from app.db.models.payment_method import StoredPaymentMethod
 from app.db.models.payout import Payout, PayoutLedger
@@ -24,6 +25,7 @@ __all__ = [
     "GymPhoto",
     "Notification",
     "OtpCode",
+    "PartnerApplication",
     "Payment",
     "Payout",
     "PayoutLedger",
