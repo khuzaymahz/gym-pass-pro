@@ -10,6 +10,7 @@ import '../../../core/di/providers.dart';
 import '../../../core/realtime/realtime_client.dart';
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
+import '../../../core/widgets/gym_loader.dart';
 import '../../../core/widgets/gym_logo.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
@@ -42,7 +43,35 @@ class GymDetailPage extends ConsumerWidget {
     return null;
   }
 
-  GPGym get gym => _seedGym() ?? GPGym.seed.first;
+  /// View-model for this page. Resolution order:
+  ///   1. The live `gymSummary` from the backend — authoritative for
+  ///      every gym in the DB (the 18 curated + the 47 OSM-imported
+  ///      + anything an admin onboards later). This is the only
+  ///      path that reflects real, current state.
+  ///   2. The 6-entry hardcoded `GPGym.seed` (rendered as an
+  ///      *initial placeholder only*, while the backend response is
+  ///      in flight, for the original demo slugs).
+  ///   3. `GPGym.seed.first` as the absolute last-resort placeholder.
+  ///      The `isUnknownSlug` guard below bails out before this can
+  ///      surface in any persistent state.
+  ///
+  /// The previous shape — `_seedGym() ?? GPGym.seed.first` — silently
+  /// fell to the placeholder for every non-seed slug, which made
+  /// every OSM-imported gym page render as Iron Forge.
+  GPGym _resolveGym(GymSummary? summary) {
+    if (summary != null) {
+      return GPGym(
+        slug: summary.slug,
+        name: summary.nameEn,
+        area: summary.area ?? '',
+        category: summary.category ?? 'gym',
+        tier: summary.tier ?? 'silver',
+        lat: summary.lat ?? 0,
+        lng: summary.lng ?? 0,
+      );
+    }
+    return _seedGym() ?? GPGym.seed.first;
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -55,7 +84,6 @@ class GymDetailPage extends ConsumerWidget {
     final userRank = ref.watch(
       subscriptionProvider.select((s) => s.tier?.rank ?? 0),
     );
-    final included = gym.tierObj.rank <= userRank;
     // Suppress the scan CTA right after the member has actually checked in
     // here — the pass was just used, so a second tap inside the same training
     // window would only invite a duplicate scan and a wasted visit.
@@ -80,6 +108,21 @@ class GymDetailPage extends ConsumerWidget {
     if (isUnknownSlug) {
       return _NotFound(slug: slug);
     }
+    // Loading state: the slug isn't in the hardcoded `GPGym.seed` and
+    // the backend response hasn't landed yet. Render a skeleton
+    // instead of falling through to `_resolveGym` — without this
+    // branch the page would render the seed-first fallback (Iron
+    // Forge) for ~one frame while the network request was in flight,
+    // producing an obvious "wrong gym flashes for a second" bug
+    // every time a member tapped any non-seed gym.
+    if (_seedGym() == null && !gymSummaryAsync.hasValue) {
+      return _LoadingDetailSkeleton(slug: slug);
+    }
+    // Authoritative view-model: prefer the live backend summary so
+    // every OSM-imported gym renders its own name / category / tier
+    // instead of falling back to Iron Forge.
+    final gym = _resolveGym(gymSummary);
+    final included = gym.tierObj.rank <= userRank;
     final remoteLogo = gymSummary?.logoUrl;
     final logoUrl =
         remoteLogo == null ? null : _resolvePhotoUrl(mediaBase, remoteLogo);
@@ -130,7 +173,7 @@ class GymDetailPage extends ConsumerWidget {
                 data: (photos) => photos.isEmpty
                     ? KeyedSubtree(
                         key: const ValueKey('hero-fallback'),
-                        child: _heroFallback(gp),
+                        child: _heroFallback(gp, gym),
                       )
                     : KeyedSubtree(
                         key: const ValueKey('hero-slider'),
@@ -152,11 +195,11 @@ class GymDetailPage extends ConsumerWidget {
                 // the gradient stable until real photos arrive.
                 loading: () => KeyedSubtree(
                   key: const ValueKey('hero-fallback'),
-                  child: _heroFallback(gp),
+                  child: _heroFallback(gp, gym),
                 ),
                 error: (_, __) => KeyedSubtree(
                   key: const ValueKey('hero-fallback'),
-                  child: _heroFallback(gp),
+                  child: _heroFallback(gp, gym),
                 ),
               ),
             ),
@@ -285,6 +328,19 @@ class GymDetailPage extends ConsumerWidget {
                         const SizedBox(height: 14),
                         Text(gym.name.toUpperCase(),
                             style: GPText.display(34, color: gp.fg, height: 0.9),),
+                        // Audience badge — surfaces "Women only" /
+                        // "Men only" for single-sex venues so a
+                        // member who lands on the page from a deep
+                        // link / share sees the policy before they
+                        // try to scan in. Mixed gyms render no badge
+                        // (open-to-everyone is the implicit default).
+                        if (gymSummary?.audienceGender == 'female_only' ||
+                            gymSummary?.audienceGender == 'male_only') ...[
+                          const SizedBox(height: 8),
+                          _AudienceBadge(
+                            audience: gymSummary!.audienceGender!,
+                          ),
+                        ],
                         const SizedBox(height: 14),
                         Row(
                           children: [
@@ -301,7 +357,7 @@ class GymDetailPage extends ConsumerWidget {
                             // coords (fallback). Hidden entirely when
                             // the GPS hasn't resolved yet — a "—"
                             // would just add chrome with no signal.
-                            ..._buildDistanceRow(ref, gp, l, gymSummary),
+                            ..._buildDistanceRow(ref, gp, l, gymSummary, gym),
                           ],
                         ),
                         const SizedBox(height: 18),
@@ -355,7 +411,7 @@ class GymDetailPage extends ConsumerWidget {
     );
   }
 
-  Widget _heroFallback(GpColors gp) {
+  Widget _heroFallback(GpColors gp, GPGym gym) {
     return ShaderMask(
       shaderCallback: (rect) => const LinearGradient(
         begin: Alignment.topCenter,
@@ -380,7 +436,7 @@ class GymDetailPage extends ConsumerWidget {
                 child: Align(
                   alignment: Alignment.center,
                   child: Icon(
-                    _categoryIcon(),
+                    _categoryIcon(gym),
                     size: 220,
                     color: gym.color,
                   ),
@@ -393,7 +449,7 @@ class GymDetailPage extends ConsumerWidget {
     );
   }
 
-  IconData _categoryIcon() {
+  IconData _categoryIcon(GPGym gym) {
     switch (gym.category) {
       case 'yoga':
         return Icons.self_improvement;
@@ -435,6 +491,7 @@ class GymDetailPage extends ConsumerWidget {
     GpColors gp,
     AppLocalizations l,
     GymSummary? summary,
+    GPGym gym,
   ) {
     final user = ref.watch(userPositionProvider);
     if (user == null) return const [];
@@ -670,7 +727,51 @@ String _resolvePhotoUrl(String mediaBase, String url) {
 /// Riverpod providers each time the server pushes a matching event.
 /// Result: a partner saving a profile / logo / photo change is
 /// reflected on this page within a frame, no pull-to-refresh needed.
-///
+/// Single-sex audience badge — shown above the gym name when the
+/// venue is `female_only` or `male_only`. Same colour language as
+/// the admin pill: pink for women-only, blue for men-only. No badge
+/// for mixed (the open-to-everyone default).
+class _AudienceBadge extends StatelessWidget {
+  const _AudienceBadge({required this.audience});
+
+  final String audience;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final isFemale = audience == 'female_only';
+    final color = isFemale
+        ? const Color(0xFFEC4899)
+        : const Color(0xFF60A5FA);
+    final label = isFemale ? l.audienceFemaleOnly : l.audienceMaleOnly;
+    final icon = isFemale ? Icons.female : Icons.male;
+    return Container(
+      padding: const EdgeInsetsDirectional.fromSTEB(8, 4, 10, 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(GPRadius.pill),
+        border: Border.all(color: color.withValues(alpha: 0.45)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Text(
+            label.toUpperCase(),
+            style: GPText.mono(
+              size: 10,
+              letterSpacing: 1.2,
+              color: color,
+              weight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Stays a thin wrapper rather than refactoring the whole detail
 /// page to ConsumerStatefulWidget — minimal blast radius, the
 /// build tree above is unchanged.
@@ -945,6 +1046,85 @@ class _PhotoSliderState extends State<_PhotoSlider> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Skeleton shown while the backend gym summary is in flight for a
+/// slug that isn't part of the hardcoded `GPGym.seed` list (i.e.
+/// every gym onboarded by an admin / imported from OSM). Without
+/// this, the page would render the seed-first fallback (Iron Forge)
+/// for the ~150-400 ms between mount and first network response,
+/// producing the "every gym briefly looks like Iron Forge" bug.
+///
+/// The skeleton mirrors the page's actual silhouette — hero block,
+/// title bar, body slot — so the real page slides in without a
+/// layout shift when the data lands.
+class _LoadingDetailSkeleton extends StatelessWidget {
+  const _LoadingDetailSkeleton({required this.slug});
+  final String slug;
+
+  @override
+  Widget build(BuildContext context) {
+    final gp = context.gp;
+    return Scaffold(
+      backgroundColor: gp.bg,
+      body: SafeArea(
+        child: Stack(
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Hero block — solid neutral panel, matches the 400-px
+                // photo slider height the real page renders.
+                Container(
+                  height: 400,
+                  decoration: BoxDecoration(
+                    color: gp.bg2,
+                    border: Border(
+                      bottom: BorderSide(color: gp.line),
+                    ),
+                  ),
+                  child: const Center(
+                    child: GymLoader(size: GymLoaderSize.large),
+                  ),
+                ),
+                const SizedBox(height: 28),
+                // Title placeholder bar.
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Container(
+                    height: 24,
+                    width: 220,
+                    decoration: BoxDecoration(
+                      color: gp.bg2,
+                      borderRadius: BorderRadius.circular(GPRadius.sm),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Subtitle placeholder bar.
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Container(
+                    height: 14,
+                    width: 140,
+                    decoration: BoxDecoration(
+                      color: gp.bg2,
+                      borderRadius: BorderRadius.circular(GPRadius.sm),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const PositionedDirectional(
+              top: 12,
+              start: 20,
+              child: BackBtn(fallback: '/explore'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

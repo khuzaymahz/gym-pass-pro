@@ -252,7 +252,13 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       (
         Icons.description_outlined,
         l.settingsAccountTerms,
-        () => _showTermsSheet(context, l, gp),
+        () => context.push('/legal/terms'),
+        gp.fg,
+      ),
+      (
+        Icons.privacy_tip_outlined,
+        l.settingsAccountPrivacy,
+        () => context.push('/legal/privacy'),
         gp.fg,
       ),
       (
@@ -765,56 +771,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               ),
             ),
         ],
-      ),
-    );
-  }
-
-  Future<void> _showTermsSheet(
-      BuildContext context, AppLocalizations l, GpColors gp,) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: gp.bg2,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(GPRadius.xl2)),
-      ),
-      builder: (ctx) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        minChildSize: 0.4,
-        maxChildSize: 0.9,
-        expand: false,
-        builder: (_, scrollController) => SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(22, 18, 22, 22),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: gp.line2,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 18),
-                DisplayText(l.termsTitle, size: 24),
-                const SizedBox(height: 16),
-                Expanded(
-                  child: SingleChildScrollView(
-                    controller: scrollController,
-                    child: Text(
-                      l.termsBody,
-                      style: GPText.body(size: 14, color: gp.mutedSoft),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }

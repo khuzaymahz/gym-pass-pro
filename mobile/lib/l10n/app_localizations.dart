@@ -192,6 +192,8 @@ abstract class AppLocalizations {
   String get gymsEmpty;
   String get gymsEmptyFavorites;
   String get gymOpen247;
+  String get audienceFemaleOnly;
+  String get audienceMaleOnly;
   String gymKmAway(String km);
   String get gymAbout;
   String get gymAmenityWifi;
@@ -440,6 +442,7 @@ abstract class AppLocalizations {
   String get settingsAccountEditProfile;
   String get settingsAccountSecurity;
   String get settingsAccountTerms;
+  String get settingsAccountPrivacy;
   String get settingsAccountLogout;
   String get settingsAppVersion;
 
@@ -525,6 +528,63 @@ abstract class AppLocalizations {
   String get termsTitle;
   String get termsBody;
   String get privacyPolicyBody;
+
+  // Full-page legal documents: shared chrome + 10 sections each for
+  // Terms and Privacy. The legacy `termsBody` / `privacyPolicyBody`
+  // single-blob strings above are kept for any older surface that
+  // still renders them; the new pages use the structured keys below.
+  String get legalLastUpdated;
+  String get legalReadTermsAction;
+  String get legalReadPrivacyAction;
+  String get legalSignupConsent;
+  String get legalSignupConsentPrefix;
+
+  String get termsSubtitle;
+  String get termsUpdatedAt;
+  String get termsAcceptanceHeadline;
+  String get termsAcceptanceBody;
+  String get termsAccountHeadline;
+  String get termsAccountBody;
+  String get termsMembershipHeadline;
+  String get termsMembershipBody;
+  String get termsPaymentHeadline;
+  String get termsPaymentBody;
+  String get termsCheckinHeadline;
+  String get termsCheckinBody;
+  String get termsConductHeadline;
+  String get termsConductBody;
+  String get termsTerminationHeadline;
+  String get termsTerminationBody;
+  String get termsLiabilityHeadline;
+  String get termsLiabilityBody;
+  String get termsChangesHeadline;
+  String get termsChangesBody;
+  String get termsContactHeadline;
+  String get termsContactBody;
+
+  String get privacyTitle;
+  String get privacySubtitle;
+  String get privacyUpdatedAt;
+  String get privacyDataWeCollectHeadline;
+  String get privacyDataWeCollectBody;
+  String get privacyPurposeHeadline;
+  String get privacyPurposeBody;
+  String get privacySharingHeadline;
+  String get privacySharingBody;
+  String get privacyMaskingHeadline;
+  String get privacyMaskingBody;
+  String get privacyRetentionHeadline;
+  String get privacyRetentionBody;
+  String get privacySecurityHeadline;
+  String get privacySecurityBody;
+  String get privacyRightsHeadline;
+  String get privacyRightsBody;
+  String get privacyChildrenHeadline;
+  String get privacyChildrenBody;
+  String get privacyChangesHeadline;
+  String get privacyChangesBody;
+  String get privacyContactHeadline;
+  String get privacyContactBody;
   String get logoutConfirmTitle;
   String get logoutConfirmBody;
   String get logoutConfirmYes;

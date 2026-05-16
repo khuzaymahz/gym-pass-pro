@@ -8,7 +8,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
-from app.db.enums import Category, Tier
+from app.db.enums import AudienceGender, Category, Tier
 from app.db.types import (
     Money,
     TimestampTZ,
@@ -39,6 +39,15 @@ class Gym(Base):
         pg_enum_cls("tier_enum", Tier),
         nullable=False,
         server_default=text("'silver'"),
+    )
+    # Who the gym serves. `mixed` is the everyone-welcome default;
+    # `female_only` and `male_only` are filtered server-side so members
+    # don't see gyms they can't physically access, and the check-in
+    # pipeline rejects mismatched scans with CHECKIN_GENDER_LOCKED.
+    audience_gender: Mapped[AudienceGender] = mapped_column(
+        pg_enum_cls("audience_gender_enum", AudienceGender),
+        nullable=False,
+        server_default=text("'mixed'"),
     )
     per_visit_rate_jod: Mapped[Money] = mapped_column(
         Numeric(10, 2), nullable=False, server_default=text("2.00")

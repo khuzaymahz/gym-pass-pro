@@ -94,6 +94,13 @@ async def upload_photo(
     disk_path.write_bytes(payload)
 
     public_url = f"{settings.media_url_prefix}/gym_photos/{gym.id}/{filename}"
+    # If ANYTHING from here through the commit raises, the file has
+    # already landed on disk but no DB row points at it → orphan.
+    # try/finally guards the whole path: on success the flag flips
+    # before the finally fires (no cleanup); on failure (repo error,
+    # audit-log error, OR the explicit `await session.commit()`
+    # below) the file is unlinked before the exception propagates.
+    persisted = False
     try:
         photo = await photos.create(
             gym_id=gym.id,
@@ -102,28 +109,28 @@ async def upload_photo(
             alt_text_en=alt_text_en,
             alt_text_ar=alt_text_ar,
         )
-    except Exception:
-        disk_path.unlink(missing_ok=True)
-        raise
-
-    await audit.log(
-        actor=authed_actor(request, user),
-        action="gym_photo.create",
-        entity_type="gym_photo",
-        entity_id=photo.id,
-        diff={
-            "after": {
-                "gym_id": str(gym.id),
-                "url": photo.url,
-                "sort_order": photo.sort_order,
-                "alt_text_en": photo.alt_text_en,
-                "alt_text_ar": photo.alt_text_ar,
-                "size_bytes": len(payload),
-                "content_type": content_type,
-            }
-        },
-    )
-    await session.commit()
+        await audit.log(
+            actor=authed_actor(request, user),
+            action="gym_photo.create",
+            entity_type="gym_photo",
+            entity_id=photo.id,
+            diff={
+                "after": {
+                    "gym_id": str(gym.id),
+                    "url": photo.url,
+                    "sort_order": photo.sort_order,
+                    "alt_text_en": photo.alt_text_en,
+                    "alt_text_ar": photo.alt_text_ar,
+                    "size_bytes": len(payload),
+                    "content_type": content_type,
+                }
+            },
+        )
+        await session.commit()
+        persisted = True
+    finally:
+        if not persisted:
+            disk_path.unlink(missing_ok=True)
     await realtime_publish(
         f"gym/{gym.id}/photos",
         {

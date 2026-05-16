@@ -7,15 +7,22 @@ import { runAction } from "@/lib/action-result";
 import { AdminSDK, type PlanUpdate } from "@/lib/sdk";
 
 const TIER_ORDER = ["silver", "gold", "platinum", "diamond"] as const;
+type KnownTier = (typeof TIER_ORDER)[number];
+
+// Unknown tiers (backend drift — e.g. someone adds "elite") sort
+// to the END so the next reviewer sees the misfit at the bottom of
+// the list rather than masquerading as silver (indexOf returns -1).
+function tierIndex(tier: string): number {
+  const idx = TIER_ORDER.indexOf(tier as KnownTier);
+  return idx >= 0 ? idx : TIER_ORDER.length;
+}
 
 export default async function PlansPage() {
   const plans = await AdminSDK.listPlans();
   const t = await getTranslations("plans");
 
   const sorted = [...plans].sort((a, b) => {
-    const tierDelta =
-      TIER_ORDER.indexOf(a.tier as (typeof TIER_ORDER)[number]) -
-      TIER_ORDER.indexOf(b.tier as (typeof TIER_ORDER)[number]);
+    const tierDelta = tierIndex(a.tier) - tierIndex(b.tier);
     if (tierDelta !== 0) return tierDelta;
     return a.durationMonths - b.durationMonths;
   });

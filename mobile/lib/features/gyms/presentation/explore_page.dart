@@ -23,6 +23,7 @@ import 'widgets/gym_list_sheet.dart';
 import 'widgets/gym_pin_marker.dart';
 import 'widgets/jordan_labels_layer.dart';
 import 'widgets/locate_me_button.dart';
+import 'widgets/resilient_tile_provider.dart';
 import 'widgets/selected_gym_card.dart';
 
 /// Explore tab — **map-first**, Uber/Careem layout.
@@ -616,6 +617,34 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
       unawaited(_animateCameraTo(LatLng(gym.lat!, gym.lng!), zoom: 15));
     }
     setState(() => _selectedGym = gym);
+    _forceSheetToMin();
+  }
+
+  /// Collapse the bottom sheet to its handle-peek size unconditionally.
+  ///
+  /// Used after a pin tap so the SelectedGymCard isn't stacked on top
+  /// of the gym-list's first row. The previous implementation called
+  /// `animateTo` directly, which was cancelled when a member tapped
+  /// a pin mid-drag (their finger was still on the sheet, the active
+  /// gesture won, and the sheet settled wherever they released it —
+  /// the "didn't close entirely" bug). Two changes that make it
+  /// robust against an in-flight drag:
+  ///
+  ///   1. Run via `addPostFrameCallback` so the collapse happens
+  ///      AFTER the current gesture frame, not racing with it.
+  ///   2. Use `jumpTo` (instant) instead of `animateTo` — there's
+  ///      no animation for the active gesture to override.
+  ///
+  /// The gesture itself ends naturally when the member lifts their
+  /// finger; by then the sheet is already at min and any small drag-
+  /// down inertia they had is absorbed by the min-snap boundary.
+  void _forceSheetToMin() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_sheetCtrl.isAttached) return;
+      if (_sheetCtrl.size > exploreSheetMin + 0.001) {
+        _sheetCtrl.jumpTo(exploreSheetMin);
+      }
+    });
   }
 
   /// List-row tap handler — same affordance as a pin tap (camera
@@ -634,13 +663,11 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
       unawaited(_animateCameraTo(LatLng(gym.lat!, gym.lng!), zoom: 15));
     }
     setState(() => _selectedGym = gym);
-    if (_sheetCtrl.isAttached && _sheetCtrl.size > exploreSheetMin + 0.02) {
-      _sheetCtrl.animateTo(
-        exploreSheetMin,
-        duration: const Duration(milliseconds: 320),
-        curve: Curves.easeOutCubic,
-      );
-    }
+    // Share the same robust post-frame jump as the marker-tap path.
+    // animateTo here can race with a fling-momentum that's still
+    // settling the sheet — using jumpTo via addPostFrameCallback
+    // keeps the collapse atomic.
+    _forceSheetToMin();
   }
 
   bool _matches(
@@ -874,6 +901,19 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
                     subdomains: const ['a', 'b', 'c', 'd'],
                     retinaMode: false,
                     userAgentPackageName: 'net.gympass.gympass',
+                    // Resilient tile provider: per-request timeout +
+                    // zero retries + silent failures. Without this,
+                    // each unreachable CARTO tile blocks for ~30s ×
+                    // 3 retries, exhausting the connection pool and
+                    // ANR-ing the app when the CDN is unreachable.
+                    // See `ResilientTileProvider` for the rationale.
+                    tileProvider: ResilientTileProvider(),
+                    // Halve the off-screen tile buffer so a viewport
+                    // never schedules more than the visible set + a
+                    // single ring of neighbours. Cuts the in-flight
+                    // request budget roughly in half on a fresh pan.
+                    keepBuffer: 1,
+                    panBuffer: 0,
                     // tileBuilder fires per build for every tile in
                     // the visible viewport. The `tile.loadFinishedAt`
                     // field is non-null once flutter_map has finished
@@ -945,12 +985,15 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
                         ),
                     ],
                   ),
-                  // Required by CARTO's CC-BY 3.0 licence.
+                  // Attribution: required by CARTO's CC-BY 3.0 licence
+                  // (basemap tiles) AND by OpenStreetMap's ODbL (map
+                  // data + POI rows that the dev seed imports from
+                  // OSM; see backend/scripts/seed.py OSM_GYMS).
                   const RichAttributionWidget(
                     alignment: AttributionAlignment.bottomLeft,
                     attributions: [
                       TextSourceAttribution(
-                        '© OpenStreetMap, © CARTO',
+                        '© OpenStreetMap contributors, © CARTO',
                         prependCopyright: false,
                       ),
                     ],
@@ -1059,10 +1102,15 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
                   ),
                 ),
               ),
-              // 2. Locate-me FAB — fixed position above the minimized
-              //    sheet.
+              // 2. Locate-me FAB — sits above whichever bottom
+              //    surface is currently showing (the SelectedGymCard
+              //    when a gym is focused, otherwise the minimised
+              //    list sheet). The card is ~110 px tall + 12 px gap;
+              //    the sheet handle peek is ~sheetMin * H + 12 px.
               PositionedDirectional(
-                bottom: MediaQuery.sizeOf(context).height * exploreSheetMin + 12,
+                bottom: _selectedGym != null
+                    ? 130
+                    : MediaQuery.sizeOf(context).height * exploreSheetMin + 12,
                 end: 16,
                 child: LocateMeButton(
                   onTap: _onLocateMe,
@@ -1070,22 +1118,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
                   loading: _locating,
                 ),
               ),
-              // 3. Selected-gym profile card — slides up from above
-              //    the bottom sheet when a pin is tapped.
-              if (_selectedGym != null)
-                PositionedDirectional(
-                  start: 12,
-                  end: 12,
-                  bottom:
-                      MediaQuery.sizeOf(context).height * exploreSheetMin + 12,
-                  child: SelectedGymCard(
-                    gym: _selectedGym!,
-                    distanceMeters: _distanceToGym(_selectedGym!),
-                    onTap: () => context.push('/gyms/${_selectedGym!.slug}'),
-                    onClose: () => setState(() => _selectedGym = null),
-                  ),
-                ),
-              // 4. Top chrome — search + filter, glass-blurred over
+              // 3. Top chrome — search + filter, glass-blurred over
               //    the live map.
               ExploreTopBar(
                 searchCtrl: _searchCtrl,
@@ -1093,18 +1126,41 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
                 activeFilterCount: activeFilterCount,
                 onOpenFilters: () => _openFiltersSheet(context),
               ),
-              // 5. Bottom sheet — the "slider" with the gym list.
-              GymListSheet(
-                controller: _sheetCtrl,
-                onTapHandle: _expandSheet,
-                onDoubleTapHandle: _expandSheetMax,
-                gyms: visible,
-                query: query,
-                isLoading: isLoadingGyms,
-                hasError: hasError,
-                onGymSelect: _selectGymFromList,
-                distanceFor: _distanceToGym,
-              ),
+              // 4. Bottom-of-screen surface — list sheet OR the
+              //    selected-gym card. Mutually exclusive: when a pin
+              //    or list row is tapped, the gym list is fully
+              //    replaced by the focused card so the two can't
+              //    stack visually (the "what is this!?" overlap a
+              //    member reported when tapping mid-drag).
+              //
+              //    When the member dismisses the card (× button or
+              //    tapping the map background), the sheet
+              //    re-mounts at its initial size (handle peek), which
+              //    is the right "back to overview" affordance.
+              if (_selectedGym != null)
+                PositionedDirectional(
+                  start: 12,
+                  end: 12,
+                  bottom: 12,
+                  child: SelectedGymCard(
+                    gym: _selectedGym!,
+                    distanceMeters: _distanceToGym(_selectedGym!),
+                    onTap: () => context.push('/gyms/${_selectedGym!.slug}'),
+                    onClose: () => setState(() => _selectedGym = null),
+                  ),
+                )
+              else
+                GymListSheet(
+                  controller: _sheetCtrl,
+                  onTapHandle: _expandSheet,
+                  onDoubleTapHandle: _expandSheetMax,
+                  gyms: visible,
+                  query: query,
+                  isLoading: isLoadingGyms,
+                  hasError: hasError,
+                  onGymSelect: _selectGymFromList,
+                  distanceFor: _distanceToGym,
+                ),
             ],
           );
         },

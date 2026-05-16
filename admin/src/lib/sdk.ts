@@ -400,7 +400,12 @@ export type BroadcastBody = {
   targetTier: Tier | null;
 };
 
-async function serviceToken(): Promise<string> {
+/** Resolve the bearer token to use for backend admin calls. Exported
+ *  so service-specific SDKs (`lib/gyms.ts`, `lib/referrals.ts`,
+ *  etc.) reuse a single implementation rather than redeclaring
+ *  their own — drift in the token source would otherwise be three
+ *  bugs to find. */
+export async function serviceToken(): Promise<string> {
   const session = await getServerSession(authOptions);
   const token = session?.serviceToken;
   if (!token) throw new Error("Missing admin service token.");

@@ -19,7 +19,11 @@
     "rememberMeHint": "(30 days on this device)",
     "passwordShow": "Show password",
     "passwordHide": "Hide password",
-    "footer": "Members use the mobile app. This portal is for partner gyms only."
+    "footer": "Members use the mobile app. This portal is for partner gyms only.",
+    "consentPrefix": "By signing in you agree to our",
+    "consentLinkTerms": "Partner Terms",
+    "consentLinkPrivacy": "Privacy Policy",
+    "consentAnd": "and"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -58,6 +62,7 @@
       "apply": "Apply"
     },
     "checkinsTrend": "Check-in cadence",
+    "checkinsLast30": "Last 30 days",
     "revenueTrend": "Revenue stroke",
     "tierMix": "Tier mix",
     "hourMix": "Busy hours",
@@ -125,6 +130,13 @@
     "error": "Couldn't save.",
     "tier": "Required tier",
     "tierLocked": "(managed by GymPass team)",
+    "audience": "Audience",
+    "audienceHint": "Who can check in. Members of the wrong gender are blocked at the QR scan.",
+    "audiences": {
+      "mixed": "Open to everyone",
+      "female_only": "Women only",
+      "male_only": "Men only"
+    },
     "logoTitle": "Gym logo",
     "logoSubtitle": "The brand mark members see in the GymPass app and on the partner portal sidebar.",
     "logoUpload": "Upload logo",
@@ -253,6 +265,109 @@
     "pending": "Pending",
     "paid": "Paid",
     "noPayouts": "No payouts issued yet."
+  },
+  "legal": {
+    "lastUpdatedLabel": "Last updated",
+    "navTerms": "Partner Terms",
+    "navPrivacy": "Privacy Policy",
+    "terms": {
+      "title": "Partner Terms of Service",
+      "subtitle": "GymPass · Partner Agreement",
+      "updatedAt": "May 14 2026",
+      "sections": [
+        {
+          "headline": "Acceptance",
+          "body": "By accessing the GymPass partner portal you accept these Partner Terms on behalf of your gym. If you are accepting on behalf of a legal entity you confirm you are authorised to bind that entity. If you do not accept, do not use the portal.\n\nThese terms apply only to the partner relationship. End-member terms are separate and presented inside the member app."
+        },
+        {
+          "headline": "Partner account",
+          "body": "Each partner account is provisioned by GymPass for a single gym location. Login credentials must be kept confidential and may not be shared with people outside the gym's authorised staff.\n\nYou are responsible for everything that happens under your account. Notify GymPass immediately if you suspect a credential has been compromised — sessions can be revoked from the device list."
+        },
+        {
+          "headline": "Membership tiers and access",
+          "body": "GymPass operates four tiers: Silver, Gold, Platinum and Diamond. The category your gym is filed under (gym, crossfit, martial arts, yoga) and your tier determine which members may check in.\n\nA member presenting a valid QR scan within your gym's hours must be admitted. GymPass calculates and credits the visit; you do not collect payment from the member directly."
+        },
+        {
+          "headline": "Check-in verification",
+          "body": "Check-ins are verified server-side. Each scan is validated against the member's active subscription, tier window, daily quota, geographic proximity to the gym and the static QR identifier. The portal surfaces only the verified result — you do not need to validate manually.\n\nManipulating the QR identifier, accepting members outside their tier, or recording check-ins without a member being physically present is a material breach and grounds for immediate termination."
+        },
+        {
+          "headline": "Payouts",
+          "body": "Each verified check-in writes a line to the payout ledger at the rate agreed in your partner deal. Ledger entries are aggregated monthly into a payout statement viewable in the Payouts tab.\n\nPayouts are issued to the bank account provided during onboarding. Disputes about a specific entry must be raised within thirty days of the statement closing; after that the statement is considered final."
+        },
+        {
+          "headline": "Photos and identity",
+          "body": "Photos, logo and gym description you upload through the portal will appear inside the member app's explore and gym-profile screens. You confirm you own (or have a licence to use) the content you upload.\n\nGymPass may resize, recompress and crop uploaded media for presentation. Removing a photo from the portal removes it from the member app within minutes."
+        },
+        {
+          "headline": "Hours, holidays and closures",
+          "body": "Your published opening hours determine the check-in window members see. If you close for holiday or maintenance, update your hours in advance — members who attempt to check in outside published hours will be blocked and may complain to support.\n\nUnplanned closures of more than 24 hours should be communicated to GymPass so we can place a temporary banner in the gym's profile."
+        },
+        {
+          "headline": "Suspension and termination",
+          "body": "GymPass may suspend partner access if we observe repeated check-in fraud, repeated member complaints about facility safety, regulatory issues, or unpaid amounts owed to GymPass. Suspension halts new check-ins while we investigate; the gym's profile is hidden in the member app.\n\nEither party may terminate the partner agreement on 30 days written notice. On termination, pending payouts are settled at the next regular cycle."
+        },
+        {
+          "headline": "Liability",
+          "body": "GymPass provides the booking and payouts infrastructure. The gym remains the operator of its facility and is responsible for the safety, hygiene and lawful operation of that facility.\n\nTo the maximum extent permitted by Jordanian law, GymPass is not liable for injuries, property loss or disputes between the gym and its members beyond what is required by mandatory law."
+        },
+        {
+          "headline": "Changes to these terms",
+          "body": "We may amend these terms when product, legal or commercial circumstances require. Material changes will be communicated via the portal at least 14 days before they take effect; continued use of the portal after the effective date is acceptance of the revised terms.\n\nThe most recent version always lives at this URL — the Last updated date above is authoritative."
+        },
+        {
+          "headline": "Contact",
+          "body": "Partner support: partners@gym-pass.net · +962 6 000 0000 · Sun–Thu 9am–6pm Amman time. For urgent operational issues outside hours, use the WhatsApp emergency line provided during onboarding."
+        }
+      ]
+    },
+    "privacy": {
+      "title": "Privacy Policy",
+      "subtitle": "How GymPass handles partner and member data",
+      "updatedAt": "May 14 2026",
+      "sections": [
+        {
+          "headline": "What this policy covers",
+          "body": "This policy covers data we collect from the gym partner (you, the operator) and the data we expose to the gym partner about its members. End-member data collection is covered in the member-app privacy policy.\n\nGymPass operates in Jordan and processes data in accordance with applicable Jordanian data-protection requirements."
+        },
+        {
+          "headline": "Partner data we collect",
+          "body": "From the gym partner we collect: business name, manager name, contact phone and email, bank account for payouts, gym address and category, opening hours, uploaded logo and photos, and audit trails of changes you make in the portal.\n\nWe do not collect personal financial data about partner staff beyond what is required for payouts."
+        },
+        {
+          "headline": "Member data exposed to partners",
+          "body": "When a member checks into your gym you can see: a masked first name and last initial (e.g. \"Ahmad K.\"), tier label, and a redacted phone (last four digits visible — e.g. \"•• ••• 4567\"). Members' full names, full phone numbers, addresses and payment details are never sent to your portal.\n\nThis masking is enforced server-side. A partner request that bypasses it would be rejected at the API layer even if a frontend bug attempted to render the unmasked value."
+        },
+        {
+          "headline": "Purpose of processing",
+          "body": "Partner data is used to: operate the partner portal, calculate and pay out commissions, verify check-ins against tier rules, contact you about operational issues, and audit changes for safety and integrity.\n\nMember data shown to you is used solely to confirm a check-in just happened. Storing, exporting or contacting members using the masked data shown in your portal is not permitted by these terms."
+        },
+        {
+          "headline": "Retention",
+          "body": "Audit-log entries are retained for the duration of the partner agreement plus a regulatory retention period of seven years. Payout ledgers are retained for ten years. Logo and photo uploads remain available until you remove them or the agreement terminates.\n\nWe purge or anonymise data sooner if you delete the partner account, except where mandatory retention applies."
+        },
+        {
+          "headline": "Security",
+          "body": "All traffic to the partner portal and member app runs over TLS. Passwords are hashed with bcrypt; sessions can be revoked individually from the device list. Mutations are written to an append-only audit log inside the same database transaction as the change itself, so a successful change always has a matching trail.\n\nPer-account login attempts are rate-limited at the IP and phone level to slow credential-stuffing attacks. We never store payment-card data — payments are mocked in the current build and will route through a regulated gateway in production."
+        },
+        {
+          "headline": "Sub-processors",
+          "body": "GymPass infrastructure is hosted on a Jordanian cloud region operated by a regulated provider. We may use sub-processors for transactional email, SMS OTP delivery and crash reporting. The current list of sub-processors is available from partners@gym-pass.net on request and updated when it changes."
+        },
+        {
+          "headline": "Your rights",
+          "body": "Partners may at any time: request a copy of the data we hold about your gym, correct inaccurate records, and request deletion subject to mandatory retention. Requests are honoured within 30 days.\n\nMember privacy rights (access, deletion, correction) are exercised through the member app or member support — partners cannot act on a member's behalf."
+        },
+        {
+          "headline": "Changes",
+          "body": "We may amend this policy when the underlying data flows change or when regulators publish new guidance. Material changes are notified in the portal and the Last updated date above is updated."
+        },
+        {
+          "headline": "Contact",
+          "body": "Privacy inquiries: privacy@gym-pass.net. Data subject requests, complaints and breach notifications should be sent to the same address."
+        }
+      ]
+    }
   },
   "qr": {
     "title": "Gym QR",

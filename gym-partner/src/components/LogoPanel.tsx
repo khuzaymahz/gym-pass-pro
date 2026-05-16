@@ -105,26 +105,47 @@ export function LogoPanel({
     data.append("fit", nextAlignment.fit);
     data.append("position", nextAlignment.position);
     startTransition(async () => {
-      const res = await uploadLogoAction(data);
-      if (!res.ok) {
-        setError(res.error ?? t("logoErrorUploadGeneric"));
-        return;
+      // try/catch guarantees the transition resolves even if the
+      // Server Action throws (network error, fetch abort, server
+      // crash). Without this, `pending` would remain true forever
+      // and the upload button would stay disabled — the partner
+      // would have to refresh the page.
+      try {
+        const res = await uploadLogoAction(data);
+        if (!res.ok) {
+          setError(res.error ?? t("logoErrorUploadGeneric"));
+          return;
+        }
+        URL.revokeObjectURL(staged.url);
+        setStaged(null);
+        router.refresh();
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : t("logoErrorUploadGeneric"),
+        );
       }
-      URL.revokeObjectURL(staged.url);
-      setStaged(null);
-      router.refresh();
     });
   }
 
   function onDelete() {
     setError(null);
     startTransition(async () => {
-      const res = await deleteLogoAction();
-      if (!res.ok) {
-        setError(res.error ?? t("logoErrorDeleteGeneric"));
-        return;
+      try {
+        const res = await deleteLogoAction();
+        if (!res.ok) {
+          setError(res.error ?? t("logoErrorDeleteGeneric"));
+          return;
+        }
+        router.refresh();
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : t("logoErrorDeleteGeneric"),
+        );
       }
-      router.refresh();
     });
   }
 

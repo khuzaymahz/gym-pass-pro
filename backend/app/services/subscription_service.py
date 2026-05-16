@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from typing import Any
 from uuid import UUID
+
+import structlog
 
 from app.core.exceptions import AppError, ErrorCode
 from app.db.enums import PaymentStatus, SubscriptionStatus
@@ -14,6 +17,27 @@ from app.services.audit_service import Actor, AuditService
 from app.services.referral_service import ReferralService
 from app.repositories.checkin_repo import CheckinRepository
 from app.utils.time import add_months, current_period_start, utcnow
+
+log = structlog.get_logger(__name__)
+
+
+async def _safe_publish(channel: str, payload: dict[str, Any]) -> None:
+    """Fire-and-log realtime broadcasts. Publish failures (Redis
+    down, pubsub serialization error) must not surface as 5xx to
+    the member — the DB write has already committed, the live
+    fan-out is a best-effort nice-to-have, and a flaky pubsub
+    layer turning subscription purchases into 500s is a much
+    bigger incident than a stale tab.
+    """
+    try:
+        await realtime_publish(channel, payload)
+    except Exception as exc:
+        log.warning(
+            "realtime.publish_failed",
+            channel=channel,
+            payload_type=payload.get("type"),
+            error=str(exc),
+        )
 
 
 class SubscriptionService:
@@ -134,10 +158,7 @@ class SubscriptionService:
             # Convert any pending referral on the invited user's first paid
             # subscription. Safe to call unconditionally — no-op if no row.
             await self.referrals.mark_converted_if_pending(user.id)
-            # Live fan-out so any other tab/device the member has open
-            # re-fetches /me/subscription instead of waiting for a
-            # manual pull.
-            await realtime_publish(
+            await _safe_publish(
                 f"user/{user.id}",
                 {
                     "type": "subscription.created",
@@ -159,7 +180,7 @@ class SubscriptionService:
             actor=actor, action="subscription.cancel",
             entity_type="subscription", entity_id=sub.id,
         )
-        await realtime_publish(
+        await _safe_publish(
             f"user/{user.id}",
             {
                 "type": "subscription.canceled",

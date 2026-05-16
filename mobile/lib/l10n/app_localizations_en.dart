@@ -340,6 +340,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get gymOpen247 => 'OPEN 24/7';
   @override
+  String get audienceFemaleOnly => 'Women only';
+  @override
+  String get audienceMaleOnly => 'Men only';
+  @override
   String gymKmAway(String km) => '$km KM';
   @override
   String get gymAbout => 'About';
@@ -887,7 +891,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsAccountSecurity => 'Security & privacy';
   @override
-  String get settingsAccountTerms => 'Terms & policies';
+  String get settingsAccountTerms => 'Terms of service';
+  @override
+  String get settingsAccountPrivacy => 'Privacy policy';
   @override
   String get settingsAccountLogout => 'Log out';
   @override
@@ -1042,13 +1048,113 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get securitySessions => 'Active sessions';
   @override
-  String get termsTitle => 'Terms & Privacy';
-  @override
   String get termsBody =>
       'By using GymPass you agree to a single subscription that grants access to every gym in our partner network. Your tier (Silver, Gold, Platinum, Diamond) determines which gyms you can scan into and how many visits per cycle you have. Visits are counted at the moment of QR scan and reset on a 30-day rolling window from your subscription start date. We will not refund unused visits at the end of a cycle. You may cancel auto-renewal at any time and your subscription will remain active until the end of the current billing period. Misuse of the QR — including sharing your account or attempting to bypass tier gates — may result in suspension. We may update these terms with notice via the app. Continued use after a notice constitutes acceptance.';
   @override
   String get privacyPolicyBody =>
       'We collect only the data needed to operate your membership: your phone number, email, name, gender, birthdate, and a hashed password. Each successful check-in stores the gym, timestamp, and your subscription tier in our audit log so partner gyms can be paid correctly and so you can review your visit history. Your phone and email are never shared with partner gyms — they only see your tier and your name at check-in. We use a payment provider to process charges; payment card details never touch our servers. Location data is used only on-device to surface nearby gyms in Explore — we do not store your GPS history. You may request export or deletion of your data at any time from Settings → Privacy. We retain audit-log entries for 24 months for fraud-prevention and accounting; everything else is deleted on account closure within 30 days.';
+  @override
+  String get legalLastUpdated => "Last updated";
+  @override
+  String get legalReadTermsAction => "Terms of Service";
+  @override
+  String get legalReadPrivacyAction => "Privacy Policy";
+  @override
+  String get legalSignupConsent => "By continuing you agree to our Terms of Service and Privacy Policy.";
+  @override
+  String get legalSignupConsentPrefix => "By continuing you agree to our";
+  @override
+  String get termsTitle => "Terms of Service";
+  @override
+  String get termsSubtitle => "GymPass · Member Agreement";
+  @override
+  String get termsUpdatedAt => "May 2026";
+  @override
+  String get termsAcceptanceHeadline => "Acceptance of these Terms";
+  @override
+  String get termsAcceptanceBody => "By creating a GymPass account, subscribing to a plan, or scanning into a partner gym, you confirm that you have read these Terms and agree to be bound by them. If you do not accept any clause below, please do not use the service.";
+  @override
+  String get termsAccountHeadline => "Your account";
+  @override
+  String get termsAccountBody => "You sign in with a Jordanian mobile number and a one-time code. Keep your number current — we use it for account recovery, payment receipts, and time-sensitive notifications. You are responsible for activity on your account and for keeping your device secure. Notify support immediately if you suspect unauthorised use.";
+  @override
+  String get termsMembershipHeadline => "Subscription tiers";
+  @override
+  String get termsMembershipBody => "Your tier (Silver, Gold, Platinum, or Diamond) determines which partner gyms you can enter and how many visits you get each calendar month. Visit budgets reset on the first day of each month and do not roll over. Upgrading or downgrading takes effect at your next renewal unless we explicitly note otherwise in the upgrade flow.";
+  @override
+  String get termsPaymentHeadline => "Payments and renewals";
+  @override
+  String get termsPaymentBody => "Subscriptions renew automatically at the start of each billing period unless cancelled in advance. We charge the payment method you registered. If a charge fails we may retry, suspend access, or terminate the subscription. All prices are shown in Jordanian Dinars (JOD). Taxes, where applicable, are included in the displayed price.";
+  @override
+  String get termsCheckinHeadline => "Gym access and check-ins";
+  @override
+  String get termsCheckinBody => "Each partner gym has a static QR code at its entrance. Scanning the code with the app records a check-in and deducts one visit from your monthly budget. Access is contingent on your tier allowing the gym, your remaining visits, and your account being in good standing. We may rate-limit repeated scans at the same gym to prevent accidental double-charges.";
+  @override
+  String get termsConductHeadline => "Member conduct";
+  @override
+  String get termsConductBody => "You agree to follow each partner gym's house rules, behave respectfully with staff and other members, and use the service only for personal, non-commercial gym access. Sharing your account, reselling visits, or attempting to scan with another member's QR is prohibited and may result in immediate termination.";
+  @override
+  String get termsTerminationHeadline => "Termination";
+  @override
+  String get termsTerminationBody => "You may cancel at any time from your profile. Cancellation takes effect at the end of your current billing period; we do not pro-rate refunds. We may suspend or terminate accounts for non-payment, fraud, abuse of a partner gym, or violation of these Terms. Outstanding payouts and audit records survive termination per the Privacy Policy.";
+  @override
+  String get termsLiabilityHeadline => "Liability";
+  @override
+  String get termsLiabilityBody => "GymPass is a booking and access platform. We are not the operator of the partner gyms and are not responsible for injuries, lost property, or disputes that occur at a partner venue — those remain matters between you and the gym. Where Jordanian law permits, our liability is limited to the amount you paid us in the three months preceding the claim.";
+  @override
+  String get termsChangesHeadline => "Changes to these Terms";
+  @override
+  String get termsChangesBody => "We may update these Terms from time to time. If a change is material, we will notify you in-app at least seven days before it takes effect. Continued use of the service after the effective date constitutes acceptance.";
+  @override
+  String get termsContactHeadline => "Contact";
+  @override
+  String get termsContactBody => "Questions about these Terms? Reach us via the in-app Support page or email support@gym-pass.net. We respond in Arabic or English, whichever you write in.";
+  @override
+  String get privacyTitle => "Privacy Policy";
+  @override
+  String get privacySubtitle => "GymPass · How we handle your data";
+  @override
+  String get privacyUpdatedAt => "May 2026";
+  @override
+  String get privacyDataWeCollectHeadline => "Data we collect";
+  @override
+  String get privacyDataWeCollectBody => "We collect: the phone number you sign up with; any name, email, and birth date you add to your profile; payment method details (handled by our payment processor — we never store your full card number, only the last four digits and the card brand); your check-in history (which gym, when, success or failure reason); device GPS while you have the Explore tab open; and the type/model of device you use so we can debug crashes.";
+  @override
+  String get privacyPurposeHeadline => "Why we collect it";
+  @override
+  String get privacyPurposeBody => "Phone number — account identity and OTP sign-in. Profile fields — display name on your account, sending you receipts. Payment data — processing subscriptions. Check-in history — tracking your visit budget, paying partner gyms for visits, surfacing fraud. GPS — finding gyms near you on the Explore map. Device info — debugging crashes and security investigations.";
+  @override
+  String get privacySharingHeadline => "Who we share with";
+  @override
+  String get privacySharingBody => "Partner gyms see a masked version of your details when you check in (see the next section). Our payment processor receives the card data needed to charge you. Our hosting and analytics providers process the technical data needed to run the service. We do not sell your data to advertisers, marketers, or data brokers. We may disclose data when required by a valid Jordanian legal order.";
+  @override
+  String get privacyMaskingHeadline => "What partner gyms see about you";
+  @override
+  String get privacyMaskingBody => "Partners see: your first name and last-initial (e.g. 'Ahmad K.'), the last four digits of your phone (e.g. '•• ••• 4567'), the time you checked in, and an internal user ID for support reference. Partners NEVER see your full phone, your email, your address, or your payment information. This masking is enforced at our API; partners cannot opt out of it.";
+  @override
+  String get privacyRetentionHeadline => "How long we keep your data";
+  @override
+  String get privacyRetentionBody => "Your profile and active subscription data are kept while your account is active. After you delete your account, we retain financial and audit records for seven years to meet Jordanian tax and consumer-protection requirements; everything else is erased within 30 days. Check-in records linked to a paid payout cannot be deleted until that payout is settled.";
+  @override
+  String get privacySecurityHeadline => "How we protect your data";
+  @override
+  String get privacySecurityBody => "Connections to our servers use TLS. Passwords are hashed; we never store them in readable form. Payment data is tokenised by our payment processor; we don't see your full card number. Internal access to your data is role-gated (admin operators only, with audit logging on every read of personal records).";
+  @override
+  String get privacyRightsHeadline => "Your rights";
+  @override
+  String get privacyRightsBody => "You can: review and edit your profile in the Settings tab; download your data via Support; request deletion of your account at any time (we will confirm that the seven-year retention exceptions apply only to financial and audit records); withdraw consent for marketing notifications (the toggles are in Settings → Notifications); raise a complaint with the Jordanian Personal Data Protection Authority.";
+  @override
+  String get privacyChildrenHeadline => "Children";
+  @override
+  String get privacyChildrenBody => "GymPass is not directed at children under 16. If you believe a minor has signed up, contact support and we will remove the account.";
+  @override
+  String get privacyChangesHeadline => "Changes to this Policy";
+  @override
+  String get privacyChangesBody => "We may update this policy. If a change materially affects how we handle your data, we will notify you in-app at least seven days before it takes effect. Continued use after the effective date constitutes acceptance.";
+  @override
+  String get privacyContactHeadline => "Contact";
+  @override
+  String get privacyContactBody => "Email privacy@gym-pass.net or use the in-app Support page. We respond in Arabic or English. Our Data Protection contact is reachable at the same address.";
   @override
   String get logoutConfirmTitle => 'Sign out?';
   @override

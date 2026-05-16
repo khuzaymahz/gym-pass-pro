@@ -439,6 +439,34 @@ async def current_user(
     return await _authed(request, users, authorization, ("access",))
 
 
+async def current_user_optional(
+    request: Request,
+    users: Annotated[UserRepository, Depends(user_repo)],
+    authorization: Annotated[str | None, Header()] = None,
+) -> User | None:
+    """Same as `current_user` but returns None for unauthenticated
+    callers instead of 401.
+
+    Used by surfaces that need to *personalise* their response when a
+    token is present but should still be reachable without one — most
+    notably the gym list, which a signed-out member can browse pre-
+    signup to evaluate the network. When the caller is anonymous the
+    response is treated as prefer-not-to-say (mixed gyms only); when
+    signed in, the caller's profile gender shapes visibility.
+    """
+
+    if not authorization or not authorization.lower().startswith("bearer "):
+        return None
+    try:
+        return await _authed(request, users, authorization, ("access",))
+    except AppError:
+        # Token present but invalid / expired. Treating this as
+        # "anonymous" rather than re-raising lets the gym list keep
+        # rendering after a token expires; the caller's mobile will
+        # refresh the token on the *next* authed call and recover.
+        return None
+
+
 async def current_admin(
     request: Request,
     users: Annotated[UserRepository, Depends(user_repo)],

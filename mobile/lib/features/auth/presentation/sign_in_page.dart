@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -478,6 +479,8 @@ class _SignInPageState extends ConsumerState<SignInPage> {
                                 },
                         ),
                       ],
+                      const SizedBox(height: 18),
+                      _LegalConsentFooter(),
                       const SizedBox(height: 8),
                     ],
                   ),
@@ -487,6 +490,49 @@ class _SignInPageState extends ConsumerState<SignInPage> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Small consent footer that points at the full Terms / Privacy pages.
+///
+/// Spans-with-recognizers rather than three sibling widgets so the
+/// line wraps naturally in narrow viewports without leaving an
+/// orphaned "Privacy Policy" alone on its own line.
+class _LegalConsentFooter extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final gp = context.gp;
+    final base = GPText.body(size: 11.5, color: gp.muted, height: 1.5);
+    final link = base.copyWith(
+      color: gp.accentInk,
+      fontWeight: FontWeight.w600,
+      decoration: TextDecoration.underline,
+      decorationColor: gp.accentInk.withValues(alpha: 0.4),
+    );
+    return Text.rich(
+      TextSpan(
+        style: base,
+        children: [
+          TextSpan(text: '${l.legalSignupConsentPrefix} '),
+          TextSpan(
+            text: l.legalReadTermsAction,
+            style: link,
+            recognizer: TapGestureRecognizer()
+              ..onTap = () => context.push('/legal/terms'),
+          ),
+          TextSpan(text: ' ${l.and} '),
+          TextSpan(
+            text: l.legalReadPrivacyAction,
+            style: link,
+            recognizer: TapGestureRecognizer()
+              ..onTap = () => context.push('/legal/privacy'),
+          ),
+          const TextSpan(text: '.'),
+        ],
+      ),
+      textAlign: TextAlign.center,
     );
   }
 }

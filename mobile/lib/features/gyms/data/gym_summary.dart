@@ -8,6 +8,15 @@ class GymSummary {
   final String? tier;
   final String? area;
 
+  /// Audience gender — drives the "Women only" / "Men only" badge
+  /// on the gym card + detail page. Values: 'mixed', 'female_only',
+  /// 'male_only'. Backend filters single-sex gyms out of the member
+  /// list whenever the caller's profile gender doesn't match, so a
+  /// male member should never receive `female_only` here — the badge
+  /// exists for `mixed` viewers and prefer-not-to-say members who
+  /// can still browse all-mixed gyms.
+  final String? audienceGender;
+
   /// Lat/lng come from the backend as `Numeric(9,6)` strings — kept as
   /// `double` here because the only consumer (the Explore map) needs
   /// `LatLng(double, double)`. Null when the backend record is missing
@@ -35,6 +44,7 @@ class GymSummary {
     this.area,
     this.lat,
     this.lng,
+    this.audienceGender,
     this.amenities = const <String>[],
   });
 
@@ -50,6 +60,8 @@ class GymSummary {
       area: json['area'] as String?,
       lat: _toDouble(json['lat']),
       lng: _toDouble(json['lng']),
+      audienceGender:
+          (json['audienceGender'] ?? json['audience_gender']) as String?,
       amenities: _toStringList(json['amenities']),
     );
   }

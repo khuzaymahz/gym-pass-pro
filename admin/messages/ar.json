@@ -301,6 +301,12 @@
         "yoga": "يوغا"
       },
       "allTiers": "كل الباقات",
+      "allAudiences": "جميع الفئات",
+      "audience": {
+        "mixed": "للجنسين",
+        "female_only": "للسيدات",
+        "male_only": "للرجال"
+      },
       "search": "ابحث بالاسم أو المنطقة أو الـ slug…"
     },
     "table": {
@@ -308,6 +314,7 @@
       "area": "المنطقة",
       "category": "الفئة",
       "tier": "الباقة",
+      "audience": "الفئة",
       "perVisit": "لكل زيارة",
       "photos": "صور",
       "status": "الحالة",
