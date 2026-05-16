@@ -44,6 +44,36 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Custom scheme deep links. Used by the marketing-site
+                 fallback page (gym-pass.net/gyms/<slug>) to attempt
+                 an in-app open via JavaScript before falling back to
+                 the APK download CTA. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="gympass"/>
+            </intent-filter>
+            <!-- HTTPS deep links for gym profiles + referral codes.
+                 `autoVerify` stays false until a signed-build SHA-256
+                 fingerprint is published in
+                 https://gym-pass.net/.well-known/assetlinks.json — at
+                 which point Android promotes the chooser to a silent
+                 OS-level handoff. Until then the user sees the
+                 standard "Open with" chooser (GymPass + their
+                 browser), which is the correct UX for a pre-prod
+                 build. -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https"
+                      android:host="gym-pass.net"
+                      android:pathPrefix="/gyms/"/>
+                <data android:scheme="https"
+                      android:host="gym-pass.net"
+                      android:pathPrefix="/invite/"/>
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
@@ -60,6 +90,23 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- url_launcher: dialer / mail client / WhatsApp / browser -->
+        <intent>
+            <action android:name="android.intent.action.DIAL"/>
+            <data android:scheme="tel"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SENDTO"/>
+            <data android:scheme="mailto"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="http"/>
         </intent>
     </queries>
 </manifest>
