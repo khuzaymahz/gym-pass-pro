@@ -121,6 +121,15 @@ dependencies:
   # the backend" from "the backend says there are zero gyms."
   connectivity_plus: ^6.0.5
 
+  # Crash + error reporting. Init is a no-op when SENTRY_DSN is
+  # unset (passed via --dart-define at build time), so the SDK
+  # ships baked into every APK but contributes zero overhead until
+  # operators flip the env on. Per CLAUDE.md §15 Sentry is
+  # "deferred until a real provider is chosen" — this is the
+  # wiring so flipping it on later is one build-time flag, not a
+  # code change.
+  sentry_flutter: ^8.10.0
+
   # Image caching — disk + memory cache for `/api/v1/gyms/.../photos`
   # and partner-uploaded logos. Backed by `flutter_cache_manager`
   # (LRU disk cache with a 30-day TTL by default), so the hero photo

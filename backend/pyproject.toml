@@ -24,6 +24,11 @@ dependencies = [
   "email-validator>=2.2",
   "python-multipart>=0.0.12",
   "ulid-py>=1.1",
+  # Sentry — optional at runtime (init is a no-op when SENTRY_DSN
+  # is unset) but we ship the SDK as a baked-in dep so operators
+  # flip the env var without a rebuild. `fastapi` + `sqlalchemy`
+  # extras wire the matching integrations.
+  "sentry-sdk[fastapi,sqlalchemy]>=2.16",
 ]
 
 [dependency-groups]
