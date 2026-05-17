@@ -1,7 +1,8 @@
 SHELL := /bin/bash
 
 .PHONY: up down logs backend-shell db-shell migrate seed backend-test admin-install partner-install mobile-get mobile-test \
-        dev-up dev-down dev-logs staging-up staging-down staging-logs smoke-dev smoke-staging
+        dev-up dev-down dev-logs staging-up staging-down staging-logs smoke-dev smoke-staging \
+        ci ci-backend ci-admin ci-partner ci-website ci-mobile pre-commit-install db-backup
 
 # ---- Local development (container ports exposed directly) ----
 # No TLS, no nginx. Hit:
@@ -72,3 +73,53 @@ smoke-dev:
 
 smoke-staging:
 	scripts/smoke.sh https://stg-api.gym-pass.net
+
+# ---- Local CI parity ----
+# `make ci` runs the same lint/test pipeline GitHub Actions runs on
+# every PR, locally. Use before pushing to catch a broken build in
+# 2 min instead of waiting 8 min for the cloud runner to tell you.
+# Sub-targets let you scope to one surface (`make ci-mobile`) when
+# you're iterating.
+
+ci: ci-backend ci-admin ci-partner ci-website ci-mobile
+
+ci-backend:
+	cd backend && uv sync --frozen --all-extras
+	cd backend && uv run alembic upgrade head
+	cd backend && uv run pytest -q --maxfail=1
+
+ci-admin:
+	cd admin && npm ci
+	cd admin && npx tsc --noEmit
+	cd admin && npm run build
+
+ci-partner:
+	cd gym-partner && npm ci
+	cd gym-partner && npx tsc --noEmit
+	cd gym-partner && npm run build
+
+ci-website:
+	cd website && npm ci
+	cd website && npx tsc --noEmit
+	cd website && npm run build
+
+ci-mobile:
+	cd mobile && flutter pub get
+	cd mobile && flutter analyze --no-fatal-warnings --no-fatal-infos
+	cd mobile && flutter test --reporter=expanded
+
+# ---- Operator commands ----
+# Install the pre-commit hook into the local repo's `.git/hooks/`.
+# Run once after a fresh clone. The hook itself lives at
+# scripts/pre-commit so it's reviewable in PRs; the install step
+# just symlinks it into `.git/hooks/pre-commit`.
+pre-commit-install:
+	ln -sf ../../scripts/pre-commit .git/hooks/pre-commit
+	chmod +x .git/hooks/pre-commit
+	@echo "[ok] pre-commit hook installed -> .git/hooks/pre-commit"
+
+# Nightly Postgres dump. Drops a gzipped pg_dump in /backups/.
+# Cron entry to add to the VM operator's crontab:
+#   0 2 * * * cd /opt/gympass && bash scripts/db-backup.sh
+db-backup:
+	bash scripts/db-backup.sh

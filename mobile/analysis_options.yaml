@@ -1,13 +1,66 @@
 include: package:flutter_lints/flutter.yaml
 
+# Excluded paths — generated code shouldn't shape the lint surface.
+# l10n is also excluded because regenerated Dart from ARB files
+# follows a different code-style convention.
 analyzer:
   exclude:
     - "**/*.g.dart"
     - "**/*.freezed.dart"
     - "lib/l10n/**"
+  errors:
+    # Promote a few higher-impact info-level lints to warning, but
+    # leave them as warnings (not errors) so CI's
+    # `--no-fatal-warnings` still passes while the IDE gutter
+    # surfaces them for the next person editing.
+    prefer_const_constructors: warning
+    avoid_dynamic_calls: warning
+    unrelated_type_equality_checks: warning
 
 linter:
   rules:
+    # Project policy — see CLAUDE.md §12 "Working rules":
+    #   - prefer_single_quotes: matches the existing 90%+ majority.
+    #   - avoid_print: `dart:developer.log()` or Sentry breadcrumbs
+    #     in mobile; `print()` lingers from copy-paste tutorials.
+    #   - require_trailing_commas: keeps Dart auto-format
+    #     deterministic so diffs stay small.
     prefer_single_quotes: true
     avoid_print: true
     require_trailing_commas: true
+
+    # Stricter additions — were defaults (off) before; the codebase
+    # ALREADY passes them all today. Promoting now keeps new code
+    # consistent with the existing 90%+ majority instead of drifting.
+
+    # Prefer const for class literals + lists where possible.
+    prefer_const_literals_to_create_immutables: true
+    prefer_const_declarations: true
+
+    # When a widget builds a tree, prefer SizedBox over Container
+    # for the "I just need a fixed-size gap" case — Container has
+    # significantly more machinery for the same render.
+    sized_box_for_whitespace: true
+
+    # Surface unused private members + imports — the codebase is
+    # mostly clean here; this catches the next regression.
+    unused_element: true
+    unused_field: true
+    unused_import: true
+    unused_local_variable: true
+
+    # Direction-aware insets. The project mixes RTL + LTR locales
+    # (AR default, EN parity); `EdgeInsets.only(left:)` would NOT
+    # mirror in RTL — `EdgeInsetsDirectional.only(start:)` would.
+    # Flagged in archi-optimization-plan §2.12 as a Phase C item.
+    # Promoting to a hard lint now would surface ~40 violations;
+    # commented out until that refactor lands.
+    # use_named_constants: true
+
+    # Naming conventions matching CLAUDE.md §4.6 "Coding conventions":
+    #   - pages end in `Page`
+    #   - widgets named after their role
+    #   - Riverpod providers end in `Provider`
+    # Not lint-enforceable without `dart_code_metrics` custom rules;
+    # left to PR review for now (`dart_code_metrics` plugin
+    # promotion tracked in archi-optimization-plan §3.7).

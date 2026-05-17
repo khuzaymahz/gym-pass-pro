@@ -57,6 +57,21 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+            // R8 / ProGuard. `isMinifyEnabled` enables code-shrink +
+            // obfuscation; `isShrinkResources` removes unused
+            // res/*.png + strings. Both halve the APK on a Flutter
+            // release build *and* make reverse-engineering require
+            // more effort than a stack trace from a leaked log.
+            // The `proguard-rules.pro` file holds the explicit
+            // `-keep` rules that prevent shrink from gutting Dio,
+            // Riverpod, json_serializable + the few reflective
+            // libs we use.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }

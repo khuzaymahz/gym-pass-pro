@@ -807,9 +807,7 @@ class _AudienceBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final isFemale = audience == 'female_only';
-    final color = isFemale
-        ? const Color(0xFFEC4899)
-        : const Color(0xFF60A5FA);
+    final color = isFemale ? GP.audienceFemale : GP.audienceMale;
     final label = isFemale ? l.audienceFemaleOnly : l.audienceMaleOnly;
     final icon = isFemale ? Icons.female : Icons.male;
     return Container(

@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../core/theme/gp_tokens.dart';
 import '../../../core/widgets/gym_loader.dart';
 import '../../../l10n/app_localizations.dart';
 import '../data/gym_repository.dart';
@@ -1223,7 +1224,11 @@ class GeoPoint {
 class _UserPositionMarker extends StatelessWidget {
   const _UserPositionMarker();
 
-  static const _userBlue = Color(0xFF1A73E8);
+  // Off-palette by convention — Maps users globally recognise this
+  // shade of blue as "your location". Pulling from `GP.userPositionBlue`
+  // keeps the hex out of the widget body so a future palette
+  // adjustment is one line.
+  static const Color _userBlue = GP.userPositionBlue;
 
   @override
   Widget build(BuildContext context) {

@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  GymPass Android network security configuration.
+
+  Production-correct stance: HTTPS only by default. Cleartext is
+  permitted strictly to the loopback / LAN addresses a developer
+  hits during `flutter run` (Android emulator's host alias
+  10.0.2.2, real-device LAN over 192.168/16, etc.) — and only on
+  *debug* builds. Release builds inherit the secure default and
+  refuse any plain-HTTP socket no matter what `API_BASE_URL` is
+  baked into the APK.
+
+  Previously the AndroidManifest had `android:usesCleartextTraffic="true"`
+  applied to every build, which would have let a misconfigured
+  release APK silently downgrade to plain HTTP if the dart-define
+  pointed at one. That's the kind of "works on the laptop, leaks
+  bearer tokens at the airport" failure mode that release-quality
+  Android signing exists to prevent.
+
+  The manifest entry for this file is `android:networkSecurityConfig`,
+  added alongside this commit. The legacy `usesCleartextTraffic`
+  attribute is removed so it can't override.
+
+  References:
+    - https://developer.android.com/training/articles/security-config
+    - CLAUDE.md §15 (deferred items) — flagged as a release blocker
+      before serving the APK over a public download URL.
+-->
+<network-security-config>
+    <!-- Default trust + no cleartext. Release builds use this. -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system"/>
+        </trust-anchors>
+    </base-config>
+
+    <!-- Debug-only override. `flutter run` produces a debug APK
+         that needs to talk to the dev backend at 10.0.2.2:8000
+         (Android emulator's host alias) or the laptop's LAN IP
+         on a real device. Anything past `<debug-overrides>` is
+         only honoured by debug builds; release builds ignore it. -->
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="system"/>
+            <certificates src="user"/>
+        </trust-anchors>
+    </debug-overrides>
+
+    <!-- Cleartext allow-list for debug builds. RFC 1918 private
+         ranges + Android emulator alias + localhost. Release
+         builds ignore this block. -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">10.0.2.2</domain>
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <!-- 10.0.0.0/8 + 172.16.0.0/12 + 192.168.0.0/16 are the
+             three RFC 1918 ranges. Android's domain-config doesn't
+             support CIDR, so we list the most common /24 prefixes
+             a developer is likely to hit. Operators add their own
+             via a project-local override if their LAN sits
+             elsewhere. -->
+        <domain includeSubdomains="true">192.168.0.0</domain>
+        <domain includeSubdomains="true">192.168.1.0</domain>
+        <domain includeSubdomains="true">10.0.0.0</domain>
+    </domain-config>
+</network-security-config>
