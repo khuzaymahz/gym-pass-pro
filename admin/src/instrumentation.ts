@@ -17,6 +17,19 @@ const DEV_SENTINELS = new Set([
 
 export async function register(): Promise<void> {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
+
+  // Sentry first — runs in every env (no-op without SENTRY_DSN),
+  // so error-tracking is live before any further boot checks can
+  // throw. Lazy import keeps the dependency out of the dev runtime
+  // bundle when DSN is unset.
+  try {
+    const { initSentry } = await import("./lib/sentry");
+    initSentry();
+  } catch {
+    // Sentry SDK missing or init failed — non-fatal, the rest of
+    // boot continues.
+  }
+
   if (process.env.NODE_ENV !== "production") return;
   if (process.env.APP_ENV !== "production") return;
 

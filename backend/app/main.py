@@ -62,11 +62,17 @@ from app.core.error_handlers import (
 from app.core.exceptions import AppError
 from app.core.logging import configure_logging
 from app.core.middleware import RequestContextMiddleware
+from app.core.sentry import configure_sentry
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     configure_logging()
+    # Sentry init AFTER structlog so any SDK warnings route through
+    # the configured pipeline. No-op when SENTRY_DSN is unset
+    # (default everywhere except operators who explicitly flip it
+    # on in staging/prod env vars).
+    configure_sentry()
     yield
 
 
