@@ -48,5 +48,16 @@ celery_app.conf.update(
             "task": "app.workers.tasks.scheduled.auto_resume_pauses",
             "schedule": 60 * 60,
         },
+        # audit_log maintenance: daily run at ~03:00 (`24 * 60 * 60`
+        # is daily anchored to whenever the beat started). Two
+        # halves to the task: ensure next month's partition exists
+        # (load-bearing — without it, the first audit INSERT after
+        # midnight on the month boundary aborts), and drop
+        # partitions older than AUDIT_LOG_RETENTION_MONTHS (default
+        # 12). Cheap, idempotent — re-running is a no-op.
+        "audit-log-maintenance-daily": {
+            "task": "app.workers.tasks.scheduled.audit_log_maintenance",
+            "schedule": 24 * 60 * 60,
+        },
     },
 )

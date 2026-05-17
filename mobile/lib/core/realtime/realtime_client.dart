@@ -7,6 +7,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import '../api/token_store.dart';
 import '../config/env.dart';
 import '../di/providers.dart';
+import '../network/connectivity.dart';
 
 /// Connect-once WebSocket client that maintains a live subscription
 /// to a server-driven set of channels and emits decoded JSON events
@@ -157,8 +158,44 @@ class RealtimeClient {
     _nextBackoff = _baseBackoff;
   }
 
+  /// True when the device-level connectivity probe says we're
+  /// offline. The Provider override below feeds this from
+  /// `connectivityProvider`. Defaults to false (assume online)
+  /// for tests + first-frame use.
+  bool _isOffline = false;
+
+  /// Called by the wrapping provider whenever the OS connectivity
+  /// state flips. Two effects:
+  ///   - going offline: cancel any pending reconnect timer so we
+  ///     don't burn CPU + battery firing a socket that will
+  ///     immediately fail. The existing backoff already escalates
+  ///     to 30s max, but during a 20-minute commute on the
+  ///     subway that's still ~40 wasted reconnect attempts.
+  ///   - going online: if the channel is closed (we hit offline
+  ///     while connected, or were never connected), kick off a
+  ///     fresh `_connect()` with the backoff reset so we get a
+  ///     1-second first attempt instead of escalating off the
+  ///     stale backoff value.
+  void setOffline(bool offline) {
+    if (_isOffline == offline) return;
+    _isOffline = offline;
+    if (offline) {
+      _reconnectTimer?.cancel();
+      _reconnectTimer = null;
+    } else if (_channel == null) {
+      _resetReconnectBackoff();
+      unawaited(_connect());
+    }
+  }
+
   void _scheduleReconnect() {
     _reconnectTimer?.cancel();
+    if (_isOffline) {
+      // Don't even arm the timer — the OS reports no interface, so
+      // the next connect would just fail. `setOffline(false)` will
+      // re-arm us the instant the OS reports a usable interface.
+      return;
+    }
     final delay = _nextBackoff;
     _nextBackoff = Duration(
       milliseconds: (_nextBackoff.inMilliseconds * 2)
@@ -241,6 +278,24 @@ final realtimeClientProvider = Provider<RealtimeClient>((ref) {
   // idle (no event traffic) until [setChannels] is called, so
   // there's no cost to having it live across the whole session.
   unawaited(client.start());
+
+  // Connectivity bridge — when the OS reports offline, cancel the
+  // reconnect timer so we don't burn CPU + battery firing sockets
+  // that will immediately fail. When the OS reports online again,
+  // kick off a fresh connect with reset backoff. `ref.listen`
+  // fires synchronously with the current state, so the bridge is
+  // armed before the first reconnect attempt.
+  ref.listen<NetworkStatus>(connectivityProvider, (prev, next) {
+    if (next == NetworkStatus.offline) {
+      client.setOffline(true);
+    } else if (next == NetworkStatus.online) {
+      client.setOffline(false);
+    }
+    // `unknown` (first-frame state) is treated as online — see
+    // `isOnline()` in core/network/connectivity.dart. Matches the
+    // assumption the cached gymsList provider already uses.
+  });
+
   ref.onDispose(() => unawaited(client.dispose()));
   return client;
 });

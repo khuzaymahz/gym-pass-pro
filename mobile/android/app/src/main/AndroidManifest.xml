@@ -15,7 +15,7 @@
         android:label="GymPass"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:usesCleartextTraffic="true">
+        android:networkSecurityConfig="@xml/network_security_config">
 
         <!-- OAuth 2.0 client id for Google Sign-In on Android. Read by
              the google_sign_in plugin via the same placeholder pipeline. -->

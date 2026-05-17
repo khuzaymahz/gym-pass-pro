@@ -1,0 +1,84 @@
+name: release
+
+# Triggered by pushing a tag matching `v*` (e.g. `v0.1.0`,
+# `v0.2.0-rc1`). Builds the dual APKs (arm64 slim + universal
+# fat), attaches them to a GitHub Release, and publishes the
+# sha256 manifest alongside.
+#
+# No deploy step here — operators still pull the APK from the
+# Release page (or the marketing site, which is updated by the
+# website-deploy job below) and sideload as before. This
+# workflow's job is "make a tagged build downloadable", not
+# "push to prod."
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      # `contents: write` lets `softprops/action-gh-release` create
+      # the Release + upload assets. No other scope needed.
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history so the auto-generated release notes can
+          # diff against the previous tag.
+          fetch-depth: 0
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.38.9"
+          channel: stable
+
+      # The build-apk.sh script reads dart_defines.prod.json which
+      # is gitignored. Materialise it from the committed .example
+      # template, overwriting the API_BASE_URL to the production
+      # backend. SENTRY_DSN can be injected as a GitHub Actions
+      # secret if/when it's provisioned — until then the wiring
+      # ships baked-in and inert.
+      - name: Stage dart_defines.prod.json
+        run: |
+          cp mobile/dart_defines.prod.example.json mobile/dart_defines.prod.json
+          # Patch in the prod API base + Sentry DSN if the secret
+          # exists. `jq` ships on ubuntu-latest by default.
+          tmp=$(mktemp)
+          jq --arg dsn "${{ secrets.MOBILE_SENTRY_DSN }}" \
+             '.API_BASE_URL = "https://api.gym-pass.net"
+              | .APP_ENV = "production"
+              | .SENTRY_DSN = $dsn' \
+             mobile/dart_defines.prod.json > "$tmp"
+          mv "$tmp" mobile/dart_defines.prod.json
+        shell: bash
+
+      - name: Build APKs (arm64 slim + universal fat)
+        run: bash scripts/build-apk.sh
+
+      # Auto-generate release notes from the commit log between
+      # this tag and the previous one. `softprops/action-gh-release`
+      # handles tag-name parsing + asset upload.
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          # `generate_release_notes` lets GitHub auto-build the
+          # changelog from PR titles + merge commits.
+          generate_release_notes: true
+          files: |
+            website/public/downloads/gympass.apk
+            website/public/downloads/gympass.apk.sha256
+            website/public/downloads/gympass-universal.apk
+            website/public/downloads/gympass-universal.apk.sha256
+
+      # Output a one-line summary in the workflow's GitHub Actions
+      # log so the operator can grep the sha256 without opening the
+      # Release page.
+      - name: Print sha256 manifest
+        run: |
+          echo "::notice title=APK SHA256s::"
+          cat website/public/downloads/gympass.apk.sha256
+          cat website/public/downloads/gympass-universal.apk.sha256
