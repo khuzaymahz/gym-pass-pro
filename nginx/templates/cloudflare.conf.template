@@ -17,6 +17,12 @@
 # Refresh annually or whenever Cloudflare publishes an update. Mismatched
 # ranges cause logs to revert to showing Cloudflare IPs — not a security
 # hole, just a debugging headache.
+#
+# This file lives under `templates/` so envsubst copies it through to
+# /etc/nginx/conf.d/ unchanged (NGINX_ENVSUBST_FILTER restricts
+# substitution to the four *_DOMAIN names; the `$remote_addr` /
+# `$http_*` nginx variables in the other templates would otherwise
+# be erased).
 
 # IPv4
 set_real_ip_from 173.245.48.0/20;

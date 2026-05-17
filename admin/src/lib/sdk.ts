@@ -14,9 +14,17 @@ export type Page<T> = {
 
 export type Tier = "silver" | "gold" | "platinum" | "diamond";
 export type SubscriptionStatus = "pending" | "active" | "expired" | "cancelled";
+// CheckinStatus must match the backend's emitted values byte-for-byte.
+// `gender_locked` was added when the partner portal landed audience-
+// aware gyms (female-only / male-only); the admin enum drifted and
+// admin pages would crash on the first checkin with that status.
+// Codegen (see archi-optimization-plan §3.1) will eventually make
+// this self-resolving — until then both admin and partner types must
+// be kept in sync by hand.
 export type CheckinStatus =
   | "success"
   | "tier_locked"
+  | "gender_locked"
   | "no_visits"
   | "expired"
   | "invalid_qr"

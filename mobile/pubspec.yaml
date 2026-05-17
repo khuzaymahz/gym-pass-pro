@@ -113,6 +113,14 @@ dependencies:
   # no UI of its own.
   app_links: ^6.3.2
 
+  # Real network-state detection. Drives the offline banner, the
+  # "you're offline, here's your cached list" empty-states, and
+  # auto-invalidation of cached providers when connectivity is
+  # restored. Replaces the previous "fetch returned empty" guess at
+  # offline state — which couldn't distinguish "we couldn't reach
+  # the backend" from "the backend says there are zero gyms."
+  connectivity_plus: ^6.0.5
+
   # Image caching — disk + memory cache for `/api/v1/gyms/.../photos`
   # and partner-uploaded logos. Backed by `flutter_cache_manager`
   # (LRU disk cache with a 30-day TTL by default), so the hero photo
@@ -137,6 +145,14 @@ dev_dependencies:
   custom_lint: ^0.7.3
   riverpod_lint: ^2.6.1
 
+  # Generates every Android density bucket + every iOS @1x/@2x/@3x
+  # size from the two source PNGs in assets/branding/. Run with
+  # `dart run flutter_launcher_icons` whenever the source icons
+  # change. The generated PNGs are committed (the generator runs
+  # at dev-time, not at app-build time) so flutter build doesn't
+  # depend on the package.
+  flutter_launcher_icons: ^0.14.1
+
 flutter:
   uses-material-design: true
   # Generated app_localizations*.dart files in lib/l10n are committed
@@ -148,6 +164,7 @@ flutter:
 
   assets:
     - assets/fonts/
+    - assets/branding/
 
   fonts:
     - family: Archivo
@@ -165,6 +182,63 @@ flutter:
         - asset: assets/fonts/InstrumentSerif-Regular.ttf
         - asset: assets/fonts/InstrumentSerif-Italic.ttf
           style: italic
+    # Tajawal — primary Arabic family across the app. Replaces
+    # Cairo for body, headlines, and labels: cleaner letterforms,
+    # better x-height for small UI sizes, and more breathing room
+    # at body. Five static weights bundled to match the same range
+    # the variable Cairo file gave us (300 / 400 / 500 / 700 / 800).
+    - family: Tajawal
+      fonts:
+        - asset: assets/fonts/Tajawal-Light.ttf
+          weight: 300
+        - asset: assets/fonts/Tajawal-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Tajawal-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Tajawal-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Tajawal-ExtraBold.ttf
+          weight: 800
+    # Cairo kept as the Arabic fallback only — if Tajawal lacks a
+    # glyph (e.g. a rare ligature) the system picks Cairo next
+    # instead of dropping to Roboto's smaller-quality AR rendering.
     - family: Cairo
       fonts:
         - asset: assets/fonts/Cairo-VariableFont_slnt_wght.ttf
+
+# ─── App icons ────────────────────────────────────────────────────
+# Light/dark theme-aware launcher icons.
+#
+# Source images live in `assets/branding/`:
+#   - app_icon_light.png  (1024×1024, white background)
+#   - app_icon_dark.png   (1024×1024, black background)
+#
+# Generate every Android density bucket + every iOS @1x/@2x/@3x
+# size from those two PNGs with:
+#
+#   dart run flutter_launcher_icons
+#
+# On iOS 18+ the system swaps between light and dark variants
+# automatically based on Settings → Display & Brightness. On older
+# iOS we ship the light variant only (Apple's appearances API
+# didn't exist before iOS 18). On Android 13+ the system's
+# "themed icons" feature can monochrome-tint the foreground; the
+# monochrome layer is the same dumbbell glyph isolated from the
+# light icon.
+flutter_launcher_icons:
+  # iOS — light is the default; dark is picked up via the
+  # appearances mechanism that flutter_launcher_icons writes into
+  # AppIcon.appiconset/Contents.json.
+  ios: true
+  remove_alpha_ios: true
+  image_path: "assets/branding/app_icon_light.png"
+  image_path_ios_dark_transparent: "assets/branding/app_icon_dark.png"
+
+  # Android — adaptive icon (Android 8+) with the lime brand colour
+  # as the background and the wordmark as the foreground. The
+  # monochrome layer feeds Android 13+ themed icons.
+  android: "ic_launcher"
+  adaptive_icon_background: "#FAFAF9"
+  adaptive_icon_foreground: "assets/branding/app_icon_light.png"
+  adaptive_icon_monochrome: "assets/branding/app_icon_light.png"
+  min_sdk_android: 21

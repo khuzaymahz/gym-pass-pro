@@ -37,16 +37,26 @@ async def list_all(
     photos: Annotated[GymPhotoRepository, Depends(gym_photo_repo)],
     _: Annotated[User, Depends(current_admin)],
     audience: AudienceGender | None = Query(default=None),
+    category: str | None = Query(default=None),
+    tier: str | None = Query(default=None),
+    q: str | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100, alias="pageSize"),
 ) -> Page[GymRead]:
-    # Admin sees ALL gyms by default. Optional `audience` query param
-    # narrows to a single audience value when an operator wants to
-    # inspect e.g. only female-only venues.
+    # Admin sees ALL gyms by default. All four filters (audience,
+    # category, tier, q) are optional and combine with AND. Pushing
+    # these to the backend replaces the earlier admin-side approach
+    # of fetching 100 rows and filtering in JS — that capped real
+    # results at 100 silently, and made every page render do server-
+    # paginated work twice (once for the load, once for the filter).
     rows, total = await svc.list_unfiltered(
-        area=None, category=None, tier=None, q=None,
+        area=None,
+        category=category,
+        tier=tier,
+        q=q,
         audience=audience,
-        page=page, page_size=page_size,
+        page=page,
+        page_size=page_size,
     )
     counts = await photos.count_by_gym_ids([r.id for r in rows])
     items = []

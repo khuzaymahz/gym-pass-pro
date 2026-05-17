@@ -1,6 +1,11 @@
-# api.gym-pass.net → FastAPI backend on :8000. WebSocket upgrade
-# handled separately on `/api/v1/realtime/ws` with a long read
-# timeout so live updates survive idle.
+# ${API_DOMAIN} → FastAPI backend on :8000.
+#
+# Rendered from this template at container start by the nginx
+# official image's envsubst hook (NGINX_ENVSUBST_TEMPLATE_DIR).
+# `${API_DOMAIN}` resolves to `stg-api.gym-pass.net` in staging
+# and `api.gym-pass.net` in production. No other vars in this
+# file get rewritten — see NGINX_ENVSUBST_FILTER in the compose
+# overlay.
 
 upstream backend_upstream {
     server backend:8000;
@@ -9,14 +14,14 @@ upstream backend_upstream {
 server {
     listen 80;
     listen [::]:80;
-    server_name api.gym-pass.net;
+    server_name ${API_DOMAIN};
     return 301 https://$host$request_uri;
 }
 
 server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
-    server_name api.gym-pass.net;
+    server_name ${API_DOMAIN};
 
     include /etc/nginx/snippets/ssl.conf;
 

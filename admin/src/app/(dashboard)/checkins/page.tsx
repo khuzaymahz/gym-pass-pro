@@ -22,6 +22,7 @@ const PAGE_SIZE = 50;
 const STATUSES: readonly CheckinStatus[] = [
   "success",
   "tier_locked",
+  "gender_locked",
   "no_visits",
   "expired",
   "invalid_qr",
@@ -31,6 +32,10 @@ const STATUSES: readonly CheckinStatus[] = [
 const STATUS_TONE: Record<CheckinStatus, "ok" | "warn" | "bad" | "mute"> = {
   success: "ok",
   tier_locked: "warn",
+  // `gender_locked` shares the same operator response as
+  // `tier_locked` — both are "access correctly denied at the door",
+  // not a system fault — so they map to the same warning tone.
+  gender_locked: "warn",
   no_visits: "warn",
   expired: "mute",
   invalid_qr: "bad",

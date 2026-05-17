@@ -77,7 +77,9 @@
     "backToLogin": "Back to sign-in",
     "alreadyMember": "Already approved?",
     "signIn": "Sign in",
-    "errorTooManyPhotos": "Up to {max} photos allowed."
+    "errorTooManyPhotos": "Up to {max} photos allowed.",
+    "errorImageType": "Only JPEG, PNG, or WebP images are accepted.",
+    "errorImageSize": "Image is too large (max {max} MB)."
   },
   "nav": {
     "dashboard": "Dashboard",

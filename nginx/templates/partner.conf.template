@@ -1,20 +1,23 @@
-# admin.gym-pass.net → admin dashboard Next.js on :3001.
+# ${PARTNER_DOMAIN} → gym-partner Next.js on :3003.
+#
+# `${PARTNER_DOMAIN}` resolves to `stg-partner.gym-pass.net` in
+# staging and `partner.gym-pass.net` in production.
 
-upstream admin_upstream {
-    server admin:3001;
+upstream partner_upstream {
+    server gym-partner:3003;
 }
 
 server {
     listen 80;
     listen [::]:80;
-    server_name admin.gym-pass.net;
+    server_name ${PARTNER_DOMAIN};
     return 301 https://$host$request_uri;
 }
 
 server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
-    server_name admin.gym-pass.net;
+    server_name ${PARTNER_DOMAIN};
 
     include /etc/nginx/snippets/ssl.conf;
 
@@ -23,7 +26,7 @@ server {
     add_header Referrer-Policy strict-origin-when-cross-origin always;
 
     location / {
-        proxy_pass         http://admin_upstream;
+        proxy_pass         http://partner_upstream;
         proxy_http_version 1.1;
         proxy_set_header   Host $host;
         proxy_set_header   X-Real-IP $remote_addr;

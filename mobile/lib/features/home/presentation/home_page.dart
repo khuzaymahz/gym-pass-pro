@@ -20,6 +20,8 @@ import '../../../l10n/app_localizations.dart';
 import '../../auth/data/user_profile.dart';
 import '../../gyms/data/gym_repository.dart';
 import '../../gyms/data/gym_summary.dart';
+import '../../gyms/data/home_region_store.dart';
+import '../../gyms/data/location_service.dart';
 import '../../gyms/presentation/gyms_filter_state.dart';
 import '../../notifications/data/notifications_repository.dart';
 import '../../subscription/data/subscription_state.dart';
@@ -42,6 +44,63 @@ class HomePage extends ConsumerStatefulWidget {
 }
 
 class _HomePageState extends ConsumerState<HomePage> {
+  /// Tracks whether we've already kicked off a one-shot location
+  /// fetch since the page mounted. Without this, every rebuild
+  /// would re-fire the GPS read (and the OS permission prompt that
+  /// goes with it). Set true the moment we fire — even if the
+  /// fetch fails, we don't retry from here; Explore's locate-me
+  /// button is the manual recovery path.
+  bool _locationBootstrapped = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Defer the GPS read until after the first frame paints so the
+    // home shell isn't blocked on the OS permission prompt cold-
+    // starting. The result lands in `userPositionProvider`; GymRow
+    // + the Near You sort below pick it up reactively.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _ensureUserLocation();
+    });
+  }
+
+  /// Hydrates `userPositionProvider` from the persisted region store
+  /// (instant — used as the first-paint distance baseline), then
+  /// fires a live GPS read in the background to refine it. Same
+  /// pattern Explore's `_locateUser` uses, hoisted here so the
+  /// Home tab works as the entry point too: a member who lands on
+  /// Home and never opens Explore still gets real distances on the
+  /// Near You list and on every gym row across the app.
+  Future<void> _ensureUserLocation() async {
+    if (_locationBootstrapped) return;
+    _locationBootstrapped = true;
+
+    // Already hydrated by another surface (e.g. user opened Explore
+    // first). Nothing to do.
+    if (ref.read(userPositionProvider) != null) return;
+
+    final regionStore = ref.read(homeRegionStoreProvider);
+    final stored = await regionStore.read();
+    if (!mounted) return;
+    if (stored != null && ref.read(userPositionProvider) == null) {
+      // Use the last-known fix immediately so distances render on
+      // the first paint instead of staying blank for the live-GPS
+      // round trip. Live GPS below will overwrite this with a fresh
+      // reading.
+      ref.read(userPositionProvider.notifier).state = stored;
+    }
+
+    final result = await ref.read(locationServiceProvider).currentPosition();
+    if (!mounted || !result.hasPosition) return;
+    final pos = result.position!;
+    final fresh = HomeLocation(lat: pos.latitude, lng: pos.longitude);
+    ref.read(userPositionProvider.notifier).state = fresh;
+    // Persist for the next cold start; also feeds Explore's
+    // initial-region framing the next time the user opens it.
+    await regionStore.write(pos.latitude, pos.longitude);
+  }
+
   Future<void> _handleRefresh() async {
     // Real refresh — actually re-fetches from the backend instead
     // of re-awaiting the cached `.ready` future (which after the
@@ -58,11 +117,15 @@ class _HomePageState extends ConsumerState<HomePage> {
     // didn't update anything." Reading `.future` after invalidate
     // triggers the new fetch and gives us a Future to await
     // alongside the other two refreshes.
-    ref.invalidate(gymsListProvider);
+    // The gymsListStateProvider notifier owns its own cache + fetch
+    // lifecycle; calling refresh() here re-fires the backend call,
+    // overwriting the cache on success and switching the source to
+    // `cached` (preserving the existing items) on failure. We await
+    // it so the pull-to-refresh indicator stops at the right moment.
     await Future.wait<void>([
       ref.read(subscriptionProvider.notifier).refreshFromBackend(),
       ref.read(profileProvider.notifier).refreshFromBackend(),
-      ref.read(gymsListProvider.future),
+      ref.read(gymsListStateProvider.notifier).refresh(),
     ]);
   }
 
@@ -79,8 +142,21 @@ class _HomePageState extends ConsumerState<HomePage> {
     // is non-null after the first hydrate; before that we render
     // skeletons.
     final gymsAsync = ref.watch(gymsListProvider);
-    final nearYou = gymsAsync.valueOrNull ?? const <GymSummary>[];
-    final isLoadingGyms = gymsAsync.isLoading && nearYou.isEmpty;
+    final allGyms = gymsAsync.valueOrNull ?? const <GymSummary>[];
+    final isLoadingGyms = gymsAsync.isLoading && allGyms.isEmpty;
+    // Near You is **distance-sorted** when the user's position is
+    // available — backend returns gyms in unspecified order and
+    // simply taking the first three was lying ("near you" with no
+    // distance signal). Once `userPositionProvider` hydrates (see
+    // `_ensureUserLocation` in initState) the list re-sorts by
+    // great-circle distance ascending. Gyms without coordinates
+    // sink to the end. When position is null (cold start before
+    // GPS resolves, or permission denied) we keep backend order —
+    // honest "we don't know yet" instead of a fake sort.
+    final userPos = ref.watch(userPositionProvider);
+    final nearYou = userPos == null
+        ? allGyms
+        : _sortByDistance(allGyms, userPos.lat, userPos.lng);
     final topInset = MediaQuery.viewPaddingOf(context).top;
     final firstName = profile.firstName?.trim();
     final greeting = (firstName != null && firstName.isNotEmpty)
@@ -210,6 +286,22 @@ class _HomePageState extends ConsumerState<HomePage> {
                     );
                   }
                   if (nearYou.isEmpty) {
+                    // Empty-state copy distinguishes:
+                    //   - We've never had a successful fetch on this
+                    //     device AND we're offline → "you're offline,
+                    //     connect and pull to refresh"
+                    //   - Backend genuinely returned zero rows →
+                    //     "no partner gyms in the network yet"
+                    // The freshness signal lives on
+                    // `gymsListStateProvider.source`. Without this
+                    // distinction the user sees the same "no gyms"
+                    // copy whether the network is unreachable or
+                    // the backend is empty — which reads as a bug
+                    // either way.
+                    final listState = ref.watch(gymsListStateProvider);
+                    final isOffline = listState.source ==
+                            GymsListSource.cached &&
+                        listState.items.isEmpty;
                     return Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -218,15 +310,16 @@ class _HomePageState extends ConsumerState<HomePage> {
                         border: Border.all(color: gp.line),
                       ),
                       child: Text(
-                        l.homeNoGymsYet,
+                        isOffline
+                            ? l.homeOfflineNoCache
+                            : l.homeNoGymsYet,
                         style: GPText.body(size: 13, color: gp.mutedSoft),
                       ),
                     );
                   }
-                  // Pick the first three. Future iteration: sort by
-                  // user GPS distance once we have the position
-                  // ready before this point in the build (already
-                  // tracked in `userPositionProvider`).
+                  // Distance-sorted ascending when GPS is available;
+                  // raw backend order otherwise. See the `nearYou`
+                  // assignment above for the rationale.
                   final firstThree = nearYou.take(3).toList();
                   final isAr = Localizations.localeOf(context)
                           .languageCode ==
@@ -696,6 +789,36 @@ class _CategoryGrid extends ConsumerWidget {
 /// row in a list that's supposed to be live.
 GPGym _gymSummaryToGPGym(GymSummary s, {required bool isAr}) {
   return gymSummaryToGPGym(s, isAr: isAr);
+}
+
+/// Sort `gyms` ascending by great-circle distance from
+/// (`userLat`, `userLng`). Rows missing coords sink to the end (the
+/// distance helper returns null for `lat == 0 && lng == 0` — we
+/// treat null as "infinitely far" rather than "right at the user").
+/// Pure function; the caller decides whether to take(N) afterwards.
+List<GymSummary> _sortByDistance(
+  List<GymSummary> gyms,
+  double userLat,
+  double userLng,
+) {
+  final copy = List<GymSummary>.from(gyms);
+  copy.sort((a, b) {
+    final da = _distance(a, userLat, userLng);
+    final db = _distance(b, userLat, userLng);
+    if (da == null && db == null) return 0;
+    if (da == null) return 1;
+    if (db == null) return -1;
+    return da.compareTo(db);
+  });
+  return copy;
+}
+
+double? _distance(GymSummary g, double userLat, double userLng) {
+  final lat = g.lat;
+  final lng = g.lng;
+  if (lat == null || lng == null) return null;
+  if (lat == 0 && lng == 0) return null;
+  return haversineKm(userLat, userLng, lat, lng);
 }
 
 /// Public version of the adapter so favourites / explore / any other

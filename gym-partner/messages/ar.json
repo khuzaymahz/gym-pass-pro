@@ -77,7 +77,9 @@
     "backToLogin": "العودة لتسجيل الدخول",
     "alreadyMember": "حسابك معتمد بالفعل؟",
     "signIn": "تسجيل الدخول",
-    "errorTooManyPhotos": "يُسمح بحد أقصى {max} صور."
+    "errorTooManyPhotos": "يُسمح بحد أقصى {max} صور.",
+    "errorImageType": "يُقبل فقط ملفات JPEG أو PNG أو WebP.",
+    "errorImageSize": "الصورة كبيرة جداً (الحد الأقصى {max} ميغابايت)."
   },
   "nav": {
     "dashboard": "اللوحة",

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/network/connectivity_banner.dart';
 import '../../../core/router/app_router.dart' show branchNavigatorKeys;
 import '../../../core/widgets/gp_tab_bar.dart';
 
@@ -130,22 +131,36 @@ class HomeShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      body: GestureDetector(
-        // HorizontalDragEnd fires only when no child claimed the
-        // gesture via the arena, so this won't interfere with inner
-        // horizontal scrollers.
-        behavior: HitTestBehavior.translucent,
-        onHorizontalDragEnd: (details) {
-          handleHorizontalDragEndVelocity(
-            context,
-            ref,
-            details.primaryVelocity ?? 0,
-          );
-        },
-        // The `StatefulNavigationShell` widget renders the
-        // IndexedStack of branch navigators directly, so it IS our
-        // body — no `child` indirection.
-        child: navigationShell,
+      body: Column(
+        children: [
+          // Offline indicator pinned at the top of the shell, above
+          // every tab. Renders an empty SizedBox when online, so
+          // tab layouts don't shift the moment the banner appears
+          // or disappears — they share the safe-area top edge.
+          const SafeArea(
+            bottom: false,
+            child: ConnectivityBanner(),
+          ),
+          Expanded(
+            child: GestureDetector(
+              // HorizontalDragEnd fires only when no child claimed the
+              // gesture via the arena, so this won't interfere with inner
+              // horizontal scrollers.
+              behavior: HitTestBehavior.translucent,
+              onHorizontalDragEnd: (details) {
+                handleHorizontalDragEndVelocity(
+                  context,
+                  ref,
+                  details.primaryVelocity ?? 0,
+                );
+              },
+              // The `StatefulNavigationShell` widget renders the
+              // IndexedStack of branch navigators directly, so it IS
+              // our body — no `child` indirection.
+              child: navigationShell,
+            ),
+          ),
+        ],
       ),
       // Bottom nav is locked to LTR in every locale — the tab order
       // (home · gyms · scan · profile) is a fixed product shape,

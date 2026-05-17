@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 #
-# scripts/deploy.sh — pre-prod deployment runner.
+# scripts/deploy.sh — staging deployment runner.
 #
-# Runs on the VM (35.203.162.232 today). Assumes:
+# Runs on the staging VM. Assumes:
 #   - You're sitting in the project root (`/opt/gympass` typically).
 #   - Docker + Compose v2 are installed and your user is in `docker`.
-#   - `.env.prod` exists and is filled in (copy from .env.prod.example).
-#   - `nginx/certs/gym-pass.net.pem` and `gym-pass.net.key` exist.
+#   - `.env.staging` exists and is filled in (copy from .env.staging.example).
+#   - `nginx/certs/gym-pass.net.pem` and `gym-pass.net.key` exist
+#     (the Cloudflare Origin Cert covers *.gym-pass.net + apex, so
+#     the same cert serves the stg-* hostnames).
 #   - The repo is already cloned (this script doesn't pull — leave that
 #     to the operator so a half-clone never gets deployed by accident).
 #
@@ -17,7 +19,7 @@
 #   3. Builds the four app images (backend, admin, gym-partner, website).
 #   4. Brings the stack up.
 #   5. Runs alembic upgrade head against the live DB.
-#   6. Smoke-tests every public endpoint.
+#   6. Smoke-tests every public endpoint via scripts/smoke.sh.
 #
 # Idempotent — re-running picks up any new commit on the deploy branch
 # and rolls forward. Failures abort early; partial state survives.
@@ -27,18 +29,13 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-readonly COMPOSE=(docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod)
+readonly COMPOSE=(docker compose -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging)
 readonly REQUIRED_FILES=(
-  ".env.prod"
+  ".env.staging"
   "nginx/certs/gym-pass.net.pem"
   "nginx/certs/gym-pass.net.key"
 )
-readonly SMOKE_HOSTS=(
-  "https://gym-pass.net"
-  "https://api.gym-pass.net/health"
-  "https://admin.gym-pass.net"
-  "https://partner.gym-pass.net"
-)
+readonly SMOKE_API_BASE="https://stg-api.gym-pass.net"
 
 log()  { printf '\033[1;33m[deploy]\033[0m %s\n' "$*"; }
 fail() { printf '\033[1;31m[deploy]\033[0m %s\n' "$*" >&2; exit 1; }
@@ -95,22 +92,11 @@ log "Running alembic upgrade head…"
 log "Waiting for nginx + backends to be healthy…"
 sleep 6
 
-failed=0
-for url in "${SMOKE_HOSTS[@]}"; do
-  # -k tolerates self-signed in case Cloudflare isn't proxying yet;
-  # -L follows the apex→canonical redirects we set up.
-  # Anything 2xx or 3xx is OK; 4xx/5xx is a deploy failure.
-  status=$(curl -s -k -o /dev/null -w "%{http_code}" -L --max-time 10 "$url" || echo "000")
-  if [[ "$status" =~ ^[23] ]]; then
-    log "  $url  ✓  ($status)"
-  else
-    printf '\033[1;31m[deploy]\033[0m   %s  ✗  (%s)\n' "$url" "$status" >&2
-    failed=1
-  fi
-done
-
-if (( failed )); then
-  fail "one or more smoke tests failed. Check 'docker compose logs --tail=200'."
+# Delegate to scripts/smoke.sh so the same probe runs from CI, the
+# Makefile (`make smoke-staging`), and the local dev box. Anything
+# non-zero exit is a deploy failure.
+if ! bash "$ROOT/scripts/smoke.sh" "$SMOKE_API_BASE"; then
+  fail "smoke checks failed. Check 'docker compose logs --tail=200'."
 fi
 
 log "Deploy OK."
