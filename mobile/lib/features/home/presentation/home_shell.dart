@@ -130,35 +130,44 @@ class HomeShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Connectivity banner floats *over* the navigation stack so it
+    // never reserves space when online. Earlier we wrapped it in a
+    // SafeArea + Column row, which permanently claimed the top
+    // safe-area inset (~50 px on most phones) — every tab rendered
+    // with a phantom band between status bar and content. The banner
+    // is now Positioned above the stack and only consumes pixels
+    // when ConnectivityBanner returns its non-zero state; when
+    // online, its `SizedBox.shrink()` paints nothing and the page
+    // below paints right up to the status bar like before.
+    //
+    // Banner is responsible for its own SafeArea internally — it
+    // adds the top inset only when it's actually rendering content.
     return Scaffold(
-      body: Column(
+      body: Stack(
         children: [
-          // Offline indicator pinned at the top of the shell, above
-          // every tab. Renders an empty SizedBox when online, so
-          // tab layouts don't shift the moment the banner appears
-          // or disappears — they share the safe-area top edge.
-          const SafeArea(
-            bottom: false,
-            child: ConnectivityBanner(),
+          GestureDetector(
+            // HorizontalDragEnd fires only when no child claimed the
+            // gesture via the arena, so this won't interfere with inner
+            // horizontal scrollers.
+            behavior: HitTestBehavior.translucent,
+            onHorizontalDragEnd: (details) {
+              handleHorizontalDragEndVelocity(
+                context,
+                ref,
+                details.primaryVelocity ?? 0,
+              );
+            },
+            // The `StatefulNavigationShell` widget renders the
+            // IndexedStack of branch navigators directly, so it IS
+            // our body — no `child` indirection.
+            child: navigationShell,
           ),
-          Expanded(
-            child: GestureDetector(
-              // HorizontalDragEnd fires only when no child claimed the
-              // gesture via the arena, so this won't interfere with inner
-              // horizontal scrollers.
-              behavior: HitTestBehavior.translucent,
-              onHorizontalDragEnd: (details) {
-                handleHorizontalDragEndVelocity(
-                  context,
-                  ref,
-                  details.primaryVelocity ?? 0,
-                );
-              },
-              // The `StatefulNavigationShell` widget renders the
-              // IndexedStack of branch navigators directly, so it IS
-              // our body — no `child` indirection.
-              child: navigationShell,
-            ),
+          // Floating overlay — only takes layout space when offline.
+          const Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: ConnectivityBanner(),
           ),
         ],
       ),
