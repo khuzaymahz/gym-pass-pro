@@ -17,5 +17,5 @@
       now share the same off-white surface.
     -->
     <color name="gp_launch_bg">#FFFAFAF9</color>
-	<color name="ic_launcher_background">#FAFAF9</color>
+	<color name="ic_launcher_background">#000000</color>
 </resources>

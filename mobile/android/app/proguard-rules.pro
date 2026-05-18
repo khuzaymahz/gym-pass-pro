@@ -111,3 +111,19 @@
 -dontwarn java.beans.**
 -dontwarn sun.reflect.**
 -dontwarn sun.misc.**
+
+# Flutter Play Core split-install / deferred-components SDK.
+# The Flutter engine ALWAYS references these classes (in
+# `FlutterPlayStoreSplitApplication` + `PlayStoreDeferredComponentManager`)
+# even when the app ships as a single APK with no deferred
+# components — which is our case. Without these `-dontwarn`s,
+# R8 release builds fail with "Missing class
+# com.google.android.play.core.splitcompat.SplitCompatApplication".
+#
+# The deferred-components path is dead code at runtime when no
+# splits are declared; R8 just needs permission to leave the
+# unresolved refs alone.
+-dontwarn com.google.android.play.core.**
+-dontwarn com.google.android.play.core.splitcompat.**
+-dontwarn com.google.android.play.core.splitinstall.**
+-dontwarn com.google.android.play.core.tasks.**

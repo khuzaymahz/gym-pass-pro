@@ -227,27 +227,47 @@ flutter:
 #
 #   dart run flutter_launcher_icons
 #
-# On iOS 18+ the system swaps between light and dark variants
-# automatically based on Settings → Display & Brightness. On older
-# iOS we ship the light variant only (Apple's appearances API
-# didn't exist before iOS 18). On Android 13+ the system's
-# "themed icons" feature can monochrome-tint the foreground; the
-# monochrome layer is the same dumbbell glyph isolated from the
-# light icon.
+# Theme behaviour by platform:
+#   - iOS 18+:  system swaps automatically between the light and
+#               dark variants based on Settings → Display &
+#               Brightness, via Apple's `appearances` array in
+#               AppIcon.appiconset/Contents.json.
+#   - iOS ≤17:  no `appearances` API — shows the light variant
+#               (the explicit `image_path_ios`) always.
+#   - Android:  has NO native "swap icon on theme change"
+#               mechanism. We default to the **dark/black-bg
+#               icon** on Android so the wordmark stands out
+#               consistently on dark home screens (the
+#               emulator default + most modern Pixel/Samsung
+#               wallpapers). The dark icon's high contrast
+#               (white "GP" + yellow accents on black) also
+#               reads clearly on light wallpapers.
 flutter_launcher_icons:
-  # iOS — light is the default; dark is picked up via the
-  # appearances mechanism that flutter_launcher_icons writes into
-  # AppIcon.appiconset/Contents.json.
   ios: true
   remove_alpha_ios: true
-  image_path: "assets/branding/app_icon_light.png"
+  # iOS default + legacy Android fallback both source the dark
+  # icon. The iOS-specific override below promotes the light
+  # variant to the iOS LIGHT-mode appearance, and the dark stays
+  # as the iOS DARK appearance via image_path_ios_dark_transparent.
+  image_path: "assets/branding/app_icon_dark.png"
+  image_path_ios: "assets/branding/app_icon_light.png"
   image_path_ios_dark_transparent: "assets/branding/app_icon_dark.png"
 
-  # Android — adaptive icon (Android 8+) with the lime brand colour
-  # as the background and the wordmark as the foreground. The
-  # monochrome layer feeds Android 13+ themed icons.
+  # Android adaptive icon (Android 8+). Foreground is the
+  # full-bake dark icon; background colour matches its baked
+  # background so the launcher's mask shape can crop without
+  # exposing a different colour underneath. The dark icon
+  # already has black bg in the centre + edges, so any mask
+  # shape (circle / squircle / rounded-square) stays cohesive.
+  #
+  # `adaptive_icon_monochrome` is intentionally OMITTED — that
+  # field expects a TRANSPARENT-bg silhouette, but both source
+  # images are fully opaque. Shipping the opaque image as a
+  # monochrome layer would produce a solid-colour square when a
+  # user toggles Android 13+ Themed Icons. Better to disable
+  # themed-icons (default OFF for most users anyway) than to
+  # ship a broken monochrome.
   android: "ic_launcher"
-  adaptive_icon_background: "#FAFAF9"
-  adaptive_icon_foreground: "assets/branding/app_icon_light.png"
-  adaptive_icon_monochrome: "assets/branding/app_icon_light.png"
+  adaptive_icon_background: "#000000"
+  adaptive_icon_foreground: "assets/branding/app_icon_dark.png"
   min_sdk_android: 21
