@@ -622,6 +622,14 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
     return TextFormField(
       controller: controller,
       obscureText: !visible,
+      // Passwords are always Latin, so force the typed text + cursor
+      // to the visual-left even on an Arabic page. Keying off the
+      // input type (not `obscure`) so the alignment survives the
+      // visibility toggle — otherwise revealing the password would
+      // snap the visible text to the right edge of the field.
+      keyboardType: TextInputType.visiblePassword,
+      textDirection: TextDirection.ltr,
+      textAlign: TextAlign.left,
       validator: validator,
       cursorColor: gp.accentInk,
       style: GPText.body(size: 15, color: gp.fg, weight: FontWeight.w500),

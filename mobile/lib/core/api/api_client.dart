@@ -4,11 +4,15 @@ import 'package:dio/dio.dart';
 
 import '../config/env.dart';
 import 'api_exception.dart';
+import 'retry_interceptor.dart';
 import 'token_store.dart';
 
 class ApiClient {
-  ApiClient({required AppEnv env, required TokenStore tokens})
-      : _tokens = tokens,
+  ApiClient({
+    required AppEnv env,
+    required TokenStore tokens,
+    Future<bool> Function()? isOnline,
+  })  : _tokens = tokens,
         dio = Dio(
           BaseOptions(
             baseUrl: env.apiBaseUrl,
@@ -17,6 +21,12 @@ class ApiClient {
             headers: {'content-type': 'application/json'},
           ),
         ) {
+    // Order matters. Retry sits **before** auth so a 5xx retry runs
+    // its own backoff loop on the original (still-authed) request,
+    // and only failures it can't recover from cascade to the auth
+    // interceptor — which then handles 401 / refresh / re-issue
+    // exactly once.
+    dio.interceptors.add(RetryInterceptor(dio: dio, isOnline: isOnline));
     dio.interceptors.add(_buildInterceptor());
   }
 

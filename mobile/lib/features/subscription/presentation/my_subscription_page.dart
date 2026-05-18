@@ -53,8 +53,9 @@ class MySubscriptionPage extends ConsumerWidget {
             // whatever the backend has right now. Was awaiting
             // `.ready`, which is a resolved future after first hydrate
             // and never re-fetched anything on subsequent pulls.
-            onRefresh: () =>
-                ref.read(subscriptionProvider.notifier).refreshFromBackend(),
+            onRefresh: () => ref
+                .read(subscriptionProvider.notifier)
+                .refreshFromBackend(throwOnError: true),
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(
                 parent: TopBouncePhysics(),

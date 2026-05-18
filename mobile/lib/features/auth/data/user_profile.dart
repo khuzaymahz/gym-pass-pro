@@ -212,15 +212,20 @@ class ProfileController extends StateNotifier<UserProfile> {
   /// Used by pull-to-refresh on home + profile so any field an
   /// admin edited server-side (name fix, gender correction, email
   /// reset) flows back into the app without requiring a logout.
-  /// Network failures are swallowed — a stale local snapshot is
+  /// Network failures keep the stale local snapshot in [state] —
   /// preferable to wiping the profile mid-session.
+  ///
+  /// [throwOnError] — set true from explicit user-initiated refreshes
+  /// so the caller (the pull-to-refresh wrapper) can surface a
+  /// snackbar instead of leaving the user thinking the refresh
+  /// succeeded. Background / startup callers leave it false.
   ///
   /// Birthdate is preserved from local state because `/me`'s
   /// response shape doesn't include it yet; the field was added to
   /// the request body of `PATCH /me` but the read DTO is older.
   /// When the backend response includes birthdate, threading it
   /// through here is a one-line change.
-  Future<void> refreshFromBackend() async {
+  Future<void> refreshFromBackend({bool throwOnError = false}) async {
     try {
       final me = await _repo.fetchMe();
       // Preserve the locally-stored password hash + birthdate (the
@@ -257,7 +262,10 @@ class ProfileController extends StateNotifier<UserProfile> {
         );
       }
     } catch (_) {
-      // Offline / token expired / 5xx — keep what we have.
+      // Offline / token expired / 5xx — keep what we have. Rethrow
+      // only when the caller asked to be told (so pull-to-refresh
+      // can show a snackbar); silent otherwise.
+      if (throwOnError) rethrow;
     }
   }
 

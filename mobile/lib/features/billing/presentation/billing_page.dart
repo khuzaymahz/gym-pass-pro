@@ -46,7 +46,9 @@ class BillingPage extends ConsumerWidget {
             // the gesture appeared to work but the page never
             // actually re-fetched anything.
             onRefresh: () => Future.wait([
-              ref.read(subscriptionProvider.notifier).refreshFromBackend(),
+              ref
+                  .read(subscriptionProvider.notifier)
+                  .refreshFromBackend(throwOnError: true),
               ref.read(billingProvider.notifier).refreshFromBackend(),
             ]),
             child: ListView(

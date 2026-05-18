@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
+import '../network/network_error.dart';
 import 'gym_loader.dart';
 
 /// Pull-to-refresh wrapper that swaps the platform spinner for a
@@ -31,10 +35,30 @@ class WordmarkRefresh extends StatefulWidget {
     required this.onRefresh,
     required this.child,
     this.topOffset,
+    this.onError,
+    this.surfaceErrors = true,
   });
 
   final Future<void> Function() onRefresh;
   final Widget child;
+
+  /// Hook fired when `onRefresh` throws. The default behaviour
+  /// (when this is null and [surfaceErrors] is true) is a snackbar
+  /// in the widget's nearest `ScaffoldMessenger` — routed through
+  /// the central network classifier so transport faults read "check
+  /// your connection" and everything else collapses to the generic
+  /// snack. Pages with their own error-state UI (an inline empty
+  /// state, an offline banner already onscreen, etc.) can pass a
+  /// no-op or a custom handler.
+  final void Function(Object error)? onError;
+
+  /// Set to false on pages that already manage their own refresh-
+  /// failure UI (e.g. the gyms list, which catches internally and
+  /// flips `source` to `cached`). The wrapper still closes the
+  /// indicator cleanly; it just doesn't pop a snackbar. Defaults
+  /// to true because it's the safer choice for pages that haven't
+  /// thought about the failure path yet.
+  final bool surfaceErrors;
 
   /// Distance from the top of this widget down to where the indicator
   /// settles when armed. Defaults to the OS safe-area inset + 56 to
@@ -168,15 +192,29 @@ class _WordmarkRefreshState extends State<WordmarkRefresh>
       _refreshing = true;
     });
     _completion.value = 0;
+    Object? refreshError;
     try {
-      // Phase 1: actual refresh + minimum display window.
+      // Phase 1: actual refresh + minimum display window. We catch
+      // the user's onRefresh exception inline (instead of letting it
+      // propagate out of `Future.wait`) so the completion animation
+      // still runs and the indicator closes cleanly — then we
+      // surface the error below.
       await Future.wait([
         widget.onRefresh().timeout(
           _refreshHardTimeout,
           onTimeout: () {
-            // Swallow — the indicator closes regardless.
+            // Treat as a transport timeout so the snackbar reads
+            // "check your connection" instead of the generic copy.
+            // A hanging request 8 s into a refresh almost always
+            // means the network has dropped mid-fetch.
+            refreshError = TimeoutException(
+              'Refresh timed out',
+              _refreshHardTimeout,
+            );
           },
-        ),
+        ).catchError((Object e) {
+          refreshError = e;
+        }),
         Future<void>.delayed(WordmarkRefresh.minActiveDisplay),
       ]);
       if (!mounted) return;
@@ -193,7 +231,29 @@ class _WordmarkRefreshState extends State<WordmarkRefresh>
         _completion.value = 0;
       }
     }
+    // Run the error hook after the indicator has fully closed, so a
+    // snackbar doesn't fight the dumbbell for screen space at the
+    // top of the page. We also re-check `mounted` because a refresh
+    // that fires during navigation can outlive its host.
+    final err = refreshError;
+    if (err != null && mounted) {
+      final hook = widget.onError;
+      if (hook != null) {
+        hook(err);
+      } else if (widget.surfaceErrors) {
+        final messenger = ScaffoldMessenger.maybeOf(context);
+        if (messenger != null) {
+          final l = AppLocalizations.of(context);
+          messenger
+            ..hideCurrentSnackBar()
+            ..showSnackBar(
+              SnackBar(content: Text(resolveErrorMessage(err, l))),
+            );
+        }
+      }
+    }
   }
+
 
   @override
   Widget build(BuildContext context) {

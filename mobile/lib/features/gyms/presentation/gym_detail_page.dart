@@ -197,7 +197,19 @@ class GymDetailPage extends ConsumerWidget {
         backgroundColor: gp.bg,
         body: Stack(
         children: [
-          SizedBox(
+          ClipRRect(
+            // Round the photo's bottom corners with the same radius
+            // the white card uses on its top corners (GPRadius.xl2 =
+            // 24). Without this, the photo extends edge-to-edge in a
+            // sharp rectangle and shows two slim triangles peeking
+            // out past the card's curved corners — read by members
+            // as "the photo isn't aligned with the card." Top stays
+            // square because the photo runs into the screen edge
+            // (where the device's display radius handles it).
+            borderRadius: const BorderRadius.vertical(
+              bottom: Radius.circular(GPRadius.xl2),
+            ),
+            child: SizedBox(
             height: 400,
             // Crossfade the loading-state gradient → real photo slider
             // (and back, on error). Without this the swap is a hard cut
@@ -264,6 +276,7 @@ class GymDetailPage extends ConsumerWidget {
                 ),
               ),
             ),
+          ),
           ),
           // Subtle top vignette so the floating back / fav / share
           // buttons stay legible over any hero photo. Originally this
@@ -807,7 +820,9 @@ class _AudienceBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final isFemale = audience == 'female_only';
-    final color = isFemale ? GP.audienceFemale : GP.audienceMale;
+    final color = isFemale
+        ? const Color(0xFFEC4899)
+        : const Color(0xFF60A5FA);
     final label = isFemale ? l.audienceFemaleOnly : l.audienceMaleOnly;
     final icon = isFemale ? Icons.female : Icons.male;
     return Container(
@@ -1038,12 +1053,29 @@ class _PhotoSliderState extends State<_PhotoSlider> {
     return Stack(
       children: [
         Positioned.fill(
+          // Two stacked ShaderMasks composite their alphas (each runs
+          // BlendMode.dstIn on its child), so the photo's final
+          // opacity at any pixel is `linearAlpha × radialAlpha`.
+          //   * Outer (radial): keeps the center fully opaque, fades
+          //     only the four corner pixels. Wide radius + late fade
+          //     stop so the falloff stays tight to the corners and
+          //     doesn't read as a global vignette.
+          //   * Inner (linear): existing bottom-edge softening into
+          //     the white card. Untouched.
           child: ShaderMask(
+            shaderCallback: (rect) => const RadialGradient(
+              center: Alignment.center,
+              radius: 0.95,
+              colors: [Colors.black, Colors.black, Colors.transparent],
+              stops: [0.0, 0.75, 1.0],
+            ).createShader(rect),
+            blendMode: BlendMode.dstIn,
+            child: ShaderMask(
             shaderCallback: (rect) => const LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [Colors.black, Colors.black, Colors.transparent],
-              stops: [0.0, 0.6, 1.0],
+              stops: [0.0, 0.9, 1.0],
             ).createShader(rect),
             blendMode: BlendMode.dstIn,
             child: PageView.builder(
@@ -1087,6 +1119,7 @@ class _PhotoSliderState extends State<_PhotoSlider> {
                 );
               },
             ),
+          ),
           ),
         ),
         Positioned(

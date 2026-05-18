@@ -122,9 +122,17 @@ class _HomePageState extends ConsumerState<HomePage> {
     // overwriting the cache on success and switching the source to
     // `cached` (preserving the existing items) on failure. We await
     // it so the pull-to-refresh indicator stops at the right moment.
+    // `throwOnError: true` lets the WordmarkRefresh wrapper see a
+    // failure and pop the "check your connection" snackbar.
+    // Subscription / profile keep their cached snapshots regardless;
+    // the gym list manages its own freshness signal via `source`.
     await Future.wait<void>([
-      ref.read(subscriptionProvider.notifier).refreshFromBackend(),
-      ref.read(profileProvider.notifier).refreshFromBackend(),
+      ref
+          .read(subscriptionProvider.notifier)
+          .refreshFromBackend(throwOnError: true),
+      ref
+          .read(profileProvider.notifier)
+          .refreshFromBackend(throwOnError: true),
       ref.read(gymsListStateProvider.notifier).refresh(),
     ]);
   }

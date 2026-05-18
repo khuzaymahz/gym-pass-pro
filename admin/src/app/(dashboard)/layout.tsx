@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { getServerSession } from "next-auth";
 
+import { OfflineBanner } from "@/components/OfflineBanner";
 import Sidebar from "@/components/Sidebar";
 import { authOptions } from "@/lib/auth";
 import { AdminSDK } from "@/lib/sdk";
@@ -61,18 +62,21 @@ export default async function DashboardLayout({
   // (count stays 0).
 
   return (
-    <div className="flex min-h-screen bg-ink text-paper">
-      <Sidebar
-        email={session.user.email}
-        openTicketCount={openTicketCount}
-        urgentTicketCount={urgentTicketCount}
-        pendingApplicationCount={pendingApplicationCount}
-      />
-      <main className="flex-1 overflow-x-hidden">
-        <div className="mx-auto w-full max-w-[1280px] px-10 py-8">
-          {children}
-        </div>
-      </main>
+    <div className="flex min-h-screen flex-col bg-ink text-paper">
+      <OfflineBanner />
+      <div className="flex flex-1">
+        <Sidebar
+          email={session.user.email}
+          openTicketCount={openTicketCount}
+          urgentTicketCount={urgentTicketCount}
+          pendingApplicationCount={pendingApplicationCount}
+        />
+        <main className="flex-1 overflow-x-hidden">
+          <div className="mx-auto w-full max-w-[1280px] px-10 py-8">
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

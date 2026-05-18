@@ -116,20 +116,18 @@ class BackBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Direction-aware back affordance:
-    //   - LTR (English): icon points LEFT, button anchors visual-left
-    //     of the page header.
-    //   - RTL (Arabic):  icon points RIGHT, button anchors visual-right
-    //     of the page header (callers use `PositionedDirectional` /
-    //     `Row` without forced LTR so the natural reading order
-    //     places it correctly).
-    // Flutter's `Material Icons.arrow_back` is *not* auto-mirrored by
-    // the Icon widget on its own — we flip it explicitly so the
-    // arrowhead always points to where "previous" comes from in the
-    // current reading order.
-    final isRtl = Directionality.of(context) == TextDirection.rtl;
+    // Direction-aware back affordance via Material's built-in
+    // mirroring. `Icons.arrow_back` carries `matchTextDirection:
+    // true`, so the `Icon` widget auto-flips the glyph based on the
+    // ambient Directionality:
+    //   - LTR: arrow points LEFT  (← back)
+    //   - RTL: arrow points RIGHT (back → in reading order)
+    // The previous version manually swapped to `arrow_forward` in
+    // RTL — which Flutter then ALSO mirrored, leaving the arrow
+    // pointing LEFT in Arabic. Trust the framework: one icon,
+    // both locales.
     return IconBtn(
-      icon: isRtl ? Icons.arrow_forward : Icons.arrow_back,
+      icon: Icons.arrow_back,
       onPressed: onPressed ??
           () {
             if (context.canPop()) {

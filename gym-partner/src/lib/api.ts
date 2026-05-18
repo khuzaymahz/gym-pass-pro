@@ -54,6 +54,19 @@ export class ApiError extends Error {
   }
 }
 
+/// Thrown when the request couldn't reach the backend at all — DNS
+/// failure, connection refused, request aborted by our own timeout,
+/// or the runtime's `fetch` throwing `TypeError("fetch failed")`.
+/// Distinct from [ApiError] because the error.tsx boundary renders
+/// it as "check your connection" instead of generic "something went
+/// wrong".
+export class NetworkError extends Error {
+  constructor(message: string, public readonly cause?: unknown) {
+    super(message);
+    this.name = "NetworkError";
+  }
+}
+
 /// Backend codes that mean "the partner's session is no longer valid".
 /// We redirect to /login on these instead of bubbling a 500 — the gym
 /// owner sees a clean "please sign in again" surface, not a stack
@@ -65,6 +78,13 @@ const SESSION_EXPIRED_CODES = new Set([
   "AUTH_UNAUTHORIZED",
 ]);
 
+/// HTTP methods we can safely retry. POST is excluded because the
+/// backend would happily create two ban rows / two payouts / two
+/// password resets if a slow 502 lured us into a second attempt.
+const IDEMPOTENT_METHODS = new Set(["GET", "HEAD", "OPTIONS", "DELETE"]);
+
+const TRANSIENT_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
+
 type Init = RequestInit & {
   token?: string;
   /** When true, suppress the auto-redirect on session-expired errors
@@ -73,52 +93,111 @@ type Init = RequestInit & {
    *  (e.g. NextAuth's `authorize()` callback already handles auth by
    *  returning null, so it doesn't want a redirect underneath). */
   bypassAuthRedirect?: boolean;
+  /** Per-request timeout in ms. Default 15s. */
+  timeoutMs?: number;
+  /** Set to 0 to disable retries. Default 1 retry on transient
+   *  errors for safe methods only. */
+  maxRetries?: number;
 };
 
 export async function api<T>(path: string, init: Init = {}): Promise<T> {
-  const { token, headers, bypassAuthRedirect, ...rest } = init;
-  const response = await fetch(`${serverEnv.API_BASE_URL}${path}`, {
-    ...rest,
-    headers: {
-      "content-type": "application/json",
-      ...(token ? { authorization: `Bearer ${token}` } : {}),
-      ...headers,
-    },
-    cache: "no-store",
-  });
+  const {
+    token,
+    headers,
+    bypassAuthRedirect,
+    timeoutMs = 15_000,
+    maxRetries = 1,
+    ...rest
+  } = init;
+  const method = (rest.method ?? "GET").toUpperCase();
+  const canRetry = IDEMPOTENT_METHODS.has(method);
+  const attempts = canRetry ? maxRetries + 1 : 1;
 
-  if (response.status === 204) {
-    return undefined as T;
-  }
-
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const err = body?.error;
-    const code = (err?.code ?? "UNKNOWN") as string;
-
-    // Server-side redirect on a stale partner session. Throws the
-    // special NEXT_REDIRECT signal that Next.js catches at the
-    // server-component boundary, navigating the browser to /login
-    // with a flag the login page picks up to show a "session
-    // expired, sign in again" banner. Cleaner than a 500 page and
-    // also cleaner than re-throwing a typed error every page would
-    // otherwise have to remember to handle.
-    if (
-      !bypassAuthRedirect &&
-      response.status === 401 &&
-      SESSION_EXPIRED_CODES.has(code)
-    ) {
-      redirect("/login?reason=session_expired");
+  let lastError: unknown;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    if (attempt > 0) {
+      const jitter = 100 * (Math.random() * 2 - 1);
+      await new Promise((r) => setTimeout(r, 500 + jitter));
     }
 
-    throw new ApiError(
-      code,
-      err?.message ?? response.statusText,
-      response.status,
-      err?.details,
-    );
+    const controller = new AbortController();
+    const abortTimer = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const response = await fetch(`${serverEnv.API_BASE_URL}${path}`, {
+        ...rest,
+        headers: {
+          "content-type": "application/json",
+          ...(token ? { authorization: `Bearer ${token}` } : {}),
+          ...headers,
+        },
+        cache: "no-store",
+        signal: controller.signal,
+      });
+
+      if (response.status === 204) {
+        return undefined as T;
+      }
+
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const err = body?.error;
+        const code = (err?.code ?? "UNKNOWN") as string;
+
+        // Server-side redirect on a stale partner session. Throws the
+        // special NEXT_REDIRECT signal that Next.js catches at the
+        // server-component boundary, navigating the browser to /login
+        // with a flag the login page picks up to show a "session
+        // expired, sign in again" banner.
+        if (
+          !bypassAuthRedirect &&
+          response.status === 401 &&
+          SESSION_EXPIRED_CODES.has(code)
+        ) {
+          redirect("/login?reason=session_expired");
+        }
+
+        if (canRetry && TRANSIENT_STATUS.has(response.status) && attempt < attempts - 1) {
+          lastError = new ApiError(
+            code,
+            err?.message ?? response.statusText,
+            response.status,
+            err?.details,
+          );
+          continue;
+        }
+
+        throw new ApiError(
+          code,
+          err?.message ?? response.statusText,
+          response.status,
+          err?.details,
+        );
+      }
+      return body as T;
+    } catch (fetchErr) {
+      // AbortError (timeout) and TypeError ("fetch failed") are both
+      // "we never got an HTTP response" failures. Treat uniformly as
+      // NetworkError. Retry once for idempotent methods.
+      const isAbort =
+        fetchErr instanceof DOMException && fetchErr.name === "AbortError";
+      const isTypeError = fetchErr instanceof TypeError;
+      if (isAbort || isTypeError) {
+        lastError = new NetworkError(
+          isAbort ? "Request timed out" : "Network request failed",
+          fetchErr,
+        );
+        if (canRetry && attempt < attempts - 1) continue;
+        throw lastError;
+      }
+      // ApiError + NEXT_REDIRECT signal + anything else bubbles
+      // unchanged.
+      throw fetchErr;
+    } finally {
+      clearTimeout(abortTimer);
+    }
   }
-  return body as T;
+  throw lastError ?? new NetworkError("Request failed without diagnosis");
 }
 
 export async function exchangePartnerToken(phone: string): Promise<{

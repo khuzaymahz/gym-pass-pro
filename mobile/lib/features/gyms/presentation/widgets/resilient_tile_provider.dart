@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/retry.dart';
 
 /// Network-tile provider that recovers from transient tile-fetch
 /// failures without re-introducing the ANR risk of flutter_map's
@@ -69,23 +68,22 @@ class ResilientTileProvider extends NetworkTileProvider {
     super.headers,
     Duration timeout = const Duration(seconds: 4),
   }) : super(
+          // No `RetryClient` here. The previous version sat
+          // `RetryClient(retries: 2)` between the fallback wrapper
+          // and the network — which meant a CARTO timeout fired
+          // three back-to-back attempts at CARTO (with 500 ms /
+          // 1500 ms backoff = ~14 s wall-clock) BEFORE the
+          // fallback to OSM ever ran. By then the fallback request
+          // was also subject to the same three-attempt budget, so
+          // worst-case latency-to-first-paint was ~28 s. The
+          // symptom in the field: a blank canvas with periodic
+          // "CARTO tile failed, falling back to OSM" logs and no
+          // tiles ever painting because the viewport got new
+          // requests before old ones finished. Now the fallback
+          // wrapper sits directly on top of the timeout client and
+          // owns its own retry budget — see [_CartoFallbackClient].
           httpClient: _CartoFallbackClient(
-            RetryClient(
-              _TimeoutClient(http.Client(), timeout),
-              retries: 2,
-              // Retry only on transient errors / network exceptions —
-              // never on a 404 (the tile genuinely doesn't exist; CARTO
-              // returns 404 for tiles past the zoom range) or 4xx in
-              // general (client error, retrying won't help). 403 from
-              // CARTO bot-detection IS a client error — RetryClient
-              // won't help, but `_CartoFallbackClient` (outer wrapper)
-              // catches the 4xx and routes the next attempt to OSM.
-              when: (response) =>
-                  response.statusCode == 408 ||
-                  response.statusCode == 429 ||
-                  response.statusCode >= 500,
-              whenError: (_, __) => true,
-            ),
+            _TimeoutClient(http.Client(), timeout),
           ),
           silenceExceptions: true,
         );
@@ -128,35 +126,66 @@ class _CartoFallbackClient extends http.BaseClient {
     if (!_shouldFallback(request.url)) {
       return _inner.send(request);
     }
+    // Single attempt at CARTO. If it times out or fails, we want
+    // OSM to fire IMMEDIATELY — the user sitting on a blank map
+    // doesn't want us spending 14 s retrying a CDN we can't reach.
     try {
       final res = await _inner.send(request);
       if (res.statusCode < 400) return res;
-      // Primary returned 4xx/5xx after exhausting retries. Drain
-      // the body so the socket is returned to the pool, then route
-      // to OSM. (Streaming responses leak the connection if not
-      // drained; even a 1-byte error body keeps the socket open
-      // until GC, which we can't afford on a 16-tile viewport.)
       await res.stream.drain<void>();
+      if (kDebugMode) {
+        debugPrint(
+          'CARTO tile ${res.statusCode}, falling back to OSM',
+        );
+      }
       return _sendFallback(request);
-    } catch (err, st) {
+    } catch (err) {
       if (kDebugMode) {
         debugPrint('CARTO tile failed, falling back to OSM: $err');
-        debugPrintStack(stackTrace: st, maxFrames: 3);
       }
       return _sendFallback(request);
     }
   }
 
+  /// Fire the tile at OSM. One immediate try plus one delayed retry
+  /// — most OSM tile failures are transient (busy edge, slow TLS
+  /// handshake on a cold socket), and a single retry recovers them
+  /// without holding the connection pool. Total fallback budget:
+  /// timeout + 250 ms backoff + timeout (~8 s worst case), down
+  /// from ~14 s with the old inner RetryClient.
   Future<http.StreamedResponse> _sendFallback(
     http.BaseRequest primaryRequest,
-  ) {
+  ) async {
     final fb = _osmFallbackFor(primaryRequest.url);
-    final fbReq = http.Request(primaryRequest.method, fb);
-    // Replay the original headers (User-Agent included — OSM tile
-    // policy requires a real UA, and flutter_map's TileLayer has
-    // already set one based on `userAgentPackageName`).
-    fbReq.headers.addAll(primaryRequest.headers);
-    return _inner.send(fbReq);
+    Object? lastError;
+    for (var attempt = 0; attempt < 2; attempt++) {
+      if (attempt > 0) {
+        await Future<void>.delayed(const Duration(milliseconds: 250));
+      }
+      // Fresh `http.Request` per attempt — `BaseRequest` instances
+      // are single-use; the body stream is consumed by send().
+      final fbReq = http.Request(primaryRequest.method, fb);
+      // Replay the original headers (User-Agent included — OSM
+      // tile policy requires a real UA, and flutter_map's
+      // TileLayer has already set one based on
+      // `userAgentPackageName`).
+      fbReq.headers.addAll(primaryRequest.headers);
+      try {
+        final res = await _inner.send(fbReq);
+        if (res.statusCode < 400) return res;
+        await res.stream.drain<void>();
+        lastError = StateError('OSM tile ${res.statusCode}');
+      } catch (err) {
+        lastError = err;
+      }
+    }
+    if (kDebugMode) {
+      debugPrint('OSM tile also failed after retry: $lastError');
+    }
+    // Surface the last failure so flutter_map's
+    // `silenceExceptions: true` can turn it into a transparent
+    // stub instead of a stack trace.
+    throw lastError ?? StateError('OSM fallback failed');
   }
 
   @override
