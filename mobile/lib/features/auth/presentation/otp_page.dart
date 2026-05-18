@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/network/network_error.dart';
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
 import '../../../core/widgets/entry_toggles.dart';
@@ -81,14 +82,7 @@ class _OtpPageState extends ConsumerState<OtpPage> {
         raw.contains('AUTH_INVALID_CREDENTIALS')) {
       return l.errorOtpInvalid;
     }
-    if (raw.contains('SocketException') ||
-        raw.contains('connectionError') ||
-        raw.contains('connectionTimeout') ||
-        raw.contains('Connection refused') ||
-        raw.contains('Failed host lookup')) {
-      return l.errorNetwork;
-    }
-    return l.snackErrorGeneric;
+    return resolveErrorMessageString(raw, l);
   }
 
   @override

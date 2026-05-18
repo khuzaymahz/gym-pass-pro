@@ -146,9 +146,15 @@
     "eyebrow": "Something went wrong",
     "title": "We couldn't load this page.",
     "body": "There was a problem talking to the GymPass server. This is usually a transient hiccup — try again, and if it keeps happening reach out to ops.",
+    "networkTitle": "Can't reach the server",
+    "networkBody": "Check your connection and try again. The server may also be temporarily unavailable.",
     "retry": "Retry",
     "goHome": "Go to dashboard",
     "ref": "Ref"
+  },
+  "connectivity": {
+    "offline": "You're offline. Some data may be out of date.",
+    "back": "Back online."
   },
   "dashboard": {
     "title": "Dashboard",

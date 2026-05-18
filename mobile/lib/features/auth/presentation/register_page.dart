@@ -285,6 +285,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                       label: l.labelPassword,
                       restingPlaceholder: l.hintPassword,
                       obscure: !_passwordVisible,
+                      keyboardType: TextInputType.visiblePassword,
                       textInputAction: TextInputAction.next,
                       suffixIcon: _visibilityToggle(
                         visible: _passwordVisible,
@@ -301,6 +302,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                       label: l.labelPasswordConfirm,
                       restingPlaceholder: l.hintPasswordConfirm,
                       obscure: !_confirmVisible,
+                      keyboardType: TextInputType.visiblePassword,
                       textInputAction: TextInputAction.done,
                       suffixIcon: _visibilityToggle(
                         visible: _confirmVisible,
@@ -557,7 +559,14 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     // the label "البريد الإلكتروني" sits on the right edge while
     // the typed email and the `username@domain.com` example flow
     // left-to-right.
-    final isLtrInput = obscure || keyboardType == TextInputType.emailAddress;
+    // Email and password fields are always LTR. For passwords the key
+    // is `TextInputType.visiblePassword`, NOT `obscure` — the obscure
+    // flag flips to false the moment the member taps the eye toggle
+    // to reveal the password, and we don't want the visible Latin
+    // text to suddenly snap to the right edge of the field on an
+    // Arabic page.
+    final isLtrInput = keyboardType == TextInputType.emailAddress ||
+        keyboardType == TextInputType.visiblePassword;
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,

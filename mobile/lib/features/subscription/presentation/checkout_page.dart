@@ -1,10 +1,9 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/api/api_exception.dart';
 import '../../../core/format/money_format.dart';
+import '../../../core/network/network_error.dart';
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
 import '../../../core/widgets/gym_loader.dart';
@@ -21,28 +20,12 @@ import '../data/subscription_state.dart';
 import 'plans_page.dart';
 
 /// Translates a thrown error from the checkout/purchase flow into a
-/// localized snackbar message. Same shape as the resolver in
-/// `sign_in_page.dart` — transport faults map to errorNetwork, anything
-/// else collapses to the generic snack so we never leak raw
-/// `DioException [unknown]: null` at the user.
+/// localized snackbar message. Routed through the central network
+/// classifier so transport faults reliably surface as "check your
+/// connection" while gateway / validation rejections collapse to the
+/// generic snack — we never leak a raw `DioException [unknown]: null`.
 String _resolveCheckoutError(Object e, AppLocalizations l) {
-  if (e is DioException) {
-    final inner = e.error;
-    if (inner is ApiException) {
-      return l.snackErrorGeneric;
-    }
-    final raw = inner?.toString() ?? e.toString();
-    if (raw.contains('SocketException') ||
-        raw.contains('connectionError') ||
-        raw.contains('connectionTimeout') ||
-        raw.contains('Connection refused') ||
-        raw.contains('Failed host lookup')) {
-      return l.errorNetwork;
-    }
-    return l.snackErrorGeneric;
-  }
-  if (e is ApiException) return l.snackErrorGeneric;
-  return l.snackErrorGeneric;
+  return resolveErrorMessage(e, l);
 }
 
 /// Selected saved-method id for this checkout. Cleared between checkouts by

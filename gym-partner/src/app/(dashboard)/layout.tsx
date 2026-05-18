@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { getServerSession } from "next-auth";
 
 import { LocaleToggle } from "@/components/LocaleToggle";
+import { OfflineBanner } from "@/components/OfflineBanner";
 import { RealtimeBridge } from "@/components/RealtimeBridge";
 import { Sidebar } from "@/components/Sidebar";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -60,40 +61,43 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="flex min-h-screen bg-ink text-paper">
+    <div className="flex min-h-screen flex-col bg-ink text-paper">
       {/* Mounted once at the dashboard shell so a single WebSocket
           serves the whole portal. Calls router.refresh() on every
           backend event the partner is subscribed to (their gym's
           profile, photos, check-ins) so the UI mirrors backend
           state without manual reloads. */}
       <RealtimeBridge />
-      <Sidebar
-        gymName={gymName}
-        logoUrl={logoUrl}
-        logoAlignment={logoAlignment}
-        phone={session.phone ?? ""}
-        openingHours={openingHours}
-      />
-      <main className="relative flex-1 overflow-x-hidden">
-        {/* Locale + theme toggles. The OUTER div carries `end-6` and
-            inherits the page's writing direction so the cluster
-            sits on the inline-end — top-right in LTR, top-left in
-            RTL. The INNER div locks `dir="ltr"` to keep the two
-            buttons in the same internal order (locale, then
-            theme) regardless of the page's direction. Splitting
-            the two roles is necessary because `end-6` on an
-            element with its own `dir="ltr"` would always resolve
-            to the right edge, defeating the flip. */}
-        <div className="absolute end-6 top-6 z-10">
-          <div dir="ltr" className="flex items-center gap-2">
-            <LocaleToggle />
-            <ThemeToggle />
+      <OfflineBanner />
+      <div className="flex flex-1">
+        <Sidebar
+          gymName={gymName}
+          logoUrl={logoUrl}
+          logoAlignment={logoAlignment}
+          phone={session.phone ?? ""}
+          openingHours={openingHours}
+        />
+        <main className="relative flex-1 overflow-x-hidden">
+          {/* Locale + theme toggles. The OUTER div carries `end-6` and
+              inherits the page's writing direction so the cluster
+              sits on the inline-end — top-right in LTR, top-left in
+              RTL. The INNER div locks `dir="ltr"` to keep the two
+              buttons in the same internal order (locale, then
+              theme) regardless of the page's direction. Splitting
+              the two roles is necessary because `end-6` on an
+              element with its own `dir="ltr"` would always resolve
+              to the right edge, defeating the flip. */}
+          <div className="absolute end-6 top-6 z-10">
+            <div dir="ltr" className="flex items-center gap-2">
+              <LocaleToggle />
+              <ThemeToggle />
+            </div>
           </div>
-        </div>
-        <div className="mx-auto w-full max-w-[1280px] px-10 py-8">
-          {children}
-        </div>
-      </main>
+          <div className="mx-auto w-full max-w-[1280px] px-10 py-8">
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

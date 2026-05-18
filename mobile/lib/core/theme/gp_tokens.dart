@@ -52,6 +52,20 @@ class GP {
   static const Color success = Color(0xFF52FFA0);
   static const Color warn = Color(0xFFFFC43D);
 
+  // Audience-gender badge colours. Drives the "Women only" / "Men
+  // only" chip on gym cards + detail pages. These are intentionally
+  // off the tier palette — they're informational badges, not brand
+  // surfaces. Pink + blue is the conventional pairing globally;
+  // the chroma is muted (`-400` family from Tailwind) so the chip
+  // reads as "tag" not "alert".
+  static const Color audienceFemale = Color(0xFFEC4899);
+  static const Color audienceMale = Color(0xFF60A5FA);
+
+  // Maps "you are here" marker — Google Maps' canonical user-pin
+  // blue. Off-palette on purpose; members read the GPS-dot pattern
+  // by colour, not by brand.
+  static const Color userPositionBlue = Color(0xFF1A73E8);
+
   // Brand-amber alphas (kept named "lime*" for backwards compatibility
   // with widgets that still reference these directly).
   static const Color lime14 = Color(0x24EAB308);

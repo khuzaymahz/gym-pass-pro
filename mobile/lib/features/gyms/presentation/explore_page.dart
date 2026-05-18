@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../core/theme/gp_tokens.dart';
 import '../../../core/widgets/gym_loader.dart';
 import '../../../l10n/app_localizations.dart';
 import '../data/gym_repository.dart';
@@ -927,11 +928,17 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
                     retinaMode: false,
                     userAgentPackageName: 'net.gympass.gympass',
                     // Resilient tile provider: per-request timeout +
-                    // zero retries + silent failures. Without this,
-                    // each unreachable CARTO tile blocks for ~30s ×
-                    // 3 retries, exhausting the connection pool and
-                    // ANR-ing the app when the CDN is unreachable.
-                    // See `ResilientTileProvider` for the rationale.
+                    // two retries + OSM fallback at the HTTP layer +
+                    // silent final failure. Without this, each
+                    // unreachable CARTO tile blocks for ~30s × 3
+                    // retries (exhausting the connection pool and
+                    // ANR-ing the app), and a CARTO 4xx/5xx silently
+                    // returned a transparent stub — leaving members
+                    // staring at "empty map + pins" with no way to
+                    // recover. The HTTP-layer fallback transparently
+                    // re-routes failed CARTO requests to OpenStreetMap
+                    // so the camera renders a real basemap even when
+                    // CARTO is unreachable. See `ResilientTileProvider`.
                     tileProvider: ResilientTileProvider(),
                     // Halve the off-screen tile buffer so a viewport
                     // never schedules more than the visible set + a
@@ -1223,7 +1230,11 @@ class GeoPoint {
 class _UserPositionMarker extends StatelessWidget {
   const _UserPositionMarker();
 
-  static const _userBlue = Color(0xFF1A73E8);
+  // Off-palette by convention — Maps users globally recognise this
+  // shade of blue as "your location". Pulling from `GP.userPositionBlue`
+  // keeps the hex out of the widget body so a future palette
+  // adjustment is one line.
+  static const Color _userBlue = GP.userPositionBlue;
 
   @override
   Widget build(BuildContext context) {

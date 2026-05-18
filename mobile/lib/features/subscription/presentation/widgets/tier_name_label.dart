@@ -129,9 +129,11 @@ class _TierNameLabelState extends State<TierNameLabel>
   /// doesn't pulse when the eye is meant to settle on price/visits.
   Widget _gold(GpColors gp) {
     final inkColor = widget.tier.readableOn(gp);
-    // Bloom always uses the dark-mode hex so the warm aura reads on
-    // either surface — alpha takes care of muting it on light bg.
-    const bloomColor = Color(0xFFF9A825);
+    // Bloom always uses the dark-mode tier hex (warm amber) so the
+    // aura reads on either surface — alpha takes care of muting it
+    // on light bg. Pulled from `GPTier.gold.color` so changing the
+    // brand amber in one place ripples to every gold surface.
+    final bloomColor = GPTier.gold.color;
     return Stack(
       alignment: Alignment.center,
       children: [
@@ -175,9 +177,23 @@ class _TierNameLabelState extends State<TierNameLabel>
   /// invisible on the light surface).
   Widget _platinum(GpColors gp) {
     final isLight = gp.isLight;
+    // Gradient endpoints come from the canonical `GPTier.platinum`
+    // pair; the mid-stop is a 50/50 blend between the endpoints and
+    // a near-neutral so the shimmer reads as a polished-metal
+    // highlight, not a pure-white flash. Pulling endpoints from
+    // tokens means a brand-platinum colour tweak ripples through
+    // the shimmer automatically.
+    final platinumColor = GPTier.platinum.color;
+    final platinumDeep = GPTier.platinum.colorOnLight;
+    // Middle stop:
+    //   - Light mode: 50% blend of deep + endpoint = a mid steel-
+    //     blue. Keeps the band readable on the off-white card.
+    //   - Dark mode: pure white. The original "flash" effect that
+    //     reads as metal under the dark surround.
+    final midLight = Color.lerp(platinumDeep, platinumColor, 0.5)!;
     final stops = isLight
-        ? const [Color(0xFF2E5BA8), Color(0xFF6E8AC9), Color(0xFF2E5BA8)]
-        : const [Color(0xFFB8D4FF), Color(0xFFFFFFFF), Color(0xFFB8D4FF)];
+        ? [platinumDeep, midLight, platinumDeep]
+        : [platinumColor, const Color(0xFFFFFFFF), platinumColor];
     return AnimatedBuilder(
       animation: _ctrl,
       builder: (context, _) {

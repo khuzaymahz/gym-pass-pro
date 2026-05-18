@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/network/network_error.dart';
 import '../../../core/prefs/app_preferences.dart';
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
@@ -199,19 +200,7 @@ class _SignInPageState extends ConsumerState<SignInPage> {
       return l.errorPasswordInvalid;
     }
     if (raw.contains('AUTH_OTP_LOCKED')) return l.errorOtpLocked;
-    // True transport-level failures only (no HTTP response). DioException
-    // alone is too broad — every backend-rejected error is wrapped in
-    // one too, which used to mis-surface validation/auth failures as
-    // "Network error". Match the specific transport types the network
-    // stack actually emits when it can't reach the server.
-    if (raw.contains('SocketException') ||
-        raw.contains('connectionError') ||
-        raw.contains('connectionTimeout') ||
-        raw.contains('Connection refused') ||
-        raw.contains('Failed host lookup')) {
-      return l.errorNetwork;
-    }
-    return l.snackErrorGeneric;
+    return resolveErrorMessageString(raw, l);
   }
 
   @override

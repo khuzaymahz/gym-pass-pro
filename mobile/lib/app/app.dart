@@ -15,13 +15,11 @@ class GymPassApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
-    final prefs = ref.watch(appPreferencesProvider);
-    final lang = prefs.locale.languageCode;
-    // Both palettes are wired in — `themeMode` decides which one paints.
-    // The system-overlay style needs to follow whichever palette is
-    // active so the status bar icons stay readable, so we use a
-    // `Builder` that reads `Theme.of(context).brightness` after the
-    // theme resolves.
+    // Theme + locale are read inside `_DeepLinkBootstrap` below
+    // (after the deep-link scope is in place) — the wrapping
+    // ProviderScope only needs the router to plumb the deep-link
+    // handler override. Reading prefs at the outer build would
+    // leak a redundant watch.
     return ProviderScope(
       overrides: [
         deepLinkHandlerProvider.overrideWith(

@@ -420,8 +420,13 @@
      ───────────────────────────────────────── */
   .scrolly {
     position: relative;
-    /* track length: each scene = 90vh of scroll */
-    height: calc(100vh + 270vh);
+    /* track length: each scene = 90vh of scroll, 6 scenes total
+       (sign-in → OTP → tier → map → QR → pass). At 90vh per scene
+       a visitor on a 900px-tall viewport scrolls through ~5400px to
+       walk the full flow — slow enough to read each scene's copy,
+       fast enough that the pinned phone doesn't feel like a dead
+       wall during normal page navigation. */
+    height: calc(100vh + 540vh);
   }
   .scrolly .stick {
     position: sticky;
@@ -654,8 +659,8 @@
   .sc-welcome {
     align-items: stretch;
     justify-content: flex-start;
-    padding: 60px 22px 28px;
-    gap: 22px;
+    padding: 42px 22px 24px;
+    gap: 16px;
   }
   .sc-welcome::before {
     content: "";
@@ -665,11 +670,28 @@
     background: radial-gradient(70% 100% at 50% 0%, rgba(234,179,8,0.14), transparent 65%);
     pointer-events: none;
   }
-  .sc-welcome .head {
-    display: flex; flex-direction: column; align-items: center; gap: 18px;
+  /* Top row: GYMPASS wordmark on left, sun + AR locale chips on
+     right — mirrors the real app's sign-in chrome. */
+  .sc-welcome .topbar {
+    display: flex; justify-content: space-between; align-items: center;
     position: relative; z-index: 1;
   }
-  .sc-welcome .wm { font-size: 22px; }
+  .sc-welcome .topbar .wm { font-size: 18px; }
+  .sc-welcome .chip-row {
+    display: flex; gap: 8px; align-items: center;
+  }
+  .sc-welcome .circle-btn {
+    width: 28px; height: 28px; border-radius: 999px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--ink); font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.06em; font-weight: 600;
+  }
+  .sc-welcome .head {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 10px;
+    position: relative; z-index: 1; margin-top: 4px;
+  }
   .sc-welcome .eyebrow {
     font-size: 9px;
     letter-spacing: 0.22em;
@@ -679,12 +701,31 @@
   .sc-welcome .pitch {
     font-family: var(--font-display); font-weight: 900;
     font-style: italic; font-variation-settings: 'wdth' 88;
-    font-size: 22px; line-height: 0.95; letter-spacing: -0.04em;
+    font-size: 26px; line-height: 0.95; letter-spacing: -0.04em;
     text-transform: uppercase;
     margin: 0; max-width: 14ch;
-    text-align: center;
+    text-align: left;
   }
   .sc-welcome .pitch em { font-family: var(--font-serif); font-style: italic; font-weight: 400; color: var(--accent); font-size: 0.86em; letter-spacing: -0.005em; text-transform: none; }
+  /* Subtitle blurb under the headline — slim, muted, max ~3 lines. */
+  .sc-welcome .blurb {
+    margin: 0; max-width: 30ch; text-align: left;
+    font-size: 11.5px; line-height: 1.45;
+    color: var(--ink-dim);
+  }
+  /* Jordan flag chip inside the +962 field. */
+  .sc-welcome .cc-flag {
+    display: inline-flex; align-items: center;
+    border-radius: 3px; overflow: hidden;
+    width: 18px; height: 12px;
+    margin-right: 2px;
+  }
+  /* Footer terms line under the Google button. */
+  .sc-welcome .terms {
+    margin: 8px 0 0; padding: 0; text-align: center;
+    font-size: 10px; line-height: 1.5; color: var(--ink-mute);
+  }
+  .sc-welcome .terms u { color: var(--accent); text-decoration: underline; text-decoration-color: rgba(234,179,8,0.5); }
 
   /* phone-input mock — country chip + masked number, locked to the
      same field shape used by gp_input.dart in the production app. */
@@ -843,14 +884,15 @@
   .sc-qr .ph-status { color: var(--ink); }
   .sc-qr-overlay {
     position: absolute;
-    inset: 0; padding: 60px 18px 28px;
-    display: flex; flex-direction: column; gap: 18px;
-    align-items: center;
+    inset: 0; padding: 50px 18px 6px;
+    display: flex; flex-direction: column; gap: 6px;
+    align-items: stretch;
     z-index: 2;
   }
   .sc-qr-top {
     width: 100%;
     display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 4px;
   }
   .sc-qr-cancel {
     background: rgba(20,20,22,0.7);
@@ -899,24 +941,462 @@
     90%  { opacity: 1; }
     100% { top: 188px; opacity: 0; }
   }
-  .sc-qr-bottom {
-    margin-top: auto;
-    display: flex; flex-direction: column; align-items: center; gap: 8px;
+  /* iOS "camera in use" green pill in the status cluster. */
+  .sc-qr .ic-cluster .cam-dot {
+    display: inline-block;
+    width: 22px; height: 11px;
+    border-radius: 999px;
+    background: #30d158;
+    margin-inline-end: 4px;
+    box-shadow: 0 0 4px rgba(48,209,88,0.6);
   }
-  .sc-qr-bottom .lbl { font-size: 13px; color: var(--ink); }
-  .sc-qr-bottom .scanning {
+  /* Back-arrow circle button at top-left of the scan overlay. */
+  .sc-qr-top .back-circle {
+    width: 28px; height: 28px; border-radius: 999px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: var(--ink);
+  }
+  /* "SCAN QR · STEP 1 OF 2" centered step indicator. */
+  .sc-qr-top .step-pill {
+    font-family: var(--font-mono); font-size: 9px;
+    letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink);
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .sc-qr-top .step-pill .dot {
+    width: 6px; height: 6px; border-radius: 999px; background: var(--accent);
+    display: inline-block;
+  }
+  /* Display headline "ALIGN the code." above the viewfinder. */
+  .sc-qr .pitch {
+    margin: 14px 4px 12px;
+    font-family: var(--font-display); font-weight: 900;
+    font-style: italic; font-variation-settings: 'wdth' 88;
+    font-size: 28px; line-height: 0.95; letter-spacing: -0.04em;
+    text-transform: uppercase; color: var(--ink);
+  }
+  .sc-qr .pitch em { font-family: var(--font-serif); font-style: italic; font-weight: 400; color: var(--accent); font-size: 0.82em; letter-spacing: -0.005em; text-transform: none; }
+  /* "ALIGN QR WITHIN THE FRAME" caption under the viewfinder. */
+  .sc-qr .caption {
+    margin-top: 12px; text-align: center;
     font-family: var(--font-mono); font-size: 9.5px;
-    letter-spacing: 0.22em; text-transform: uppercase; color: var(--accent);
-    display: inline-flex; align-items: center; gap: 6px;
+    letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-dim);
   }
-  .sc-qr-bottom .scanning::before {
-    content: ""; width: 5px; height: 5px; border-radius: 999px;
-    background: var(--accent); animation: dotPulse 1200ms var(--ease) infinite;
+  /* PREVIEW MODE info card — when the visitor is unsubscribed,
+     scanning previews the gym profile but doesn't burn a visit. */
+  .sc-qr .preview-card {
+    margin-top: 16px;
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px 12px;
+    background: rgba(234,179,8,0.08);
+    border: 1px solid rgba(234,179,8,0.35);
+    border-radius: 10px;
+    color: var(--ink);
   }
-  @keyframes dotPulse {
-    0% { box-shadow: 0 0 0 0 rgba(234,179,8,0.6); }
-    100% { box-shadow: 0 0 0 7px rgba(234,179,8,0); }
+  .sc-qr .preview-card .lock-ic {
+    color: var(--accent); display: inline-flex; align-items: flex-start;
+    margin-top: 1px;
   }
+  .sc-qr .preview-card .card-title {
+    display: block;
+    font-family: var(--font-mono); font-size: 9px;
+    letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--accent); font-weight: 600;
+  }
+  .sc-qr .preview-card .card-body {
+    display: block; margin-top: 4px;
+    font-size: 10.5px; line-height: 1.45; color: var(--ink-dim);
+  }
+  /* SEE PLANS CTA — lime pill near the bottom, above the nav. */
+  .sc-qr .see-plans-cta {
+    margin-top: 14px;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    height: 42px; border-radius: 999px;
+    background: var(--accent); color: #0A0B0A;
+    font: 800 13px var(--font-display);
+    font-style: italic; font-variation-settings: 'wdth' 88;
+    letter-spacing: 0.05em; text-transform: uppercase;
+  }
+  /* Bottom-nav strip — HOME / EXPLORE / SCAN / PROFILE icons. */
+  .sc-qr .bottom-nav {
+    margin-top: auto;
+    display: flex; justify-content: space-around;
+    padding: 8px 0 4px;
+    border-top: 1px solid var(--line);
+  }
+  .sc-qr .nav-item {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    font-family: var(--font-mono); font-size: 8.5px;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+  .sc-qr .nav-item .icn {
+    font-size: 16px; line-height: 1;
+  }
+  .sc-qr .nav-item.is-active {
+    color: var(--accent);
+  }
+  .sc-qr .nav-item.is-active::after {
+    content: ""; width: 14px; height: 2px;
+    background: var(--accent); border-radius: 2px; margin-top: 2px;
+  }
+
+  /* Legacy `.sc-qr-bottom` retained for back-compat with any
+     unused snippets; the new layout drives everything from the
+     overlay's vertical flow. */
+
+  /* scene OTP — verify the 4-digit code. Mirrors the real app's
+     step 2 of the registration flow: back arrow + step pill, display
+     headline, 4 boxed digit slots, resend countdown, Verify CTA. */
+  .sc-otp {
+    align-items: stretch;
+    justify-content: flex-start;
+    padding: 42px 22px 24px;
+    gap: 16px;
+  }
+  .sc-otp::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 50%;
+    background: radial-gradient(70% 100% at 50% 0%, rgba(234,179,8,0.14), transparent 65%);
+    pointer-events: none;
+  }
+  .sc-otp .topbar {
+    display: flex; justify-content: space-between; align-items: center;
+    position: relative; z-index: 1;
+  }
+  .sc-otp .back-circle {
+    width: 28px; height: 28px; border-radius: 999px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--ink);
+  }
+  .sc-otp .step-pill {
+    font-family: var(--font-mono); font-size: 9px;
+    letter-spacing: 0.22em; color: var(--ink-mute);
+    display: inline-flex; gap: 6px; align-items: center;
+  }
+  .sc-otp .step-pill .dot {
+    width: 6px; height: 6px; background: var(--accent);
+    border-radius: 999px;
+  }
+  .sc-otp .head {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 10px;
+    position: relative; z-index: 1; margin-top: 4px;
+  }
+  .sc-otp .pitch {
+    font-family: var(--font-display); font-weight: 900;
+    font-style: italic; font-variation-settings: 'wdth' 88;
+    font-size: 26px; line-height: 0.95; letter-spacing: -0.04em;
+    text-transform: uppercase;
+    margin: 0; max-width: 14ch; text-align: left;
+  }
+  .sc-otp .pitch em {
+    font-family: var(--font-serif); font-style: italic; font-weight: 400;
+    color: var(--accent); font-size: 0.86em; letter-spacing: -0.005em;
+    text-transform: none;
+  }
+  .sc-otp .blurb {
+    margin: 0; max-width: 30ch; text-align: left;
+    font-size: 11.5px; line-height: 1.45;
+    color: var(--ink-dim);
+  }
+  .sc-otp .blurb .num {
+    font-family: var(--font-mono); color: var(--ink);
+    font-size: 11px; letter-spacing: 0.06em;
+  }
+  /* 4 OTP digit boxes — fixed-width squares with a thick border.
+     The trailing one is the cursor slot (accent-coloured border +
+     blinking caret marker). */
+  .sc-otp .otp-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 10px; margin-top: 4px;
+  }
+  .sc-otp .otp-box {
+    aspect-ratio: 1 / 1;
+    border: 1.5px solid var(--line-2);
+    border-radius: 12px;
+    background: var(--bg-2);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-display); font-weight: 900;
+    font-size: 24px; letter-spacing: -0.04em;
+    color: var(--ink);
+  }
+  .sc-otp .otp-box.is-cursor {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent), 0 0 18px -4px rgba(234,179,8,0.5);
+  }
+  .sc-otp .otp-box.is-cursor::after {
+    content: "";
+    width: 2px; height: 22px;
+    background: var(--accent);
+    animation: otpCaret 1100ms steps(2,end) infinite;
+  }
+  @keyframes otpCaret { 0%,49%{opacity:1;} 50%,100%{opacity:0;} }
+  .sc-otp .otp-meta {
+    display: flex; justify-content: center;
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.18em; color: var(--ink-mute);
+    margin-top: 2px;
+  }
+  .sc-otp .otp-meta b { color: var(--ink); font-weight: 600; margin-inline-start: 6px; }
+  .sc-otp .actions { margin-top: auto; display: flex; flex-direction: column; gap: 14px; }
+  .sc-otp .btn-block {
+    background: var(--accent); color: #0A0B0A;
+    border-radius: 999px; height: 44px;
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: 8px; font: 800 13px var(--font-display);
+    font-style: italic; font-variation-settings: 'wdth' 95;
+    text-transform: uppercase; letter-spacing: -0.01em;
+  }
+  .sc-otp .btn-block .arr { font-size: 16px; line-height: 1; }
+  .sc-otp .edit-num {
+    text-align: center; font-size: 11px; color: var(--ink-dim);
+  }
+  .sc-otp .edit-num u { color: var(--accent); }
+
+  /* scene MAP — Explore tab. Stylised Jordan outline with tier-coloured
+     pins, top search + filter chips, locate-me FAB, bottom-nav. Not a
+     real interactive map; this is just the visual register so the
+     marketing visitor recognises the screen when they open the app. */
+  .sc-map {
+    align-items: stretch;
+    justify-content: flex-start;
+    padding: 42px 16px 0;
+    gap: 10px;
+    overflow: hidden;
+  }
+  .sc-map .map-top {
+    display: flex; gap: 8px; align-items: center;
+    padding: 0 4px;
+  }
+  .sc-map .map-search {
+    flex: 1;
+    height: 36px; padding: 0 12px;
+    border-radius: 999px;
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 12px; color: var(--ink-dim);
+  }
+  .sc-map .map-search svg { color: var(--ink-mute); flex-shrink: 0; }
+  .sc-map .map-filter {
+    width: 36px; height: 36px; border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--bg-2);
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--ink); font-size: 14px;
+  }
+  .sc-map .map-chips {
+    display: flex; gap: 6px; padding: 0 4px;
+    overflow-x: hidden;
+  }
+  .sc-map .chip {
+    height: 26px; padding: 0 10px; border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--bg-2);
+    display: inline-flex; align-items: center;
+    font-family: var(--font-mono); font-size: 9px;
+    letter-spacing: 0.18em; color: var(--ink-dim);
+    white-space: nowrap;
+  }
+  .sc-map .chip.is-active {
+    background: var(--accent); color: #0A0B0A;
+    border-color: var(--accent);
+  }
+  .sc-map .map-canvas {
+    flex: 1;
+    position: relative;
+    border-radius: 14px;
+    background:
+      radial-gradient(50% 60% at 50% 40%, rgba(234,179,8,0.06), transparent 70%),
+      var(--bg-2);
+    border: 1px solid var(--line);
+    overflow: hidden;
+    margin: 0 4px;
+  }
+  /* Dot-grid background to suggest a tile-rendered map without
+     loading anything. */
+  .sc-map .map-canvas::before {
+    content: "";
+    position: absolute; inset: 0;
+    background-image: radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px);
+    background-size: 12px 12px;
+    pointer-events: none;
+  }
+  [data-theme="light"] .sc-map .map-canvas::before {
+    background-image: radial-gradient(rgba(0,0,0,0.05) 1px, transparent 1px);
+  }
+  .sc-map .map-illus {
+    position: absolute; inset: 8% 16% 8% 16%;
+    width: auto; height: 84%;
+    color: var(--ink-mute);
+  }
+  .sc-map .map-illus path {
+    fill: rgba(234,179,8,0.05);
+    stroke: rgba(234,179,8,0.35);
+    stroke-width: 0.7;
+  }
+  .sc-map .map-pin {
+    position: absolute;
+    width: 14px; height: 14px;
+    border-radius: 999px;
+    border: 2px solid #0A0B0A;
+    transform: translate(-50%, -50%);
+  }
+  [data-theme="light"] .sc-map .map-pin {
+    border-color: #fff;
+  }
+  .sc-map .map-pin.tier-silver   { background: var(--silver);   box-shadow: 0 0 0 3px rgba(158,158,158,0.25); }
+  .sc-map .map-pin.tier-gold     { background: var(--gold);     box-shadow: 0 0 0 3px rgba(234,179,8,0.30); }
+  .sc-map .map-pin.tier-platinum { background: var(--platinum); box-shadow: 0 0 0 3px rgba(184,212,255,0.25); }
+  .sc-map .map-pin.tier-diamond  { background: var(--diamond);  box-shadow: 0 0 0 3px rgba(0,229,255,0.25); }
+  .sc-map .user-dot {
+    position: absolute;
+    width: 10px; height: 10px;
+    border-radius: 999px;
+    background: #4285F4;
+    border: 2px solid #fff;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 0 6px rgba(66,133,244,0.18);
+  }
+  .sc-map .map-fab-row {
+    position: absolute; right: 12px; bottom: 70px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .sc-map .map-fab {
+    width: 36px; height: 36px; border-radius: 999px;
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--ink); font-size: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  }
+  .sc-map .bottom-nav {
+    margin-top: auto;
+    display: flex; justify-content: space-around;
+    padding: 8px 0 6px;
+    border-top: 1px solid var(--line);
+    background: var(--bg-1, var(--bg));
+  }
+  .sc-map .nav-item {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    font-family: var(--font-mono); font-size: 8px;
+    letter-spacing: 0.18em; color: var(--ink-mute);
+  }
+  .sc-map .nav-item .icn { font-size: 16px; line-height: 1; }
+  .sc-map .nav-item.is-active { color: var(--accent); }
+  .sc-map .nav-item.is-active::after {
+    content: ""; width: 14px; height: 2px;
+    background: var(--accent); border-radius: 2px; margin-top: 2px;
+  }
+
+  /* scene PASS — check-in success. Aurora background, big check mark,
+     gym name, tier badge, and a 2-column meta row (today's time +
+     monthly visit counter). Reads as a celebratory beat capping the
+     6-step product walkthrough. */
+  .sc-pass {
+    align-items: stretch;
+    justify-content: flex-start;
+    padding: 42px 22px 24px;
+    gap: 14px;
+    overflow: hidden;
+    position: relative;
+  }
+  .sc-pass .pass-aurora {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(60% 50% at 50% 30%, rgba(132,225,116,0.20), transparent 70%),
+      radial-gradient(50% 40% at 70% 80%, rgba(234,179,8,0.16), transparent 75%);
+    pointer-events: none;
+  }
+  .sc-pass .pass-content {
+    position: relative; z-index: 1;
+    display: flex; flex-direction: column;
+    align-items: stretch; gap: 14px;
+    height: 100%;
+  }
+  .sc-pass .pass-check {
+    align-self: center;
+    width: 72px; height: 72px; border-radius: 999px;
+    background: rgba(132,225,116,0.16);
+    border: 2px solid #84E174;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: #84E174;
+    margin-top: 8px;
+    box-shadow: 0 0 0 8px rgba(132,225,116,0.08);
+  }
+  .sc-pass .pass-label {
+    align-self: center;
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.28em; color: #84E174;
+    margin-top: -2px;
+  }
+  .sc-pass .pass-gym {
+    font-family: var(--font-display); font-weight: 900;
+    font-style: italic; font-variation-settings: 'wdth' 88;
+    font-size: 28px; line-height: 0.95; letter-spacing: -0.04em;
+    text-transform: uppercase;
+    text-align: center;
+    margin: 4px 0 0; max-width: none;
+  }
+  .sc-pass .pass-gym em {
+    font-family: var(--font-serif); font-style: italic; font-weight: 400;
+    color: var(--accent); font-size: 0.86em; letter-spacing: -0.005em;
+    text-transform: none;
+  }
+  .sc-pass .pass-tier {
+    align-self: center;
+    display: inline-flex; gap: 6px; align-items: center;
+    font-family: var(--font-mono); font-size: 9px;
+    letter-spacing: 0.22em; color: var(--ink-dim);
+  }
+  .sc-pass .pass-tier .dot {
+    width: 7px; height: 7px; border-radius: 999px;
+    background: var(--platinum);
+    box-shadow: 0 0 0 3px rgba(184,212,255,0.22);
+  }
+  .sc-pass .pass-meta {
+    display: grid; grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 0;
+    margin-top: 8px;
+    padding: 14px 12px;
+    border-radius: 14px;
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+  }
+  .sc-pass .pass-meta > span:not(.div) {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+  }
+  .sc-pass .pass-meta b {
+    font-family: var(--font-display); font-weight: 900;
+    font-style: italic; font-variation-settings: 'wdth' 95;
+    font-size: 18px; letter-spacing: -0.03em;
+    color: var(--ink);
+  }
+  .sc-pass .pass-meta i {
+    font-family: var(--font-mono); font-style: normal;
+    font-size: 8.5px; letter-spacing: 0.22em; color: var(--ink-mute);
+  }
+  .sc-pass .pass-meta .div {
+    width: 1px; height: 28px;
+    background: var(--line); margin: 0 4px;
+  }
+  .sc-pass .btn-block {
+    margin-top: auto;
+    background: var(--accent); color: #0A0B0A;
+    border-radius: 999px; height: 44px;
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: 8px; font: 800 13px var(--font-display);
+    font-style: italic; font-variation-settings: 'wdth' 95;
+    text-transform: uppercase; letter-spacing: -0.01em;
+  }
+  .sc-pass .btn-block .arr { font-size: 16px; line-height: 1; }
 
   /* scrolly progress rail */
   .scene-rail {
@@ -1413,19 +1893,34 @@
       <div class="copy-side left">
         <div class="scene-copy" data-scene-copy>
           <div class="scene-slide is-active" data-i="0">
-            <span class="num">01 · INSTALL</span>
+            <span class="num">01 · SIGN IN</span>
             <h3>One app on this phone, <em>once.</em></h3>
-            <p>Phone OTP or Google. The pass lives on this device — no plastic card, no front-desk clipboard, no extra hardware. Sign in once and you're a member of every partner gym in Jordan.</p>
+            <p>Open GymPass, enter your Jordanian number, or tap Continue with Google. Sign in once and you're a member of every partner gym in the network — no plastic card, no front-desk clipboard, no extra hardware.</p>
           </div>
           <div class="scene-slide" data-i="1">
-            <span class="num">02 · PICK A TIER</span>
+            <span class="num">02 · VERIFY</span>
+            <h3>Four digits. <em>That's it.</em></h3>
+            <p>We text you a 4-digit code. Type it in and you're verified — no password to remember, no app-store mediation, no recovery email loop. Code times out in 60 seconds and a single tap resends.</p>
+          </div>
+          <div class="scene-slide" data-i="2">
+            <span class="num">03 · PICK A TIER</span>
             <h3>Same map. <em>Different class.</em></h3>
             <p>Every tier reaches every partner city — Amman, Irbid, Aqaba, Zarqa. What changes is the <b style="color:var(--ink);font-weight:500">class of gym</b> you can walk into: neighbourhood floors at Silver, premium clubs at Platinum, hotel clubs at Diamond. Same 30 visits / month across the board.</p>
           </div>
-          <div class="scene-slide" data-i="2">
-            <span class="num">03 · WALK IN</span>
+          <div class="scene-slide" data-i="3">
+            <span class="num">04 · EXPLORE</span>
+            <h3>Every gym, <em>on one map.</em></h3>
+            <p>Open Explore to see every partner across the kingdom — filtered by tier, category, distance. Real GPS distance to each location, photos, hours, and a one-tap call-the-gym shortcut. Tap a pin to open the gym's profile.</p>
+          </div>
+          <div class="scene-slide" data-i="4">
+            <span class="num">05 · SCAN QR</span>
             <h3>Point the camera. <em>You're in.</em></h3>
-            <p>A static QR taped near every partner door. Open the app, point at it, the backend verifies, the front desk hears a beep. No swipe. No app-store handover. No talking.</p>
+            <p>A static QR taped near every partner door. Open the app, point at it, the backend verifies the gym + your tier + your visit count, and the front desk hears a chime. No swipe. No app-store handover. No talking.</p>
+          </div>
+          <div class="scene-slide" data-i="5">
+            <span class="num">06 · YOU'RE IN</span>
+            <h3>Beep. <em>Pass granted.</em></h3>
+            <p>The pass page confirms gym, tier, time, and which of your monthly visits you just spent. Server-signed and audit-logged on every scan, so disputes never come down to "I was there, I swear." Under 1.5 seconds end-to-end.</p>
           </div>
         </div>
       </div>
@@ -1441,6 +1936,11 @@
           <div class="screen">
 
             <!-- scene A · welcome (phone OTP entry — matches `01 · INSTALL` copy) -->
+            <!-- Refreshed to match the real app screen 1 (sign-in):
+                 GYMPASS wordmark + sun/AR chip row, "WELCOME — STEP 1 OF 3"
+                 eyebrow, "ONE PASS, EVERY gym." display headline, blurb,
+                 phone field with Jordan flag, CONTINUE button, OR divider,
+                 CONTINUE WITH GOOGLE, terms footer. -->
             <div class="scene-layer is-active sc-welcome" data-i="0">
               <div class="ph-status">
                 <span>9:41</span>
@@ -1449,28 +1949,54 @@
                   <svg width="22" height="11" viewBox="0 0 24 11" fill="none"><rect x="0.5" y="0.5" width="20" height="10" rx="2.5" stroke="currentColor"/><rect x="2" y="2" width="17" height="7" rx="1" fill="currentColor"/><rect x="22" y="4" width="2" height="3" rx="0.5" fill="currentColor"/></svg>
                 </span>
               </div>
-              <div class="head">
+              <div class="topbar">
                 <span class="wm" dir="ltr"><span class="gym">GYM</span><span class="pass">PASS</span></span>
-                <span class="eyebrow"><b>01</b>&nbsp;·&nbsp;YOUR PHONE</span>
-                <p class="pitch">Your number,<br /><em>once.</em></p>
+                <span class="chip-row">
+                  <span class="circle-btn" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M19.07 4.93l-1.41 1.41M6.34 17.66l-1.41 1.41M19.07 19.07l-1.41-1.41M6.34 6.34L4.93 4.93"/></svg>
+                  </span>
+                  <span class="circle-btn">AR</span>
+                </span>
+              </div>
+              <div class="head">
+                <span class="eyebrow"><b>·</b>&nbsp;WELCOME — STEP 1 OF 3</span>
+                <p class="pitch">One pass, every<br /><em>gym.</em></p>
+                <p class="blurb">Train anywhere in the network. One subscription. Unlocked by the QR at the door.</p>
               </div>
               <div class="field">
-                <span class="cc" dir="ltr">+962</span>
-                <span class="num" dir="ltr">79 555 12<span class="caret" aria-hidden="true"></span></span>
+                <span class="cc" dir="ltr">
+                  <span class="cc-flag" aria-hidden="true">
+                    <!-- Jordan flag: three bands (black/white/green) + red hoist triangle. -->
+                    <svg viewBox="0 0 18 12" width="18" height="12">
+                      <rect width="18" height="4" fill="#000"/>
+                      <rect y="4" width="18" height="4" fill="#fff"/>
+                      <rect y="8" width="18" height="4" fill="#078930"/>
+                      <polygon points="0,0 7,6 0,12" fill="#CE1126"/>
+                    </svg>
+                  </span>
+                  +962
+                </span>
+                <span class="num" dir="ltr">7X XXX XXXX</span>
               </div>
-              <span class="hint">We'll text a 4-digit code</span>
+              <span class="hint">We'll text you a 4-digit code. No spam, ever.</span>
               <div class="actions">
-                <span class="btn-block">Send code <span class="arr">→</span></span>
+                <span class="btn-block">Continue <span class="arr">→</span></span>
                 <span class="alt-row"><span>or</span></span>
                 <span class="google">
                   <span class="g">G</span>
                   Continue with Google
                 </span>
+                <p class="terms">
+                  By continuing you agree to our <u>Terms</u> and <u>Privacy Policy</u>.
+                </p>
               </div>
             </div>
 
-            <!-- scene B · tier -->
-            <div class="scene-layer sc-tier" data-i="1">
+            <!-- scene · OTP verification (step 2 of real-app registration).
+                 Back arrow + step pill, "Enter the code." display headline,
+                 phone subtitle, 4 boxed digit slots with cursor caret on the
+                 4th, resend countdown, Verify CTA, Wrong-number edit link. -->
+            <div class="scene-layer sc-otp" data-i="1">
               <div class="ph-status">
                 <span>9:41</span>
                 <span class="ic-cluster">
@@ -1478,8 +2004,43 @@
                   <svg width="22" height="11" viewBox="0 0 24 11" fill="none"><rect x="0.5" y="0.5" width="20" height="10" rx="2.5" stroke="currentColor"/><rect x="2" y="2" width="17" height="7" rx="1" fill="currentColor"/><rect x="22" y="4" width="2" height="3" rx="0.5" fill="currentColor"/></svg>
                 </span>
               </div>
-              <span class="eyebrow" style="margin: 8px 22px 0">04 · PICK YOUR TIER</span>
-              <h4 style="margin: 8px 22px 0">Same map.<br /><em>Different class.</em></h4>
+              <div class="topbar">
+                <span class="back-circle" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+                </span>
+                <span class="step-pill"><span class="dot"></span>VERIFY — STEP 2 OF 3</span>
+                <span style="width:28px"></span>
+              </div>
+              <div class="head">
+                <p class="pitch">Enter<br /><em>the code.</em></p>
+                <p class="blurb">We sent a 4-digit code to <span class="num" dir="ltr">+962 7X XXX XXXX</span>.</p>
+              </div>
+              <div class="otp-grid" dir="ltr">
+                <span class="otp-box">7</span>
+                <span class="otp-box">3</span>
+                <span class="otp-box">9</span>
+                <span class="otp-box is-cursor"></span>
+              </div>
+              <div class="otp-meta">
+                Resend in <b>0:28</b>
+              </div>
+              <div class="actions">
+                <span class="btn-block">Verify <span class="arr">→</span></span>
+                <span class="edit-num">Wrong number? <u>Edit</u></span>
+              </div>
+            </div>
+
+            <!-- scene B · tier -->
+            <div class="scene-layer sc-tier" data-i="2">
+              <div class="ph-status">
+                <span>9:41</span>
+                <span class="ic-cluster">
+                  <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor"><path d="M1 7h2v3H1zM5 5h2v5H5zM9 3h2v7H9zM13 1h2v9h-2z"/></svg>
+                  <svg width="22" height="11" viewBox="0 0 24 11" fill="none"><rect x="0.5" y="0.5" width="20" height="10" rx="2.5" stroke="currentColor"/><rect x="2" y="2" width="17" height="7" rx="1" fill="currentColor"/><rect x="22" y="4" width="2" height="3" rx="0.5" fill="currentColor"/></svg>
+                </span>
+              </div>
+              <span class="eyebrow" style="margin: 8px 22px 0"><b>·</b>&nbsp;PICK YOUR PASS</span>
+              <h4 style="margin: 8px 22px 0">Choose<br /><em>your tier.</em></h4>
               <div class="stack" style="padding: 4px 22px 22px">
                 <div class="tcard" data-t="silver">
                   <span class="d"></span>
@@ -1508,8 +2069,14 @@
               </div>
             </div>
 
-            <!-- scene C · QR scan -->
-            <div class="scene-layer sc-qr" data-i="2">
+            <!-- scene · Explore map (step 4 of the marketing flow).
+                 Top search bar + filter chip row, Jordan outline with a
+                 mix of tier-coloured pins, user-position dot, locate-me
+                 FAB stack, bottom-nav with EXPLORE highlighted. The
+                 map itself is illustrative SVG, not a real tile render
+                 — the mockup goal is "you recognise this screen", not
+                 "you can navigate it". -->
+            <div class="scene-layer sc-map" data-i="3">
               <div class="ph-status">
                 <span>9:41</span>
                 <span class="ic-cluster">
@@ -1517,11 +2084,81 @@
                   <svg width="22" height="11" viewBox="0 0 24 11" fill="none"><rect x="0.5" y="0.5" width="20" height="10" rx="2.5" stroke="currentColor"/><rect x="2" y="2" width="17" height="7" rx="1" fill="currentColor"/><rect x="22" y="4" width="2" height="3" rx="0.5" fill="currentColor"/></svg>
                 </span>
               </div>
+              <div class="map-top">
+                <div class="map-search">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+                  <span>Search gyms…</span>
+                </div>
+                <span class="map-filter" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M6 12h12M10 18h4"/></svg>
+                </span>
+              </div>
+              <div class="map-chips">
+                <span class="chip is-active">ALL</span>
+                <span class="chip">GYM</span>
+                <span class="chip">CROSSFIT</span>
+                <span class="chip">YOGA</span>
+              </div>
+              <div class="map-canvas">
+                <!-- Stylised Jordan outline. Coordinates approximate; the
+                     shape's job is "you recognise the country", not
+                     cartographic accuracy. -->
+                <svg class="map-illus" viewBox="0 0 100 130" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+                  <path d="M22 6 L78 14 L92 38 L86 64 L72 72 L66 84 L58 96 L46 112 L36 124 L18 110 L14 82 L8 56 L16 28 Z" />
+                </svg>
+                <!-- Five gym pins spread across Jordan's coordinate space,
+                     mixing tier colours so the visitor sees the spread of
+                     plans visually. Positions are %-based against the
+                     canvas so they ride the responsive phone-frame. -->
+                <span class="map-pin tier-platinum" style="top:35%; left:50%"></span>
+                <span class="map-pin tier-gold"     style="top:48%; left:40%"></span>
+                <span class="map-pin tier-silver"   style="top:56%; left:56%"></span>
+                <span class="map-pin tier-diamond"  style="top:28%; left:54%"></span>
+                <span class="map-pin tier-gold"     style="top:64%; left:38%"></span>
+                <span class="map-pin tier-platinum" style="top:74%; left:48%"></span>
+                <span class="user-dot" style="top:46%; left:50%"></span>
+                <div class="map-fab-row">
+                  <span class="map-fab" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+                  </span>
+                  <span class="map-fab" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+                  </span>
+                </div>
+              </div>
+              <div class="bottom-nav" aria-hidden="true">
+                <span class="nav-item"><span class="icn">⌂</span><span>HOME</span></span>
+                <span class="nav-item is-active"><span class="icn">◎</span><span>EXPLORE</span></span>
+                <span class="nav-item"><span class="icn">▥</span><span>SCAN</span></span>
+                <span class="nav-item"><span class="icn">◐</span><span>PROFILE</span></span>
+              </div>
+            </div>
+
+            <!-- scene C · QR scan -->
+            <!-- Refreshed to match the real app screen 5 (Scan tab):
+                 back-arrow + "SCAN QR · STEP 1 OF 2" header, "ALIGN
+                 the code." display headline, viewfinder, ALIGN
+                 caption, PREVIEW MODE info card, SEE PLANS CTA,
+                 bottom-nav. Green camera-recording dot in the status
+                 cluster mirrors iOS's "camera in use" indicator. -->
+            <div class="scene-layer sc-qr" data-i="4">
+              <div class="ph-status">
+                <span>9:41</span>
+                <span class="ic-cluster">
+                  <span class="cam-dot" aria-hidden="true"></span>
+                  <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor"><path d="M1 7h2v3H1zM5 5h2v5H5zM9 3h2v7H9zM13 1h2v9h-2z"/></svg>
+                  <svg width="22" height="11" viewBox="0 0 24 11" fill="none"><rect x="0.5" y="0.5" width="20" height="10" rx="2.5" stroke="currentColor"/><rect x="2" y="2" width="17" height="7" rx="1" fill="currentColor"/><rect x="22" y="4" width="2" height="3" rx="0.5" fill="currentColor"/></svg>
+                </span>
+              </div>
               <div class="sc-qr-overlay">
                 <div class="sc-qr-top">
-                  <span class="sc-qr-cancel">Cancel</span>
-                  <span class="sc-qr-coords">31.95° N · 35.93° E</span>
+                  <span class="back-circle" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+                  </span>
+                  <span class="step-pill"><span class="dot"></span>SCAN QR · STEP 1 OF 2</span>
+                  <span style="width:28px"></span>
                 </div>
+                <p class="pitch">Align<br /><em>the code.</em></p>
                 <div class="sc-qr-frame">
                   <span class="grid"></span>
                   <span class="corner tl"></span>
@@ -1530,10 +2167,57 @@
                   <span class="corner br"></span>
                   <span class="scanline"></span>
                 </div>
-                <div class="sc-qr-bottom">
-                  <span class="lbl">Point at any GymPass QR</span>
-                  <span class="scanning">Scanning…</span>
+                <span class="caption">ALIGN QR WITHIN THE FRAME</span>
+                <div class="preview-card">
+                  <span class="lock-ic" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+                  </span>
+                  <span>
+                    <span class="card-title">PREVIEW MODE</span>
+                    <span class="card-body">You don't have an active plan. Scanning opens the gym profile; check-ins unlock once you subscribe.</span>
+                  </span>
                 </div>
+                <span class="see-plans-cta">
+                  See plans
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+                </span>
+                <div class="bottom-nav" aria-hidden="true">
+                  <span class="nav-item"><span class="icn">⌂</span><span>HOME</span></span>
+                  <span class="nav-item"><span class="icn">◎</span><span>EXPLORE</span></span>
+                  <span class="nav-item is-active"><span class="icn">▥</span><span>SCAN</span></span>
+                  <span class="nav-item"><span class="icn">◐</span><span>PROFILE</span></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- scene · Pass granted (the celebratory close to the
+                 6-step flow). Aurora background (lime + amber glow),
+                 success checkmark in a green ring, gym name in the
+                 display headline register, tier badge with a coloured
+                 dot, a 2-column meta row (today's check-in time +
+                 monthly visit counter), and a Done CTA. -->
+            <div class="scene-layer sc-pass" data-i="5">
+              <div class="ph-status">
+                <span>9:41</span>
+                <span class="ic-cluster">
+                  <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor"><path d="M1 7h2v3H1zM5 5h2v5H5zM9 3h2v7H9zM13 1h2v9h-2z"/></svg>
+                  <svg width="22" height="11" viewBox="0 0 24 11" fill="none"><rect x="0.5" y="0.5" width="20" height="10" rx="2.5" stroke="currentColor"/><rect x="2" y="2" width="17" height="7" rx="1" fill="currentColor"/><rect x="22" y="4" width="2" height="3" rx="0.5" fill="currentColor"/></svg>
+                </span>
+              </div>
+              <div class="pass-aurora" aria-hidden="true"></div>
+              <div class="pass-content">
+                <span class="pass-check" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                </span>
+                <span class="pass-label">ACCESS GRANTED</span>
+                <h4 class="pass-gym">FitZone <em>Amman</em></h4>
+                <span class="pass-tier"><span class="dot"></span>PLATINUM · CHECK-IN #14</span>
+                <div class="pass-meta">
+                  <span><b>2:14 PM</b><i>TODAY</i></span>
+                  <span class="div" aria-hidden="true"></span>
+                  <span><b>12 / 30</b><i>VISITS · APR</i></span>
+                </div>
+                <span class="btn-block">Done <span class="arr">→</span></span>
               </div>
             </div>
 
@@ -1546,14 +2230,23 @@
         <div class="scene-copy" data-scene-spec>
           <div class="scene-slide is-active" data-i="0">
             <ul style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:14px;">
-              <li class="eyebrow" style="color:var(--ink);"><b>Phone OTP</b></li>
+              <li class="eyebrow" style="color:var(--ink);"><b>Sign-in</b></li>
+              <li class="eyebrow" style="color:var(--ink-dim);">·  Jordanian numbers</li>
               <li class="eyebrow" style="color:var(--ink-dim);">·  Google OAuth</li>
               <li class="eyebrow" style="color:var(--ink-dim);">·  Bilingual EN / AR</li>
               <li class="eyebrow" style="color:var(--ink-dim);">·  Full RTL parity</li>
-              <li class="eyebrow" style="color:var(--ink-dim);">·  Free 30-day trial</li>
             </ul>
           </div>
           <div class="scene-slide" data-i="1">
+            <ul style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:14px;">
+              <li class="eyebrow" style="color:var(--ink);"><b>SMS OTP</b></li>
+              <li class="eyebrow" style="color:var(--ink-dim);">·  4-digit code</li>
+              <li class="eyebrow" style="color:var(--ink-dim);">·  60-second window</li>
+              <li class="eyebrow" style="color:var(--ink-dim);">·  No password setup</li>
+              <li class="eyebrow" style="color:var(--ink-dim);">·  Rate-limited</li>
+            </ul>
+          </div>
+          <div class="scene-slide" data-i="2">
             <ul style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:14px;">
               <li class="eyebrow" style="color:var(--ink);"><b>Four tiers</b></li>
               <li class="eyebrow" style="color:var(--ink-dim);">·  30 visits / month</li>
@@ -1562,7 +2255,16 @@
               <li class="eyebrow" style="color:var(--ink-dim);">·  Refer a friend, free month</li>
             </ul>
           </div>
-          <div class="scene-slide" data-i="2">
+          <div class="scene-slide" data-i="3">
+            <ul style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:14px;">
+              <li class="eyebrow" style="color:var(--ink);"><b>Live map</b></li>
+              <li class="eyebrow" style="color:var(--ink-dim);">·  ~80 partner gyms</li>
+              <li class="eyebrow" style="color:var(--ink-dim);">·  Tier-coloured pins</li>
+              <li class="eyebrow" style="color:var(--ink-dim);">·  Real GPS distance</li>
+              <li class="eyebrow" style="color:var(--ink-dim);">·  Category filters</li>
+            </ul>
+          </div>
+          <div class="scene-slide" data-i="4">
             <ul style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:14px;">
               <li class="eyebrow" style="color:var(--ink);"><b>Static QR</b></li>
               <li class="eyebrow" style="color:var(--ink-dim);">·  Server-verified scan</li>
@@ -1571,13 +2273,27 @@
               <li class="eyebrow" style="color:var(--ink-dim);">·  &lt; 1.5s end-to-end</li>
             </ul>
           </div>
+          <div class="scene-slide" data-i="5">
+            <ul style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:14px;">
+              <li class="eyebrow" style="color:var(--ink);"><b>Instant verify</b></li>
+              <li class="eyebrow" style="color:var(--ink-dim);">·  Audit-logged</li>
+              <li class="eyebrow" style="color:var(--ink-dim);">·  Tier-locked</li>
+              <li class="eyebrow" style="color:var(--ink-dim);">·  Visit counter live</li>
+              <li class="eyebrow" style="color:var(--ink-dim);">·  Receipt on profile</li>
+            </ul>
+          </div>
         </div>
       </div>
 
     </div>
 
+    <!-- One pip per scene-layer / scene-slide; the JS loop above
+         flips `.is-on` to match the active index. -->
     <div class="scene-rail" data-rail>
       <span class="pip is-on"></span>
+      <span class="pip"></span>
+      <span class="pip"></span>
+      <span class="pip"></span>
       <span class="pip"></span>
       <span class="pip"></span>
     </div>
@@ -1587,7 +2303,7 @@
   <section class="radius-sec" id="tiers" data-screen-label="03 Tiers">
     <div class="container">
       <div class="head reveal">
-        <span class="eyebrow">04 · THE TIERS</span>
+        <span class="eyebrow">THE TIERS</span>
         <h2>Same map.<br /><em>Different class.</em></h2>
         <p class="desc">Every tier reaches every partner city in Jordan. What the tier picks is the <b style="color:var(--ink);font-weight:500">class of gym</b> you can scan into — from your neighbourhood floor up to hotel clubs. All four ship the same QR check-in and the same 30 visits a month.</p>
       </div>
@@ -1667,7 +2383,7 @@
   <section class="partners" id="partner" data-screen-label="04 Partners">
     <div class="container inner">
       <div class="reveal">
-        <span class="eyebrow">05 · FOR GYM OWNERS</span>
+        <span class="eyebrow">FOR GYM OWNERS</span>
         <h2>Run your floor. <em>We bring the members.</em></h2>
         <p>Onboard your gym in a day. Members tap your static QR, you see the check-in live, payouts settle monthly. No POS hardware. No card readers. No paperwork.</p>
         <div class="stats">
@@ -1700,7 +2416,7 @@
           <span class="stack"><span class="small">Get it on</span><span class="big">Google Play</span></span>
         </a>
       </div>
-      <div class="apk reveal" data-d="4">Or <a href="/downloads/gympass.apk" download>download APK directly</a> · pre-prod · for Android</div>
+      <div class="apk reveal" data-d="4">Or <a href="/downloads/gympass.apk" download>download APK directly</a> · pre-prod · for Android · <a href="/downloads/gympass-universal.apk" download>universal build</a> for older devices</div>
     </div>
   </section>
 
@@ -1783,7 +2499,12 @@
     var specs   = scrolly.querySelectorAll('[data-scene-spec] .scene-slide');
     var rail    = scrolly.querySelectorAll('[data-rail] .pip');
     var tilt    = scrolly.querySelector('[data-phone-tilt]');
-    var N = 3;
+    /* Six scenes — sign-in / OTP / tier / map / QR / pass. Must
+       match the count of `.scene-layer` elements inside the phone
+       AND the matching left-copy + right-spec slides + scene-rail
+       pips. If you add or remove a scene, bump this and the matching
+       `.scrolly` track-height calc above. */
+    var N = 6;
     var lastIdx = -1;
 
     var rafId = null;

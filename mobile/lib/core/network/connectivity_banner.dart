@@ -6,15 +6,19 @@ import '../theme/gp_tokens.dart';
 import '../../l10n/app_localizations.dart';
 import 'connectivity.dart';
 
-/// Thin slide-down banner anchored to the top of the screen via
-/// `SafeArea`, visible only while [connectivityProvider] reports
+/// Thin slide-down banner anchored to the top of the screen,
+/// visible only while [connectivityProvider] reports
 /// [NetworkStatus.offline]. Communicates "you're offline; we're
 /// showing your saved list" without blocking the underlying UI.
 ///
-/// Drop one instance per scaffold in the bottom-nav shell so every
-/// tab inherits the same indicator. The widget renders a sized box
-/// when online so layouts that build it unconditionally don't have
-/// to reserve space.
+/// **Layout contract**: the banner takes ZERO layout space when
+/// online — `SizedBox.shrink()` is genuinely zero-sized AND the
+/// SafeArea inset is folded *inside* the offline branch only.
+/// This is intentional: HomeShell stacks this banner as a
+/// `Positioned(top:0)` overlay above the navigation stack, so an
+/// empty banner must not reserve the status-bar inset (doing so
+/// produced a phantom ~50 px band between the system status bar
+/// and every page header).
 class ConnectivityBanner extends ConsumerWidget {
   const ConnectivityBanner({super.key});
 
@@ -39,42 +43,45 @@ class ConnectivityBanner extends ConsumerWidget {
       },
       child: !isOffline
           ? const SizedBox.shrink(key: ValueKey('online'))
-          : Container(
+          : SafeArea(
               key: const ValueKey('offline'),
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 8,
-              ),
-              decoration: BoxDecoration(
-                color: gp.bg2,
-                border: Border(
-                  bottom: BorderSide(color: gp.line),
+              bottom: false,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
                 ),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      color: GP.danger,
-                      shape: BoxShape.circle,
-                    ),
+                decoration: BoxDecoration(
+                  color: gp.bg2,
+                  border: Border(
+                    bottom: BorderSide(color: gp.line),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      l.offlineBannerMessage,
-                      style: GPText.mono(
-                        size: 11,
-                        letterSpacing: 1.2,
-                        color: gp.fg,
-                        weight: FontWeight.w600,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: GP.danger,
+                        shape: BoxShape.circle,
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        l.offlineBannerMessage,
+                        style: GPText.mono(
+                          size: 11,
+                          letterSpacing: 1.2,
+                          color: gp.fg,
+                          weight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
     );

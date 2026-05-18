@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/network/network_error.dart';
 import '../../../core/prefs/app_preferences.dart';
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
@@ -43,13 +44,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             physics: const AlwaysScrollableScrollPhysics(
               parent: TopBouncePhysics(),
             ),
-            padding: EdgeInsets.fromLTRB(20, topInset + 12, 20, 20),
+            // Top padding clears the pinned header row (BackBtn +
+            // Overline) that lives in the Positioned widget below.
+            // Header: button (40 px) + 12 top + 8 bottom margin =
+            // 60 px from the top inset.
+            padding: EdgeInsets.fromLTRB(20, topInset + 64, 20, 20),
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [Overline(l.settingsTitle)],
-              ),
-              const SizedBox(height: 22),
               DisplayText(l.settingsTitle, size: 36),
               const SizedBox(height: 28),
               _sectionLabel(context, l.settingsLanguage),
@@ -91,10 +91,28 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               const SizedBox(height: 10),
             ],
           ),
+          // Pinned page header. Stays at the top of the screen
+          // regardless of scroll position, so the eyebrow
+          // "• الإعدادات" is always visible alongside the back
+          // button. Used to live inside the ListView, which let
+          // both scroll away with the rest of the content.
           PositionedDirectional(
             top: topInset + 12,
             start: 20,
-            child: const BackBtn(),
+            end: 20,
+            child: Row(
+              children: [
+                const BackBtn(),
+                Expanded(
+                  child: Center(child: Overline(l.settingsTitle)),
+                ),
+                // Mirror width of the BackBtn so the Overline's
+                // visual center matches the page's horizontal
+                // center instead of drifting left to balance only
+                // the start-side button.
+                const SizedBox(width: 40),
+              ],
+            ),
           ),
         ],
       ),
@@ -711,11 +729,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
           ? l.errorPasswordInvalid
           : raw.contains('VALIDATION_ERROR') || raw.contains('Email already')
               ? l.errorInvalidInput
-              : raw.contains('SocketException') ||
-                      raw.contains('connectionError') ||
-                      raw.contains('Failed host lookup')
-                  ? l.errorNetwork
-                  : '${l.snackErrorGeneric} ($raw)';
+              : resolveErrorMessageString(raw, l);
       setState(() {
         _saving = false;
         // Inline error inside the sheet — snackbars don't work
@@ -1133,12 +1147,24 @@ class _ChangePhoneSheetState extends ConsumerState<_ChangePhoneSheet> {
           decoration: InputDecoration(
             hintText: l.phoneHint,
             hintStyle: GPText.body(size: 14, color: gp.muted),
-            prefixText: '${l.phoneCountryPrefix} ',
-            prefixStyle: GPText.body(
-              size: 15,
-              color: gp.fg,
-              weight: FontWeight.w500,
+            // `prefixText` would be the natural fit, but Material
+            // only renders it when the field is focused or has
+            // content — leaving an unfocused empty field showing
+            // just the hint with no country code. Using a
+            // `prefixIcon` with a Text widget renders the "+962"
+            // chip persistently, the moment the sheet opens.
+            prefixIcon: Padding(
+              padding: const EdgeInsetsDirectional.only(start: 16, end: 8),
+              child: Text(
+                '${l.phoneCountryPrefix} ',
+                style: GPText.body(
+                  size: 15,
+                  color: gp.fg,
+                  weight: FontWeight.w500,
+                ),
+              ),
             ),
+            prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
             filled: true,
             fillColor: gp.bg3,
             border: OutlineInputBorder(

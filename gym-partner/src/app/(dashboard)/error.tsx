@@ -7,12 +7,14 @@ import { useEffect } from "react";
 /// that isn't a `NEXT_REDIRECT` (those are handled by Next.js
 /// itself — `api.ts` uses one to send session-expired partners back
 /// to /login). Real failures land here: backend 5xx, network
-/// dropped, schema mismatch, anything unexpected. Shows a quiet,
-/// blame-free panel with a retry button instead of a stack trace.
+/// dropped, schema mismatch, anything unexpected.
 ///
-/// Per `nextjs-best-practices` — use `error.tsx` to recover
-/// gracefully, never let an exception cascade to a generic 500
-/// HTML page in production.
+/// Network failures (`lib/api.ts` throws `NetworkError`) get a
+/// distinct copy so the gym owner knows to check their connection
+/// rather than chasing a ghost. Detection is by `name` instead of
+/// `instanceof` because the error crosses the server-component →
+/// error-boundary serialization boundary and only carries `message`,
+/// `name`, and `digest`.
 export default function DashboardError({
   error,
   reset,
@@ -22,10 +24,9 @@ export default function DashboardError({
 }) {
   const t = useTranslations("error");
 
+  const isNetwork = error.name === "NetworkError";
+
   useEffect(() => {
-    // Surface unhandled exceptions in the dev console so we can see
-    // them while iterating; production logging would route the
-    // `digest` through Sentry/similar.
     if (process.env.NODE_ENV !== "production") {
       // eslint-disable-next-line no-console
       console.error("[gym-partner] unhandled:", error);
@@ -35,8 +36,10 @@ export default function DashboardError({
   return (
     <div className="mx-auto flex max-w-md flex-col gap-4 py-16">
       <p className="label text-muted">{t("eyebrow")}</p>
-      <h1 className="h2">{t("title")}</h1>
-      <p className="text-[13px] leading-relaxed text-muted">{t("body")}</p>
+      <h1 className="h2">{isNetwork ? t("networkTitle") : t("title")}</h1>
+      <p className="text-[13px] leading-relaxed text-muted">
+        {isNetwork ? t("networkBody") : t("body")}
+      </p>
       <div className="mt-2 flex gap-2">
         <button
           type="button"

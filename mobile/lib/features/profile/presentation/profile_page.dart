@@ -55,8 +55,12 @@ class ProfilePage extends ConsumerWidget {
             // is a no-op). Stats column + tier chip update with
             // whatever the backend currently has.
             await Future.wait([
-              ref.read(subscriptionProvider.notifier).refreshFromBackend(),
-              ref.read(profileProvider.notifier).refreshFromBackend(),
+              ref
+                  .read(subscriptionProvider.notifier)
+                  .refreshFromBackend(throwOnError: true),
+              ref
+                  .read(profileProvider.notifier)
+                  .refreshFromBackend(throwOnError: true),
             ]);
           },
           child: ListView(

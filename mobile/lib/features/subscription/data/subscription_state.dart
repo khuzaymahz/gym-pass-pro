@@ -390,14 +390,22 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
   /// after a checkout / cancellation, and from My Subscription's pull-
   /// to-refresh. A network failure leaves the state untouched — better
   /// to keep the previous snapshot than wipe to a confusing empty.
-  Future<void> refreshFromBackend() async {
+  ///
+  /// [throwOnError] — set to true from explicit user-initiated refreshes
+  /// (pull-to-refresh on home / subscription / billing). The state still
+  /// keeps its stale snapshot, but the error rethrows so the caller can
+  /// surface a snackbar ("check your connection"). Cold-start hydrate
+  /// passes false so a bad first-frame fetch doesn't crash the app
+  /// before the UI has a chance to render the cached values.
+  Future<void> refreshFromBackend({bool throwOnError = false}) async {
     final CurrentSubscriptionResponse response;
     try {
       response = await _repo.current();
-    } catch (_) {
+    } catch (e) {
       // Offline / network blip — keep whatever we last knew. A stale tier
       // is less misleading than a sudden "no plan" state mid-session.
       state = state.copyWith(loaded: true);
+      if (throwOnError) rethrow;
       return;
     }
 

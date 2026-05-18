@@ -130,3 +130,124 @@ async def _run_auto_resume() -> dict[str, int]:
             return {"finalised": len(finalised)}
     finally:
         await engine.dispose()
+
+
+# How many months of audit_log to keep before dropping the
+# partition. 12 is generous — Jordan's data-protection floor for
+# financial / fitness records hasn't been mandated, but 12 months
+# of mutation history makes "what changed in the last year" the
+# longest-reach query the audit surface needs to support.
+# Operators tighten via the AUDIT_LOG_RETENTION_MONTHS env var.
+_AUDIT_LOG_RETENTION_MONTHS_DEFAULT = 12
+
+
+@celery_app.task(name="app.workers.tasks.scheduled.audit_log_maintenance")
+def audit_log_maintenance() -> dict[str, int]:
+    """Pre-create next month's audit_log partition and drop any
+    partition older than the retention window.
+
+    Two-part maintenance, idempotent both ways:
+
+      1. **Ensure** — call `audit_log_ensure_partition()` for the
+         current month + the next month. The function is
+         `CREATE TABLE IF NOT EXISTS`-style so re-runs are no-ops.
+         This is the load-bearing half: without a partition for
+         "tomorrow," an audit-log INSERT after midnight on the
+         month boundary would fail with "no partition of relation
+         audit_log found" and abort whatever transaction was
+         writing it.
+
+      2. **Prune** — drop any explicit partition whose date range
+         ends before `(today - retention_months)`. The default
+         partition stays — anything that ended up there is
+         already off-schedule, leave it for an operator to
+         inspect.
+
+    Runs daily (see `celery_app.beat_schedule`).
+    """
+    return asyncio.run(_run_audit_log_maintenance())
+
+
+async def _run_audit_log_maintenance() -> dict[str, int]:
+    import os
+    from datetime import date
+
+    from sqlalchemy import text
+
+    retention_months_raw = os.environ.get(
+        "AUDIT_LOG_RETENTION_MONTHS",
+        str(_AUDIT_LOG_RETENTION_MONTHS_DEFAULT),
+    )
+    try:
+        retention_months = max(1, int(retention_months_raw))
+    except ValueError:
+        retention_months = _AUDIT_LOG_RETENTION_MONTHS_DEFAULT
+
+    today = date.today()
+
+    def _add_months(d: date, n: int) -> date:
+        month_zero = (d.year * 12) + (d.month - 1) + n
+        return date(month_zero // 12, (month_zero % 12) + 1, 1)
+
+    current = today.replace(day=1)
+    next_month = _add_months(current, 1)
+
+    engine = make_engine()
+    try:
+        async with engine.begin() as conn:
+            # 1. Ensure (current + next month).
+            for m in (current, next_month):
+                await conn.execute(
+                    text(
+                        "SELECT audit_log_ensure_partition(:m::date);"
+                    ),
+                    {"m": m.isoformat()},
+                )
+
+            # 2. Prune. Postgres exposes partition bounds via
+            # pg_class + pg_inherits. We parse the partition name
+            # convention (`audit_log_yYYYYmMM`) and drop anything
+            # whose month-floor is older than the cutoff. The
+            # default partition (audit_log_default) doesn't match
+            # the name pattern and is left untouched.
+            cutoff = _add_months(current, -retention_months)
+            result = await conn.execute(
+                text(
+                    """
+                    SELECT c.relname
+                    FROM pg_inherits i
+                    JOIN pg_class c ON c.oid = i.inhrelid
+                    JOIN pg_class p ON p.oid = i.inhparent
+                    WHERE p.relname = 'audit_log'
+                      AND c.relname ~ '^audit_log_y[0-9]{4}m[0-9]{2}$'
+                    """
+                )
+            )
+            dropped = 0
+            for (name,) in result.all():
+                # Parse `audit_log_yYYYYmMM` → date(YYYY, MM, 1)
+                try:
+                    yyyy = int(name[12:16])
+                    mm = int(name[17:19])
+                    part_floor = date(yyyy, mm, 1)
+                except (ValueError, IndexError):
+                    continue
+                if part_floor < cutoff:
+                    await conn.execute(text(f'DROP TABLE "{name}";'))
+                    dropped += 1
+                    log.info(
+                        "audit_log.partition_dropped",
+                        partition=name,
+                        floor=part_floor.isoformat(),
+                        cutoff=cutoff.isoformat(),
+                    )
+
+        log.info(
+            "worker.audit_log_maintenance.tick",
+            ensured=[current.isoformat(), next_month.isoformat()],
+            dropped=dropped,
+            retention_months=retention_months,
+        )
+        return {"dropped": dropped}
+    finally:
+        await engine.dispose()

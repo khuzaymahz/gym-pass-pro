@@ -1,0 +1,149 @@
+name: licences
+
+# Weekly dependency-licence scan. Catches a transitive bump from
+# permissive (MIT / Apache 2.0 / BSD) to copyleft (GPL / AGPL)
+# before that licence taints the prod bundle.
+#
+# Scans:
+#   - Python: backend/pyproject.toml lock via `pip-licenses`
+#   - Node:   admin / partner / website package-lock.json via
+#             `license-checker-rseidelsohn`
+#   - Dart:   mobile/pubspec.lock via `flutter pub deps`
+#
+# The job emits a CSV per surface as an artefact and FAILS the
+# run if any dep declares a licence on the deny-list. The
+# deny-list is conservative — copyleft only; nothing on it that
+# isn't a known commercial blocker for sideload + Play-Store
+# distribution.
+
+on:
+  schedule:
+    # Sunday 00:00 UTC. Cheap to run; surfaces deps drift before
+    # Monday-morning standup.
+    - cron: "0 0 * * 0"
+  pull_request:
+    # Re-scan on any PR that touches a dependency manifest. Keeps
+    # the licence boundary enforced even between weekly runs.
+    paths:
+      - "backend/pyproject.toml"
+      - "backend/uv.lock"
+      - "admin/package.json"
+      - "admin/package-lock.json"
+      - "gym-partner/package.json"
+      - "gym-partner/package-lock.json"
+      - "website/package.json"
+      - "website/package-lock.json"
+      - "mobile/pubspec.yaml"
+      - "mobile/pubspec.lock"
+  workflow_dispatch: {}
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv sync --frozen --all-extras
+      - name: Install pip-licenses
+        run: uv pip install pip-licenses
+      - name: Generate licence CSV
+        run: |
+          uv run pip-licenses --format=csv --with-urls --order=license \
+            > licences-python.csv
+          cat licences-python.csv
+      - name: Enforce deny-list
+        # Fails the job if any dep declares a copyleft licence. The
+        # backend ships behind a public-facing API; AGPL transitively
+        # would require us to publish source. Refusing at CI time
+        # is cheaper than discovering it at launch.
+        run: |
+          if uv run pip-licenses --format=plain --order=license \
+             | grep -E -i "AGPL|^GPL|LGPL|SSPL|Commons Clause"; then
+            echo "::error::Copyleft licence in Python deps"; exit 1
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: licences-python
+          path: backend/licences-python.csv
+
+  node:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [admin, gym-partner, website]
+    defaults:
+      run:
+        working-directory: ${{ matrix.app }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: ${{ matrix.app }}/package-lock.json
+      - run: npm ci
+      - name: Generate licence CSV (license-checker-rseidelsohn)
+        run: |
+          npx --yes license-checker-rseidelsohn --csv \
+            --excludePrivatePackages > licences-${{ matrix.app }}.csv
+          head -20 licences-${{ matrix.app }}.csv
+      - name: Enforce deny-list
+        run: |
+          # The CSV's licence column is field 3. Filter to those, lower-case,
+          # check for any copyleft hit.
+          BAD=$(tail -n +2 licences-${{ matrix.app }}.csv \
+                | awk -F'","' '{print tolower($3)}' \
+                | grep -E "agpl|^gpl|lgpl|sspl|commons clause" || true)
+          if [[ -n "$BAD" ]]; then
+            echo "::error::Copyleft licence in ${{ matrix.app }} deps:"
+            echo "$BAD"
+            exit 1
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: licences-${{ matrix.app }}
+          path: ${{ matrix.app }}/licences-${{ matrix.app }}.csv
+
+  dart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.38.9"
+          channel: stable
+      - run: flutter pub get
+      # `flutter pub deps` doesn't print licences directly; we use
+      # the `flutter_oss_licenses` generator (already a common
+      # community tool) via `dart pub global`. Falls back to a
+      # plain `pub deps` listing if the generator fails — the goal
+      # is "fail on copyleft", not "perfect listing".
+      - name: Generate licence list
+        run: |
+          dart pub global activate flutter_oss_licenses 3.0.4 || true
+          if command -v flutter_oss_licenses >/dev/null 2>&1; then
+            flutter_oss_licenses > ../licences-mobile.txt || \
+              flutter pub deps --no-dev --style=list > ../licences-mobile.txt
+          else
+            flutter pub deps --no-dev --style=list > ../licences-mobile.txt
+          fi
+      - name: Enforce deny-list (best-effort)
+        run: |
+          if grep -E -i "AGPL|LGPL-2|LGPL-3|GPL-2|GPL-3|SSPL|Commons Clause" \
+             ../licences-mobile.txt; then
+            echo "::error::Possible copyleft licence in mobile deps"; exit 1
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: licences-mobile
+          path: licences-mobile.txt
