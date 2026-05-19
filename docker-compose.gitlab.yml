@@ -1,0 +1,108 @@
+# GitLab CE overlay — self-hosted Git for the GymPass repo.
+#
+# Apply on top of the dev or staging compose:
+#
+#   # Dev (alongside the hot-reload backend)
+#   docker compose -f docker-compose.yml -f docker-compose.gitlab.yml \
+#                  up -d gitlab
+#
+#   # Staging / pre-prod (add nginx vhost later for git.gym-pass.net)
+#   docker compose -f docker-compose.yml \
+#                  -f docker-compose.staging.yml \
+#                  -f docker-compose.gitlab.yml \
+#                  --env-file .env.staging up -d gitlab
+#
+# Why a separate overlay (not merged into the main compose):
+#   - GitLab is opt-in. A dev who doesn't need self-hosted git shouldn't
+#     pay for a ~4 GiB Omnibus process. Compose only starts what it sees
+#     in the -f files.
+#   - Brings its own bundled Postgres / Redis / nginx (Omnibus). Keeping
+#     it isolated means the app stack's db/redis are unaffected if GitLab
+#     misbehaves, and vice versa.
+#   - Image is ~3 GiB; first-boot reconfigure takes ~5 minutes. Hiding
+#     it behind an overlay avoids surprising every `up -d`.
+#
+# Resource budget (added to the staging budget in docker-compose.staging.yml):
+#   gitlab    4 GiB limit / 1 GiB reservation
+#   Combined with the app stack (~7.5 GiB) + mail (~2.4 GiB) this sums
+#   to ~14 GiB on an 11 GiB host — DO NOT run gitlab + mail + staging
+#   together without first upsizing the VM (or scheduling a swap-only
+#   bring-up window). For now the typical layout is: app + gitlab on
+#   the dev host, app + mail on the production VM.
+#
+# Operational notes:
+#   - Initial root password is generated at first boot and written to
+#     /etc/gitlab/initial_root_password inside the container. It is
+#     valid for 24h. Read it with:
+#       docker compose exec gitlab cat /etc/gitlab/initial_root_password
+#   - Repo data lives in the gitlab_data volume. To back up:
+#       docker compose exec gitlab gitlab-backup create
+#     Backups land in /var/opt/gitlab/backups (inside gitlab_data).
+#   - SSH for git is published on host port 2289 (host's :22 is sshd).
+#     Clone URLs in the UI honour gitlab_shell_ssh_port below so they
+#     render as ssh://git@host:2289/... automatically.
+
+services:
+  gitlab:
+    image: gitlab/gitlab-ce:latest
+    hostname: ${GITLAB_HOSTNAME:-gitlab.local}
+    restart: unless-stopped
+    environment:
+      # Omnibus config — applied on every container start via gitlab-ctl
+      # reconfigure. Keeping it in env (vs a mounted gitlab.rb) means
+      # changes here take effect by recreating the container, no shell
+      # required.
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url '${GITLAB_EXTERNAL_URL:-http://localhost:8929}'
+        gitlab_rails['gitlab_shell_ssh_port'] = ${GITLAB_SSH_PORT:-2289}
+        nginx['listen_port'] = 80
+        nginx['listen_https'] = false
+        # Tame Omnibus on a shared host. Defaults assume a dedicated VM
+        # and over-fork puma/sidekiq workers, eating the headroom the
+        # app stack needs.
+        puma['worker_processes'] = 2
+        sidekiq['max_concurrency'] = 10
+        postgresql['shared_buffers'] = "256MB"
+        prometheus_monitoring['enable'] = false
+        # Disable the bundled container registry + pages + mattermost —
+        # we only want core git + issues + CI runner registration.
+        registry['enable'] = false
+        gitlab_pages['enable'] = false
+        mattermost['enable'] = false
+    ports:
+      - "${GITLAB_HTTP_PORT:-8929}:80"
+      - "${GITLAB_SSH_PORT:-2289}:22"
+    volumes:
+      - gitlab_config:/etc/gitlab
+      - gitlab_logs:/var/log/gitlab
+      - gitlab_data:/var/opt/gitlab
+    # Omnibus uses /dev/shm for Postgres + Redis IPC. The 64 MiB default
+    # is enough to crash reconfigure on first boot — bump to 256 MiB
+    # per the official docs.
+    shm_size: '256m'
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 1G
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      # /-/health is the unauthenticated liveness probe. First boot
+      # spends ~5 min running gitlab-ctl reconfigure before this starts
+      # responding — start_period covers that window so the container
+      # isn't marked unhealthy prematurely.
+      test: ["CMD", "curl", "-fsS", "http://localhost/-/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 8m
+
+volumes:
+  gitlab_config:
+  gitlab_logs:
+  gitlab_data:

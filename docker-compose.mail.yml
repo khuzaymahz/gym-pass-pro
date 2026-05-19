@@ -1,0 +1,537 @@
+# Mail overlay — self-hosted Mailu 2.0 stack.
+#
+# Apply on top of the dev or staging compose:
+#
+#   # Dev (mail server alongside hot-reload backend, no nginx)
+#   docker compose -f docker-compose.yml -f docker-compose.mail.yml \
+#                  --env-file .env --env-file .env.mail up -d
+#
+#   # Staging / pre-prod (mail behind the same nginx, Cloudflare in front)
+#   docker compose -f docker-compose.yml \
+#                  -f docker-compose.staging.yml \
+#                  -f docker-compose.mail.yml \
+#                  --env-file .env.staging --env-file .env.mail \
+#                  up -d --build
+#
+# Why a separate overlay (not merged into the main compose):
+#   - Mail is opt-in. A dev who doesn't care about email shouldn't pay
+#     for ~7 extra containers + ~1.5GB RAM. Compose only starts what
+#     it sees in the files passed to `-f`.
+#   - Brings its own dedicated Redis (`mail-redis`) so Mailu's session
+#     keys and rate-limit counters don't fight the app's Redis for
+#     keyspace or eviction policy.
+#   - All service names are `mail-*` prefixed so they can't clash with
+#     existing services (the main compose already has `admin` and
+#     `redis`). Mailu's HOST_* env vars below remap its internal
+#     hostnames to match.
+#
+# Operational prerequisites (none of these are solved by this file —
+# see docs/mail.md for the full runbook):
+#   1. Port 25 outbound must be unblocked on the VM. GCE blocks it by
+#      default; file an unblock request via the Cloud Console.
+#   2. Reverse DNS (PTR) for the VM's public IP must resolve to
+#      mail.${MAIL_DOMAIN_BASE} (e.g. mail.gym-pass.net). GCE: set in
+#      the external IP's reverse DNS field.
+#   3. DNS records: A (mail.<domain> → VM IP, **DNS-only / grey-cloud
+#      in Cloudflare** — CF cannot proxy SMTP/IMAP), MX, SPF, DKIM,
+#      DMARC. Mailu's admin UI prints the exact DKIM record once the
+#      domain is added.
+#   4. The Cloudflare Origin Cert that already covers *.gym-pass.net
+#      is reused for mail TLS — mounted into mail-front at /certs/.
+
+services:
+  # Mailu's dedicated Redis. Kept separate from the main `redis`
+  # service so Mailu's eviction policy (allkeys-lru) doesn't kick the
+  # application's session/cache keys out. Mailu uses redis for rate
+  # limiting, fetched-message dedup, and webmail session storage.
+  # ──────────────────────────────────────────────────────────────
+  # Mail-stack resource budget for an 11 GiB / 6-core host (sum ~2.4G,
+  # see docker-compose.staging.yml header for the full budget). Mailu's
+  # services share the host with the app stack, so caps are tight but
+  # generous enough to absorb a 10x spam-traffic spike without OOMing.
+  # ──────────────────────────────────────────────────────────────
+  mail-redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # 128M cap with allkeys-lru — Mailu's redis stores rate-limit
+    # counters and session keys, all safe to evict. Without a cap
+    # Redis would grow until it ate the page cache.
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --maxmemory
+      - 128mb
+      - --maxmemory-policy
+      - allkeys-lru
+    networks:
+      mailu:
+        aliases:
+          - redis
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    volumes:
+      - mail_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Validating recursive DNS resolver. Mailu uses this for DNSBL
+  # lookups, SPF/DMARC verification, and MX resolution on outbound
+  # delivery. Going through Unbound (vs the host's resolver) gives us
+  # DNSSEC validation and caches RBL responses, which keeps Postfix
+  # from re-querying on every connection.
+  mail-resolver:
+    image: ghcr.io/mailu/unbound:2.0
+    restart: unless-stopped
+    # SUBNET / SUBNET6 from .env.mail are read by Mailu's startup
+    # template — without them the rendered access-control directive
+    # comes out as `access-control:  allow` (no netblock) and Unbound
+    # refuses to start with "expected deny, refuse, ..." parse errors.
+    env_file:
+      - .env.mail
+    networks:
+      mailu:
+        # Pinned IP so every other Mailu service can hard-set this
+        # address in its `dns:` directive without a chicken-and-egg
+        # bootstrap problem. .254 matches Mailu's documented default.
+        ipv4_address: 192.168.203.254
+        aliases:
+          - resolver
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # The public-facing Mailu nginx. Terminates SMTP/IMAP TLS on the
+  # standard mail ports (25, 465, 587, 143, 993) bound directly to the
+  # host — Cloudflare cannot proxy these, so they hit the origin IP
+  # directly via the DNS-only A record for mail.<domain>.
+  #
+  # The webmail + admin HTTP surface is NOT published to the host. The
+  # existing front-of-house nginx (defined in the main compose +
+  # staging overlay) proxies https://mail.<domain> → mail-front:80 over
+  # the internal Docker network. Two reasons:
+  #   - One TLS chain to manage (the existing Cloudflare Origin Cert
+  #     mount), no duplicate :443 listener fighting on the host.
+  #   - The existing nginx already does Cloudflare real-IP rewriting
+  #     and shared security headers — the admin UI gets those for free.
+  mail-front:
+    image: ghcr.io/mailu/nginx:2.0
+    restart: unless-stopped
+    env_file:
+      - .env.mail
+    dns:
+      # Force the resolver. Without this, /etc/resolv.conf points at
+      # Docker's embedded DNS (127.0.0.11) which doesn't do DNSSEC,
+      # and Mailu's bootstrap check refuses to start.
+      - 192.168.203.254
+    networks:
+      mailu:
+        aliases:
+          - front
+    ports:
+      # SMTP — inbound mail from other servers. MUST be reachable on
+      # the public IP. Port 25 is what every other mail server on the
+      # internet uses to deliver to us.
+      - "25:25"
+      # SMTPS (implicit TLS) — submission from legacy clients.
+      - "465:465"
+      # Submission (STARTTLS) — modern clients (Thunderbird, mobile
+      # Mail.app) send outbound here, authenticated, on 587.
+      - "587:587"
+      # IMAP (STARTTLS).
+      - "143:143"
+      # IMAPS (implicit TLS).
+      - "993:993"
+      # Sieve managesieve — lets users edit server-side filters from
+      # Roundcube. Optional but small; remove if you want to lock the
+      # mail surface down further.
+      - "4190:4190"
+    volumes:
+      # Persistent state: ACME account (unused in cert mode but Mailu
+      # writes here regardless), session cache.
+      - mail_data:/data
+      # Mounts our Cloudflare Origin Cert under the filenames Mailu
+      # expects. The same cert covers gym-pass.net + *.gym-pass.net,
+      # so it works for mail.gym-pass.net without a separate issue.
+      # Read-only — the cert is rotated by replacing files on the host.
+      - ./nginx/certs/gym-pass.net.pem:/certs/cert.pem:ro
+      - ./nginx/certs/gym-pass.net.key:/certs/key.pem:ro
+      # Operator-supplied nginx snippets dropped into the Mailu front.
+      # Empty by default; create files under nginx/mail-overrides/ if
+      # you need to (e.g. raise SMTP message size, add a vhost alias).
+      - ./nginx/mail-overrides:/overrides:ro
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    depends_on:
+      mail-redis:
+        condition: service_healthy
+      mail-resolver:
+        condition: service_started
+
+  # Mailu admin Flask app — mailbox + alias + domain management UI
+  # plus the relay/anti-spam config screens. This is what the operator
+  # logs into at https://mail.<domain>/admin to generate new email
+  # addresses. SQLite by default (stored on the mail_data volume);
+  # Mailu supports Postgres but at our scale SQLite is fine.
+  #
+  # `networks.default.aliases: [admin]` — Mailu's own nginx config
+  # (inside mail-front) references peer services by hardcoded short
+  # names (`admin`, `imap`, `smtp`, `antispam`, `webmail`) regardless
+  # of HOST_* env overrides — those env vars cover the Python layer
+  # but not the nginx stream/upstream blocks, which resolve hostnames
+  # at startup. Adding short-name aliases lets our `mail-*`-prefixed
+  # services keep their unambiguous compose names AND answer to the
+  # names Mailu hardcodes.
+  mail-admin:
+    image: ghcr.io/mailu/admin:2.0
+    restart: unless-stopped
+    env_file:
+      - .env.mail
+    dns:
+      - 192.168.203.254
+    networks:
+      mailu:
+        aliases:
+          - admin
+    volumes:
+      - mail_data:/data
+      - mail_dkim:/dkim
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    depends_on:
+      mail-redis:
+        condition: service_healthy
+      mail-resolver:
+        condition: service_started
+
+  # Dovecot — IMAP + LMTP delivery. Mailboxes live in /mail on the
+  # mail_data volume in Maildir format, which means they're plain
+  # files (one per message) — easy to back up with db-backup.sh's
+  # tarball approach, easy to migrate to another host.
+  mail-imap:
+    image: ghcr.io/mailu/dovecot:2.0
+    restart: unless-stopped
+    env_file:
+      - .env.mail
+    dns:
+      - 192.168.203.254
+    networks:
+      mailu:
+        aliases:
+          - imap
+    volumes:
+      - mail_data:/data
+      - mail_mail:/mail
+      - ./nginx/mail-overrides/dovecot:/overrides:ro
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    depends_on:
+      mail-front:
+        condition: service_started
+      mail-resolver:
+        condition: service_started
+
+  # Postfix — SMTP relay (inbound from front, outbound to the internet).
+  # Talks to mail-antispam for filtering and mail-imap (via LMTP) for
+  # delivery into mailboxes.
+  mail-smtp:
+    image: ghcr.io/mailu/postfix:2.0
+    restart: unless-stopped
+    env_file:
+      - .env.mail
+    dns:
+      - 192.168.203.254
+    networks:
+      mailu:
+        aliases:
+          - smtp
+    volumes:
+      - mail_data:/data
+      - ./nginx/mail-overrides/postfix:/overrides:ro
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    depends_on:
+      mail-front:
+        condition: service_started
+      mail-resolver:
+        condition: service_started
+
+  # Rspamd — spam scoring + DKIM signing on outbound. Mailu pre-wires
+  # it to the SMTP pipeline; you don't normally need to touch its
+  # config. The admin UI lives at /admin/antispam.
+  mail-antispam:
+    image: ghcr.io/mailu/rspamd:2.0
+    restart: unless-stopped
+    env_file:
+      - .env.mail
+    dns:
+      - 192.168.203.254
+    networks:
+      mailu:
+        aliases:
+          - antispam
+    volumes:
+      - mail_filter:/var/lib/rspamd
+      - mail_dkim:/dkim
+      - ./nginx/mail-overrides/rspamd:/etc/rspamd/override.d:ro
+    deploy:
+      resources:
+        # Rspamd is the hungriest mail service — keeps Bayes/fuzzy
+        # state in-memory, plus per-domain reputation tables. 512M
+        # is comfortable at our traffic; bump to 1G if you turn on
+        # neural networks or enable additional rules.
+        limits:
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    depends_on:
+      mail-front:
+        condition: service_started
+      mail-redis:
+        condition: service_healthy
+      mail-resolver:
+        condition: service_started
+
+  # Roundcube webmail. Reachable at https://mail.<domain>/webmail —
+  # the same hostname as the admin UI, different path. Operators and
+  # any mailbox holders use this to read mail from a browser.
+  # SQLite-backed (config + address book live on mail_data).
+  mail-webmail:
+    image: ghcr.io/mailu/webmail:2.0
+    restart: unless-stopped
+    env_file:
+      - .env.mail
+    dns:
+      - 192.168.203.254
+    networks:
+      mailu:
+        aliases:
+          - webmail
+    volumes:
+      - mail_webmail:/data
+      - ./nginx/mail-overrides/roundcube:/overrides:ro
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    depends_on:
+      mail-front:
+        condition: service_started
+      mail-imap:
+        condition: service_started
+
+  # One-shot post-boot setup for Mailu. Runs after `mail-admin` is
+  # healthy and:
+  #   1. Bootstraps the admin user idempotently. Mailu's built-in
+  #      `INITIAL_ADMIN_*` env path is unreliable on first boot if any
+  #      of the mail services crash-looped during the initial bring-up
+  #      — the DB gets created without the admin row, and Mailu's
+  #      `INITIAL_ADMIN_MODE=ifmissing` sees "DB exists" and skips on
+  #      every later boot. `flask mailu admin --mode ifmissing` here
+  #      is the same idempotent contract but actually runs every
+  #      deploy, post-DB-init, so a partial first boot self-heals on
+  #      the next `up -d`.
+  #   2. Generates a DKIM keypair for `$DOMAIN` if one isn't already
+  #      committed in the DB. Mailu's domain creation path stores
+  #      `dkim_key: <hidden>` but only after an explicit Regenerate
+  #      Keys click in the admin UI; outbound mail goes unsigned
+  #      (failing DMARC → spam folder) until the keypair exists. The
+  #      flask-shell snippet here runs the same `generate_dkim_key() +
+  #      session.commit()` pair the UI does.
+  #
+  # Idempotent: if the admin already exists with a (possibly rotated)
+  # password we leave it alone (`--mode ifmissing`); if the DKIM key
+  # is already present we don't touch it.
+  mail-init:
+    image: ghcr.io/mailu/admin:2.0
+    restart: "no"
+    env_file:
+      - .env.mail
+    dns:
+      - 192.168.203.254
+    networks:
+      mailu:
+    volumes:
+      - mail_data:/data
+      - mail_dkim:/dkim
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    depends_on:
+      mail-admin:
+        condition: service_healthy
+    # `set -e` so a failed admin-create or DKIM commit surfaces as a
+    # non-zero exit; combined with `restart: "no"` that means a broken
+    # mail-init shows up as a stopped container the operator can
+    # inspect with `docker logs`, instead of crash-looping forever.
+    entrypoint:
+      - sh
+      - -c
+      - |
+        set -e
+        echo "mail-init: ensuring admin user (${INITIAL_ADMIN_ACCOUNT:-admin}@${DOMAIN})"
+        flask mailu admin \
+          "${INITIAL_ADMIN_ACCOUNT:-admin}" \
+          "${DOMAIN}" \
+          "${INITIAL_ADMIN_PW}" \
+          --mode ifmissing
+
+        echo "mail-init: ensuring DKIM keypair for ${DOMAIN}"
+        # `python -c` not `flask shell <<EOF` — flask shell is a REPL
+        # that treats every input line as an independent statement,
+        # which silently breaks indented blocks (the `if` body never
+        # executes). A real script with explicit `app.app_context()`
+        # runs the indented code correctly.
+        python -c "
+        from mailu import create_app, models
+        app = create_app()
+        with app.app_context():
+            d = models.Domain.query.filter_by(name='${DOMAIN}').first()
+            if d is None:
+                d = models.Domain(name='${DOMAIN}')
+                models.db.session.add(d)
+                models.db.session.commit()
+                print('created domain', d.name)
+            if not d.dkim_key:
+                d.generate_dkim_key()
+                models.db.session.commit()
+                print('DKIM key generated and committed')
+            else:
+                print('DKIM key already present — skipping')
+        "
+        echo "mail-init: done"
+
+  # The mail vhost template lives in nginx/templates/ and is rendered
+  # by the staging overlay (which includes MAIL in NGINX_ENVSUBST_FILTER
+  # and sets MAIL_DOMAIN with a default). When this overlay isn't
+  # loaded the vhost still parses, but proxies to a variable upstream
+  # that returns 502 if mail-front isn't in Docker DNS (see the
+  # resolver + `set $mail_upstream` in mail.conf.template) — so nginx
+  # boots clean either way.
+  #
+  # The only thing this overlay needs to do for nginx is start it
+  # AFTER mail-front, so the first hit to mail.<domain> doesn't race
+  # the mail container coming up.
+  nginx:
+    # nginx needs to be on the mailu network as well so the mail vhost
+    # can proxy to `mail-front`. Listing the default network
+    # explicitly is required when overriding `networks` — otherwise
+    # compose drops the implicit default and the nginx → backend /
+    # admin / etc. proxies all break.
+    networks:
+      - default
+      - mailu
+    depends_on:
+      - mail-front
+
+# Dedicated Mailu network with IPAM. Why a second network at all?
+#
+# Mailu's admin/imap/smtp/antispam containers boot-check their
+# /etc/resolv.conf — if it points at Docker's embedded DNS
+# (127.0.0.11) they refuse to start with a "resolver isn't doing
+# DNSSEC validation" critical error. The fix is to set `dns:` on each
+# container to the Mailu Unbound resolver's IP — which means Unbound
+# needs a stable, predictable IP — which means an IPAM-configured
+# subnet.
+#
+# We can't add IPAM to the existing `default` network without bringing
+# the whole stack down to recreate it (the network was created without
+# IPAM by the main compose). So instead we give Mailu its own subnet
+# and isolate the mail-* services to it. mail-* don't need to reach
+# backend/db/redis anyway — they're self-contained.
+#
+# The outer nginx is the bridge: attached to BOTH networks so it can
+# proxy https://mail.<domain> → mail-front while still routing
+# https://admin.<domain> → admin (on the default network).
+networks:
+  mailu:
+    driver: bridge
+    enable_ipv6: false
+    ipam:
+      driver: default
+      config:
+        # 192.168.203.0/24 matches Mailu's documented default subnet,
+        # so any of their troubleshooting that references netblocks
+        # applies verbatim. Resolver is pinned to .254 per Mailu's
+        # convention.
+        - subnet: 192.168.203.0/24
+
+volumes:
+  # Mailu shared state — admin DB (SQLite), front nginx ACME state,
+  # Postfix queues. Loses all mailboxes if deleted; back up regularly.
+  mail_data:
+  # Maildir storage — actual messages, one file per message. The
+  # biggest volume by far in steady state. Separated from mail_data
+  # so it can be moved to a larger disk later without touching the
+  # admin DB.
+  mail_mail:
+  # DKIM private keys, shared between admin (which generates them)
+  # and antispam (which signs outbound mail with them). Losing this
+  # volume means every recipient marks our mail as failing DKIM until
+  # the new key is published in DNS — back it up with mail_data.
+  mail_dkim:
+  # Rspamd learned-stats / Bayes filter state. Cheap to regenerate
+  # but loses some accuracy if dropped.
+  mail_filter:
+  # Roundcube user prefs + per-user address books.
+  mail_webmail:
+  # Dedicated Mailu Redis AOF.
+  mail_redis_data:

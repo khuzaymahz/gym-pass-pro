@@ -30,20 +30,172 @@
 #   - website service serves the marketing landing at stg.gym-pass.net,
 #     plus the /downloads/gympass.apk artefact.
 
+# ──────────────────────────────────────────────────────────────────
+# Resource budget for an 11 GiB / 6-core Contabo VPS.
+#
+# Memory caps (sum ~7.5 GiB) leave ~3.5 GiB of host headroom for the
+# kernel, page cache, sshd, and burst-handling. Combined with the
+# 4 GiB swap (set up via the host-level bundle in docs/deploy.md)
+# that gives the kernel ~7.5 GiB of slack to absorb a spike without
+# the OOM killer touching mail / DB / backend.
+#
+#                  limit   reservation     why
+#   db             2.5G    512M            Postgres shared_buffers=2G + WAL/work_mem
+#   redis            256M  64M             Capped via maxmemory below
+#   backend          1G    256M            2 uvicorn workers × ~250M + headroom
+#   celery-worker    768M  128M            4 worker procs × ~150M
+#   celery-beat      128M  32M             Single scheduler proc
+#   admin            512M  128M            Next.js runner (production build)
+#   gym-partner      512M  128M            Next.js runner
+#   website          384M  64M             Next.js, mostly static
+#   migrator         512M  —               One-shot; no reservation
+#   nginx            128M  32M             Small even under load
+#
+# Mail services have their own budget set in docker-compose.mail.yml
+# (sum ~1.5 GiB).
+# ──────────────────────────────────────────────────────────────────
+
 services:
   db:
     ports: !reset []
     restart: always
+    # Postgres tuning for an 11 GiB host. Stock 128MB shared_buffers
+    # is sized for a Raspberry Pi — on a real VM it leaves the page
+    # cache doing all the work and Postgres re-fetching from kernel
+    # cache constantly. shared_buffers=2GB hits the documented sweet
+    # spot of ~25% of host RAM for a shared (not dedicated) DB host.
+    # effective_cache_size=6GB tells the planner roughly how much
+    # data could plausibly be cached (kernel + Postgres combined),
+    # which steers it toward index scans over seq scans on larger
+    # tables. work_mem=16MB is a per-query × per-sort multiplier —
+    # 50 connections × 1 sort = 800MB ceiling, comfortably within
+    # budget. random_page_cost=1.1 + effective_io_concurrency=200
+    # are the standard "we're on SSD" pair (default 4.0 assumes HDD
+    # seek penalties that don't apply on the Contabo NVMe).
+    command:
+      - postgres
+      - -c
+      - shared_buffers=2GB
+      - -c
+      - effective_cache_size=6GB
+      - -c
+      - work_mem=16MB
+      - -c
+      - maintenance_work_mem=256MB
+      - -c
+      - max_connections=50
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - effective_io_concurrency=200
+      - -c
+      - wal_buffers=16MB
+      - -c
+      - checkpoint_completion_target=0.9
+    deploy:
+      resources:
+        limits:
+          memory: 2560M
+        reservations:
+          memory: 512M
+    # Per-service log rotation — belt-and-braces with the global
+    # daemon.json config in case the daemon defaults get reset.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
 
   redis:
     ports: !reset []
     restart: always
+    # 256MB cap with LRU eviction. Redis is used as Celery broker +
+    # API cache; losing cold keys to eviction is fine (cache miss,
+    # not data loss). `noeviction` was the default which would have
+    # turned a memory spike into hard failures across the API.
+    command:
+      - redis-server
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - allkeys-lru
+      - --save
+      - ""
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 64M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # One-shot DB bring-up: applies Alembic migrations and bootstraps
+  # the first admin user, then exits. Both steps are idempotent — safe
+  # to re-run on every deploy. The backend (and celery) services wait
+  # for this to finish successfully before starting so they never see
+  # a half-migrated schema or a "no admin to log in as" state.
+  #
+  # Why a separate service vs running inline in backend's start command:
+  #   - The dev compose bakes `alembic upgrade head && python -m
+  #     scripts.seed && exec uvicorn` into backend's command. The
+  #     staging overlay replaces that with bare gunicorn (it should:
+  #     gunicorn forks 4 workers and we don't want all 4 racing to
+  #     run migrations). A dedicated one-shot run avoids that race
+  #     and gives a clean failure signal when migrations fail.
+  #   - Lets backend / celery-worker / celery-beat share a single
+  #     "schema is ready" gate via `service_completed_successfully`
+  #     instead of each replicating the migration logic.
+  migrator:
+    build:
+      context: ./backend
+    restart: "no"
+    env_file:
+      - .env.staging
+    environment:
+      APP_ENV: staging
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        uv run alembic upgrade head
+        uv run python -m scripts.bootstrap_admin
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    depends_on:
+      db:
+        condition: service_healthy
 
   backend:
     restart: always
-    # gunicorn with uvicorn workers — 4 is right for the small staging
-    # VM. Tune up only after observing CPU sat under load.
-    command: ["uv", "run", "gunicorn", "app.main:app", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000", "-w", "4", "--access-logfile", "-"]
+    # 2 uvicorn workers, not 4.
+    #
+    # Why 2: uvicorn workers serve all I/O concurrently within one
+    # process via asyncio (unlike sync gunicorn workers which take
+    # one request at a time). At 600 req/h current traffic, a single
+    # worker is more than enough; 2 gives instant failover if one
+    # crashes and lets us absorb a 100x traffic spike without scaling
+    # up. The traditional `2 × cores + 1` formula is for SYNC workers
+    # — it actively over-provisions async ones, eating memory we'd
+    # rather keep for Postgres.
+    #
+    # When to bump: watch `docker stats` for backend CPU >70% under
+    # load OR p99 latency climbing. Each worker adds ~250 MiB so
+    # check the memory limit below before going past 3.
+    command: ["uv", "run", "gunicorn", "app.main:app", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000", "-w", "2", "--access-logfile", "-"]
     env_file:
       - .env.staging
     volumes:
@@ -51,14 +203,61 @@ services:
     ports: !reset []
     environment:
       APP_ENV: staging
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+        reservations:
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    # Wait for the schema to be at head before the API starts taking
+    # traffic. Without this, gunicorn's workers boot against a
+    # potentially empty / mid-migration DB and every request fails
+    # until the operator notices and runs migrations by hand.
+    depends_on:
+      migrator:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   celery-worker:
     restart: always
+    # Explicit --concurrency=4 (was unset → defaulted to nproc = 6,
+    # which left Postgres + backend fighting Celery for the last
+    # cores under load). 4 covers SMS sends, payouts, and the audit_log
+    # partition-maintenance task with room for one parallel ad-hoc
+    # job; the remaining 2 cores stay reserved for Postgres + the
+    # uvicorn workers.
+    command: ["uv", "run", "celery", "-A", "app.workers.celery_app", "worker", "--loglevel=info", "--concurrency=4"]
     env_file:
       - .env.staging
     volumes: !reset []
     environment:
       APP_ENV: staging
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+        reservations:
+          memory: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    depends_on:
+      migrator:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_healthy
 
   celery-beat:
     restart: always
@@ -67,6 +266,22 @@ services:
     volumes: !reset []
     environment:
       APP_ENV: staging
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 32M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    depends_on:
+      migrator:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
 
   admin:
     build:
@@ -89,6 +304,17 @@ services:
       NEXT_PUBLIC_API_URL: https://${API_DOMAIN:-stg-api.gym-pass.net}
       BACKEND_API_URL: http://backend:8000
       NEXTAUTH_URL: https://${ADMIN_DOMAIN:-stg-admin.gym-pass.net}
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   gym-partner:
     build:
@@ -107,6 +333,17 @@ services:
       API_BASE_URL: http://backend:8000
       NEXT_PUBLIC_API_URL: https://${API_DOMAIN:-stg-api.gym-pass.net}
       NEXTAUTH_URL: https://${PARTNER_DOMAIN:-stg-partner.gym-pass.net}
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   website:
     build:
@@ -117,6 +354,17 @@ services:
     ports: !reset []
     environment:
       NODE_ENV: production
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+        reservations:
+          memory: 64M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   nginx:
     image: nginx:1.27-alpine
@@ -134,11 +382,18 @@ services:
       NGINX_ENVSUBST_TEMPLATE_DIR: /etc/nginx/templates
       NGINX_ENVSUBST_TEMPLATE_SUFFIX: .template
       NGINX_ENVSUBST_OUTPUT_DIR: /etc/nginx/conf.d
-      NGINX_ENVSUBST_FILTER: '^(API|ADMIN|PARTNER|WEBSITE)_DOMAIN$$'
+      # MAIL is in the filter unconditionally so that mail.conf.template
+      # always renders cleanly, even when the mail overlay isn't loaded.
+      # When mail is off, the vhost still parses but proxies to a
+      # variable upstream that fails-soft at request time (resolver +
+      # `set $mail_upstream` in mail.conf.template — returns 502 if
+      # mail-front isn't in Docker DNS, instead of crashing nginx).
+      NGINX_ENVSUBST_FILTER: '^(API|ADMIN|PARTNER|WEBSITE|MAIL)_DOMAIN$$'
       API_DOMAIN: ${API_DOMAIN:-stg-api.gym-pass.net}
       ADMIN_DOMAIN: ${ADMIN_DOMAIN:-stg-admin.gym-pass.net}
       PARTNER_DOMAIN: ${PARTNER_DOMAIN:-stg-partner.gym-pass.net}
       WEBSITE_DOMAIN: ${WEBSITE_DOMAIN:-stg.gym-pass.net}
+      MAIL_DOMAIN: ${MAIL_DOMAIN:-mail.gym-pass.net}
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       # Templates rendered into /etc/nginx/conf.d at container start.
@@ -151,6 +406,17 @@ services:
       # key MUST be 0600 root:root (or the corresponding nginx user
       # inside the container). See docs/deploy.md.
       - ./nginx/certs:/etc/nginx/certs:ro
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 32M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
     depends_on:
       - backend
       - admin

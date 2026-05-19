@@ -1,0 +1,87 @@
+# ${MAIL_DOMAIN} → Mailu web surface (admin UI + Roundcube webmail).
+#
+# `${MAIL_DOMAIN}` resolves to `mail.gym-pass.net` in staging/prod
+# (no `stg-mail.` variant — mail server hostnames need a stable PTR
+# record, splitting them across environments would mean re-doing
+# reverse DNS + DKIM key publication on every promote).
+#
+# The SMTP/IMAP ports (25, 465, 587, 143, 993, 4190) are NOT routed
+# through this nginx. They're published directly on the host by the
+# mail-front container, because:
+#   - Cloudflare cannot proxy non-HTTP TCP for free-tier zones.
+#   - nginx HTTP-mode can't speak SMTP/IMAP; that would need its
+#     stream module loaded into a separate listener, which is more
+#     moving parts than it's worth.
+# So mail.<domain> must have a DNS-only (grey-cloud) A record so SMTP
+# clients reach the origin IP directly.
+#
+# Why this file uses a `resolver` + variable `proxy_pass` instead of a
+# static `upstream { server mail-front:80; }` block: the mail stack
+# (docker-compose.mail.yml) is opt-in. Without it loaded, the
+# `mail-front` hostname doesn't exist in Docker DNS, and a hard
+# upstream reference would prevent nginx from starting at all.
+# Variable proxy_pass with `resolver 127.0.0.11` (Docker's embedded
+# DNS) defers resolution to request time — so nginx boots cleanly
+# with or without the mail stack present. When mail isn't up, a hit
+# to mail.<domain> returns 502 instead of bringing the whole proxy
+# down. When mail IS up, behaviour is identical to a static upstream.
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${MAIL_DOMAIN};
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name ${MAIL_DOMAIN};
+
+    include /etc/nginx/snippets/ssl.conf;
+
+    # X-Frame-Options DENY would break Roundcube's compose-window
+    # iframe; SAMEORIGIN is the right balance for a webmail UI.
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options SAMEORIGIN always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+
+    # Mailu's webmail handles large attachments. Keep this in sync with
+    # the Mailu MESSAGE_SIZE_LIMIT in .env.mail (default 50MB) and bump
+    # this slightly above to allow MIME encoding overhead.
+    client_max_body_size 55m;
+
+    # `valid=10s` keeps the resolved IP fresh enough that a container
+    # restart doesn't strand the proxy on a stale address. `ipv6=off`
+    # because Mailu's internal services talk v4 only on the bridge
+    # network.
+    resolver 127.0.0.11 valid=10s ipv6=off;
+    # We proxy to mail-front over HTTPS (port 443), not plain HTTP.
+    # Mailu's internal :80 server is a hardcoded HTTP→HTTPS redirect
+    # — proxying to :80 would put us in a loop. mail-front already
+    # serves :443 with the same Cloudflare Origin Cert we mount into
+    # the host nginx, so internal TLS termination uses one cert.
+    set $mail_upstream "mail-front:443";
+
+    location / {
+        proxy_pass         https://$mail_upstream;
+        # Skip cert verification on the upstream hop — both nginx
+        # containers are on a private Docker network and present the
+        # same wildcard cert. The upstream hostname (`mail-front`)
+        # wouldn't match the cert's SAN (`*.gym-pass.net`) anyway, so
+        # verification would always fail.
+        proxy_ssl_verify     off;
+        proxy_ssl_server_name on;
+        proxy_ssl_name       $host;
+        proxy_http_version   1.1;
+        proxy_set_header     Host $host;
+        proxy_set_header     X-Real-IP $remote_addr;
+        proxy_set_header     X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header     X-Forwarded-Proto $scheme;
+        # Roundcube long-polls for new mail and the admin UI does
+        # large DKIM-key generation requests — bump idle timeouts so
+        # neither gets cut by the default 60s.
+        proxy_read_timeout   300s;
+        proxy_send_timeout   300s;
+    }
+}

@@ -627,28 +627,14 @@ async def main() -> None:
                         )
                     )
 
-        # Admin bootstrap user. No demo member is seeded — real members sign
-        # up via the mobile app. CLAUDE.md §4 / memory rule: only OTP + payment
-        # are mocked in dev; no demo rows.
-        if settings.admin_bootstrap_email and settings.admin_bootstrap_password:
-            admin = (await session.execute(
-                select(User).where(User.email == settings.admin_bootstrap_email)
-            )).scalar_one_or_none()
-            if admin is None:
-                session.add(
-                    User(
-                        id=uuid7(),
-                        email=settings.admin_bootstrap_email,
-                        first_name="GymPass",
-                        last_name="Admin",
-                        # Mirror legacy `name` so admin list views that still
-                        # read it stay coherent until the column is retired.
-                        name="GymPass Admin",
-                        password_hash=hash_password(settings.admin_bootstrap_password),
-                        role=Role.ADMIN,
-                        locale=Locale.EN,
-                    )
-                )
+        # Admin bootstrap user — delegated to scripts.bootstrap_admin so
+        # the same idempotent logic runs in both dev (via this seed
+        # script) and staging/production (via the `migrator` compose
+        # service which calls `python -m scripts.bootstrap_admin`
+        # directly, bypassing this dev-only file). No demo member is
+        # seeded — real members sign up via the mobile app.
+        from scripts.bootstrap_admin import ensure_admin
+        await ensure_admin(session)
 
         # Dev partner bootstrap. ONE demo gym-owner linked to the demo
         # gym whose slug matches `partner_bootstrap_gym_slug`. This is
