@@ -400,6 +400,57 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String gymUpgradeTo(String tier) => 'ترقية إلى $tier';
   @override
+  String gymDayPassCta(String price) => 'جرّب اليوم — $price دينار';
+  @override
+  String gymDayPassActive(String when) => 'تذكرة اليوم مفعّلة · تنتهي $when';
+  @override
+  String get dayPassSheetTitle => 'تذكرة يوم واحد';
+  @override
+  String get dayPassSheetLineItem => 'تذكرة يومية · زيارة واحدة';
+  @override
+  String dayPassSheetValidity(int hours) =>
+      'صالحة $hours ساعة من وقت الشراء. استخدمها ضمن الفترة — لا تُرحَّل.';
+  @override
+  String dayPassSheetPay(String price) => 'ادفع $price دينار';
+  @override
+  String get dayPassSheetPaying => 'جارٍ معالجة الدفع';
+  @override
+  String get dayPassSheetTerms =>
+      'دفع تجريبي في الوضع التطويري. لا يتم سحب أي مبلغ من البطاقة.';
+  @override
+  String get dayPassPurchasedSnack =>
+      'تم تفعيل التذكرة — امسح رمز النادي لتسجيل دخولك.';
+  @override
+  String get currencyJod => 'دينار';
+  @override
+  String get profileDayPassesTitle => 'التذاكر المفعّلة';
+  @override
+  String get profileDayPassesEmpty => 'لا توجد تذاكر يومية مفعّلة.';
+  @override
+  String profileDayPassExpiresIn(String duration) => 'تنتهي خلال $duration';
+  @override
+  String profileDayPassUsed(String when) => 'استُخدمت في $when';
+  @override
+  String durationHours(int count) {
+    if (count == 1) return 'ساعة واحدة';
+    if (count == 2) return 'ساعتان';
+    if (count >= 3 && count <= 10) return '$count ساعات';
+    return '$count ساعة';
+  }
+
+  @override
+  String durationMinutes(int count) {
+    if (count == 1) return 'دقيقة واحدة';
+    if (count == 2) return 'دقيقتان';
+    if (count >= 3 && count <= 10) return '$count دقائق';
+    return '$count دقيقة';
+  }
+
+  @override
+  String get durationLessThanAMinute => 'أقل من دقيقة';
+  @override
+  String get durationExpired => 'انتهت';
+  @override
   String get gymAccessIncluded => 'متضمّن في اشتراكك';
   @override
   String gymAccessRequiresTier(String tier) => 'يتطلّب اشتراك $tier';

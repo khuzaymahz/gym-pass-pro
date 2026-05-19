@@ -402,6 +402,43 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String gymUpgradeTo(String tier) => 'Upgrade to $tier';
   @override
+  String gymDayPassCta(String price) => 'Try today — $price JOD';
+  @override
+  String gymDayPassActive(String when) => 'Day pass active · expires $when';
+  @override
+  String get dayPassSheetTitle => 'ONE-DAY PASS';
+  @override
+  String get dayPassSheetLineItem => 'Day pass · 1 visit';
+  @override
+  String dayPassSheetValidity(int hours) =>
+      'Valid for $hours hours after purchase. Use within the window — passes don\'t roll over.';
+  @override
+  String dayPassSheetPay(String price) => 'Pay $price JOD';
+  @override
+  String get dayPassSheetPaying => 'Processing payment';
+  @override
+  String get dayPassSheetTerms => 'Mock payment in development. No card is charged.';
+  @override
+  String get dayPassPurchasedSnack => 'Day pass unlocked — scan at the gym to check in.';
+  @override
+  String get currencyJod => 'JOD';
+  @override
+  String get profileDayPassesTitle => 'Active passes';
+  @override
+  String get profileDayPassesEmpty => 'No active day passes.';
+  @override
+  String profileDayPassExpiresIn(String duration) => 'Expires in $duration';
+  @override
+  String profileDayPassUsed(String when) => 'Used at $when';
+  @override
+  String durationHours(int count) => count == 1 ? '1 hour' : '$count hours';
+  @override
+  String durationMinutes(int count) => count == 1 ? '1 minute' : '$count minutes';
+  @override
+  String get durationLessThanAMinute => 'Less than a minute';
+  @override
+  String get durationExpired => 'Expired';
+  @override
   String get gymAccessIncluded => 'Included in your plan';
   @override
   String gymAccessRequiresTier(String tier) => 'Requires $tier tier';

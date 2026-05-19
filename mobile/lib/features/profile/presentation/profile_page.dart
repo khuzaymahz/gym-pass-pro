@@ -16,6 +16,8 @@ import '../../../core/widgets/wordmark_refresh.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../auth/data/user_profile.dart';
 import '../../auth/presentation/auth_controller.dart';
+import '../../day_pass/data/day_pass.dart';
+import '../../day_pass/data/day_pass_repository.dart';
 import '../../subscription/data/subscription_state.dart';
 
 class ProfilePage extends ConsumerWidget {
@@ -87,13 +89,25 @@ class ProfilePage extends ConsumerWidget {
                       colors: [GP.limeHi, GP.lime],
                     ),
                     boxShadow: [
-                      BoxShadow(color: GP.lime.withValues(alpha: 0.45), blurRadius: 24, spreadRadius: -4),
+                      BoxShadow(
+                        color: GP.lime.withValues(alpha: 0.45),
+                        blurRadius: 24,
+                        spreadRadius: -4,
+                      ),
                     ],
                   ),
                   alignment: Alignment.center,
-                  child: Text(
+                  // Avatar initials. `DisplayText` is locale-aware:
+                  // EN renders the italic-condensed Archivo, AR uses
+                  // upright Tajawal so letterforms stay joined. The
+                  // old raw `Text + GPText.display(...)` always
+                  // shipped the EN style, mangling Arabic initials
+                  // like "مع" with an italic Latin face fallback.
+                  child: DisplayText(
                     initials,
-                    style: GPText.display(24, color: GP.ink, height: 1.0),
+                    size: 24,
+                    color: GP.ink,
+                    height: 1.0,
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -101,8 +115,14 @@ class ProfilePage extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(displayName.toUpperCase(),
-                          style: GPText.display(22, color: gp.fg, height: 1.0),),
+                      // User's display name. Same locale-awareness
+                      // story as the avatar above: AR names (the
+                      // "Guest Member" fallback "عضو ضيف" included)
+                      // need the AR display face so the letterforms
+                      // join at the baseline. `DisplayText` also
+                      // skips `.toUpperCase()` on AR (no case in
+                      // Arabic), so we no longer call it ourselves.
+                      DisplayText(displayName, size: 22, color: gp.fg, height: 1.0),
                       const SizedBox(height: 6),
                       Row(
                         children: [
@@ -155,6 +175,12 @@ class ProfilePage extends ConsumerWidget {
               },
             ),
             const SizedBox(height: 20),
+            // Active day passes — only renders the card when the
+            // member actually has one (or more) bought-but-not-used
+            // passes. Empty list = no card at all, no "you have no
+            // passes" prompt — the surface is purely informational
+            // when there's something to show.
+            _DayPassesCard(),
             _menuList(context, l, gp),
             const SizedBox(height: 18),
             _signOutBtn(context, ref, l, gp),
@@ -595,5 +621,206 @@ class _ProfileStatsSkeleton extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+/// "Active passes" card — renders the member's outstanding day
+/// passes with a live countdown until expiry. Hidden entirely
+/// when the member has none, so non-day-pass users aren't shown
+/// an empty-state prompt to subscribe.
+///
+/// Reads `myDayPassesProvider`. The provider auto-disposes when
+/// the screen leaves, so we don't keep a stale list cached after
+/// the user navigates away.
+class _DayPassesCard extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
+    final gp = context.gp;
+    final isAr = Localizations.localeOf(context).languageCode == 'ar';
+    final async = ref.watch(myDayPassesProvider);
+    final now = DateTime.now().toUtc();
+    final passes = (async.valueOrNull ?? const <DayPass>[])
+        .where((p) => p.isActive(now))
+        .toList();
+
+    if (passes.isEmpty) {
+      // No card when there's nothing to show. Loading + error
+      // states also collapse to nothing — the Profile screen
+      // doesn't need to spin a skeleton for a card that may not
+      // exist at all.
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        decoration: BoxDecoration(
+          color: gp.bg2,
+          borderRadius: BorderRadius.circular(GPRadius.md),
+          border: Border.all(color: gp.line),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.local_activity_outlined,
+                  size: 16,
+                  color: gp.accentInk,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  l.profileDayPassesTitle.toUpperCase(),
+                  style: GPText.mono(
+                    size: 10,
+                    letterSpacing: 1.8,
+                    color: gp.muted,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            for (var i = 0; i < passes.length; i++) ...[
+              if (i > 0)
+                Container(
+                  height: 1,
+                  color: gp.line,
+                  margin: const EdgeInsets.symmetric(vertical: 10),
+                ),
+              _DayPassRow(pass: passes[i], isAr: isAr, l: l, gp: gp),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DayPassRow extends StatelessWidget {
+  const _DayPassRow({
+    required this.pass,
+    required this.isAr,
+    required this.l,
+    required this.gp,
+  });
+
+  final DayPass pass;
+  final bool isAr;
+  final AppLocalizations l;
+  final GpColors gp;
+
+  /// Color-coded urgency for the countdown line. Lime (the brand
+  /// accent) means "plenty of time left", amber means "use it
+  /// soon", red means "minutes away from expiring". The thresholds
+  /// (4h amber, 1h red) match what gym staff treat as the
+  /// "imminent visit" window — if a member still hasn't shown up
+  /// with <1h on the clock, the pass is at real risk of expiring
+  /// unused.
+  Color _countdownColor(Duration remaining) {
+    if (remaining.isNegative) return GP.danger;
+    if (remaining.inMinutes < 60) return GP.danger;
+    if (remaining.inHours < 4) return GP.warn;
+    return gp.accentInk;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now().toUtc();
+    final remaining = pass.expiresAt.difference(now);
+    final urgent = !remaining.isNegative && remaining.inMinutes < 60;
+    final countdownColor = _countdownColor(remaining);
+    final countdownText = l.profileDayPassExpiresIn(
+      _formatRemainingDuration(pass.expiresAt, l),
+    );
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => context.push('/gyms/${pass.gymSlug}'),
+        borderRadius: BorderRadius.circular(GPRadius.sm),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Pulse-dot when urgent so the row visually flags
+              // itself in a card that may carry multiple passes.
+              Container(
+                width: 6,
+                height: 6,
+                margin: const EdgeInsetsDirectional.only(end: 10),
+                decoration: BoxDecoration(
+                  color: urgent ? GP.danger : gp.accentInk,
+                  shape: BoxShape.circle,
+                  boxShadow: urgent
+                      ? [
+                          BoxShadow(
+                            color: GP.danger.withValues(alpha: 0.7),
+                            blurRadius: 8,
+                          ),
+                        ]
+                      : null,
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      pass.name(isAr: isAr),
+                      style: GPText.body(
+                        size: 14,
+                        color: gp.fg,
+                        weight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      countdownText,
+                      style: GPText.body(
+                        size: 12,
+                        color: countdownColor,
+                        weight: urgent ? FontWeight.w600 : FontWeight.w400,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Trailing chevron — affordance that the row is tappable
+              // (jumps to the gym detail so the member can scan).
+              Icon(
+                Icons.chevron_right,
+                size: 20,
+                color: gp.muted,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Human duration between now and `expiresAt`. Hours when ≥1h
+  /// remaining, minutes when 1–59m, "Less than a minute" below
+  /// that, "Expired" when in the past. Pluralization handed off
+  /// to the ARB-backed `durationHours / durationMinutes` so
+  /// Arabic dual/plural forms render correctly.
+  static String _formatRemainingDuration(
+    DateTime expiresAt,
+    AppLocalizations l,
+  ) {
+    final now = DateTime.now().toUtc();
+    final remaining = expiresAt.difference(now);
+    if (!remaining.isNegative && remaining.inMinutes < 1) {
+      return l.durationLessThanAMinute;
+    }
+    if (remaining.isNegative) return l.durationExpired;
+    if (remaining.inHours >= 1) return l.durationHours(remaining.inHours);
+    return l.durationMinutes(remaining.inMinutes);
   }
 }

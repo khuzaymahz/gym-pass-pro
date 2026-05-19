@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -19,6 +20,9 @@ import '../../../core/widgets/pill_button.dart';
 import '../../../core/widgets/tier_chip.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../core/prefs/app_preferences.dart';
+import '../../day_pass/data/day_pass.dart';
+import '../../day_pass/data/day_pass_repository.dart';
+import '../../day_pass/presentation/buy_day_pass_sheet.dart';
 import '../../subscription/data/subscription_state.dart';
 import '../data/gym_photo.dart';
 import '../data/gym_photos_repository.dart';
@@ -184,6 +188,16 @@ class GymDetailPage extends ConsumerWidget {
     // instead of falling back to Iron Forge.
     final gym = _resolveGym(gymSummary);
     final included = gym.tierObj.rank <= userRank;
+    // Day-pass surfaces. Both providers auto-dispose; the gym-detail
+    // page is the only consumer of `dayPassOfferingProvider(slug)`,
+    // and `myDayPassesProvider` is shared with the Profile screen
+    // (Riverpod dedupes the in-flight fetch).
+    final offeringAsync = ref.watch(dayPassOfferingProvider(slug));
+    final passesAsync = ref.watch(myDayPassesProvider);
+    final offering = offeringAsync.valueOrNull ?? DayPassOffering.disabled;
+    final activePassForThisGym = passesAsync.valueOrNull
+        ?.where((p) => p.gymSlug == slug && p.isActive(DateTime.now().toUtc()))
+        .firstOrNull;
     final remoteLogo = gymSummary?.logoUrl;
     final logoUrl =
         remoteLogo == null ? null : _resolvePhotoUrl(mediaBase, remoteLogo);
@@ -364,7 +378,26 @@ class GymDetailPage extends ConsumerWidget {
                     ],
                   ),
                 ),
-                const Spacer(),
+                // Card-top anchor. Previously a `Spacer()` here
+                // pushed the card to the bottom of the SafeArea —
+                // which on tall screens left a noticeable empty
+                // band between the 400-px photo and the card's
+                // rounded top edge. A fixed offset anchors the
+                // card just inside the photo's fade region (photo
+                // visible-content ends at ~360, fade runs 360–400)
+                // so the rounded card top sits flush with the
+                // photo's visible bottom on every screen size.
+                //
+                // Computed against `topInset + 64` (action-buttons
+                // row: 12 padding top + 40 button + 12 padding
+                // bottom) so the card lands at approximately
+                // y=360 on every device.
+                SizedBox(
+                  height: math.max(
+                    0,
+                    360 - MediaQuery.viewPaddingOf(context).top - 64,
+                  ),
+                ),
                 Container(
                   decoration: BoxDecoration(
                     color: gp.bg,
@@ -376,38 +409,90 @@ class GymDetailPage extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Identity card: logo on the left, all gym
+                        // details (eyebrow + name + open/distance) in
+                        // a column to the right. Previously these
+                        // stacked vertically (logo+eyebrow on row 1,
+                        // name on row 2, open/distance on row 3),
+                        // which left the logo looking isolated. The
+                        // single-row layout reads as one cohesive
+                        // identity block.
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             Hero(
                               tag: 'gym-logo-${gym.slug}',
-                              // Circle shape matches every other
-                              // gym-logo surface in the app (map
-                              // pin, floating selected-gym card,
-                              // gym-list-sheet hero logo, plans-
-                              // page mini avatars are all
-                              // circular). The partner cropper
-                              // enforces a 1:1 aspect, so a
-                              // circle clip never loses content
-                              // a square wouldn't have lost.
+                              // 64 px (up from 56) so the logo
+                              // visually balances the three-line
+                              // text column to its right.
                               child: GymLogo(
                                 gym: gym,
                                 logoUrl: logoUrl,
-                                size: 56,
+                                size: 64,
                                 shape: GymLogoShape.circle,
                               ),
                             ),
                             const SizedBox(width: 14),
                             Expanded(
-                              child: Overline(
-                                '${_categoryLabel(l, gym.category)} · ${gym.area.toUpperCase()}',
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Overline(
+                                    '${_categoryLabel(l, gym.category)} · ${gym.area.toUpperCase()}',
+                                  ),
+                                  const SizedBox(height: 4),
+                                  // Name. display 22 (down from 34)
+                                  // so it fits in the constrained
+                                  // column next to the logo. Still
+                                  // big enough to read as the
+                                  // identity statement.
+                                  DisplayText(
+                                    gym.name,
+                                    size: 22,
+                                    color: gp.fg,
+                                    height: 1.0,
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    children: [
+                                      Container(
+                                        width: 6,
+                                        height: 6,
+                                        decoration: BoxDecoration(
+                                          color: gp.accentInk,
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        l.gymOpen247,
+                                        style: GPText.mono(
+                                          size: 10,
+                                          letterSpacing: 1.4,
+                                          color: gp.mutedSoft,
+                                        ),
+                                      ),
+                                      // Live distance from the
+                                      // member's GPS, hidden when
+                                      // the GPS hasn't resolved yet
+                                      // — a "—" would add chrome
+                                      // with no signal.
+                                      ..._buildDistanceRow(
+                                        ref,
+                                        gp,
+                                        l,
+                                        gymSummary,
+                                        gym,
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 14),
-                        Text(gym.name.toUpperCase(),
-                            style: GPText.display(34, color: gp.fg, height: 0.9),),
                         // Audience badge — surfaces "Women only" /
                         // "Men only" for single-sex venues so a
                         // member who lands on the page from a deep
@@ -416,30 +501,11 @@ class GymDetailPage extends ConsumerWidget {
                         // (open-to-everyone is the implicit default).
                         if (gymSummary?.audienceGender == 'female_only' ||
                             gymSummary?.audienceGender == 'male_only') ...[
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 12),
                           _AudienceBadge(
                             audience: gymSummary!.audienceGender!,
                           ),
                         ],
-                        const SizedBox(height: 14),
-                        Row(
-                          children: [
-                            Container(
-                                width: 6,
-                                height: 6,
-                                decoration: BoxDecoration(color: gp.accentInk, shape: BoxShape.circle),),
-                            const SizedBox(width: 6),
-                            Text(l.gymOpen247,
-                                style: GPText.mono(size: 10, letterSpacing: 1.4, color: gp.mutedSoft),),
-                            // Live distance from the member's GPS to
-                            // the gym, computed via haversine on the
-                            // backend coords (preferred) or the seed
-                            // coords (fallback). Hidden entirely when
-                            // the GPS hasn't resolved yet — a "—"
-                            // would just add chrome with no signal.
-                            ..._buildDistanceRow(ref, gp, l, gymSummary, gym),
-                          ],
-                        ),
                         const SizedBox(height: 18),
                         _accessBanner(context, l, gp, gym, included),
                         const SizedBox(height: 18),
@@ -460,23 +526,63 @@ class GymDetailPage extends ConsumerWidget {
                         const SizedBox(height: 20),
                         if (justCheckedIn)
                           _checkedInBadge(l, gp)
+                        // Active day-pass for THIS gym — same "Check
+                        // in here" affordance as the subscription
+                        // path, because both unlock the QR scanner.
+                        else if (activePassForThisGym != null)
+                          PillButton(
+                            label: l.gymCheckInHere,
+                            trailingIcon: Icons.qr_code_scanner,
+                            onPressed: () => context.go('/checkin'),
+                          )
                         else if (included)
                           PillButton(
                             label: l.gymCheckInHere,
                             trailingIcon: Icons.qr_code_scanner,
                             // /checkin lives inside the bottom-nav ShellRoute.
-                            // Pushing it from this top-level route would stack
-                            // the shell on top of the current route and trip
-                            // the navigator's duplicate-page-key assertion.
-                            // `go` swaps into the scan tab cleanly.
+                            // Pushing from this top-level route stacks
+                            // the shell on top and trips the navigator
+                            // duplicate-page-key assertion. `go` swaps
+                            // to the scan tab cleanly.
                             onPressed: () => context.go('/checkin'),
                           )
-                        else
-                          PillButton(
-                            label: l.gymUpgradeTo(gym.tierObj.name),
-                            trailingIcon: Icons.lock_outline,
-                            onPressed: () => context.push('/plans'),
+                        // Locked-tier branch. When the gym sells day
+                        // passes, the day-pass CTA is the primary
+                        // call to action — a one-off pass is a much
+                        // lower friction than a plan upgrade, and
+                        // converts a "I'm just curious about this
+                        // place" into a real visit. The upgrade
+                        // path is preserved via the red "Requires
+                        // <tier>" banner above, which is now
+                        // tappable and routes to /plans.
+                        //
+                        // Day-pass works for both unsubscribed
+                        // members and subscribers locked out by
+                        // tier (e.g. Silver looking at a Platinum
+                        // gym). The backend refuses only when the
+                        // active subscription ALREADY covers the
+                        // gym — handled there, not gated here.
+                        else if (offering.isEnabled)
+                          _DayPassCta(
+                            priceJod: offering.priceJod,
+                            validityHours: offering.validityHours,
+                            onPressed: () async {
+                              await showBuyDayPassSheet(
+                                context: context,
+                                gymSlug: slug,
+                                gymName: gym.name,
+                                offering: offering,
+                                gym: gym,
+                                gymLogoUrl: logoUrl,
+                              );
+                            },
                           ),
+                        // No CTA when the gym is locked AND has
+                        // no day-pass offering: the red "Requires
+                        // <tier>" banner above is already the
+                        // upgrade affordance (tappable, routes to
+                        // /plans). A second "Upgrade to <tier>"
+                        // pill at the bottom was redundant.
                         const SizedBox(height: 6),
                       ],
                     ),
@@ -599,7 +705,7 @@ class GymDetailPage extends ConsumerWidget {
     final border = included
         ? gp.accentInk.withValues(alpha: 0.44)
         : GP.danger.withValues(alpha: 0.5);
-    return Container(
+    final banner = Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: bg,
@@ -608,19 +714,36 @@ class GymDetailPage extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          Icon(included ? Icons.check_circle : Icons.lock_outline, color: color, size: 18),
+          Icon(included ? Icons.check_circle : Icons.lock_outline,
+              color: color, size: 18,),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               included
                   ? l.gymAccessIncluded
                   : l.gymAccessRequiresTier(gym.tierObj.name),
-              style: GPText.body(size: 13, color: gp.fg, weight: FontWeight.w500),
+              style: GPText.body(
+                size: 13,
+                color: gp.fg,
+                weight: FontWeight.w500,
+              ),
             ),
           ),
           TierChip(tier: gym.tierObj),
         ],
       ),
+    );
+    // When the gym is locked behind a higher tier, the banner is the
+    // secondary path to /plans — it stays the canonical "what tier
+    // do I need?" affordance, but the bottom-of-page CTA may now
+    // surface a day-pass alternative instead of the upgrade path.
+    // Making the banner tappable preserves the upgrade route without
+    // crowding the bottom of the screen with two competing CTAs.
+    if (included) return banner;
+    return InkWell(
+      onTap: () => context.push('/plans'),
+      borderRadius: BorderRadius.circular(GPRadius.md),
+      child: banner,
     );
   }
 
@@ -1277,5 +1400,141 @@ class _NotFound extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Custom CTA for the day-pass purchase entry. Different shape from
+/// the platform-wide `PillButton` because it carries a secondary
+/// subtitle — the buyer needs to know they're buying a 24-hour
+/// one-off, not a subscription. Visually the lime-on-ink fill
+/// matches the brand accent and signals "this is a paid action,
+/// not navigation".
+class _DayPassCta extends StatefulWidget {
+  const _DayPassCta({
+    required this.priceJod,
+    required this.validityHours,
+    required this.onPressed,
+  });
+
+  final double priceJod;
+  final int validityHours;
+  final VoidCallback? onPressed;
+
+  @override
+  State<_DayPassCta> createState() => _DayPassCtaState();
+}
+
+class _DayPassCtaState extends State<_DayPassCta> {
+  bool _pressed = false;
+
+  void _setPressed(bool v) {
+    if (_pressed == v) return;
+    setState(() => _pressed = v);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final disabled = widget.onPressed == null;
+    final priceStr = _formatJodPriceStandalone(widget.priceJod);
+    return AnimatedScale(
+      scale: (_pressed && !disabled) ? 0.97 : 1.0,
+      duration: const Duration(milliseconds: 120),
+      curve: Curves.easeOut,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(GPRadius.pill),
+          onTap: widget.onPressed,
+          onHighlightChanged: _setPressed,
+          child: Container(
+            height: 64,
+            padding: const EdgeInsetsDirectional.fromSTEB(20, 10, 22, 10),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [GP.limeHi, GP.lime],
+              ),
+              borderRadius: BorderRadius.circular(GPRadius.pill),
+              boxShadow: [
+                BoxShadow(
+                  color: GP.lime.withValues(alpha: 0.35),
+                  blurRadius: 18,
+                  spreadRadius: -4,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: GP.ink.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    Icons.confirmation_number_outlined,
+                    color: GP.ink,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l.gymDayPassCta(priceStr),
+                        style: GPText.body(
+                          size: 15,
+                          color: GP.ink,
+                          weight: FontWeight.w800,
+                          height: 1.0,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      // Subtitle is the validity hint cropped to its
+                      // first sentence ("Valid for 24 hours after
+                      // purchase.") — the second clause about
+                      // non-rollover lives in the buy-sheet; the
+                      // CTA only needs the headline reassurance.
+                      Text(
+                        l
+                            .dayPassSheetValidity(widget.validityHours)
+                            .split('.')
+                            .first
+                            .trim(),
+                        style: GPText.body(
+                          size: 11,
+                          color: GP.ink.withValues(alpha: 0.62),
+                          height: 1.0,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(
+                  Icons.arrow_forward,
+                  color: GP.ink,
+                  size: 18,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String _formatJodPriceStandalone(double amount) {
+  if (amount % 1 == 0) return amount.toStringAsFixed(0);
+  return amount.toStringAsFixed(2);
 }
 

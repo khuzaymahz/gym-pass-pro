@@ -9,7 +9,10 @@ import { Suspense, useState } from "react";
 import { LocaleToggle } from "@/components/LocaleToggle";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Wordmark } from "@/components/Wordmark";
-import { normalizeJordanianPhone as normalizePhone } from "@/lib/phone";
+import {
+  isValidJordanianPhone,
+  normalizeJordanianPhone as normalizePhone,
+} from "@/lib/phone";
 
 function LoginForm() {
   const t = useTranslations("auth");
@@ -20,12 +23,35 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Phone-field validation. Mirrors the mobile-app sign-in flow:
+  // we only surface "required" / "invalid" AFTER the user has
+  // either tapped the field and tabbed out (blur) or attempted
+  // submit. While they're still typing the field stays neutral so
+  // the form doesn't yell at them on the second keystroke.
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [phoneTouched, setPhoneTouched] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  function validatePhone(value: string): string | null {
+    if (!value.trim()) return t("phoneRequired");
+    if (!isValidJordanianPhone(value)) return t("phoneInvalid");
+    return null;
+  }
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
-    setLoading(true);
     setError(null);
+    // Pre-flight validation. Avoid the NextAuth round-trip when
+    // the phone clearly isn't a Jordanian mobile — the backend
+    // would reject it anyway, but inline error is faster + less
+    // confusing than the generic "credentials not recognised".
+    const phoneErr = validatePhone(phone);
+    if (phoneErr) {
+      setPhoneTouched(true);
+      setPhoneError(phoneErr);
+      return;
+    }
+    setLoading(true);
     const result = await signIn("credentials", {
       phone: normalizePhone(phone),
       password,
@@ -49,15 +75,49 @@ function LoginForm() {
       <label className="field">
         <span className="field-label">{t("phone")}</span>
         <input
-          className="input input-sm"
+          className={[
+            "input input-sm",
+            // Red ring only after the user has interacted with
+            // the field; otherwise the form looks angry on first
+            // paint. `phoneError` is also gated on `phoneTouched`
+            // when we render the inline message below.
+            phoneTouched && phoneError ? "border-red-400/70 ring-red-400/30" : "",
+          ].join(" ")}
           type="tel"
           required
           autoComplete="tel"
           dir="ltr"
+          inputMode="tel"
           placeholder={t("phoneHint")}
           value={phone}
-          onChange={(e) => setPhone(e.target.value)}
+          onChange={(e) => {
+            const next = e.target.value;
+            setPhone(next);
+            // Live-clear the error once the input becomes valid,
+            // but DON'T live-set an error mid-typing — surfacing
+            // "invalid" on the second keystroke is exactly the
+            // form-yelling-at-you UX we're trying to avoid.
+            if (phoneTouched && phoneError && validatePhone(next) == null) {
+              setPhoneError(null);
+            }
+          }}
+          onBlur={() => {
+            setPhoneTouched(true);
+            setPhoneError(validatePhone(phone));
+          }}
+          aria-invalid={phoneTouched && phoneError != null ? true : undefined}
+          aria-describedby={
+            phoneTouched && phoneError ? "phone-error" : undefined
+          }
         />
+        {phoneTouched && phoneError ? (
+          <span
+            id="phone-error"
+            className="mt-1 text-[11.5px] text-red-300"
+          >
+            {phoneError}
+          </span>
+        ) : null}
       </label>
       <label className="field">
         <span className="field-label">{t("password")}</span>

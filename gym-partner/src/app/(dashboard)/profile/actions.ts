@@ -6,7 +6,12 @@ import { getServerSession } from "next-auth";
 import { ApiError } from "@/lib/api";
 import { authOptions } from "@/lib/auth";
 import { serverEnv } from "@/lib/env.server";
-import { PartnerSDK, type GymUpdateBody } from "@/lib/sdk";
+import {
+  PartnerSDK,
+  type DayPassOffering,
+  type DayPassOfferingUpsertBody,
+  type GymUpdateBody,
+} from "@/lib/sdk";
 
 export async function saveGymAction(
   body: GymUpdateBody,
@@ -77,6 +82,20 @@ export async function deleteLogoAction(): Promise<{
   try {
     await PartnerSDK.deleteLogo();
     return { ok: true };
+  } catch (err) {
+    if (err instanceof ApiError) {
+      return { ok: false, error: err.message };
+    }
+    return { ok: false, error: "Unknown error" };
+  }
+}
+
+export async function saveDayPassOfferingAction(
+  body: DayPassOfferingUpsertBody,
+): Promise<{ ok: boolean; offering?: DayPassOffering; error?: string }> {
+  try {
+    const offering = await PartnerSDK.updateDayPassOffering(body);
+    return { ok: true, offering };
   } catch (err) {
     if (err instanceof ApiError) {
       return { ok: false, error: err.message };

@@ -11,14 +11,16 @@ from app.db.enums import (
     SubscriptionStatus,
     Tier,
 )
-from app.db.models import Checkin, Gym, User
+from app.db.models import Checkin, DayPass, Gym, User
 from app.repositories.checkin_repo import CheckinRepository
+from app.repositories.day_pass_repo import DayPassRepository
 from app.repositories.gym_repo import GymRepository
 from app.repositories.payout_repo import PayoutLedgerRepository
 from app.repositories.plan_repo import PlanRepository
 from app.repositories.subscription_pause_repo import SubscriptionPauseRepository
 from app.repositories.subscription_repo import SubscriptionRepository
 from app.services.audit_service import Actor, AuditService
+from app.services.day_pass_service import DayPassService
 from app.services.rate_limit import RateLimiter
 from app.utils.time import current_period_start, utcnow
 
@@ -53,6 +55,8 @@ class CheckinService:
         ledger: PayoutLedgerRepository,
         rate_limiter: RateLimiter,
         audit: AuditService,
+        day_passes: DayPassRepository,
+        day_pass_service: DayPassService,
     ) -> None:
         self.gyms = gyms
         self.subs = subs
@@ -62,6 +66,8 @@ class CheckinService:
         self.ledger = ledger
         self.rate_limiter = rate_limiter
         self.audit = audit
+        self.day_passes = day_passes
+        self.day_pass_service = day_pass_service
 
     async def scan(
         self,
@@ -113,6 +119,28 @@ class CheckinService:
             raise AppError(
                 ErrorCode.CHECKIN_ALREADY_SCANNED,
                 "Already scanned recently at this gym.",
+            )
+
+        # Day-pass branch: a non-subscriber (or even a subscriber
+        # holding a one-off pass for this gym) bypasses the
+        # subscription / tier / audience / visit-budget ladder and
+        # redeems the pass directly. The pass row already carries
+        # the audience check from purchase time and is gym-specific,
+        # so re-doing those gates here would be redundant and
+        # could deny a holder who, e.g., changed gender after
+        # purchase. The check-in is still recorded and the gym
+        # still gets paid via the payout ledger (using the pass's
+        # net amount, not the gym's per_visit_rate).
+        now = utcnow()
+        active_pass = await self.day_passes.active_for_user_gym(
+            user_id=user.id, gym_id=gym.id, now=now
+        )
+        if active_pass is not None:
+            return await self._success_via_day_pass(
+                user=user,
+                gym=gym,
+                day_pass=active_pass,
+                actor=actor,
             )
 
         sub = await self.subs.active_for_user(user.id)
@@ -264,6 +292,56 @@ class CheckinService:
         remaining = max(0, plan.monthly_visits - (current_period_visits + 1))
 
         return CheckinResult(checkin=checkin, gym=gym, remaining=remaining)
+
+    async def _success_via_day_pass(
+        self,
+        *,
+        user: User,
+        gym: Gym,
+        day_pass: DayPass,
+        actor: Actor,
+    ) -> CheckinResult:
+        """Day-pass redemption check-in. Records the check-in,
+        marks the pass used, and writes a payout-ledger entry with
+        the pass's NET amount (price minus platform fee, snapshotted
+        at purchase). Returns `remaining=None` because day-pass
+        holders have no per-period visit budget to surface.
+        """
+        checkin = await self.checkins.create(
+            user_id=user.id,
+            gym_id=gym.id,
+            subscription_id=None,
+            status=CheckinStatus.SUCCESS,
+            ip_address=actor.ip_address,
+            user_agent=actor.user_agent,
+        )
+        # Mark the pass used + audit (delegated to DayPassService so
+        # the full pass lifecycle stays in one audit-action namespace).
+        await self.day_pass_service.redeem(
+            day_pass, checkin_id=checkin.id, actor=actor
+        )
+        # Payout ledger: gym is owed the NET amount the day pass
+        # snapshotted at purchase time. Distinct from the
+        # per_visit_rate path subscription scans take, but lands in
+        # the same `payout_ledger` table so the monthly aggregation
+        # query picks both kinds of revenue up without changes.
+        await self.ledger.record(
+            gym_id=gym.id,
+            checkin_id=checkin.id,
+            rate=day_pass.net_amount_jod,
+        )
+        await self.audit.log(
+            actor=actor,
+            action="checkin.success_via_day_pass",
+            entity_type="checkin",
+            entity_id=checkin.id,
+            diff={
+                "gym_id": str(gym.id),
+                "day_pass_id": str(day_pass.id),
+                "payout_amount_jod": str(day_pass.net_amount_jod),
+            },
+        )
+        return CheckinResult(checkin=checkin, gym=gym, remaining=None)
 
     async def history(self, user: User, *, limit: int = 20) -> list[tuple[Checkin, Gym]]:
         return await self.checkins.history_for_user(user.id, limit=limit)
