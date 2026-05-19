@@ -147,3 +147,36 @@ export type PartnerMe = {
   role: "gym_owner";
   gymId: string;
 };
+
+// ---------------------------------------------------------------------
+// Day passes
+// ---------------------------------------------------------------------
+
+/** Per-gym day-pass offering as the partner sees it. Mirrors the
+ *  backend's `DayPassOfferingRead` schema. `null` from the SDK means
+ *  the partner has never saved a configuration — the form renders
+ *  in its empty/off state. */
+export type DayPassOffering = {
+  id: string;
+  gymId: string;
+  isEnabled: boolean;
+  /** Decimal-as-string (e.g. "8.00") to avoid JS number precision
+   *  drift on money. The form converts to Number for the input. */
+  priceJod: string;
+  platformFeePct: string;
+  validityHours: number;
+  dailyCap: number | null;
+  audienceGenderOverride: AudienceGender | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** Partner-facing PUT body. Mirrors `DayPassOfferingUpsert` —
+ *  every save sends the full record so the server doesn't have
+ *  to merge partial state. */
+export type DayPassOfferingUpsertBody = {
+  isEnabled: boolean;
+  priceJod: number;
+  dailyCap?: number | null;
+  audienceGenderOverride?: AudienceGender | null;
+};

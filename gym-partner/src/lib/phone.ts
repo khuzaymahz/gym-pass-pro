@@ -24,3 +24,17 @@ export function normalizeJordanianPhone(input: string): string {
   // digits.
   return trimmed.startsWith("+") ? trimmed : `+${digits}`;
 }
+
+/// True when the input normalises to a strict Jordanian-mobile
+/// E.164: `+9627XXXXXXXX` (country code +962, mobile prefix 7,
+/// 8 trailing digits, 13 chars total). Mirrors the mobile-app
+/// regex `^7\d{8}$` (applied to the de-prefixed local number).
+///
+/// Used by the login form to pre-validate before calling NextAuth,
+/// and by the join form to gate the submit button. Empty input
+/// returns `false` so callers can render the "required" error with
+/// a separate empty-string check upstream.
+export function isValidJordanianPhone(input: string): boolean {
+  const normalized = normalizeJordanianPhone(input);
+  return /^\+9627\d{8}$/.test(normalized);
+}

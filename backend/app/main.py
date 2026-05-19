@@ -25,6 +25,7 @@ from app.api.v1.member import gyms as gyms_router
 from app.api.v1.member import invoices as invoices_router
 from app.api.v1.member import me as me_router
 from app.api.v1.member import notifications as notifications_router
+from app.api.v1.member import day_passes as member_day_passes_router
 from app.api.v1.member import pauses as pauses_router
 from app.api.v1.member import payment_methods as payment_methods_router
 from app.api.v1.member import referrals as referrals_router
@@ -47,6 +48,7 @@ from app.api.v1.admin import subscriptions as admin_subscriptions_router
 from app.api.v1.admin import support as admin_support_router
 from app.api.v1.admin import users as admin_users_router
 from app.api.v1.partner import checkins as partner_checkins_router
+from app.api.v1.partner import day_passes as partner_day_passes_router
 from app.api.v1.partner import me as partner_me_router
 from app.api.v1.partner import metrics as partner_metrics_router
 from app.api.v1.partner import payouts as partner_payouts_router
@@ -147,6 +149,8 @@ def create_app() -> FastAPI:
     app.include_router(partner_checkins_router.router, prefix=v1_prefix)
     app.include_router(partner_payouts_router.router, prefix=v1_prefix)
     app.include_router(partner_metrics_router.router, prefix=v1_prefix)
+    app.include_router(partner_day_passes_router.router, prefix=v1_prefix)
+    app.include_router(member_day_passes_router.router, prefix=v1_prefix)
     # WebSocket fan-out for live updates. Lives at /api/v1/realtime/ws.
     # Behind nginx in prod, the upgrade headers must be passed through
     # — see nginx/conf.d/api.conf for the `proxy_set_header Upgrade`

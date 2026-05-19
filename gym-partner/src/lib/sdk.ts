@@ -28,6 +28,8 @@ export type {
   PartnerPayout,
   PartnerDashboardMetrics,
   PartnerMe,
+  DayPassOffering,
+  DayPassOfferingUpsertBody,
 } from "@/lib/sdk-types";
 export { DEFAULT_LOGO_ALIGNMENT } from "@/lib/sdk-types";
 
@@ -42,6 +44,8 @@ import type {
   PartnerPayout,
   PartnerDashboardMetrics,
   PartnerMe,
+  DayPassOffering,
+  DayPassOfferingUpsertBody,
 } from "@/lib/sdk-types";
 
 async function serviceToken(): Promise<string> {
@@ -139,6 +143,32 @@ export const PartnerSDK = {
     pageSize?: number;
   }): Promise<Page<PartnerPayout>> {
     return api(`/api/v1/partner/gym/payouts${qs(params)}`, {
+      token: await serviceToken(),
+    });
+  },
+
+  // ------------------------------------------------------------------
+  // Day passes
+  // ------------------------------------------------------------------
+
+  /** Returns the partner's offering or `null` if they haven't
+   *  configured one yet. Null is the "blank slate" state — the
+   *  form renders in its empty / disabled position rather than
+   *  surfacing a 404. */
+  async getDayPassOffering(): Promise<DayPassOffering | null> {
+    return api("/api/v1/partner/gym/day-pass-offering", {
+      token: await serviceToken(),
+    });
+  },
+
+  /** Save (create-or-update) the offering. PUT semantics — the
+   *  partner submits the entire record on each save. */
+  async updateDayPassOffering(
+    body: DayPassOfferingUpsertBody,
+  ): Promise<DayPassOffering> {
+    return api("/api/v1/partner/gym/day-pass-offering", {
+      method: "PUT",
+      body: JSON.stringify(body),
       token: await serviceToken(),
     });
   },

@@ -145,6 +145,29 @@ class ApplicationStatus(StrEnum):
     REJECTED = "rejected"
 
 
+class DayPassStatus(StrEnum):
+    """Lifecycle of a single day-pass purchase.
+
+    `pending` — purchase started, payment in flight. Rows in this
+    state are short-lived; the day-pass service flips to either
+    `active` or aborts on payment failure.
+    `active`  — paid for, valid for check-in, not yet expired.
+    `used`    — successfully checked in with this pass. One-shot:
+    a second scan within the validity window goes through the
+    re-entry rate-limit, not via the pass.
+    `expired` — past `expires_at` without a check-in. Set by the
+    expiry-sweep task.
+    `refunded`— admin or self-service refund within the grace
+    window. Becomes ineligible for check-in.
+    """
+
+    PENDING = "pending"
+    ACTIVE = "active"
+    USED = "used"
+    EXPIRED = "expired"
+    REFUNDED = "refunded"
+
+
 class AudienceGender(StrEnum):
     """Which members a gym serves.
 
@@ -179,4 +202,5 @@ ENUM_DEFINITIONS: dict[str, type[StrEnum]] = {
     "referral_status_enum": ReferralStatus,
     "audience_gender_enum": AudienceGender,
     "application_status_enum": ApplicationStatus,
+    "day_pass_status_enum": DayPassStatus,
 }

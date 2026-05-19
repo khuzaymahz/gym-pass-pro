@@ -23,8 +23,11 @@ class Payment(Base):
     __tablename__ = "payments"
 
     id: Mapped[UUIDCol]
-    subscription_id: Mapped[UUIDFk] = mapped_column(
-        ForeignKey("subscriptions.id", ondelete="RESTRICT"), nullable=False
+    # Nullable because day-pass payments aren't tied to a subscription.
+    # When NULL, the matching `day_passes.payment_id` carries the
+    # back-pointer; the row is still queryable by `gateway_txn_id`.
+    subscription_id: Mapped[UUIDFk | None] = mapped_column(
+        ForeignKey("subscriptions.id", ondelete="RESTRICT"), nullable=True
     )
     amount_jod: Mapped[Money]
     method: Mapped[PaymentMethod] = mapped_column(

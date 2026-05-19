@@ -20,7 +20,7 @@ class PaymentRepository:
     async def create(
         self,
         *,
-        subscription_id: UUID,
+        subscription_id: UUID | None,
         amount_jod: Decimal,
         method: PaymentMethod,
         gateway_txn_id: str | None,
@@ -28,6 +28,13 @@ class PaymentRepository:
         raw_response: dict[str, Any],
         processed_at: datetime | None,
     ) -> Payment:
+        """Create a payment row.
+
+        `subscription_id` may be NULL for day-pass payments; the
+        day-pass row carries the back-pointer in that case. For
+        subscription purchases it remains the FK that anchors
+        `list_for_user` / `history_for_user`.
+        """
         payment = Payment(
             id=uuid7(),
             subscription_id=subscription_id,

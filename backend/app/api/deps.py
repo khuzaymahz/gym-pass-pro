@@ -19,6 +19,10 @@ from app.providers.push import PushProvider, build_push_provider
 from app.providers.sms import SmsProvider, build_sms_provider
 from app.repositories.audit_repo import AuditRepository
 from app.repositories.checkin_repo import CheckinRepository
+from app.repositories.day_pass_repo import (
+    DayPassOfferingRepository,
+    DayPassRepository,
+)
 from app.repositories.gym_photo_repo import GymPhotoRepository
 from app.repositories.gym_repo import GymRepository
 from app.repositories.notification_repo import NotificationRepository
@@ -47,6 +51,7 @@ from app.services.admin_user_service import AdminUserService
 from app.services.audit_service import Actor, AuditService
 from app.services.auth_service import AuthService
 from app.services.checkin_service import CheckinService
+from app.services.day_pass_service import DayPassService
 from app.services.gym_service import GymService
 from app.services.partner_application_service import PartnerApplicationService
 from app.services.partner_checkin_read_service import PartnerCheckinReadService
@@ -109,6 +114,14 @@ def payment_repo(session: SessionDep) -> PaymentRepository:
 
 def payment_method_repo(session: SessionDep) -> PaymentMethodRepository:
     return PaymentMethodRepository(session)
+
+
+def day_pass_offering_repo(session: SessionDep) -> DayPassOfferingRepository:
+    return DayPassOfferingRepository(session)
+
+
+def day_pass_repo(session: SessionDep) -> DayPassRepository:
+    return DayPassRepository(session)
 
 
 def checkin_repo(session: SessionDep) -> CheckinRepository:
@@ -205,6 +218,28 @@ def subscription_service(
     )
 
 
+def day_pass_service(
+    offerings: Annotated[
+        DayPassOfferingRepository, Depends(day_pass_offering_repo)
+    ],
+    passes: Annotated[DayPassRepository, Depends(day_pass_repo)],
+    gyms: Annotated[GymRepository, Depends(gym_repo)],
+    subs: Annotated[SubscriptionRepository, Depends(subscription_repo)],
+    payments: Annotated[PaymentRepository, Depends(payment_repo)],
+    provider: Annotated[PaymentProvider, Depends(payment_provider)],
+    audit: Annotated[AuditService, Depends(audit_service)],
+) -> DayPassService:
+    return DayPassService(
+        offerings=offerings,
+        passes=passes,
+        gyms=gyms,
+        subs=subs,
+        payments=payments,
+        payment_provider=provider,
+        audit=audit,
+    )
+
+
 def checkin_service(
     gyms: Annotated[GymRepository, Depends(gym_repo)],
     subs: Annotated[SubscriptionRepository, Depends(subscription_repo)],
@@ -216,9 +251,20 @@ def checkin_service(
     ledger: Annotated[PayoutLedgerRepository, Depends(payout_repo)],
     rl: Annotated[RateLimiter, Depends(rate_limiter)],
     audit: Annotated[AuditService, Depends(audit_service)],
+    passes: Annotated[DayPassRepository, Depends(day_pass_repo)],
+    dps: Annotated[DayPassService, Depends(day_pass_service)],
 ) -> CheckinService:
     return CheckinService(
-        gyms, subs, plans, checkins, pauses, ledger, rl, audit
+        gyms,
+        subs,
+        plans,
+        checkins,
+        pauses,
+        ledger,
+        rl,
+        audit,
+        day_passes=passes,
+        day_pass_service=dps,
     )
 
 
