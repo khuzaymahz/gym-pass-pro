@@ -64,6 +64,20 @@ def _partition_name(month_start: date) -> str:
 def upgrade() -> None:
     bind = op.get_bind()
 
+    # Postgres preserves index names through `ALTER TABLE RENAME` — so
+    # if a prior run of this migration died partway, the indexes from
+    # the legacy table (now renamed to `audit_log_pre_partition`)
+    # still occupy the names `ix_audit_log_entity` /
+    # `ix_audit_log_actor_created` / `ix_audit_log_created_at`. When
+    # we re-run, the CREATE INDEX statements below collide with
+    # `relation "ix_audit_log_*" already exists` and the whole
+    # migration rolls back. Pre-drop them (they're recreated on the
+    # new partitioned table further down) so this migration is
+    # idempotent under retry.
+    op.execute("DROP INDEX IF EXISTS ix_audit_log_entity;")
+    op.execute("DROP INDEX IF EXISTS ix_audit_log_actor_created;")
+    op.execute("DROP INDEX IF EXISTS ix_audit_log_created_at;")
+
     # Stash the legacy table so we can re-insert. Renamed (not
     # dropped) so a mid-migration failure leaves the old data
     # recoverable from `audit_log_pre_partition`.

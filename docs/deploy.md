@@ -241,12 +241,16 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml \
 docker compose -f docker-compose.yml -f docker-compose.prod.yml \
   --env-file .env.prod exec db psql -U gympass
 
-# Adminer is only enabled in the dev compose; it's NOT in prod. If
-# you really need a GUI, ssh-tunnel the postgres port:
-#   ssh -L 5432:localhost:5432 khuzaymah@35.203.162.232 \
-#       docker compose -f docker-compose.yml -f docker-compose.prod.yml \
-#       --env-file .env.prod exec -T db psql -U gympass
-# …or temporarily edit the compose to publish 5432 over localhost only.
+# Adminer is opt-in via the `dev-tools` profile and binds to
+# 127.0.0.1:8080 only — even when started it isn't reachable from
+# the public IP. To use it for ad-hoc DB inspection on the VM:
+#   ssh -L 8080:localhost:8080 khuzaymah@35.203.162.232
+#   # In a second shell on the VM:
+#   docker compose --profile dev-tools \
+#     -f docker-compose.yml -f docker-compose.prod.yml \
+#     --env-file .env.prod up -d adminer
+# Then open http://localhost:8080 on your laptop. Stop it again
+# when you're done: `docker compose stop adminer`.
 ```
 
 ### Renew TLS

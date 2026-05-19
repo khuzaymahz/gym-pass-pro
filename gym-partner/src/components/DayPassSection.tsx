@@ -287,9 +287,9 @@ export function DayPassSection({
           type="submit"
           disabled={priceInvalid}
           className="btn-primary"
-        >
-          {t("save")}
-        </PendingButton>
+          pendingLabel={t("saving")}
+          idleLabel={t("save")}
+        />
       </div>
     </form>
   );

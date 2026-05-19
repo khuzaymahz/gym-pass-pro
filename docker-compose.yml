@@ -29,15 +29,22 @@ services:
       retries: 10
 
   # Adminer — single-PHP-file DB browser. Reachable at
-  # http://localhost:8080 once `docker compose up -d adminer` has
-  # run. Login form prefills via `ADMINER_DEFAULT_SERVER=db`; use
-  # the same `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB`
-  # from `.env` to log in. Profile-only — not part of any prod
-  # compose; if you ever publish the dev compose to a server, drop
-  # this service first.
+  # http://localhost:8080 ONLY when the `dev-tools` profile is
+  # activated, i.e. `docker compose --profile dev-tools up -d adminer`.
+  #
+  # The profile gate is load-bearing: previously this service started
+  # by default on every `up -d`, which meant `0.0.0.0:8080` was
+  # published on any host that ran the dev compose — including the
+  # production VM when the staging overlay was loaded. That left an
+  # internet-reachable DB browser on the public IP, which is exactly
+  # the kind of "dev-only" service you don't want exposed. Profiles
+  # make the opt-in explicit instead of relying on operators to
+  # remember CLAUDE.md §1's warning.
   adminer:
     image: adminer:4-standalone
     restart: unless-stopped
+    profiles:
+      - dev-tools
     environment:
       ADMINER_DEFAULT_SERVER: db
       # `pepa-linha-dark` is the cleanest dark theme that ships with
@@ -45,7 +52,12 @@ services:
       # the eye doesn't switch register.
       ADMINER_DESIGN: pepa-linha-dark
     ports:
-      - "8080:8080"
+      # Bind to loopback only — even with the profile gate above, a
+      # developer who DOES start adminer (locally for dev work)
+      # shouldn't accidentally expose it if they run on a remote box.
+      # Tunnel via `ssh -L 8080:localhost:8080` for remote DB
+      # inspection.
+      - "127.0.0.1:8080:8080"
     depends_on:
       db:
         condition: service_healthy
