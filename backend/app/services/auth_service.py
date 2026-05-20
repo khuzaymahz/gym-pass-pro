@@ -144,7 +144,7 @@ class AuthService:
         is_new_user = user is None
         if user is None:
             user = await self.users.create_member_by_phone(phone)
-            await self.referrals.ensure_code_for_user(user)
+            await self.referrals.ensure_code_for_user(user, actor=actor)
         if is_new_user and referral_code:
             await self.referrals.claim_on_signup(
                 invited_user=user, referral_code=referral_code, actor=actor,
@@ -255,7 +255,7 @@ class AuthService:
                 user = await self.users.create_member_by_google(
                     email=email, name=name, google_sub=google_sub, avatar_url=avatar_url,
                 )
-                await self.referrals.ensure_code_for_user(user)
+                await self.referrals.ensure_code_for_user(user, actor=actor)
                 is_new_user = True
             else:
                 # Existing email-only user signs in with Google for the

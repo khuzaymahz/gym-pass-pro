@@ -151,6 +151,12 @@
     align-items: center;
     justify-content: center;
     gap: 10px;
+    /* Keep multi-word labels ("Get the app", "Open partner portal")
+       on a single line. Without this, the navbar's flex squeeze on
+       narrow viewports collapses the pill to its min-content width,
+       which wraps each word onto its own line and turns a 48 px
+       pill into a 3-line stack. */
+    white-space: nowrap;
     transition: transform 120ms var(--ease), background 220ms var(--ease), color 220ms var(--ease), border-color 220ms var(--ease);
     text-decoration: none;
   }
@@ -239,6 +245,9 @@
     letter-spacing: 0.2em;
     text-transform: uppercase;
     color: var(--ink-dim);
+    /* Same nowrap fix as `.btn` — "PARTNER PORTAL ↗" stays on
+       one line when the navbar squeezes on mobile. */
+    white-space: nowrap;
     transition: color 220ms var(--ease), border-color 220ms var(--ease);
   }
   .partner-pill:hover { color: var(--ink); border-color: var(--ink-dim); }

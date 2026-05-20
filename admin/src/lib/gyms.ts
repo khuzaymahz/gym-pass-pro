@@ -1,7 +1,7 @@
 import "server-only";
 
 import { api, ApiError } from "@/lib/api";
-import { env } from "@/lib/env";
+import { serverEnv } from "@/lib/env.server";
 import { serviceToken } from "@/lib/sdk";
 
 export type GymRead = {
@@ -117,7 +117,7 @@ export async function uploadGymPhoto(
 ): Promise<GymPhotoRead> {
   const bearer = await serviceToken();
   const response = await fetch(
-    `${env.API_BASE_URL}/api/v1/admin/gyms/${gymId}/photos`,
+    `${serverEnv.API_BASE_URL}/api/v1/admin/gyms/${gymId}/photos`,
     {
       method: "POST",
       headers: { authorization: `Bearer ${bearer}` },
@@ -162,7 +162,7 @@ export async function deleteGymPhoto(
 
 export function resolvePhotoUrl(url: string): string {
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
-  return `${env.API_BASE_URL}${url}`;
+  return `${serverEnv.API_BASE_URL}${url}`;
 }
 
 export async function uploadGymLogo(
@@ -171,7 +171,7 @@ export async function uploadGymLogo(
 ): Promise<GymRead> {
   const bearer = await serviceToken();
   const response = await fetch(
-    `${env.API_BASE_URL}/api/v1/admin/gyms/${gymId}/logo`,
+    `${serverEnv.API_BASE_URL}/api/v1/admin/gyms/${gymId}/logo`,
     {
       method: "POST",
       headers: { authorization: `Bearer ${bearer}` },

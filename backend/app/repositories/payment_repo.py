@@ -17,6 +17,45 @@ class PaymentRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
+    async def get(self, payment_id: UUID) -> Payment | None:
+        return await self.session.get(Payment, payment_id)
+
+    async def mark_refunded(
+        self,
+        payment: Payment,
+        *,
+        refund_txn_id: str | None,
+        raw_refund: dict[str, Any],
+        refund_failed: bool,
+    ) -> None:
+        """Flip a successful payment to REFUNDED (or keep as
+        SUCCEEDED with a flag if the refund itself failed).
+
+        Mutates the existing payment row in place — we don't
+        write a second sibling row because the financial reality
+        is "this payment was reversed", not "two separate
+        payments happened". The refund txn id + raw response
+        are merged into `raw_response` for reconciliation.
+
+        `refund_failed=True` is the worst case: charge succeeded,
+        activation failed, refund attempt also failed. We leave
+        the status at SUCCEEDED (because the money DID change
+        hands) but stamp the row with the refund attempt detail
+        so ops can chase down the manual reversal. The matching
+        audit-log entry (written by the calling service) is the
+        ops trigger.
+        """
+        merged = dict(payment.raw_response or {})
+        merged["refund"] = {
+            "refund_txn_id": refund_txn_id,
+            "raw": raw_refund,
+            "succeeded": not refund_failed,
+        }
+        payment.raw_response = merged
+        if not refund_failed:
+            payment.status = PaymentStatus.REFUNDED
+        await self.session.flush()
+
     async def create(
         self,
         *,

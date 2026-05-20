@@ -1747,4 +1747,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'We could not find a gym matching "$slug". It may have been removed.';
   @override
   String get gymNotFoundBackToExplore => 'Back to explore';
+
+  @override
+  String get routerNotFoundTitle => 'Page not found';
+  @override
+  String get routerGoHome => 'Go to Home';
 }

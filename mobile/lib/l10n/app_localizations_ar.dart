@@ -1755,4 +1755,9 @@ class AppLocalizationsAr extends AppLocalizations {
       'تعذّر العثور على صالة بالاسم "$slug". ربما تمت إزالتها.';
   @override
   String get gymNotFoundBackToExplore => 'العودة إلى الاستكشاف';
+
+  @override
+  String get routerNotFoundTitle => 'الصفحة غير موجودة';
+  @override
+  String get routerGoHome => 'العودة للرئيسية';
 }

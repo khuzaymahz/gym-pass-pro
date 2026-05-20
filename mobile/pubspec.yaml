@@ -137,6 +137,14 @@ dependencies:
   # don't decode the full-resolution JPEG into RAM when we're only
   # displaying a 400-px-wide slot.
   cached_network_image: ^3.4.1
+  # `flutter_cache_manager` is the LRU disk-cache engine that backs
+  # `cached_network_image`. Declared directly here because
+  # `ResilientTileProvider` uses its `DefaultCacheManager` for
+  # persistent map-tile caching — declaring the dep explicitly
+  # silences the analyzer's `depend_on_referenced_packages` lint
+  # and pins us at a known major if `cached_network_image` ever
+  # widens its acceptable range.
+  flutter_cache_manager: ^3.4.1
 
   # Utilities
   intl: ^0.20.2

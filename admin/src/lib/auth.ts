@@ -4,13 +4,13 @@ import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 
 import { api, ApiError, exchangeAdminToken } from "@/lib/api";
-import { env } from "@/lib/env";
+import { serverEnv } from "@/lib/env.server";
 
 type LoginResp = { id: string; email: string; name: string | null; role: string };
 
 export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt", maxAge: 60 * 60 * 4 },
-  secret: env.NEXTAUTH_SECRET,
+  secret: serverEnv.NEXTAUTH_SECRET,
   providers: [
     CredentialsProvider({
       name: "Admin Credentials",

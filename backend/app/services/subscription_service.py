@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
@@ -7,7 +8,7 @@ import structlog
 
 from app.core.exceptions import AppError, ErrorCode
 from app.db.enums import PaymentStatus, SubscriptionStatus
-from app.db.models import Plan, Subscription, User
+from app.db.models import Payment, Plan, Subscription, User
 from app.providers.payments import PaymentProvider
 from app.realtime import publish as realtime_publish
 from app.repositories.payment_repo import PaymentRepository
@@ -138,7 +139,7 @@ class SubscriptionService:
         raw = dict(result.raw or {})
         if payment_method_id is not None:
             raw["paymentMethodId"] = str(payment_method_id)
-        await self.payments.create(
+        payment = await self.payments.create(
             subscription_id=sub.id,
             amount_jod=plan.price_jod,
             method=self._coerce_method(payment_method),
@@ -148,7 +149,23 @@ class SubscriptionService:
             processed_at=utcnow(),
         )
 
-        if status == PaymentStatus.SUCCEEDED:
+        if status != PaymentStatus.SUCCEEDED:
+            raise AppError(ErrorCode.PAYMENT_DECLINED, "Payment declined.")
+
+        # Charge succeeded. Try to flip the subscription to ACTIVE
+        # + record audit + fire referral conversion. If ANY of
+        # those raise (DB hiccup, unique-constraint race, audit-
+        # log partition write fails, etc.) we MUST refund — the
+        # member has been charged for a subscription that won't
+        # exist. Compensation path:
+        #   1. Call provider.refund() with an idempotent key.
+        #   2. Mark the payment row REFUNDED (or stamp it with
+        #      a "refund attempted but failed" flag for ops).
+        #   3. Audit at high priority so ops sees the orphan.
+        #   4. Re-raise as PAYMENT_GATEWAY_ERROR so the caller
+        #      knows something went wrong post-charge — they
+        #      should NOT retry, which would double-charge.
+        try:
             await self.subs.activate(sub)
             await self.audit.log(
                 actor=actor, action="subscription.purchase",
@@ -158,16 +175,109 @@ class SubscriptionService:
             # Convert any pending referral on the invited user's first paid
             # subscription. Safe to call unconditionally — no-op if no row.
             await self.referrals.mark_converted_if_pending(user.id)
-            await _safe_publish(
-                f"user/{user.id}",
-                {
-                    "type": "subscription.created",
-                    "subscriptionId": str(sub.id),
-                    "tier": plan.tier.value,
-                },
+        except Exception as activation_err:
+            await self._compensate_failed_activation(
+                payment=payment,
+                amount=plan.price_jod,
+                idempotency_key=f"refund:{sub.id}",
+                actor=actor,
+                entity_type="subscription",
+                entity_id=sub.id,
+                activation_err=activation_err,
             )
-            return sub
-        raise AppError(ErrorCode.PAYMENT_DECLINED, "Payment declined.")
+            raise AppError(
+                ErrorCode.PAYMENT_GATEWAY_ERROR,
+                "We charged your card but couldn't activate your "
+                "subscription. The payment has been refunded — "
+                "please try again or contact support.",
+            ) from activation_err
+
+        await _safe_publish(
+            f"user/{user.id}",
+            {
+                "type": "subscription.created",
+                "subscriptionId": str(sub.id),
+                "tier": plan.tier.value,
+            },
+        )
+        return sub
+
+    async def _compensate_failed_activation(
+        self,
+        *,
+        payment: Payment,
+        amount: Decimal,
+        idempotency_key: str,
+        actor: Actor,
+        entity_type: str,
+        entity_id: UUID,
+        activation_err: Exception,
+    ) -> None:
+        """Money-back compensation when a charge succeeded but the
+        post-charge mutation failed. Shared between the
+        subscription and day-pass purchase flows (see
+        `DayPassService.purchase` for the parallel call). Always
+        leaves an audit-log entry so ops can chase up; never
+        re-raises (the caller raises PAYMENT_GATEWAY_ERROR).
+        """
+        refund_succeeded = False
+        refund_txn_id: str | None = None
+        refund_raw: dict[str, Any] = {}
+        refund_call_failed: Exception | None = None
+        try:
+            refund = await self.payment_provider.refund(
+                gateway_txn_id=payment.gateway_txn_id or "",
+                amount_jod=Decimal(amount),
+                idempotency_key=idempotency_key,
+            )
+            refund_succeeded = refund.status == "succeeded"
+            refund_txn_id = refund.refund_txn_id
+            refund_raw = dict(refund.raw or {})
+        except Exception as refund_err:
+            refund_call_failed = refund_err
+
+        try:
+            await self.payments.mark_refunded(
+                payment,
+                refund_txn_id=refund_txn_id,
+                raw_refund=refund_raw or {"refund_call_failed": str(refund_call_failed)},
+                refund_failed=not refund_succeeded,
+            )
+        except Exception as mark_err:
+            # Even the bookkeeping update failed. Audit log is the
+            # last line of defence — keep going.
+            log.error(
+                "payment.mark_refunded_failed",
+                entity_type=entity_type,
+                entity_id=str(entity_id),
+                err=str(mark_err),
+            )
+
+        await self.audit.log(
+            actor=actor,
+            action=f"{entity_type}.activation_failed_after_charge",
+            entity_type=entity_type,
+            entity_id=entity_id,
+            diff={
+                "payment_id": str(payment.id),
+                "activation_error": str(activation_err)[:512],
+                "refund_succeeded": refund_succeeded,
+                "refund_txn_id": refund_txn_id,
+                "refund_call_failed": (
+                    str(refund_call_failed)[:512]
+                    if refund_call_failed is not None
+                    else None
+                ),
+            },
+        )
+        log.error(
+            "payment.compensation_required" if not refund_succeeded
+            else "payment.compensated",
+            entity_type=entity_type,
+            entity_id=str(entity_id),
+            payment_id=str(payment.id),
+            refund_succeeded=refund_succeeded,
+        )
 
     async def cancel(self, *, sub_id: UUID, user: User, actor: Actor) -> Subscription:
         sub = await self.subs.get(sub_id)

@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../billing/data/billing_state.dart';
@@ -113,10 +115,20 @@ class AuthController extends StateNotifier<AuthState> {
       state = state.copyWith(phase: AuthPhase.authed);
     } catch (_) {
       // Best-effort cleanup — same idempotent surface a normal logout
-      // hits. Swallowed so the splash always resolves.
+      // hits. Swallowed so the splash always resolves. Log the
+      // failure so a stuck "ghost session" symptom in the wild
+      // has a breadcrumb in `flutter logs` / `adb logcat` (was
+      // pure `catch (_) {}` before; ops had nothing to grep).
       try {
         await _repo.logout();
-      } catch (_) {}
+      } catch (err, st) {
+        developer.log(
+          'bootstrap logout cleanup failed',
+          name: 'auth.bootstrap',
+          error: err,
+          stackTrace: st,
+        );
+      }
     }
   }
 

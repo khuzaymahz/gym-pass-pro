@@ -13,7 +13,7 @@
 
 | Surface | Status | Location | Notes |
 |---|---|---|---|
-| Design system | ✅ Authoritative | [design/](design/) | Imported from Claude Design bundle — tokens, preview cards, member-app UI kit. **Source of visual truth.** |
+| Design system | ⚠️ External / not vendored | _(formerly `design/` — folder removed)_ | The Claude Design bundle (tokens / preview cards / member-app UI kit) was historically vendored at `design/`. It's no longer in the repo. Tokens now live in [mobile/lib/core/theme/gp_tokens.dart](mobile/lib/core/theme/gp_tokens.dart) (mobile) and as CSS variables under each Next app's `globals.css` (admin / gym-partner). **Source of visual truth = those files**, not a `design/` folder. |
 | Member prototype (web) | 🟡 Working HTML/JSX | [Gym pass Mobile App/](Gym%20pass%20Mobile%20App/) + Vite scaffold at repo root | Legacy clickable prototype of 16 screens. Used for early stakeholder review; **not** the shipping app. |
 | Backend API | 🟢 Pre-prod deployed | [backend/](backend/) | FastAPI 0.135 + SQLAlchemy 2 async + Alembic. 15 migrations applied. Live at `https://api.gym-pass.net`. |
 | Member app (production) | 🟢 Built, side-load only | [mobile/](mobile/) | Flutter 3.38, full registration + tier picker + QR scanner. APK distributed via `gym-pass.net/downloads/gympass.apk` (built off-VM, scp'd in). Store listings deferred. |
@@ -32,7 +32,7 @@
 
 | Layer | Technology | Notes |
 |---|---|---|
-| **Design reference** | HTML/CSS prototypes + `colors_and_type.css` tokens | Under [design/](design/). Treat as read-only spec. |
+| **Design reference** | Token files only — see Section 1 | The `design/` folder is no longer vendored; tokens live in [mobile/lib/core/theme/gp_tokens.dart](mobile/lib/core/theme/gp_tokens.dart) + each Next app's CSS variables. |
 | **Prototype preview** | React 18 + Vite 5 (Babel-in-browser JSX via CDN) | Root `package.json`. Used to view the Claude Design prototype. |
 | **Member app (prod)** | Flutter 3.24+ (iOS + Android) | Single codebase, AR-first. |
 | **Admin dashboard** | Next.js 14 App Router + TypeScript + Tailwind + next-intl | Talks to FastAPI over HTTPS. |
@@ -57,7 +57,7 @@
 - **No** `pip install` / `requirements.txt` in backend — `uv` only.
 - **No** Next.js server actions or route handlers that bypass FastAPI (except `/api/auth/[...nextauth]`).
 - **No** Stripe — not viable in Jordan. Payments are mocked; real gateway decision is deferred.
-- **No** inline hex colors in mobile or admin — pass through the token layer from [design/colors_and_type.css](design/project/colors_and_type.css).
+- **No** inline hex colors in mobile or admin — pass through the token layer from [mobile/lib/core/theme/gp_tokens.dart](mobile/lib/core/theme/gp_tokens.dart).
 - **No** user-facing strings in code — always ARB (mobile) or `messages/*.json` (admin).
 
 ---
@@ -69,7 +69,7 @@ gym-pass-pro/
 ├── CLAUDE.md                         # ← you are here
 ├── README.md                         # Human-facing project readme
 ├── package.json                      # Vite prototype host (root)
-├── index.html                        # Vite entry (loads design/ prototype)
+├── index.html                        # Vite entry — legacy prototype host, now mostly idle since design/ was un-vendored
 ├── vite.config.js
 ├── docker-compose.yml                # Dev stack — hot-reload + per-service ports exposed
 ├── docker-compose.prod.yml           # Prod overlay — restart:always, ports unpublished except nginx
@@ -77,19 +77,9 @@ gym-pass-pro/
 ├── .env.prod.example                 # Prod template (copy to .env.prod on the VM)
 ├── .gitignore
 │
-├── design/                           # 🎨 SOURCE OF VISUAL TRUTH (read-only)
-│   ├── README.md                     # Claude Design bundle readme — READ FIRST for UI work
-│   ├── chats/                        # Original design-session transcript
-│   └── project/
-│       ├── README.md                 # Design-system overview (tokens, type, icons, voice)
-│       ├── SKILL.md                  # Agent-skill spec
-│       ├── colors_and_type.css       # Token source of truth — import everywhere
-│       ├── assets/                   # Wordmark SVG, icon sprite
-│       ├── fonts/                    # (CDN — no files needed)
-│       ├── preview/                  # Token/component review cards
-│       ├── uploads/                  # Original single-file design spec
-│       └── ui_kits/
-│           └── mobile_app/           # Interactive member-app prototype (16 screens)
+│   (`design/` — Claude Design bundle — has been un-vendored. Tokens
+│    now live in mobile/lib/core/theme/gp_tokens.dart and per-app
+│    CSS variables. See Section 1.)
 │
 ├── Gym pass Mobile App/              # Legacy prototype (pre-design-bundle import)
 │   ├── Gym Pass Prototype.html       # Standalone entry
@@ -201,7 +191,7 @@ Supported method tags in v1: `card`, `cliq`, `apple_pay`, `google_pay`. Dev mode
 ## 10 · Internationalization & RTL
 
 - **Default locale:** Arabic (AR) on both mobile and admin.
-- **Mobile:** Cairo (AR) + Archivo (EN display) + Inter (EN body) + JetBrains Mono (labels). Full design spec in [design/project/README.md](design/project/README.md).
+- **Mobile:** Cairo (AR) + Archivo (EN display) + Inter (EN body) + JetBrains Mono (labels). Defined in [mobile/lib/core/theme/gp_text.dart](mobile/lib/core/theme/gp_text.dart) with locale-aware accessors (`GPText.displayFor(lang, ...)`, `DisplayText` widget).
 - **Admin:** system fonts; flips direction via `next-intl` + `dir="rtl"` on `<html>`.
 - **Every** user-facing string is in `.arb` (mobile) or `messages/*.json` (admin). No inline literals.
 - **Currency:** `45 JOD` (EN) / `٤٥ د.أ` (AR). Currency code/symbol after the number in both locales.
@@ -226,12 +216,12 @@ Full topology — services, ports, volumes, nginx vhosts, Cloudflare real-IP rew
 
 These are non-negotiable during code changes:
 
-1. **Read [design/README.md](design/README.md) and [design/project/README.md](design/project/README.md) before touching any UI.** The design is the source of visual truth, pixel-for-pixel within reason.
+1. **Token-driven UI.** No `design/` folder anymore; use [mobile/lib/core/theme/gp_tokens.dart](mobile/lib/core/theme/gp_tokens.dart) + [mobile/lib/core/theme/gp_text.dart](mobile/lib/core/theme/gp_text.dart) on mobile and the per-app `globals.css` CSS-variable layer on each Next app. Match existing screens; don't invent new colors / type ramps.
 2. **Read this file's relevant section before touching a new area.** If something contradicts this file, ask — don't silently work around.
 3. **Strict folder boundaries.** Backend code does not import from admin or mobile. Cross-service contracts go through the OpenAPI schema.
 4. **No new dependencies without justification.** If a new library is needed, explain why the current stack doesn't cover it in the PR description.
 5. **No hardcoded strings anywhere user-facing.** Always go through the i18n layer.
-6. **No hardcoded hex colors** in mobile or admin. Go through the design tokens from [design/project/colors_and_type.css](design/project/colors_and_type.css).
+6. **No hardcoded hex colors** in mobile or admin. Mobile goes through [mobile/lib/core/theme/gp_tokens.dart](mobile/lib/core/theme/gp_tokens.dart) (`GP.*` constants + `gp.*` context palette). Admin / gym-partner go through the CSS variables (`--bg / --paper / --accent / --line / …`) defined in each app's `globals.css`.
 7. **No raw SQL in endpoints** — SQLAlchemy models + services only.
 8. **Every DB schema change needs an Alembic migration.** Never edit past migrations.
 9. **Dev mode must remain frictionless.** OTP = `1234`, payments mocked, `scripts/seed.py` provides the minimal bootstrap. **Those are the only dev-mode mocks.** No "demo mode" flag, no `seed_demo_*` scripts, no hardcoded demo users / tickets / checkins / payouts / notifications anywhere in code, migrations, or UI. Do not add mock aggregates or fallback literals to hide API failures — empty states and error states are what the user wants to see.
@@ -244,7 +234,7 @@ These are non-negotiable during code changes:
 ### When starting a new task
 
 1. Read the relevant sections of this file and of [docs/tasks.md](docs/tasks.md).
-2. If it's UI, read the relevant sections of [design/project/README.md](design/project/README.md) and the matching preview card under [design/project/preview/](design/project/preview/).
+2. If it's UI, scan the analogous existing screen for tokens / patterns. Mobile = `mobile/lib/features/<area>/presentation/`; Next apps = the matching route folder. Reuse the existing tokens, never invent new ones.
 3. Summarize the plan in 3–5 lines before writing code.
 4. Run existing tests first to confirm a clean baseline.
 5. Keep changes scoped to one folder where possible.
@@ -259,7 +249,7 @@ These are non-negotiable during code changes:
 
 - **Backend:** `pytest` + `httpx` + `pytest-asyncio`. Test DB is a separate Postgres schema spun up per test run. Target 80%+ coverage on `services/` and `api/`.
 - **Admin:** Vitest + React Testing Library for components; Playwright for smoke E2E (login → dashboard → create-gym).
-- **Mobile:** `flutter test` for widget tests; golden tests for the key screens from [design/project/ui_kits/mobile_app/](design/project/ui_kits/mobile_app/).
+- **Mobile:** `flutter test` for widget + golden tests on key screens (sign-in, gym detail, buy-sheet, profile). Currently sparse — see Section 15 Open Questions.
 
 CI runs all three on PR (GitHub Actions). A PR that drops backend coverage or fails mobile goldens cannot merge.
 
@@ -332,4 +322,4 @@ cd mobile && flutter test
 - VM bring-up + deploy runbook: [docs/deploy.md](docs/deploy.md)
 - Admin dev run: [docs/admin-run.md](docs/admin-run.md)
 - Marketing site (design + serving): [website/README.md](website/README.md)
-- Design system: [design/README.md](design/README.md), [design/project/README.md](design/project/README.md)
+- Design tokens: [mobile/lib/core/theme/gp_tokens.dart](mobile/lib/core/theme/gp_tokens.dart) · [mobile/lib/core/theme/gp_text.dart](mobile/lib/core/theme/gp_text.dart) · each Next app's `globals.css`
