@@ -106,7 +106,7 @@ class AuthService:
             )
 
         settings = get_settings()
-        code = DEV_OTP if settings.is_dev else f"{secrets.randbelow(10000):04d}"
+        code = DEV_OTP if settings.should_use_fixed_otp else f"{secrets.randbelow(10000):04d}"
         code_hash = await hash_otp_async(code)
         now = utcnow()
         await self.otps.delete_expired_for_phone(phone, now)
@@ -190,7 +190,7 @@ class AuthService:
             )
 
         settings = get_settings()
-        code = DEV_OTP if settings.is_dev else f"{secrets.randbelow(10000):04d}"
+        code = DEV_OTP if settings.should_use_fixed_otp else f"{secrets.randbelow(10000):04d}"
         code_hash = await hash_otp_async(code)
         now = utcnow()
         await self.otps.delete_expired_for_phone(new_phone, now)
