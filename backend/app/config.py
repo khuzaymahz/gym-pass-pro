@@ -132,6 +132,13 @@ class Settings(BaseSettings):
         return self.app_env == "production"
 
     @property
+    def should_use_fixed_otp(self) -> bool:
+        """Use the sentinel OTP (1234) instead of a random code.
+        True in development (frictionless local work) and staging
+        (testers don't have access to real SMS logs)."""
+        return self.app_env in ("development", "staging")
+
+    @property
     def should_mock_sms(self) -> bool:
         """True when the SMS provider should be the no-op mock that
         logs the OTP code instead of sending it. Driven off

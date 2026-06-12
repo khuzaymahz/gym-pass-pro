@@ -388,12 +388,17 @@ services:
       # variable upstream that fails-soft at request time (resolver +
       # `set $mail_upstream` in mail.conf.template — returns 502 if
       # mail-front isn't in Docker DNS, instead of crashing nginx).
-      NGINX_ENVSUBST_FILTER: '^(API|ADMIN|PARTNER|WEBSITE|MAIL)_DOMAIN$$'
+      # GITLAB is in the filter unconditionally so gitlab.conf.template
+      # always renders. Like MAIL, the vhost fails-soft to 502 when
+      # the gitlab overlay isn't loaded (the `gitlab` hostname is only
+      # resolvable when docker-compose.gitlab.yml is included).
+      NGINX_ENVSUBST_FILTER: '^(API|ADMIN|PARTNER|WEBSITE|MAIL|GITLAB)_DOMAIN$$'
       API_DOMAIN: ${API_DOMAIN:-stg-api.gym-pass.net}
       ADMIN_DOMAIN: ${ADMIN_DOMAIN:-stg-admin.gym-pass.net}
       PARTNER_DOMAIN: ${PARTNER_DOMAIN:-stg-partner.gym-pass.net}
       WEBSITE_DOMAIN: ${WEBSITE_DOMAIN:-stg.gym-pass.net}
       MAIL_DOMAIN: ${MAIL_DOMAIN:-mail.gym-pass.net}
+      GITLAB_DOMAIN: ${GITLAB_DOMAIN:-gitlab.gym-pass.net}
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       # Templates rendered into /etc/nginx/conf.d at container start.

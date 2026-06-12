@@ -2408,15 +2408,15 @@
       <p class="reveal" data-d="2">Free for 30 days, then JD 25–110 a month depending on tier. Cancel or pause from inside the app, any time.</p>
       <div class="download-row reveal" data-d="3">
         <a class="store-btn" href="/downloads/gympass.apk" download>
-          <svg class="logo" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.4 12.6c0-2.1 1.7-3.1 1.8-3.1-1-1.4-2.4-1.6-2.9-1.6-1.2-.1-2.4.7-3 .7s-1.6-.7-2.6-.7c-1.3 0-2.6.8-3.2 2-1.4 2.4-.4 5.9 1 7.8.7 1 1.5 2 2.5 2 1 0 1.4-.6 2.5-.6 1.2 0 1.5.6 2.6.6 1.1 0 1.7-1 2.4-1.9.7-.9 1-1.7 1-1.7s-1.9-.7-2.1-3z"/><path d="M14.8 6.4c.5-.6.9-1.5.8-2.4-.8 0-1.7.5-2.3 1.2-.5.6-.9 1.5-.8 2.3.9.1 1.7-.4 2.3-1.1z"/></svg>
-          <span class="stack"><span class="small">Download on the</span><span class="big">App Store</span></span>
-        </a>
-        <a class="store-btn ghost" href="/downloads/gympass.apk" download>
           <svg class="logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3l11 9-11 9V3z" fill="currentColor" opacity=".75"/><path d="M4 3l11 9-7 6L4 3z" fill="currentColor"/></svg>
-          <span class="stack"><span class="small">Get it on</span><span class="big">Google Play</span></span>
+          <span class="stack"><span class="small">Download for</span><span class="big">Android</span></span>
+        </a>
+        <a class="store-btn ghost" href="/downloads/gympass-universal.apk" download>
+          <svg class="logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>
+          <span class="stack"><span class="small">Older devices</span><span class="big">Universal APK</span></span>
         </a>
       </div>
-      <div class="apk reveal" data-d="4">Or <a href="/downloads/gympass.apk" download>download APK directly</a> · pre-prod · for Android · <a href="/downloads/gympass-universal.apk" download>universal build</a> for older devices</div>
+      <div class="apk reveal" data-d="4">Direct sideload · Android only · <a href="/downloads/gympass.apk.sha256" download>verify SHA-256</a></div>
     </div>
   </section>
 
@@ -2596,41 +2596,25 @@
   }
 
   /* ── APK download fallback ──
-     The artefact at /downloads/gympass.apk is produced by
-     scripts/build-apk.sh and dropped into website/public/downloads/.
-     Pre-prod deploys may not have it on disk yet; without this
-     handler the click would just hit a hard 404. We HEAD-check the
-     file on the first click (memoised) and, if it's missing, show
-     a polite toast pointing the visitor at email instead.
-
-     We attach to every link pointing at the APK — hero buttons,
-     closer buttons, and the inline "download APK directly" line —
-     so the behaviour is uniform across the page. */
-  var APK_HREF = '/downloads/gympass.apk';
-  var apkLinks = document.querySelectorAll('a[href="' + APK_HREF + '"]');
-  if (apkLinks.length) {
-    var apkAvailable = null;
-    var checkApk = function () {
-      if (apkAvailable !== null) return apkAvailable;
-      apkAvailable = fetch(APK_HREF, { method: 'HEAD', cache: 'no-store' })
-        .then(function (r) {
-          // Some static servers serve a 200 on the .gitkeep-only
-          // directory or return an HTML index. Treat anything that
-          // isn't an .apk content-type as missing.
-          if (!r.ok) return false;
-          var len = parseInt(r.headers.get('content-length') || '0', 10);
-          // Real APKs are >5 MB; anything tiny is a placeholder /
-          // .gitkeep / Next.js HTML fallback.
-          return len > 5 * 1024 * 1024;
-        })
+     HEAD-checks each APK on the first click (memoised per href) and
+     shows a polite toast if the file isn't on disk yet (pre-prod
+     deploy hasn't run build-apk.sh). Covers both gympass.apk and
+     gympass-universal.apk so the behaviour is uniform across the
+     page. */
+  function wireApkLinks(href) {
+    var links = document.querySelectorAll('a[href="' + href + '"]');
+    if (!links.length) return;
+    var available = null;
+    var check = function () {
+      if (available !== null) return available;
+      available = fetch(href, { method: 'HEAD', cache: 'no-store' })
+        .then(function (r) { return r.ok; })
         .catch(function () { return false; });
-      return apkAvailable;
+      return available;
     };
-    /* Warm the check on page load so by the time a user clicks the
-       result is already known and the link feels instant. */
-    checkApk();
+    check(); // warm on load
 
-    var showApkToast = function () {
+    var showToast = function () {
       var existing = document.querySelector('[data-apk-toast]');
       if (existing) existing.remove();
       var el = document.createElement('div');
@@ -2646,31 +2630,22 @@
         '<button type="button" class="t-close" aria-label="Dismiss">×</button>';
       document.body.appendChild(el);
       el.querySelector('.t-close').addEventListener('click', function () { el.remove(); });
-      setTimeout(function () {
-        if (!document.body.contains(el)) return;
-        el.classList.add('is-leaving');
-      }, 8000);
+      setTimeout(function () { if (document.body.contains(el)) el.classList.add('is-leaving'); }, 8000);
       setTimeout(function () { el.remove(); }, 8400);
     };
 
-    apkLinks.forEach(function (link) {
+    links.forEach(function (link) {
       link.addEventListener('click', function (ev) {
-        // Don't break the link for users who actually have the file
-        // available — we await the check, but only block the click if
-        // it comes back false.
-        if (ev.metaKey || ev.ctrlKey || ev.shiftKey) return; // open-in-new-tab / save-as
+        if (ev.metaKey || ev.ctrlKey || ev.shiftKey) return;
         ev.preventDefault();
-        Promise.resolve(checkApk()).then(function (ok) {
-          if (ok) {
-            // Re-trigger as a real download now that we know it's there.
-            window.location.href = link.href;
-          } else {
-            showApkToast();
-          }
+        Promise.resolve(check()).then(function (ok) {
+          if (ok) { window.location.href = link.href; } else { showToast(); }
         });
       });
     });
   }
+  wireApkLinks('/downloads/gympass.apk');
+  wireApkLinks('/downloads/gympass-universal.apk');
 })();
 </script>
 </body>
