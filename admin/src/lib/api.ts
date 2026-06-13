@@ -1,6 +1,6 @@
 import "server-only";
 
-import { env } from "@/lib/env";
+import { serverEnv } from "@/lib/env.server";
 
 // Web Crypto API — works in both Node 20+ and the browser, no
 // `node:crypto` import. The previous `node:`-prefixed import was
@@ -108,7 +108,7 @@ export async function api<T>(path: string, init: Init = {}): Promise<T> {
     const abortTimer = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      const response = await fetch(`${env.API_BASE_URL}${path}`, {
+      const response = await fetch(`${serverEnv.API_BASE_URL}${path}`, {
         ...rest,
         headers: {
           "content-type": "application/json",
@@ -186,7 +186,7 @@ export async function exchangeAdminToken(email: string): Promise<{
   const signedAt = Math.floor(Date.now() / 1000);
   const nonce = bytesToHex(cryptoApi.getRandomValues(new Uint8Array(16)));
   const signature = await hmacSha256Hex(
-    env.ADMIN_EXCHANGE_SECRET,
+    serverEnv.ADMIN_EXCHANGE_SECRET,
     `${email}|${nonce}|${signedAt}`,
   );
   return api("/api/v1/auth/admin/exchange", {

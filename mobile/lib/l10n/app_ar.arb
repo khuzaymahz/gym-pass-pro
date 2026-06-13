@@ -26,7 +26,7 @@
   "phoneCountryPrefix": "+962",
   "phoneHint": "7X XXX XXXX",
   "errorPhoneRequired": "يرجى إدخال رقم الهاتف",
-  "errorPhoneInvalid": "رقم غير صالح",
+  "errorPhoneInvalid": "أدخل رقم أردني من 9 أرقام (7X XXX XXXX)",
 
   "otpSentTo": "أرسلنا رمزاً إلى",
   "otpResend": "إعادة إرسال الرمز",
@@ -773,5 +773,8 @@
   "privacyChangesHeadline": "تغييرات هذه السياسة",
   "privacyChangesBody": "قد نُحدِّث هذه السياسة. عند أي تغيير جوهري في تعاملنا مع بياناتك، سنُخطرك داخل التطبيق قبل سريانه بسبعة أيام على الأقل. استمرارك في الاستخدام بعد التاريخ المعلَن يُعدّ موافقة.",
   "privacyContactHeadline": "تواصل معنا",
-  "privacyContactBody": "راسلنا على privacy@gym-pass.net أو استخدم صفحة الدعم. نردّ بالعربية أو الإنجليزية. يمكن التواصل مع مسؤول حماية البيانات على نفس العنوان."
+  "privacyContactBody": "راسلنا على privacy@gym-pass.net أو استخدم صفحة الدعم. نردّ بالعربية أو الإنجليزية. يمكن التواصل مع مسؤول حماية البيانات على نفس العنوان.",
+
+  "routerNotFoundTitle": "الصفحة غير موجودة",
+  "routerGoHome": "العودة للرئيسية"
 }

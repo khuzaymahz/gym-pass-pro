@@ -14,7 +14,7 @@ from app.db.enums import (
     PaymentMethod,
     PaymentStatus,
 )
-from app.db.models import DayPass, DayPassOffering, Gym, User
+from app.db.models import DayPass, DayPassOffering, Gym, Payment, User
 from app.providers.payments import PaymentProvider
 from app.realtime import publish as realtime_publish
 from app.repositories.day_pass_repo import (
@@ -189,10 +189,19 @@ class DayPassService:
             raise AppError(ErrorCode.GYM_NOT_FOUND, "Gym not found.")
 
         offering = await self.offerings.for_gym(gym.id)
-        if offering is None or not offering.is_enabled:
+        if offering is None:
+            # Distinguish "partner never configured" (mobile can show
+            # "We hope to add this gym soon") from "partner turned
+            # it off" ("Day passes are paused at this gym") — same
+            # HTTP semantics but different UX copy possible.
             raise AppError(
-                ErrorCode.DAY_PASS_NOT_AVAILABLE,
-                "This gym does not offer day passes right now.",
+                ErrorCode.DAY_PASS_OFFERING_NOT_CONFIGURED,
+                "This gym hasn't set up day passes yet.",
+            )
+        if not offering.is_enabled:
+            raise AppError(
+                ErrorCode.DAY_PASS_OFFERING_DISABLED,
+                "Day passes are paused at this gym right now.",
             )
 
         # Subscribers whose tier ALREADY COVERS this gym don't buy
@@ -323,21 +332,42 @@ class DayPassService:
             )
             raise AppError(ErrorCode.PAYMENT_DECLINED, "Payment declined.")
 
-        await self.passes.activate(day_pass, payment_id=payment.id)
-        await self.audit.log(
-            actor=actor,
-            action="day_pass.purchase",
-            entity_type="day_pass",
-            entity_id=day_pass.id,
-            diff={
-                "gym_id": str(gym.id),
-                "offering_id": str(offering.id),
-                "price_jod": str(price),
-                "platform_fee_jod": str(fee),
-                "net_amount_jod": str(net),
-                "expires_at": expires_at.isoformat(),
-            },
-        )
+        # Charge succeeded — try to activate the pass + audit.
+        # If any post-charge step raises, run the compensation
+        # path (refund + payment row update + ops audit entry)
+        # so the member isn't charged for a pass that never
+        # activates. Mirrors `SubscriptionService.purchase`.
+        try:
+            await self.passes.activate(day_pass, payment_id=payment.id)
+            await self.audit.log(
+                actor=actor,
+                action="day_pass.purchase",
+                entity_type="day_pass",
+                entity_id=day_pass.id,
+                diff={
+                    "gym_id": str(gym.id),
+                    "offering_id": str(offering.id),
+                    "price_jod": str(price),
+                    "platform_fee_jod": str(fee),
+                    "net_amount_jod": str(net),
+                    "expires_at": expires_at.isoformat(),
+                },
+            )
+        except Exception as activation_err:
+            await self._compensate_failed_activation(
+                payment=payment,
+                amount=price,
+                idempotency_key=f"refund:{day_pass.id}",
+                actor=actor,
+                entity_id=day_pass.id,
+                activation_err=activation_err,
+            )
+            raise AppError(
+                ErrorCode.PAYMENT_GATEWAY_ERROR,
+                "We charged your card but couldn't activate the "
+                "day pass. The payment has been refunded — please "
+                "try again or contact support.",
+            ) from activation_err
         await _safe_publish(
             f"user/{user.id}",
             {
@@ -348,6 +378,83 @@ class DayPassService:
             },
         )
         return day_pass
+
+    # ------------------------------------------------------------------
+    # Internal: post-charge compensation (called from `purchase`)
+    # ------------------------------------------------------------------
+    async def _compensate_failed_activation(
+        self,
+        *,
+        payment: "Payment",
+        amount: Decimal,
+        idempotency_key: str,
+        actor: Actor,
+        entity_id: UUID,
+        activation_err: Exception,
+    ) -> None:
+        """Money-back compensation for day-pass purchases. Mirrors
+        `SubscriptionService._compensate_failed_activation` —
+        attempts a refund, marks the payment row, writes a
+        high-priority audit entry. Never re-raises (the caller
+        raises `PAYMENT_GATEWAY_ERROR`).
+        """
+        refund_succeeded = False
+        refund_txn_id: str | None = None
+        refund_raw: dict[str, Any] = {}
+        refund_call_failed: Exception | None = None
+        try:
+            refund = await self.payment_provider.refund(
+                gateway_txn_id=payment.gateway_txn_id or "",
+                amount_jod=amount,
+                idempotency_key=idempotency_key,
+            )
+            refund_succeeded = refund.status == "succeeded"
+            refund_txn_id = refund.refund_txn_id
+            refund_raw = dict(refund.raw or {})
+        except Exception as refund_err:
+            refund_call_failed = refund_err
+
+        try:
+            await self.payments.mark_refunded(
+                payment,
+                refund_txn_id=refund_txn_id,
+                raw_refund=refund_raw
+                or {"refund_call_failed": str(refund_call_failed)},
+                refund_failed=not refund_succeeded,
+            )
+        except Exception as mark_err:
+            log.error(
+                "payment.mark_refunded_failed",
+                entity_type="day_pass",
+                entity_id=str(entity_id),
+                err=str(mark_err),
+            )
+
+        await self.audit.log(
+            actor=actor,
+            action="day_pass.activation_failed_after_charge",
+            entity_type="day_pass",
+            entity_id=entity_id,
+            diff={
+                "payment_id": str(payment.id),
+                "activation_error": str(activation_err)[:512],
+                "refund_succeeded": refund_succeeded,
+                "refund_txn_id": refund_txn_id,
+                "refund_call_failed": (
+                    str(refund_call_failed)[:512]
+                    if refund_call_failed is not None
+                    else None
+                ),
+            },
+        )
+        log.error(
+            "payment.compensation_required" if not refund_succeeded
+            else "payment.compensated",
+            entity_type="day_pass",
+            entity_id=str(entity_id),
+            payment_id=str(payment.id),
+            refund_succeeded=refund_succeeded,
+        )
 
     # ------------------------------------------------------------------
     # Member: list active passes

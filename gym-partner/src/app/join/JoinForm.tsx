@@ -5,7 +5,10 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { resolveMediaUrl } from "@/lib/media";
-import { normalizeJordanianPhone } from "@/lib/phone";
+import {
+  isValidJordanianPhone,
+  normalizeJordanianPhone,
+} from "@/lib/phone";
 import type { AudienceGender, Category } from "@/lib/sdk-types";
 import {
   MAX_UPLOAD_MB,
@@ -26,6 +29,9 @@ const MAX_PHOTOS = 6;
 /// URLs into the submit payload.
 export function JoinForm() {
   const t = useTranslations("join");
+  // Auth-namespace messages reused here for the phone errors so
+  // both /login and /join speak the same words for the same rule.
+  const tAuth = useTranslations("auth");
   const router = useRouter();
   const apiBase =
     process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.gym-pass.net";
@@ -33,6 +39,18 @@ export function JoinForm() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Mirror the /login validation: blur fires the check, live-clear
+  // when the value becomes valid. Keeps the "form doesn't yell at
+  // you while typing" UX consistent across both surfaces.
+  const [phone, setPhone] = useState("");
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [phoneTouched, setPhoneTouched] = useState(false);
+
+  function validatePhone(value: string): string | null {
+    if (!value.trim()) return tAuth("phoneRequired");
+    if (!isValidJordanianPhone(value)) return tAuth("phoneInvalid");
+    return null;
+  }
 
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
@@ -125,10 +143,19 @@ export function JoinForm() {
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSubmitting(true);
     setError(null);
+    // Pre-flight phone validation. Pulls the value from controlled
+    // state (`phone`) rather than the FormData snapshot so the
+    // inline error rendering and the gate use the same source of
+    // truth. Same shape as /login.
+    const phoneErr = validatePhone(phone);
+    if (phoneErr) {
+      setPhoneTouched(true);
+      setPhoneError(phoneErr);
+      return;
+    }
+    setSubmitting(true);
     const fd = new FormData(event.currentTarget);
-    const phone = String(fd.get("ownerPhone") ?? "").trim();
     const body = {
       ownerName: String(fd.get("ownerName") ?? "").trim(),
       ownerPhone: normalizeJordanianPhone(phone),
@@ -204,11 +231,48 @@ export function JoinForm() {
               name="ownerPhone"
               type="tel"
               dir="ltr"
-              className="input input-sm"
+              inputMode="tel"
+              className={[
+                "input input-sm",
+                phoneTouched && phoneError
+                  ? "border-red-400/70 ring-red-400/30"
+                  : "",
+              ].join(" ")}
               required
               placeholder="+962 7X XXX XXXX"
+              value={phone}
+              onChange={(e) => {
+                const next = e.target.value;
+                setPhone(next);
+                if (
+                  phoneTouched &&
+                  phoneError &&
+                  validatePhone(next) == null
+                ) {
+                  setPhoneError(null);
+                }
+              }}
+              onBlur={() => {
+                setPhoneTouched(true);
+                setPhoneError(validatePhone(phone));
+              }}
+              aria-invalid={
+                phoneTouched && phoneError != null ? true : undefined
+              }
+              aria-describedby={
+                phoneTouched && phoneError ? "join-phone-error" : undefined
+              }
             />
-            <span className="field-hint">{t("ownerPhoneHint")}</span>
+            {phoneTouched && phoneError ? (
+              <span
+                id="join-phone-error"
+                className="mt-1 text-[11.5px] text-red-300"
+              >
+                {phoneError}
+              </span>
+            ) : (
+              <span className="field-hint">{t("ownerPhoneHint")}</span>
+            )}
           </label>
           <label className="field">
             <span className="field-label">{t("ownerEmail")}</span>

@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 
@@ -90,9 +92,16 @@ class LocationService {
     Position? cachedFix;
     try {
       cachedFix = await Geolocator.getLastKnownPosition();
-    } catch (_) {
+    } catch (err, st) {
       // `getLastKnownPosition` can throw on web / unsupported
-      // platforms — fall through to live read.
+      // platforms — fall through to live read. Log so a "locate
+      // never works on device X" report can be traced.
+      developer.log(
+        'getLastKnownPosition threw — falling through to live read',
+        name: 'location',
+        error: err,
+        stackTrace: st,
+      );
     }
     if (cachedFix != null && _isFresh(cachedFix.timestamp)) {
       return LocationResult(
@@ -159,7 +168,16 @@ class LocationService {
           timeLimit: timeLimit,
         ),
       );
-    } catch (_) {
+    } catch (err, st) {
+      // Timeouts are the common case here (indoor / weak signal) — log
+      // at info level so a "locate never works" report can be traced
+      // without flooding stderr on every routine timeout.
+      developer.log(
+        'getCurrentPosition failed at accuracy=$accuracy timeLimit=$timeLimit',
+        name: 'location',
+        error: err,
+        stackTrace: st,
+      );
       return null;
     }
   }

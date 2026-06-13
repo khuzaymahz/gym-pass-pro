@@ -290,7 +290,11 @@ async def test_member_purchase_refused_when_offering_disabled(db):
             payment_method="mock",
             actor=_actor(member),
         )
-    assert exc.value.code == ErrorCode.DAY_PASS_NOT_AVAILABLE
+    # Specific code so the UI can show "Day passes are paused at
+    # this gym" rather than a generic "not available". The earlier
+    # DAY_PASS_NOT_AVAILABLE collapsed both this case and the no-
+    # offering case under one banner.
+    assert exc.value.code == ErrorCode.DAY_PASS_OFFERING_DISABLED
 
 
 @pytest.mark.asyncio
@@ -313,7 +317,10 @@ async def test_member_purchase_refused_when_no_offering_row(db):
             payment_method="mock",
             actor=_actor(member),
         )
-    assert exc.value.code == ErrorCode.DAY_PASS_NOT_AVAILABLE
+    # `NOT_CONFIGURED` distinguishes "partner hasn't set up day
+    # passes" from "partner turned them off" so the UI copy can
+    # differ ("We hope to add this gym" vs "paused right now").
+    assert exc.value.code == ErrorCode.DAY_PASS_OFFERING_NOT_CONFIGURED
 
 
 @pytest.mark.asyncio

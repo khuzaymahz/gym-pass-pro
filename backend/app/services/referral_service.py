@@ -48,11 +48,26 @@ class ReferralService:
             return None
         return await self.users.get_by_referral_code(normalized)
 
-    async def ensure_code_for_user(self, user: User) -> str:
+    async def ensure_code_for_user(
+        self, user: User, *, actor: Actor | None = None
+    ) -> str:
         if user.referral_code:
             return user.referral_code
         code = await self._generate_unique_code()
         await self.users.update_fields(user, referral_code=code)
+        # Audit only fires on the mutation path (new code generated).
+        # `actor` is optional so older call sites that don't have a
+        # request-scoped Actor still work — those callers fall back to
+        # the user themselves as the actor (no IP / UA), since the
+        # code is being generated *for* that user.
+        log_actor = actor or Actor(user_id=user.id, role=user.role)
+        await self.audit.log(
+            actor=log_actor,
+            action="referral.code.generate",
+            entity_type="user",
+            entity_id=user.id,
+            diff={"code": code},
+        )
         return code
 
     async def claim_on_signup(

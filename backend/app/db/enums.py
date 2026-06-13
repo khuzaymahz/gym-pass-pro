@@ -46,9 +46,22 @@ class PaymentMethod(StrEnum):
 
 
 class PaymentStatus(StrEnum):
+    """Lifecycle of a single payment row.
+
+    `refunded` is set when a successful charge was reversed by the
+    compensation path — payment-then-activate failure, admin-issued
+    refund, etc. The original `succeeded` row never becomes
+    `refunded` in place: a sibling row with the same `gateway_txn_id`
+    and a negative-amount-equivalent is written? No — we mutate the
+    original row's status to `refunded` and stamp `processed_at`
+    with the refund time. The `raw_response` JSONB carries the
+    refund txn id under `refund_txn_id` for reconciliation.
+    """
+
     PENDING = "pending"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
+    REFUNDED = "refunded"
 
 
 class CheckinStatus(StrEnum):

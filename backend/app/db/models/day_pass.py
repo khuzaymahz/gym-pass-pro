@@ -69,7 +69,11 @@ class DayPassOffering(Base):
         Index("uq_day_pass_offerings_gym", "gym_id", unique=True),
         CheckConstraint("price_jod >= 0", name="ck_day_pass_offerings_price_nonneg"),
         CheckConstraint(
-            "platform_fee_pct >= 0 AND platform_fee_pct <= 100",
+            # Strict `< 100` (not `<= 100`) so a 100% fee — which
+            # would silently zero out the gym's payout per
+            # redemption — can never be saved. Tightened in
+            # migration 0020 after the audit caught the gap.
+            "platform_fee_pct >= 0 AND platform_fee_pct < 100",
             name="ck_day_pass_offerings_fee_pct_range",
         ),
         CheckConstraint(

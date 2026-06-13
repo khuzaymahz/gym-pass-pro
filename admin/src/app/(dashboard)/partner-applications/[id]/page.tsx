@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 
 import StatusPill from "@/components/StatusPill";
 import Toolbar from "@/components/Toolbar";
-import { env } from "@/lib/env";
+import { serverEnv } from "@/lib/env.server";
 import { AdminSDK } from "@/lib/sdk";
 
 import { ReviewActions } from "./ReviewActions";
@@ -17,10 +17,10 @@ function mediaUrl(raw: string): string {
   // the env-validated API base. Previously this fell back to a
   // hardcoded `https://api.gym-pass.net` literal that bypassed the
   // Zod env-schema check — staging builds would silently serve
-  // images from the wrong host. `env.API_BASE_URL` is the single
-  // source of truth.
+  // images from the wrong host. `serverEnv.API_BASE_URL` is the
+  // single source of truth.
   if (raw.startsWith("http")) return raw;
-  return `${env.API_BASE_URL}${raw}`;
+  return `${serverEnv.API_BASE_URL}${raw}`;
 }
 
 export default async function PartnerApplicationDetailPage(props: {

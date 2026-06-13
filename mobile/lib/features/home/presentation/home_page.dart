@@ -18,10 +18,12 @@ import '../../../core/widgets/top_bounce_physics.dart';
 import '../../../core/widgets/wordmark_refresh.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../auth/data/user_profile.dart';
+import '../../../core/di/providers.dart';
 import '../../gyms/data/gym_repository.dart';
 import '../../gyms/data/gym_summary.dart';
 import '../../gyms/data/home_region_store.dart';
 import '../../gyms/data/location_service.dart';
+import '../../gyms/data/media_url.dart';
 import '../../gyms/presentation/gyms_filter_state.dart';
 import '../../notifications/data/notifications_repository.dart';
 import '../../subscription/data/subscription_state.dart';
@@ -332,6 +334,12 @@ class _HomePageState extends ConsumerState<HomePage> {
                   final isAr = Localizations.localeOf(context)
                           .languageCode ==
                       'ar';
+                  // Backend stores `/media/...` as a relative path, so the
+                  // app has to prefix the API base URL before handing the
+                  // string to CachedNetworkImage. Without this the logo
+                  // requests resolve against the device's filesystem and
+                  // silently fail.
+                  final apiBaseUrl = ref.watch(envProvider).apiBaseUrl;
                   return Column(
                     children: firstThree
                         .map(
@@ -339,7 +347,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                             padding: const EdgeInsets.only(bottom: 10),
                             child: GymRow(
                               gym: _gymSummaryToGPGym(g, isAr: isAr),
-                              logoUrl: g.logoUrl,
+                              logoUrl: g.logoUrl == null
+                                  ? null
+                                  : resolveMediaUrl(apiBaseUrl, g.logoUrl!),
                               onTap: () => innerCtx.push('/gyms/${g.slug}'),
                             ),
                           ),

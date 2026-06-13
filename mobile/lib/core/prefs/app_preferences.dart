@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -25,7 +27,14 @@ class AppPreferences {
   final bool notifPromos;
 
   const AppPreferences({
-    this.locale = const Locale('ar'),
+    // EN is the constructor default — the "I have no information"
+    // fallback. First-launch users get the device's system locale
+    // via `_parseLocale` below; only callers that construct
+    // `AppPreferences()` without going through `loadAppPreferences`
+    // (tests, golden-state captures) hit this default. They used
+    // to land on AR which silently shaped every test as the AR
+    // path; English-first is the safer neutral.
+    this.locale = const Locale('en'),
     this.themeMode = ThemeMode.dark,
     this.notifPlanReminders = true,
     this.notifClubsNearby = true,
@@ -58,9 +67,35 @@ const _kNotifPlan = 'pref.notif.plan';
 const _kNotifClubs = 'pref.notif.clubs';
 const _kNotifPromos = 'pref.notif.promos';
 
+/// Resolve the initial locale.
+///
+/// Order:
+///   1. A previously-saved choice (`'en'` / `'ar'`) wins. Once a
+///      member has picked a locale in Settings, that decision
+///      sticks across reinstalls (within the same device) until
+///      they change it.
+///   2. Otherwise, mirror the device's system locale: AR-family
+///      systems start the app in Arabic; everything else starts
+///      in English. We MUST cover the broader AR-script locale
+///      tags here — Android / iOS surface `ar`, `ar_SA`, `ar_JO`,
+///      `ar_AE`, `ar_EG`, etc.; matching on `languageCode == 'ar'`
+///      catches them all because that field strips the region.
+///   3. If we can't read the system locale at all (extreme edge
+///      case — should never happen on Android/iOS but the API
+///      surface is non-null so we guard defensively), fall back
+///      to EN as the safer neutral default. AR-default would
+///      surprise the typical non-AR member who installs the app
+///      cold without any prior preference.
 Locale _parseLocale(String? v) {
   if (v == 'en') return const Locale('en');
-  return const Locale('ar');
+  if (v == 'ar') return const Locale('ar');
+  try {
+    final system = ui.PlatformDispatcher.instance.locale;
+    if (system.languageCode == 'ar') return const Locale('ar');
+  } catch (_) {
+    // PlatformDispatcher not available — fall through to EN.
+  }
+  return const Locale('en');
 }
 
 ThemeMode _parseThemeMode(String? v) {

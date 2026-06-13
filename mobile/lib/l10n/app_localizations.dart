@@ -869,6 +869,10 @@ abstract class AppLocalizations {
   String get gymNotFoundTitle;
   String gymNotFoundBody(String slug);
   String get gymNotFoundBackToExplore;
+
+  // Router error-page (catch-all 404 for unknown deep links).
+  String get routerNotFoundTitle;
+  String get routerGoHome;
 }
 
 class _AppLocalizationsDelegate

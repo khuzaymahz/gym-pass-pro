@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:local_auth/local_auth.dart';
@@ -58,9 +60,16 @@ class BiometricVault {
       // biometric. If they haven't, isDeviceSupported still gates the OS
       // PIN fallback, so we accept either path.
       return true;
-    } catch (_) {
+    } catch (err, st) {
       // Older Android skus without a fingerprint reader can throw on the
-      // platform channel call — treat as unavailable.
+      // platform channel call — treat as unavailable. Log so a member
+      // reporting "biometric never appears" can be diagnosed.
+      developer.log(
+        'biometric capability probe failed — treating as unavailable',
+        name: 'auth.biometric',
+        error: err,
+        stackTrace: st,
+      );
       return false;
     }
   }
@@ -97,7 +106,18 @@ class BiometricVault {
         ),
       );
       return ok ? BiometricResult.ok : BiometricResult.cancelled;
-    } catch (_) {
+    } catch (err, st) {
+      // The platform-channel `authenticate` can throw on user-
+      // cancel, hardware error, or transient OS issue. Treat any
+      // throw as a cancel from the user's POV (we don't want to
+      // surface a stack trace at sign-in), but log so a stuck
+      // "biometric prompt does nothing" report can be triaged.
+      developer.log(
+        'biometric authenticate threw — treating as cancelled',
+        name: 'auth.biometric',
+        error: err,
+        stackTrace: st,
+      );
       return BiometricResult.cancelled;
     }
   }

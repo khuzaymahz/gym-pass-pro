@@ -207,6 +207,14 @@ class PartnerApplicationService:
             opening_hours=app.opening_hours or {},
         )
         self.session.add(gym)
+        # Intentional intra-transaction flush — NOT a commit. Pushes
+        # the gym INSERT to the DB so any unique-constraint
+        # violation (slug collision, etc.) raises HERE, before we
+        # start `shutil.move`ing media files in the next block.
+        # Without it, file moves could partially complete and then
+        # the final commit could fail on the constraint, leaving
+        # orphaned files in `gym_photos/<uuid>/`. The route layer
+        # still owns the commit — see `admin/partner_applications.py`.
         await self.session.flush()
 
         # Move media files from the application's staging dir into
@@ -277,6 +285,11 @@ class PartnerApplicationService:
             locale=Locale.AR,
         )
         self.session.add(owner)
+        # Same rationale as the gym flush above — push the user
+        # INSERT now so a unique-phone-collision (extremely
+        # unlikely given the earlier `get_by_phone` check, but
+        # possible in a concurrent approval) raises HERE before
+        # we stamp the application row with `approved_owner_user_id`.
         await self.session.flush()
 
         # Mark the application as approved with FK back-refs.

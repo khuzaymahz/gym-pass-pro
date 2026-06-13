@@ -32,6 +32,7 @@ import '../../features/support/presentation/contact_support_page.dart';
 import '../../features/support/presentation/faq_page.dart';
 import '../../features/support/presentation/help_page.dart';
 import '../../features/support/presentation/report_issue_page.dart';
+import '../../l10n/app_localizations.dart';
 
 /// Per-branch navigator keys for the bottom-nav `StatefulShellRoute`.
 /// Each tab gets its own navigator so its state — including expensive
@@ -176,6 +177,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     // surface with a Home button so the navigation graph stays
     // recoverable.
     errorBuilder: (context, state) {
+      final l = AppLocalizations.of(context);
       return Scaffold(
         body: SafeArea(
           child: Padding(
@@ -187,7 +189,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 const Icon(Icons.help_outline, size: 56),
                 const SizedBox(height: 16),
                 Text(
-                  'Page not found',
+                  l.routerNotFoundTitle,
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
@@ -200,7 +202,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 const SizedBox(height: 24),
                 ElevatedButton(
                   onPressed: () => context.go('/home'),
-                  child: const Text('Go to Home'),
+                  child: Text(l.routerGoHome),
                 ),
               ],
             ),

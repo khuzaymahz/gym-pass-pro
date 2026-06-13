@@ -61,7 +61,8 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get errorPhoneRequired => 'يرجى إدخال رقم الهاتف';
   @override
-  String get errorPhoneInvalid => 'رقم غير صالح';
+  String get errorPhoneInvalid =>
+      'أدخل رقم أردني من 9 أرقام (7X XXX XXXX)';
 
   @override
   String get otpSentTo => 'أرسلنا رمزاً إلى';
@@ -1755,4 +1756,9 @@ class AppLocalizationsAr extends AppLocalizations {
       'تعذّر العثور على صالة بالاسم "$slug". ربما تمت إزالتها.';
   @override
   String get gymNotFoundBackToExplore => 'العودة إلى الاستكشاف';
+
+  @override
+  String get routerNotFoundTitle => 'الصفحة غير موجودة';
+  @override
+  String get routerGoHome => 'العودة للرئيسية';
 }

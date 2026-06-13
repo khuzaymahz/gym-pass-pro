@@ -26,7 +26,7 @@
   "phoneCountryPrefix": "+962",
   "phoneHint": "7X XXX XXXX",
   "errorPhoneRequired": "Please enter your phone number",
-  "errorPhoneInvalid": "Invalid mobile number",
+  "errorPhoneInvalid": "Enter a 9-digit Jordan mobile (7X XXX XXXX)",
 
   "otpSentTo": "We sent a code to",
   "otpResend": "Resend code",
@@ -773,5 +773,8 @@
   "privacyChangesHeadline": "Changes to this Policy",
   "privacyChangesBody": "We may update this policy. If a change materially affects how we handle your data, we will notify you in-app at least seven days before it takes effect. Continued use after the effective date constitutes acceptance.",
   "privacyContactHeadline": "Contact",
-  "privacyContactBody": "Email privacy@gym-pass.net or use the in-app Support page. We respond in Arabic or English. Our Data Protection contact is reachable at the same address."
+  "privacyContactBody": "Email privacy@gym-pass.net or use the in-app Support page. We respond in Arabic or English. Our Data Protection contact is reachable at the same address.",
+
+  "routerNotFoundTitle": "Page not found",
+  "routerGoHome": "Go to Home"
 }
