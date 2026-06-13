@@ -61,7 +61,8 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get errorPhoneRequired => 'يرجى إدخال رقم الهاتف';
   @override
-  String get errorPhoneInvalid => 'رقم غير صالح';
+  String get errorPhoneInvalid =>
+      'أدخل رقم أردني من 9 أرقام (7X XXX XXXX)';
 
   @override
   String get otpSentTo => 'أرسلنا رمزاً إلى';

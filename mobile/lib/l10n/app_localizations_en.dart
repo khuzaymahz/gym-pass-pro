@@ -62,7 +62,8 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errorPhoneRequired => 'Please enter your phone number';
   @override
-  String get errorPhoneInvalid => 'Invalid mobile number';
+  String get errorPhoneInvalid =>
+      'Enter a 9-digit Jordan mobile (7X XXX XXXX)';
 
   @override
   String get otpSentTo => 'We sent a code to';

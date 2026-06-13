@@ -135,9 +135,15 @@ class AuthController extends StateNotifier<AuthState> {
   /// Phone existence + has-password check against the backend. Triggered as
   /// the user finishes typing a valid phone number, so the UI can reveal the
   /// password field for returning members. The endpoint is a cheap lookup,
-  /// not an OTP send — no rate-limit concern. Falls back to silent failure
-  /// (treat as new user) on network errors so the user can still proceed
-  /// and tap Continue, which will surface the real error from /phone/start.
+  /// not an OTP send — no rate-limit concern.
+  ///
+  /// On failure we still resolve to `requiresPassword: false` so the user can
+  /// hit Continue — `_startOtp` will surface the real error if the backend
+  /// is genuinely down. We log via `developer.log` so an `adb logcat` /
+  /// `flutter logs` capture has the real exception (and a Sentry breadcrumb
+  /// downstream, when that ships). Previously a bare `catch (_)` swallowed
+  /// everything, which produced the "registered number treated as new"
+  /// symptom whenever the API origin was 5xx or unreachable.
   Future<void> checkPhone(String phone) async {
     state = state.copyWith(
       loading: true,
@@ -151,7 +157,13 @@ class AuthController extends StateNotifier<AuthState> {
         loading: false,
         requiresPassword: result.exists && result.hasPassword,
       );
-    } catch (_) {
+    } catch (err, st) {
+      developer.log(
+        'phone-check failed (treating as new user; tap Continue to surface)',
+        name: 'auth.checkPhone',
+        error: err,
+        stackTrace: st,
+      );
       state = state.copyWith(loading: false, requiresPassword: false);
     }
   }

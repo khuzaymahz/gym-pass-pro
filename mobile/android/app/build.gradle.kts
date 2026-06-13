@@ -22,7 +22,20 @@ val googleOAuthAndroidClientId: String =
 
 android {
     namespace = "net.gympass.gympass"
-    compileSdk = flutter.compileSdkVersion
+    // compileSdk = 36, targetSdk = 35.
+    //
+    // - compileSdk = 36 because the androidx baseline that ships
+    //   with our current plugin set (androidx.core 1.18, activity
+    //   1.12, browser 1.9, navigationevent 1.0) refuses to link
+    //   against anything below API 36.
+    // - targetSdk = 35 because Google Play's 2025 policy requires
+    //   "API 35 or higher" and we don't yet want to opt the runtime
+    //   in to Android 16 behaviours we haven't audited.
+    //
+    // Bump targetSdk together with compileSdk only after walking
+    // Android 16's "behaviour changes that affect targeting apps"
+    // page.
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -35,12 +48,9 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "net.gympass.gympass"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName
 

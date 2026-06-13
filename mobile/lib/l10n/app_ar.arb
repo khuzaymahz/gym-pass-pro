@@ -26,7 +26,7 @@
   "phoneCountryPrefix": "+962",
   "phoneHint": "7X XXX XXXX",
   "errorPhoneRequired": "يرجى إدخال رقم الهاتف",
-  "errorPhoneInvalid": "رقم غير صالح",
+  "errorPhoneInvalid": "أدخل رقم أردني من 9 أرقام (7X XXX XXXX)",
 
   "otpSentTo": "أرسلنا رمزاً إلى",
   "otpResend": "إعادة إرسال الرمز",

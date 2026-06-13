@@ -26,7 +26,7 @@
   "phoneCountryPrefix": "+962",
   "phoneHint": "7X XXX XXXX",
   "errorPhoneRequired": "Please enter your phone number",
-  "errorPhoneInvalid": "Invalid mobile number",
+  "errorPhoneInvalid": "Enter a 9-digit Jordan mobile (7X XXX XXXX)",
 
   "otpSentTo": "We sent a code to",
   "otpResend": "Resend code",

@@ -18,6 +18,13 @@ class RadialGlow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Soft falloff: 5 stops with a cubic-ish curve, gradient `radius: 1.0`
+    // so the dim outer ring fades inside the square's diagonal. A flat
+    // 2-stop linear ramp at `radius: 0.5` produces a visible disc edge
+    // and concentric banding on dark backgrounds; the extra stops give
+    // the GPU enough alpha resolution to dither the falloff smoothly.
+    // No `BoxShape.circle` — the alpha hits 0 at radius 1.0, so a hard
+    // circular clip is unnecessary and only adds an aliased edge.
     return Align(
       alignment: alignment,
       child: IgnorePointer(
@@ -25,11 +32,14 @@ class RadialGlow extends StatelessWidget {
           width: size,
           height: size,
           decoration: BoxDecoration(
-            shape: BoxShape.circle,
             gradient: RadialGradient(
-              radius: 0.5,
+              radius: 1.0,
+              stops: const [0.0, 0.25, 0.5, 0.75, 1.0],
               colors: [
                 color.withValues(alpha: opacity),
+                color.withValues(alpha: opacity * 0.55),
+                color.withValues(alpha: opacity * 0.22),
+                color.withValues(alpha: opacity * 0.06),
                 color.withValues(alpha: 0),
               ],
             ),

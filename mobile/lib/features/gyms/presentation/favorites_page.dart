@@ -9,8 +9,10 @@ import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
 import '../../../core/widgets/pill_button.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../core/di/providers.dart';
 import '../../home/presentation/home_page.dart' show gymSummaryToGPGym;
 import '../data/gym_repository.dart';
+import '../data/media_url.dart';
 import 'gym_detail_page.dart' show favoritedGymsProvider;
 import 'gyms_filter_state.dart';
 
@@ -40,12 +42,18 @@ class FavoritesPage extends ConsumerWidget {
     final favorites = ref.watch(favoritedGymsProvider);
     final isAr = Localizations.localeOf(context).languageCode == 'ar';
     final gymsAsync = ref.watch(gymsListProvider);
+    final apiBaseUrl = ref.watch(envProvider).apiBaseUrl;
     final allGyms = gymsAsync.valueOrNull ?? const [];
+    // Resolve the backend's `/media/...` relative URL into an
+    // absolute one CachedNetworkImage can fetch. Done at the source
+    // so the row builder downstream stays presentation-only.
     final saved = allGyms
         .where((g) => favorites.contains(g.slug))
         .map((s) => (
               gpgym: gymSummaryToGPGym(s, isAr: isAr),
-              logoUrl: s.logoUrl,
+              logoUrl: s.logoUrl == null
+                  ? null
+                  : resolveMediaUrl(apiBaseUrl, s.logoUrl!),
             ))
         .toList()
       ..sort((a, b) => a.gpgym.name.compareTo(b.gpgym.name));
