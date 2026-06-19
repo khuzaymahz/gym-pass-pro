@@ -79,9 +79,16 @@ class ReferralService:
     ) -> Referral | None:
         """Attach an invited user to the referrer identified by `referral_code`.
 
-        Idempotent: if the invited user already has a referral row, returns it
-        without mutating. Raises if the code is unknown or self-referral.
+        Idempotent and concurrency-safe: if a row already exists (either
+        the prior read found it, or a parallel signup wrote one between
+        the read and our INSERT), return that row instead of raising. A
+        500 on the concurrent path was the previous shape — the unique
+        constraint on `invited_user_id` would surface as IntegrityError
+        and the next OTP retry would just succeed, but the first one
+        looked broken to the member.
         """
+        from sqlalchemy.exc import IntegrityError
+
         existing = await self.referrals.get_by_invited_user(invited_user.id)
         if existing is not None:
             return existing
@@ -101,11 +108,28 @@ class ReferralService:
                 details={"field": "referralCode"},
             )
 
-        referral = await self.referrals.create(
-            referrer_user_id=referrer.id,
-            invited_user_id=invited_user.id,
-            referral_code=code,
-        )
+        # Race-safe insert. The unique constraint on `referrals.invited_user_id`
+        # is the source of truth — if another transaction beat us to the
+        # row, the second INSERT trips the constraint and we roll the
+        # savepoint back and read the winner. Without the savepoint the
+        # entire request transaction would be poisoned by the
+        # IntegrityError, even though the outcome is a success
+        # (referral exists, just from the other path).
+        try:
+            async with self.users.session.begin_nested():
+                referral = await self.referrals.create(
+                    referrer_user_id=referrer.id,
+                    invited_user_id=invited_user.id,
+                    referral_code=code,
+                )
+        except IntegrityError:
+            existing = await self.referrals.get_by_invited_user(invited_user.id)
+            if existing is not None:
+                return existing
+            # If the existing read still comes up empty, the IntegrityError
+            # was about something else — surface it.
+            raise
+
         await self.users.update_fields(invited_user, invited_by_user_id=referrer.id)
         await self.audit.log(
             actor=actor,

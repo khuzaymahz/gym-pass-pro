@@ -4,13 +4,23 @@ from pathlib import Path
 from typing import Annotated
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    Header,
+    Query,
+    Request,
+    UploadFile,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import (
     audit_service,
     authed_actor,
     current_admin,
+    current_admin_super,
     db_session,
     gym_photo_repo,
     gym_service,
@@ -121,10 +131,30 @@ async def delete(
     gym_id: UUID,
     request: Request,
     svc: Annotated[GymService, Depends(gym_service)],
-    admin: Annotated[User, Depends(current_admin)],
+    admin: Annotated[User, Depends(current_admin_super)],
     session: Annotated[AsyncSession, Depends(db_session)],
+    confirm_slug: Annotated[
+        str | None, Header(alias="X-Confirm-Gym-Slug")
+    ] = None,
 ) -> None:
-    await svc.delete(gym_id, actor=authed_actor(request, admin))
+    """Soft-delete a gym. Super-admin only.
+
+    The caller must echo the gym's slug in `X-Confirm-Gym-Slug` —
+    matches the typed-name confirmation pattern git uses for `branch -D`
+    and Stripe uses for live-resource deletion. Gates against a stray
+    UUID in a copy-pasted URL nuking the wrong row.
+
+    The gym is soft-deleted regardless of historical activity (a hard
+    delete would cascade through `checkins`, `payout_ledger`, and the
+    audit trail — financial history we never want to lose). The
+    audit-log entry records the success-checkin count at delete time
+    so an accidental delete is easy to spot in the queue.
+    """
+    await svc.delete(
+        gym_id,
+        actor=authed_actor(request, admin),
+        confirm_slug=confirm_slug,
+    )
     await session.commit()
 
 

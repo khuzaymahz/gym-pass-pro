@@ -119,6 +119,7 @@ class SubscriptionService:
             tier=plan.tier,
             starts_at=now,
             expires_at=add_months(now, plan.duration_months),
+            purchased_price_jod=plan.price_jod,
         )
 
         result = await self.payment_provider.charge(
@@ -295,6 +296,145 @@ class SubscriptionService:
             {
                 "type": "subscription.canceled",
                 "subscriptionId": str(sub.id),
+            },
+        )
+        return sub
+
+    async def replace(
+        self,
+        *,
+        user: User,
+        new_plan_id: UUID,
+        payment_method: str,
+        payment_method_id: UUID | None = None,
+        actor: Actor,
+    ) -> Subscription:
+        """Atomically cancel the user's current subscription and buy a new
+        plan in a single DB transaction.
+
+        Replaces the mobile-side two-call flow (`cancel` then `purchase`)
+        which left a window where a network drop after the cancel but
+        before the purchase landed the member in a paid-cancelled-then-no-
+        replacement state. Here both mutations share one transaction and
+        one purchase lock: either both land or neither does.
+
+        Semantics:
+          - The current active subscription, if any, is cancelled inline.
+          - The new plan is purchased through the same code path
+            `purchase()` uses (lock → existence check → create_pending →
+            charge → activate → audit → referral conversion → publish).
+          - The active-sub existence check inside `purchase()` is skipped
+            here because we've just cancelled it inside the same lock —
+            no race window.
+          - If the charge fails, the cancellation is rolled back with
+            the rest of the transaction by the route layer (the
+            session.commit() at the route is the only commit point).
+        """
+        await self.subs.lock_user_for_purchase(user.id)
+
+        existing = await self.subs.active_for_user(user.id)
+        now = utcnow()
+        if existing is not None:
+            if existing.plan_id == new_plan_id:
+                raise AppError(
+                    ErrorCode.SUB_DUPLICATE_ACTIVE,
+                    "You're already on this plan.",
+                )
+            await self.subs.cancel(existing, now)
+            await self.audit.log(
+                actor=actor,
+                action="subscription.cancel_for_replace",
+                entity_type="subscription",
+                entity_id=existing.id,
+                diff={"new_plan_id": str(new_plan_id)},
+            )
+
+        plan = await self.plans.get(new_plan_id)
+        if plan is None:
+            raise AppError(ErrorCode.PLAN_NOT_FOUND, "Plan not found.")
+        if not plan.is_active:
+            raise AppError(ErrorCode.PLAN_INACTIVE, "Plan is inactive.")
+
+        sub = await self.subs.create_pending(
+            user_id=user.id,
+            plan_id=plan.id,
+            tier=plan.tier,
+            starts_at=now,
+            expires_at=add_months(now, plan.duration_months),
+            purchased_price_jod=plan.price_jod,
+        )
+
+        result = await self.payment_provider.charge(
+            amount_jod=plan.price_jod,
+            method=payment_method,
+            idempotency_key=str(sub.id),
+        )
+
+        status = (
+            PaymentStatus.SUCCEEDED
+            if result.status == "succeeded"
+            else PaymentStatus.FAILED
+        )
+        raw = dict(result.raw or {})
+        if payment_method_id is not None:
+            raw["paymentMethodId"] = str(payment_method_id)
+        if existing is not None:
+            raw["replacedSubscriptionId"] = str(existing.id)
+        payment = await self.payments.create(
+            subscription_id=sub.id,
+            amount_jod=plan.price_jod,
+            method=self._coerce_method(payment_method),
+            gateway_txn_id=result.gateway_txn_id,
+            status=status,
+            raw_response=raw,
+            processed_at=utcnow(),
+        )
+
+        if status != PaymentStatus.SUCCEEDED:
+            raise AppError(ErrorCode.PAYMENT_DECLINED, "Payment declined.")
+
+        try:
+            await self.subs.activate(sub)
+            await self.audit.log(
+                actor=actor,
+                action="subscription.replace",
+                entity_type="subscription",
+                entity_id=sub.id,
+                diff={
+                    "plan_id": str(plan.id),
+                    "tier": plan.tier.value,
+                    "replaced_subscription_id": (
+                        str(existing.id) if existing is not None else None
+                    ),
+                },
+            )
+            await self.referrals.mark_converted_if_pending(user.id)
+        except Exception as activation_err:
+            await self._compensate_failed_activation(
+                payment=payment,
+                amount=plan.price_jod,
+                idempotency_key=f"refund:{sub.id}",
+                actor=actor,
+                entity_type="subscription",
+                entity_id=sub.id,
+                activation_err=activation_err,
+            )
+            raise AppError(
+                ErrorCode.PAYMENT_GATEWAY_ERROR,
+                "We charged your card but couldn't activate your "
+                "subscription. The payment has been refunded — "
+                "please try again or contact support.",
+            ) from activation_err
+
+        await _safe_publish(
+            f"user/{user.id}",
+            {
+                "type": "subscription.replaced",
+                "subscriptionId": str(sub.id),
+                "replacedSubscriptionId": (
+                    str(existing.id) if existing is not None else None
+                ),
+                "tier": plan.tier.value,
             },
         )
         return sub

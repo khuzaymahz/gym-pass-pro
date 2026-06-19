@@ -204,6 +204,7 @@
   "dayPassSheetPaying": "Processing payment",
   "dayPassSheetTerms": "Mock payment in development. No card is charged.",
   "dayPassPurchasedSnack": "Day pass unlocked — scan at the gym to check in.",
+  "dayPassNeedPaymentMethod": "Add a payment method in Billing before buying a day pass.",
   "currencyJod": "JOD",
   "profileDayPassesTitle": "Active passes",
   "profileDayPassesEmpty": "No active day passes.",

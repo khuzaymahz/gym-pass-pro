@@ -422,6 +422,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get dayPassPurchasedSnack => 'Day pass unlocked — scan at the gym to check in.';
   @override
+  String get dayPassNeedPaymentMethod =>
+      'Add a payment method in Billing before buying a day pass.';
+  @override
   String get currencyJod => 'JOD';
   @override
   String get profileDayPassesTitle => 'Active passes';

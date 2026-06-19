@@ -4,8 +4,9 @@ from uuid import UUID
 
 from app.core.exceptions import AppError, ErrorCode
 from app.core.security import hash_password_async
-from app.db.enums import Role
+from app.db.enums import AdminScope, Role
 from app.db.models import User
+from app.repositories.refresh_token_repo import RefreshTokenRepository
 from app.repositories.user_repo import UserRepository
 from app.schemas.admin import AdminCreate, AdminUserUpdate
 from app.services.audit_service import Actor, AuditService
@@ -19,9 +20,18 @@ class AdminUserService:
     log stays coherent — every mutation is accompanied by an audit entry.
     """
 
-    def __init__(self, users: UserRepository, audit: AuditService) -> None:
+    def __init__(
+        self,
+        users: UserRepository,
+        audit: AuditService,
+        refreshes: RefreshTokenRepository | None = None,
+    ) -> None:
         self.users = users
         self.audit = audit
+        # Optional only so older test fixtures don't break. Production
+        # wiring (deps.py) always supplies the refresh repo so
+        # `reset_admin_password` can revoke outstanding sessions.
+        self.refreshes = refreshes
 
     async def list(
         self,
@@ -125,17 +135,27 @@ class AdminUserService:
                 "Email already in use.",
                 details={"field": "email"},
             )
+        # New admins start at `ops`. Promoting to `super` is a separate,
+        # super-only operation — the surface is deliberately narrow so a
+        # compromised admin token can't silently elevate a fresh peer.
         user = await self.users.create_admin(
             email=str(data.email),
             password_hash=await hash_password_async(data.password),
             name=data.name,
+            scope=AdminScope.OPS,
         )
         await self.audit.log(
             actor=actor,
             action="admin.create",
             entity_type="user",
             entity_id=user.id,
-            diff={"after": {"email": user.email, "name": user.name}},
+            diff={
+                "after": {
+                    "email": user.email,
+                    "name": user.name,
+                    "scope": AdminScope.OPS.value,
+                }
+            },
         )
         return user
 
@@ -150,11 +170,21 @@ class AdminUserService:
         await self.users.update_fields(
             user, password_hash=await hash_password_async(new_password)
         )
+        # Bump token_version so every outstanding access / service token
+        # the target admin holds is rejected on the next request, AND
+        # revoke every live refresh token so they can't trade a stale
+        # refresh for a new pair. Without these two writes the attacker
+        # who already had a token keeps acting as admin until the
+        # natural TTL elapses.
+        new_version = await self.users.bump_token_version(user.id)
+        if self.refreshes is not None:
+            await self.refreshes.revoke_all_for_user(user.id, utcnow())
         await self.audit.log(
             actor=actor,
             action="admin.password_reset",
             entity_type="user",
             entity_id=user.id,
+            diff={"token_version": new_version, "sessions_revoked": True},
         )
 
 

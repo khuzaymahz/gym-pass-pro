@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from typing import Annotated
 from uuid import UUID
 
@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import AppError, ErrorCode
 from app.core.redis_client import get_redis
 from app.core.security import decode_token
-from app.db.enums import Role
+from app.db.enums import AdminScope, Role
 from app.db.models import User
 from app.db.session import get_session
 from app.providers.payments import PaymentProvider, build_payment_provider
@@ -316,8 +316,9 @@ def pause_service(
 def admin_user_service(
     users: Annotated[UserRepository, Depends(user_repo)],
     audit: Annotated[AuditService, Depends(audit_service)],
+    refreshes: Annotated[RefreshTokenRepository, Depends(refresh_token_repo)],
 ) -> AdminUserService:
-    return AdminUserService(users, audit)
+    return AdminUserService(users, audit, refreshes)
 
 
 def admin_user_detail_service() -> AdminUserDetailService:
@@ -347,8 +348,9 @@ def admin_payout_service(
     ledger: Annotated[PayoutLedgerRepository, Depends(payout_repo)],
     gyms: Annotated[GymRepository, Depends(gym_repo)],
     audit: Annotated[AuditService, Depends(audit_service)],
+    redis: Annotated[Redis, Depends(redis_client)],
 ) -> AdminPayoutService:
-    return AdminPayoutService(payouts, ledger, gyms, audit)
+    return AdminPayoutService(payouts, ledger, gyms, audit, redis)
 
 
 def admin_metrics_service(
@@ -366,8 +368,9 @@ def admin_broadcast_service(
     notifications: Annotated[NotificationRepository, Depends(notification_repo)],
     users: Annotated[UserRepository, Depends(user_repo)],
     audit: Annotated[AuditService, Depends(audit_service)],
+    redis: Annotated[Redis, Depends(redis_client)],
 ) -> AdminBroadcastService:
-    return AdminBroadcastService(notifications, users, audit)
+    return AdminBroadcastService(notifications, users, audit, redis)
 
 
 def support_ticket_service(
@@ -447,20 +450,43 @@ def _client_ip(request: Request) -> str | None:
 
 
 def _is_trusted_proxy(host: str) -> bool:
-    # Loopback (dev) + RFC1918 private ranges (docker bridge / VPC).
-    # Sufficient for our nginx-in-docker topology; tighten to a
-    # specific CIDR in prod if we ever expose the API to additional
-    # ingress paths.
-    if host in ("127.0.0.1", "::1", "localhost"):
+    """Is the immediate peer one of our trusted proxies?
+
+    Uses `ipaddress` so IPv6, IPv4-mapped-IPv6 (`::ffff:10.0.0.1`),
+    and explicit CIDRs all classify correctly — the previous
+    string-prefix check accepted `172.99.x.x` (outside the RFC1918
+    172.16.0.0/12 block) and missed mapped IPv4 entirely. Trust
+    config comes from `settings.trusted_proxies` so operators on a
+    tighter ingress can pin it to the specific nginx container IP.
+    """
+    import ipaddress
+
+    from app.config import get_settings
+
+    if host == "localhost":
         return True
-    if host.startswith("10.") or host.startswith("192.168."):
-        return True
-    if host.startswith("172."):
+    try:
+        peer = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    # Unwrap IPv4-mapped IPv6 so a docker sidecar masking 10.x as
+    # ::ffff:10.x classifies the same way as raw 10.x.
+    if isinstance(peer, ipaddress.IPv6Address) and peer.ipv4_mapped is not None:
+        peer = peer.ipv4_mapped
+
+    for entry in get_settings().trusted_proxies.split(","):
+        entry = entry.strip()
+        if not entry:
+            continue
         try:
-            second = int(host.split(".", 2)[1])
-        except (IndexError, ValueError):
-            return False
-        return 16 <= second <= 31
+            network = ipaddress.ip_network(entry, strict=False)
+        except ValueError:
+            continue
+        # Skip mixed-family comparisons cleanly.
+        if peer.version != network.version:
+            continue
+        if peer in network:
+            return True
     return False
 
 
@@ -492,6 +518,18 @@ async def _authed(
     user = await users.get(user_id)
     if user is None or user.deleted_at is not None:
         raise AppError(ErrorCode.AUTH_TOKEN_INVALID, "User not found.")
+    # Token-version gate. Tokens minted before a credential rotation
+    # (password reset, force-logout, deactivation) carry a stale `tv`
+    # claim and are rejected here even if the signature + expiry are
+    # both valid. Missing claim → treat as version 0, which matches
+    # the column's server_default — back-compat for any token in
+    # flight at the moment this column was added.
+    token_tv = int(payload.get("tv", 0) or 0)
+    if token_tv != user.token_version:
+        raise AppError(
+            ErrorCode.AUTH_TOKEN_INVALID,
+            "Session was revoked. Please sign in again.",
+        )
     request.state.user_id = user.id
     request.state.user_role = user.role.value
     return user
@@ -542,6 +580,47 @@ async def current_admin(
     if user.role != Role.ADMIN:
         raise AppError(ErrorCode.AUTH_FORBIDDEN, "Admin role required.")
     return user
+
+
+def _effective_scope(user: User) -> AdminScope:
+    """Resolve an admin user's effective scope.
+
+    A null `admin_scope` is treated as `super` for back-compat with the
+    bootstrap admin and any admin row that predates the column. New
+    admins minted after migration 0022 always carry an explicit scope.
+    """
+    return user.admin_scope or AdminScope.SUPER
+
+
+def _admin_with_scope(
+    allowed: tuple[AdminScope, ...],
+) -> Callable[..., object]:
+    """Build a FastAPI dependency that resolves `current_admin` and then
+    asserts the user's effective scope is in `allowed`. Used to gate
+    high-blast-radius endpoints (create-admin, broadcast, generate-
+    payouts, hard-delete-gym) to `super` only, while letting day-to-day
+    operator endpoints accept `ops` and read-only endpoints accept
+    `viewer`.
+    """
+
+    async def _dep(
+        admin: Annotated[User, Depends(current_admin)],
+    ) -> User:
+        if _effective_scope(admin) not in allowed:
+            raise AppError(
+                ErrorCode.AUTH_FORBIDDEN,
+                "This action requires a higher admin scope.",
+            )
+        return admin
+
+    return _dep
+
+
+# Common scope buckets. `current_admin_ops` accepts `super` or `ops`
+# (read+mutate); `current_admin_super` is destructive-only. Read-only
+# endpoints still call `current_admin` so a `viewer` can read.
+current_admin_super = _admin_with_scope((AdminScope.SUPER,))
+current_admin_ops = _admin_with_scope((AdminScope.SUPER, AdminScope.OPS))
 
 
 async def current_gym_owner(

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from datetime import date
 from decimal import Decimal
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from app.core.exceptions import AppError, ErrorCode
@@ -12,6 +14,9 @@ from app.repositories.payout_repo import PayoutLedgerRepository, PayoutRepositor
 from app.repositories.gym_repo import GymRepository
 from app.services.audit_service import Actor, AuditService
 from app.utils.time import utcnow
+
+if TYPE_CHECKING:
+    from redis.asyncio import Redis
 
 
 class AdminPayoutService:
@@ -29,11 +34,50 @@ class AdminPayoutService:
         ledger: PayoutLedgerRepository,
         gyms: GymRepository,
         audit: AuditService,
+        redis: "Redis | None" = None,
     ) -> None:
         self.payouts = payouts
         self.ledger = ledger
         self.gyms = gyms
         self.audit = audit
+        self.redis = redis
+
+    @asynccontextmanager
+    async def _generate_lock(self, period_start: date, period_end: date):
+        """Redis-backed mutual-exclusion lock for `generate`.
+
+        Without this, two admins clicking Generate concurrently both call
+        `aggregate_for_period` before either runs `attach_ledger_to_payout`,
+        creating duplicate Payout rows for the same gym (one of which
+        carries the real amount, the other zero — the second `attach`
+        finds the ledger rows already taken). Per-period key so distinct
+        windows never block each other.
+        """
+        if self.redis is None:
+            yield
+            return
+        key = (
+            f"admin:payout:generate:"
+            f"{period_start.isoformat()}:{period_end.isoformat()}"
+        )
+        # 10-minute lock — generation is fast but the aggregation can
+        # take seconds on a big window; this leaves comfortable head-
+        # room while ensuring a crashed worker doesn't leave the lock
+        # held forever.
+        acquired = await self.redis.set(key, "1", nx=True, ex=600)
+        if not acquired:
+            raise AppError(
+                ErrorCode.RATE_LIMITED,
+                "A payout generation is already in progress for this "
+                "period. Retry in a moment.",
+            )
+        try:
+            yield
+        finally:
+            try:
+                await self.redis.delete(key)
+            except Exception:  # noqa: BLE001 — lock TTL is the backstop
+                pass
 
     async def list(
         self,
@@ -55,6 +99,24 @@ class AdminPayoutService:
                 ErrorCode.VALIDATION_ERROR,
                 "period_start must be on or before period_end.",
             )
+        # Cap the window so an off-by-typo "2026-01-01..2099-12-31" can't
+        # be processed in one shot. 31 days is the largest legitimate
+        # monthly window; quarterly batches must be split.
+        if (period_end - period_start).days > 31:
+            raise AppError(
+                ErrorCode.VALIDATION_ERROR,
+                "Payout window cannot exceed 31 days.",
+            )
+        async with self._generate_lock(period_start, period_end):
+            return await self._generate_inner(
+                period_start=period_start,
+                period_end=period_end,
+                actor=actor,
+            )
+
+    async def _generate_inner(
+        self, *, period_start: date, period_end: date, actor: Actor
+    ) -> list[Payout]:
         buckets = await self.ledger.aggregate_for_period(
             period_start=period_start, period_end=period_end
         )

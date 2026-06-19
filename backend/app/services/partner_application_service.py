@@ -230,11 +230,24 @@ class PartnerApplicationService:
             f"{settings.media_url_prefix.rstrip('/')}/gym_photos/{gym.id}/"
         )
 
-        def _move_one(src_url: str) -> str | None:
-            """Move a single staged file into the gym dir. Returns
-            the new media-prefix URL, or None if the source file
-            couldn't be located (admin may have edited the row
-            in adminer; we don't crash, just skip)."""
+        def _copy_one(src_url: str) -> str | None:
+            """Copy a single staged file into the gym dir. Returns the
+            new media-prefix URL, or None if the source file couldn't
+            be located.
+
+            Was `shutil.move` before — but moving inside the same
+            transaction as the DB INSERTs meant a rollback (from an
+            audit-log write failure, partition lock contention, etc.)
+            would discard the gym/user/photo rows while leaving the
+            files orphaned in `gym_photos/<uuid>/` and *gone* from
+            `applications/`. A copy-then-defer-unlink leaves the
+            originals reachable for retry; an unreferenced copy in
+            `gym_photos/` is a cleaner orphan than a missing source.
+            Originals are swept by the
+            `cleanup_approved_application_media` retention task once
+            the application row has stayed APPROVED for the grace
+            window.
+            """
 
             if not src_url.startswith(app_url_prefix):
                 return None
@@ -243,17 +256,17 @@ class PartnerApplicationService:
             if not src.exists():
                 return None
             dst = gym_dir / filename
-            shutil.move(str(src), str(dst))
+            shutil.copy2(str(src), str(dst))
             return f"{gym_url_prefix}{filename}"
 
         new_logo_url = (
-            _move_one(app.logo_url) if app.logo_url else None
+            _copy_one(app.logo_url) if app.logo_url else None
         ) or app.logo_url
         if new_logo_url is not None:
             gym.logo_url = new_logo_url
 
         for order, photo_url in enumerate(app.photo_urls or []):
-            new_url = _move_one(photo_url) or photo_url
+            new_url = _copy_one(photo_url) or photo_url
             self.session.add(
                 GymPhoto(
                     id=uuid7(),
@@ -263,13 +276,13 @@ class PartnerApplicationService:
                 )
             )
 
-        # Tidy up the now-empty application dir. Best-effort: if it
-        # still has files (admin uploaded extras directly), leave it.
-        try:
-            if app_dir.exists():
-                app_dir.rmdir()
-        except OSError:
-            pass
+        # NOTE: we deliberately do NOT delete `app_dir` here. The
+        # originals stay in place so a transaction rollback leaves
+        # the application replayable. A separate retention task
+        # sweeps these once the application has stayed APPROVED for
+        # the grace window — see
+        # `cleanup_approved_application_media` in
+        # `workers/tasks/scheduled.py`.
 
         # Create the gym-owner user with the password hash captured
         # at submit time. The partner can log in immediately with

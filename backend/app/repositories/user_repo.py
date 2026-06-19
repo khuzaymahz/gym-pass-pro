@@ -4,10 +4,10 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.enums import Locale, Role
+from app.db.enums import AdminScope, Locale, Role
 from app.db.models import User
 from app.utils.ids import uuid7
 
@@ -62,18 +62,47 @@ class UserRepository:
         await self.session.flush()
         return user
 
-    async def create_admin(self, *, email: str, password_hash: str, name: str) -> User:
+    async def create_admin(
+        self,
+        *,
+        email: str,
+        password_hash: str,
+        name: str,
+        scope: AdminScope = AdminScope.OPS,
+    ) -> User:
+        # Default to `ops` — the bootstrap admin (seeded by scripts/seed.py)
+        # is the only `super` that exists at install time, and new admins
+        # are created by that super through the dashboard. A super must
+        # explicitly promote a peer to super via a separate flow (not yet
+        # implemented; deliberately gated to keep the surface narrow).
         user = User(
             id=uuid7(),
             email=email,
             name=name,
             password_hash=password_hash,
             role=Role.ADMIN,
+            admin_scope=scope,
             locale=Locale.EN,
         )
         self.session.add(user)
         await self.session.flush()
         return user
+
+    async def bump_token_version(self, user_id: UUID) -> int:
+        """Atomically increment `users.token_version` and return the new
+        value. Any access/service JWT minted with an older `tv` claim is
+        rejected by `_authed` on the next request, so this is the
+        crash-fast invalidation primitive used by password reset,
+        force-logout, and deactivation.
+        """
+        stmt = (
+            update(User)
+            .where(User.id == user_id)
+            .values(token_version=User.token_version + 1)
+            .returning(User.token_version)
+        )
+        result = await self.session.execute(stmt)
+        return int(result.scalar_one())
 
     async def create_gym_owner(
         self,

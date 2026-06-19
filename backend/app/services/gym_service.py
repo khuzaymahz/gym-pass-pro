@@ -124,12 +124,46 @@ class GymService:
         )
         return gym
 
-    async def delete(self, gym_id: UUID, *, actor: Actor) -> None:
+    async def delete(
+        self,
+        gym_id: UUID,
+        *,
+        actor: Actor,
+        confirm_slug: str | None = None,
+    ) -> None:
+        """Soft-delete a gym with a typed-slug confirmation guard.
+
+        The route layer requires the caller to echo the gym's slug in an
+        `X-Confirm-Gym-Slug` header. The service repeats that check so
+        a direct service call (background task, repair script) gets the
+        same protection.
+
+        Gyms with successful check-in history are *always* soft-deleted —
+        the route + service never hard-delete, because `checkins`,
+        `payout_ledger`, and `audit_log` all join through `gym_id` and
+        a cascade would destroy irreplaceable financial history. The
+        existing `repo.soft_delete` flips `deleted_at` + `is_active`;
+        the row stays queryable for audit drill-down.
+        """
         gym = await self.get(gym_id)
+        if confirm_slug is None or confirm_slug != gym.slug:
+            raise AppError(
+                ErrorCode.VALIDATION_ERROR,
+                "Delete requires the gym slug as confirmation.",
+                details={"field": "confirm_slug", "expected": gym.slug},
+            )
+        checkin_count = await self.repo.count_successful_checkins(gym.id)
         await self.repo.soft_delete(gym, utcnow())
         await self.audit.log(
-            actor=actor, action="gym.delete",
-            entity_type="gym", entity_id=gym.id,
+            actor=actor,
+            action="gym.delete",
+            entity_type="gym",
+            entity_id=gym.id,
+            diff={
+                "before": _snapshot(gym),
+                "after": {"is_active": False, "deleted": True},
+                "historical_checkins": checkin_count,
+            },
         )
 
 

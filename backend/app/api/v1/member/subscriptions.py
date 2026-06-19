@@ -96,3 +96,45 @@ async def cancel(
     sub = await svc.cancel(sub_id=subscription_id, user=user, actor=actor)
     await session.commit()
     return SubscriptionRead.model_validate(sub)
+
+
+@router.post(
+    "/subscriptions/replace",
+    response_model=SubscriptionRead,
+    status_code=201,
+)
+async def replace(
+    body: SubscriptionCreate,
+    request: Request,
+    user: Annotated[User, Depends(current_user)],
+    svc: Annotated[SubscriptionService, Depends(subscription_service)],
+    methods: Annotated[PaymentMethodRepository, Depends(payment_method_repo)],
+    session: Annotated[AsyncSession, Depends(db_session)],
+) -> SubscriptionRead:
+    """Atomically cancel the user's current active subscription (if any)
+    and purchase the new plan in a single transaction.
+
+    Replaces the two-call client flow (cancel then purchase) which left
+    a window where a network drop after cancel-succeeded and before
+    purchase landed the member in a paid-cancelled-no-replacement
+    state. Either both mutations land or neither does — the route
+    commit is the single commit point.
+    """
+    actor = authed_actor(request, user)
+    if body.payment_method_id is not None:
+        owned = await methods.get_owned(
+            method_id=body.payment_method_id, user_id=user.id
+        )
+        if owned is None:
+            raise AppError(
+                ErrorCode.NOT_FOUND, "Payment method not found."
+            )
+    sub = await svc.replace(
+        user=user,
+        new_plan_id=body.plan_id,
+        payment_method=body.payment_method.value,
+        payment_method_id=body.payment_method_id,
+        actor=actor,
+    )
+    await session.commit()
+    return SubscriptionRead.model_validate(sub)

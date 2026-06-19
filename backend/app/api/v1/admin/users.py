@@ -11,6 +11,7 @@ from app.api.deps import (
     admin_user_service,
     authed_actor,
     current_admin,
+    current_admin_super,
     db_session,
 )
 from app.db.enums import Role
@@ -101,9 +102,14 @@ async def create_admin(
     body: AdminCreate,
     request: Request,
     svc: Annotated[AdminUserService, Depends(admin_user_service)],
-    admin: Annotated[User, Depends(current_admin)],
+    admin: Annotated[User, Depends(current_admin_super)],
     session: Annotated[AsyncSession, Depends(db_session)],
 ) -> AdminUserRead:
+    # Minting a new admin row is super-only: combined with
+    # `reset_admin_password` (also super-only) and the still-broad
+    # `Role.ADMIN` JWT claim, an `ops` admin who could create another
+    # admin would have a trivial privilege-escalation path. Gating
+    # this here closes that loop.
     user = await svc.create_admin(body, actor=authed_actor(request, admin))
     await session.commit()
     return AdminUserRead.model_validate(user)
@@ -115,9 +121,11 @@ async def reset_password(
     body: AdminPasswordReset,
     request: Request,
     svc: Annotated[AdminUserService, Depends(admin_user_service)],
-    admin: Annotated[User, Depends(current_admin)],
+    admin: Annotated[User, Depends(current_admin_super)],
     session: Annotated[AsyncSession, Depends(db_session)],
 ) -> None:
+    # Resetting another admin's password — same risk shape as
+    # creating one. Super-only.
     await svc.reset_admin_password(
         user_id, body.password, actor=authed_actor(request, admin)
     )

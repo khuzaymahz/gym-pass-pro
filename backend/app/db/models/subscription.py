@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, Index, text
+from sqlalchemy import DateTime, ForeignKey, Index, Numeric, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -39,6 +40,14 @@ class Subscription(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     visits_used: Mapped[int] = mapped_column(
         nullable=False, default=0, server_default="0"
+    )
+    # Price the member actually paid at purchase time, snapshotted from
+    # `Plan.price_jod` so a later admin edit to the plan doesn't
+    # retroactively rewrite history. Nullable for legacy rows from
+    # before this column existed; new rows are always populated by
+    # `SubscriptionRepository.create_pending`.
+    purchased_price_jod: Mapped[Decimal | None] = mapped_column(
+        Numeric(10, 3), nullable=True
     )
     auto_renew: Mapped[bool] = mapped_column(
         nullable=False, default=False, server_default=text("false")

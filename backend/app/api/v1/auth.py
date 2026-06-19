@@ -8,7 +8,13 @@ from typing import TYPE_CHECKING, Annotated
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import auth_service, client_actor, db_session, redis_client
+from app.api.deps import (
+    audit_service as audit_service_dep,
+    auth_service,
+    client_actor,
+    db_session,
+    redis_client,
+)
 
 if TYPE_CHECKING:
     from redis.asyncio import Redis
@@ -32,7 +38,7 @@ from app.schemas.auth import (
     ServiceToken,
     TokenPair,
 )
-from app.services.audit_service import Actor
+from app.services.audit_service import Actor, AuditService
 from app.services.auth_service import AuthService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -134,8 +140,15 @@ async def phone_verify(
 async def phone_check(
     body: PhoneCheckRequest,
     svc: Annotated[AuthService, Depends(auth_service)],
+    actor: Annotated[Actor, Depends(client_actor)],
 ) -> PhoneCheckResult:
-    exists, has_password, masked_email = await svc.check_phone(body.phone)
+    # Pass the actor so the service can enforce a per-IP rate limit.
+    # Without it, this endpoint is a free phone-existence + masked-
+    # email scraper. The mobile sign-in form calls this once per
+    # user per attempt; 30/min/IP is comfortably above that.
+    exists, has_password, masked_email = await svc.check_phone(
+        body.phone, actor=actor
+    )
     return PhoneCheckResult(
         exists=exists,
         hasPassword=has_password,
@@ -265,14 +278,18 @@ async def admin_login(
 async def admin_exchange(
     body: AdminExchangeRequest,
     svc: Annotated[AuthService, Depends(auth_service)],
+    audit: Annotated[AuditService, Depends(audit_service_dep)],
+    actor: Annotated[Actor, Depends(client_actor)],
     redis: Annotated["Redis", Depends(redis_client)],
+    session: Annotated[AsyncSession, Depends(db_session)],
 ) -> ServiceToken:
     """NextAuth (admin app) → backend service-token exchange.
 
     NextAuth HMAC-signs the envelope with `ADMIN_EXCHANGE_SECRET`
     (shared out of band) and we verify before minting a service
     token. Replay-protected via a single-use nonce in Redis;
-    rate-limited per-email as defence in depth.
+    rate-limited per-email as defence in depth. The successful mint
+    writes an audit row so the trail of admin sessions is queryable.
     """
     email = body.email.lower()
     await _enforce_exchange_envelope(
@@ -286,10 +303,26 @@ async def admin_exchange(
         signed_at=body.signed_at,
     )
 
-    user = await svc.users.get_by_email(body.email)
+    # Lower-case lookup — `User.email` is stored verbatim today and the
+    # bootstrap admin / created admins write whatever NextAuth sent.
+    # Normalising the comparison here so mixed-case from the browser
+    # still matches the row that was created lowercase.
+    user = await svc.users.get_by_email(email)
     if user is None or user.role != Role.ADMIN:
         raise AppError(ErrorCode.AUTH_FORBIDDEN, "Not an admin.")
     token, exp = await svc.issue_service_token(user)
+    await audit.log(
+        actor=Actor(
+            user_id=user.id,
+            role=user.role,
+            ip_address=actor.ip_address,
+            user_agent=actor.user_agent,
+        ),
+        action="auth.admin.exchange",
+        entity_type="user",
+        entity_id=user.id,
+    )
+    await session.commit()
     return ServiceToken(token=token, expires_at=exp)  # type: ignore[arg-type]
 
 
@@ -309,7 +342,10 @@ async def partner_login(
 async def partner_exchange(
     body: PartnerExchangeRequest,
     svc: Annotated[AuthService, Depends(auth_service)],
+    audit: Annotated[AuditService, Depends(audit_service_dep)],
+    actor: Annotated[Actor, Depends(client_actor)],
     redis: Annotated["Redis", Depends(redis_client)],
+    session: Annotated[AsyncSession, Depends(db_session)],
 ) -> ServiceToken:
     """NextAuth (gym-partner app) → backend service-token exchange.
 
@@ -318,7 +354,8 @@ async def partner_exchange(
     Redis, rate-limit cap. Mints a service JWT scoped to the
     partner's user id; `current_gym_owner` re-checks the role and
     gym-link on every request, so a leaked token can only act as
-    the partner it was issued for.
+    the partner it was issued for. The successful mint writes an
+    audit row so the trail of partner sessions is queryable.
     """
     await _enforce_exchange_envelope(
         svc=svc,
@@ -335,6 +372,18 @@ async def partner_exchange(
     if user is None or user.role != Role.GYM_OWNER or user.gym_id is None:
         raise AppError(ErrorCode.AUTH_FORBIDDEN, "Not a gym partner.")
     token, exp = await svc.issue_service_token_for_partner(user)
+    await audit.log(
+        actor=Actor(
+            user_id=user.id,
+            role=user.role,
+            ip_address=actor.ip_address,
+            user_agent=actor.user_agent,
+        ),
+        action="auth.partner.exchange",
+        entity_type="user",
+        entity_id=user.id,
+    )
+    await session.commit()
     return ServiceToken(token=token, expires_at=exp)  # type: ignore[arg-type]
 
 

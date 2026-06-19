@@ -54,6 +54,31 @@ class SubscriptionRepository:
         )
         return (await self.session.execute(stmt)).scalar_one_or_none()
 
+    async def lock_active_for_user(self, user_id: UUID) -> Subscription | None:
+        """Same as `active_for_user` but takes `FOR UPDATE` on the row.
+
+        Held until the surrounding transaction commits, this serializes
+        concurrent check-ins by the same user across any number of
+        gyms. Without the lock, two `asyncio.gather`'d scans both read
+        the visit-budget count, both pass the gate, and both INSERT —
+        the visit budget gets exceeded by one (or more) every time the
+        member has two devices, two tabs, or just a flaky network
+        retrying mid-scan.
+
+        Returns the locked row, or None if the user has no active
+        subscription (which short-circuits the day-pass and tier
+        ladders in `CheckinService.scan` without leaving a held lock).
+        """
+        stmt = (
+            select(Subscription)
+            .where(
+                Subscription.user_id == user_id,
+                Subscription.status == SubscriptionStatus.ACTIVE,
+            )
+            .with_for_update()
+        )
+        return (await self.session.execute(stmt)).scalar_one_or_none()
+
     async def create_pending(
         self,
         *,
@@ -62,7 +87,13 @@ class SubscriptionRepository:
         tier: Tier,
         starts_at: datetime,
         expires_at: datetime,
+        purchased_price_jod: object | None = None,
     ) -> Subscription:
+        # `purchased_price_jod` is a snapshot of `Plan.price_jod` at
+        # purchase time. Once a price edit lands on the Plan row
+        # (admin_plan_service.update), historical receipts + the
+        # admin user-detail view read from this snapshot — never
+        # back-join Plan to render a historical amount.
         sub = Subscription(
             id=uuid7(),
             user_id=user_id,
@@ -71,6 +102,7 @@ class SubscriptionRepository:
             status=SubscriptionStatus.PENDING,
             starts_at=starts_at,
             expires_at=expires_at,
+            purchased_price_jod=purchased_price_jod,
         )
         self.session.add(sub)
         await self.session.flush()

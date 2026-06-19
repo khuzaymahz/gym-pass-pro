@@ -8,27 +8,62 @@ from app.providers.payments import PaymentResult, RefundResult
 
 
 class MockPaymentProvider:
+    """In-memory mock of a real payment gateway.
+
+    The `_charges` / `_refunds` dicts give the mock **real idempotency
+    replay** — calling `charge(idempotency_key="X")` twice returns the
+    same `PaymentResult` (same `gateway_txn_id`, same status, same raw
+    payload). A real PSP behaves this way; without the cache the mock
+    minted a fresh txn id every call, so the subscription saga's retry
+    path was never exercised in tests and an in-the-wild retry would
+    have double-charged the member.
+
+    Magic `idempotency_key` values exercise failure modes the saga
+    needs to handle:
+      - `decline`              → `status='failed'` on charge
+      - `*:decline` suffix     → `status='failed'` on refund
+      - `timeout`              → raises `asyncio.TimeoutError`
+      - `network`              → raises `OSError("network unreachable")`
+    """
+
     def __init__(self, delay_ms: int = 0) -> None:
         self._delay_s = max(0, delay_ms) / 1000.0
+        self._charges: dict[str, PaymentResult] = {}
+        self._refunds: dict[str, RefundResult] = {}
 
     async def charge(
         self, *, amount_jod: Decimal, method: str, idempotency_key: str
     ) -> PaymentResult:
         if self._delay_s:
             await asyncio.sleep(self._delay_s)
-        # Always succeed in dev; declined flow can be tested by passing a
-        # magic idempotency_key="decline" — keeps the mock usable in tests.
+
+        if idempotency_key == "timeout":
+            raise asyncio.TimeoutError("mock payment provider: timeout")
+        if idempotency_key == "network":
+            raise OSError("mock payment provider: network unreachable")
+
+        cached = self._charges.get(idempotency_key)
+        if cached is not None:
+            return cached
+
         if idempotency_key == "decline":
-            return PaymentResult(
+            result = PaymentResult(
                 status="failed",
                 gateway_txn_id=f"mock-{uuid4()}",
                 raw={"mock": True, "reason": "declined"},
             )
-        return PaymentResult(
-            status="succeeded",
-            gateway_txn_id=f"mock-{uuid4()}",
-            raw={"mock": True, "amount": str(amount_jod), "method": method},
-        )
+        else:
+            result = PaymentResult(
+                status="succeeded",
+                gateway_txn_id=f"mock-{uuid4()}",
+                raw={
+                    "mock": True,
+                    "amount": str(amount_jod),
+                    "method": method,
+                },
+            )
+        self._charges[idempotency_key] = result
+        return result
 
     async def refund(
         self,
@@ -39,21 +74,26 @@ class MockPaymentProvider:
     ) -> RefundResult:
         if self._delay_s:
             await asyncio.sleep(self._delay_s)
-        # `refund-decline` magic key lets tests exercise the
-        # "money charged AND refund refused" worst case so we
-        # can verify the audit trail records both events.
+
+        cached = self._refunds.get(idempotency_key)
+        if cached is not None:
+            return cached
+
         if idempotency_key.endswith(":decline"):
-            return RefundResult(
+            result = RefundResult(
                 status="failed",
                 refund_txn_id=None,
                 raw={"mock": True, "reason": "refund_declined"},
             )
-        return RefundResult(
-            status="succeeded",
-            refund_txn_id=f"mock-refund-{uuid4()}",
-            raw={
-                "mock": True,
-                "amount": str(amount_jod),
-                "original_txn": gateway_txn_id,
-            },
-        )
+        else:
+            result = RefundResult(
+                status="succeeded",
+                refund_txn_id=f"mock-refund-{uuid4()}",
+                raw={
+                    "mock": True,
+                    "amount": str(amount_jod),
+                    "original_txn": gateway_txn_id,
+                },
+            )
+        self._refunds[idempotency_key] = result
+        return result

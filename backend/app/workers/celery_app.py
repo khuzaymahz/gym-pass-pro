@@ -20,6 +20,28 @@ celery_app.conf.update(
     timezone="Asia/Amman",
     enable_utc=True,
     task_default_queue="default",
+    # Acks at *task completion* rather than at receipt. Combined with
+    # `task_reject_on_worker_lost` and `worker_prefetch_multiplier=1`,
+    # a SIGKILLed worker mid-task returns the message to the broker
+    # so a peer can re-run it; without this, a worker crash silently
+    # loses every in-flight task. The trade-off is at-least-once
+    # semantics — tasks must be idempotent (which the audit-logged
+    # ones already are, since they UPDATE by id rather than INSERT).
+    task_acks_late=True,
+    task_reject_on_worker_lost=True,
+    worker_prefetch_multiplier=1,
+    # Soft + hard time limits. Soft raises `SoftTimeLimitExceeded`
+    # inside the task so cleanup (transaction rollback, release
+    # locks) can run; hard SIGKILLs the worker. The 5-min soft / 6-
+    # min hard envelope covers `expire_subscriptions` worst-case
+    # (1000 rows) while leaving a generous margin and stopping
+    # runaway tasks from holding a worker forever.
+    task_soft_time_limit=300,
+    task_time_limit=360,
+    # Auto-retry for transient DB / Redis errors. Tasks can still
+    # opt out by passing `autoretry_for=()` or by catching the
+    # error themselves; this is the global default.
+    task_default_retry_delay=10,
     # Cancel in-flight long tasks when the broker connection drops
     # instead of letting them silently leak transactions. Without
     # this, a Redis hiccup leaves the task hanging until the broker
@@ -36,9 +58,28 @@ celery_app.conf.update(
             "task": "app.workers.tasks.scheduled.expire_subscriptions",
             "schedule": 60 * 60,
         },
-        "retry-failed-payouts-hourly": {
-            "task": "app.workers.tasks.scheduled.retry_failed_payouts",
-            "schedule": 60 * 60,
+        # `retry_failed_payouts` was scheduled while still a stub —
+        # removed until the implementation lands. Leaving a beat-
+        # scheduled no-op in production hides silent money-loss when
+        # payouts actually start failing.
+        # ---
+        # Retention sweeps. Each runs daily; the tasks themselves cap
+        # row counts so a backlog drains across multiple runs rather
+        # than one giant transaction. All three keep DB growth bounded
+        # without ad-hoc maintenance — the notifications + refresh_token
+        # tables in particular grow with every check-in / refresh and
+        # were the only ones with no cleanup story before this.
+        "cleanup-notifications-daily": {
+            "task": "app.workers.tasks.scheduled.cleanup_old_notifications",
+            "schedule": 24 * 60 * 60,
+        },
+        "cleanup-otps-daily": {
+            "task": "app.workers.tasks.scheduled.cleanup_old_otps",
+            "schedule": 24 * 60 * 60,
+        },
+        "cleanup-refresh-tokens-daily": {
+            "task": "app.workers.tasks.scheduled.cleanup_old_refresh_tokens",
+            "schedule": 24 * 60 * 60,
         },
         # Auto-resume pauses whose window has ended. Hourly cadence —
         # worst-case lag between a pause expiring and the parent

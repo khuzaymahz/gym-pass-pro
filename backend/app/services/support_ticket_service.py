@@ -1,14 +1,85 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
 from app.core.exceptions import AppError, ErrorCode
-from app.db.enums import TicketCategory, TicketPriority, TicketStatus
+from app.db.enums import Role, TicketCategory, TicketPriority, TicketStatus
 from app.db.models import SupportTicket, SupportTicketMessage
 from app.repositories.support_ticket_repo import SupportTicketRepository
 from app.services.audit_service import Actor, AuditService
+
+# Caps for the freeform `meta` JSONB on a ticket. Members can attach
+# arbitrary key/value context (build version, last-screen, etc.), and
+# without bounds a malicious client can push megabytes of nested data
+# into a JSONB column that the admin UI then rehydrates as raw
+# key/value rows. Limits picked from the actually-useful payload size
+# (under 4 KB once serialised) — anything bigger belongs in an
+# attachment, not the meta blob.
+_META_MAX_KEYS = 16
+_META_MAX_SERIALISED_BYTES = 4 * 1024
+
+
+def _validate_meta(meta: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Cap the size and shape of the freeform `meta` blob.
+
+    Rejects anything with too many keys, too-deep nesting, or non-
+    scalar values. Scalars are `str | int | float | bool | None`; lists
+    of scalars are accepted (e.g. `featureFlags: ["A", "B"]`) but
+    nested dicts and lists-of-dicts are not — they make the admin
+    UI's "meta" panel useless and tend to carry payload that wants
+    its own column.
+    """
+    if meta is None:
+        return None
+    if not isinstance(meta, dict):
+        raise AppError(
+            ErrorCode.VALIDATION_ERROR,
+            "meta must be an object.",
+            details={"field": "meta"},
+        )
+    if len(meta) > _META_MAX_KEYS:
+        raise AppError(
+            ErrorCode.VALIDATION_ERROR,
+            f"meta cannot have more than {_META_MAX_KEYS} keys.",
+            details={"field": "meta"},
+        )
+    for k, v in meta.items():
+        if not isinstance(k, str) or len(k) > 64:
+            raise AppError(
+                ErrorCode.VALIDATION_ERROR,
+                "meta keys must be strings ≤ 64 chars.",
+                details={"field": f"meta.{k}"},
+            )
+        if isinstance(v, (str, int, float, bool)) or v is None:
+            continue
+        if isinstance(v, list) and all(
+            isinstance(item, (str, int, float, bool)) or item is None
+            for item in v
+        ):
+            continue
+        raise AppError(
+            ErrorCode.VALIDATION_ERROR,
+            "meta values must be scalars or lists of scalars.",
+            details={"field": f"meta.{k}"},
+        )
+    try:
+        serialised = json.dumps(meta, ensure_ascii=False)
+    except (TypeError, ValueError) as exc:
+        raise AppError(
+            ErrorCode.VALIDATION_ERROR,
+            "meta is not JSON-serialisable.",
+            details={"field": "meta"},
+        ) from exc
+    if len(serialised.encode("utf-8")) > _META_MAX_SERIALISED_BYTES:
+        raise AppError(
+            ErrorCode.VALIDATION_ERROR,
+            f"meta exceeds {_META_MAX_SERIALISED_BYTES} byte cap.",
+            details={"field": "meta"},
+        )
+    return meta
 
 
 class SupportTicketService:
@@ -59,6 +130,7 @@ class SupportTicketService:
         meta: dict[str, Any] | None,
         actor: Actor,
     ) -> SupportTicket:
+        meta = _validate_meta(meta)
         ticket = await self.repo.create(
             user_id=user_id,
             category=category,
@@ -144,6 +216,7 @@ class SupportTicketService:
         ticket_id: UUID,
         *,
         author_user_id: UUID,
+        author_role: Role | None = None,
         body: str,
         is_internal_note: bool,
         actor: Actor,
@@ -151,6 +224,29 @@ class SupportTicketService:
         ticket = await self.repo.get(ticket_id)
         if ticket is None:
             raise AppError(ErrorCode.NOT_FOUND, "Ticket not found.")
+        # Defence in depth. The route layer already enforces
+        # author=owner for member replies, but a future caller (a
+        # background task, a new partner endpoint) could silently
+        # bypass that — so the service repeats the check using the
+        # actor's role. Member-role authors can only reply to their
+        # own ticket, never post internal notes, and never reply to a
+        # CLOSED ticket. Admin-role actors are unrestricted.
+        if author_role == Role.MEMBER:
+            if author_user_id != ticket.user_id:
+                raise AppError(
+                    ErrorCode.AUTH_FORBIDDEN,
+                    "Members can only reply to their own tickets.",
+                )
+            if is_internal_note:
+                raise AppError(
+                    ErrorCode.AUTH_FORBIDDEN,
+                    "Members cannot post internal notes.",
+                )
+            if ticket.status == TicketStatus.CLOSED:
+                raise AppError(
+                    ErrorCode.VALIDATION_ERROR,
+                    "Ticket is closed.",
+                )
         message = await self.repo.add_message(
             ticket_id=ticket_id,
             author_user_id=author_user_id,

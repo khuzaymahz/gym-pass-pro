@@ -186,6 +186,7 @@ async def reply_to_my_ticket(
     message = await svc.reply(
         ticket.id,
         author_user_id=me.id,
+        author_role=me.role,
         body=body.body,
         is_internal_note=False,
         actor=authed_actor(request, me),
