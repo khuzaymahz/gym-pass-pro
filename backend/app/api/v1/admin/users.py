@@ -73,11 +73,16 @@ async def get_user(
 @router.get("/{user_id}/detail", response_model=AdminUserDetail)
 async def get_user_detail(
     user_id: UUID,
+    request: Request,
     svc: Annotated[AdminUserDetailService, Depends(admin_user_detail_service)],
-    _: Annotated[User, Depends(current_admin)],
+    admin: Annotated[User, Depends(current_admin)],
     session: Annotated[AsyncSession, Depends(db_session)],
 ) -> AdminUserDetail:
-    detail = await svc.get(user_id)
+    # Passing the actor lets the service write a `user.pii_read` audit
+    # row in its own committed session. Without that trail, a curious
+    # or malicious admin scraping member contact info leaves no
+    # signal at all.
+    detail = await svc.get(user_id, actor=authed_actor(request, admin))
     # ensure_code_for_user may have generated a new code for an older account
     await session.commit()
     return _to_detail_schema(detail)
@@ -167,6 +172,17 @@ def _to_detail_schema(detail: UserDetail) -> AdminUserDetail:
                 planTier=item.plan.tier if item.plan else None,
                 planDurationMonths=(
                     item.plan.duration_months if item.plan else None
+                ),
+                # `purchased_price_jod` is the snapshot the member
+                # actually paid (immutable, populated since migration
+                # 0023). Fall back to the live `plan.price_jod` for
+                # legacy rows where the snapshot is null — those
+                # predate the column and the plan hasn't been edited
+                # yet, so the fallback is the true historical value.
+                purchasedPriceJod=(
+                    item.subscription.purchased_price_jod
+                    if item.subscription.purchased_price_jod is not None
+                    else (item.plan.price_jod if item.plan else None)
                 ),
                 planPriceJod=item.plan.price_jod if item.plan else None,
                 planMonthlyVisits=(

@@ -62,7 +62,32 @@ class DeepLinkHandler {
     _subscription = null;
   }
 
+  /// Schemes + hosts we accept. Any other URI is silently dropped —
+  /// an external `malicious://invite/code-i-control` registering itself
+  /// on the device shouldn't pre-fill our referral state. The list is
+  /// deliberately narrow: the marketing site (`https://gym-pass.net`)
+  /// and the custom scheme we control (`gympass://`).
+  static const _kAllowedHttpsHosts = {'gym-pass.net', 'www.gym-pass.net'};
+  static const _kAllowedScheme = 'gympass';
+
+  bool _allowedUri(Uri uri) {
+    final scheme = uri.scheme.toLowerCase();
+    if (scheme == _kAllowedScheme) return true;
+    if (scheme == 'https' &&
+        _kAllowedHttpsHosts.contains(uri.host.toLowerCase())) {
+      return true;
+    }
+    return false;
+  }
+
+  static final _kSlugPattern = RegExp(r'^[a-z0-9][a-z0-9-]{1,63}$');
+  static final _kCodePattern = RegExp(r'^[A-Za-z0-9-]{2,32}$');
+
   void _handle(Uri uri) {
+    // Allowlist check FIRST. Without it, any scheme handler the user
+    // has installed could send us a URI matching our path shape and
+    // we'd happily push onto the router / write to our state slots.
+    if (!_allowedUri(uri)) return;
     final segments = uri.pathSegments;
     if (segments.isEmpty) return;
     final head = segments.first.toLowerCase();
@@ -70,7 +95,9 @@ class DeepLinkHandler {
       case 'gyms':
         if (segments.length >= 2) {
           final slug = segments[1];
-          if (slug.isNotEmpty) {
+          // Shape-validate so a path-traversal payload (`../wat`) or
+          // an absurdly long string can't ride into the router.
+          if (slug.isNotEmpty && _kSlugPattern.hasMatch(slug)) {
             router.push('/gyms/$slug');
           }
         }
@@ -78,7 +105,7 @@ class DeepLinkHandler {
       case 'invite':
         if (segments.length >= 2) {
           final code = segments[1].trim();
-          if (code.isNotEmpty) {
+          if (code.isNotEmpty && _kCodePattern.hasMatch(code)) {
             // Pre-fill the invite page with the friend's code so the
             // member only has to confirm. The page reads from this
             // provider on mount and auto-submits when populated. The

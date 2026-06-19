@@ -503,31 +503,42 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
     return sub;
   }
 
-  /// Replace the active term with a new purchase. Used by upgrade,
-  /// extend-duration, and renew-now flows: the previous sub is cancelled
-  /// in the same call so the backend's "one active subscription per
-  /// member" guard doesn't reject the follow-up purchase.
+  /// Atomic replace: cancel the active term AND buy the new plan in one
+  /// backend transaction (POST /subscriptions/replace). Used by upgrade,
+  /// extend-duration, and renew-now flows.
+  ///
+  /// History: this used to be a two-call sequence (cancel then purchase)
+  /// driven from the client. A network drop after cancel-succeeded but
+  /// before purchase-landed left the member in a paid-cancelled-no-
+  /// replacement state — and the catch on cancel silently swallowed the
+  /// error so we couldn't even detect it. The backend now wraps both
+  /// mutations in a single DB transaction; either both land or neither
+  /// does. After success we refresh from backend and reset the streak,
+  /// matching the post-purchase shape so the home shell unlocks
+  /// immediately on the new plan.
   Future<BackendSubscription> replaceWithPurchase({
     required String tierKey,
     required int durationMonths,
     String? paymentMethodId,
     String paymentMethodKind = 'mock',
   }) async {
-    final currentId = state.subscriptionId;
-    if (currentId != null) {
-      try {
-        await _repo.cancel(currentId);
-      } catch (_) {
-        // If the cancel call fails the purchase below will surface
-        // SUB_DUPLICATE_ACTIVE; that's the right error to bubble up.
-      }
-    }
-    return purchase(
+    await _catalog.ensureLoaded();
+    final planId = _catalog.findPlanId(
       tierKey: tierKey,
       durationMonths: durationMonths,
-      paymentMethodId: paymentMethodId,
-      paymentMethodKind: paymentMethodKind,
     );
+    if (planId == null) {
+      throw StateError('No active plan for $tierKey/$durationMonths');
+    }
+    final sub = await _repo.replace(
+      planId: planId,
+      paymentMethodKind: paymentMethodKind,
+      paymentMethodId: paymentMethodId,
+    );
+    await refreshFromBackend();
+    state = state.copyWith(streakDays: 0);
+    await _storage.write(key: _streakKey, value: '0');
+    return sub;
   }
 
   /// Cancel the current subscription. Backend writes `status=cancelled`

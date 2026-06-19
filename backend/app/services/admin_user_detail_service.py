@@ -34,7 +34,7 @@ from app.repositories.referral_repo import ReferralRepository
 from app.repositories.subscription_repo import SubscriptionRepository
 from app.repositories.support_ticket_repo import SupportTicketRepository
 from app.repositories.user_repo import UserRepository
-from app.services.audit_service import AuditService
+from app.services.audit_service import Actor, AuditService
 from app.services.referral_service import ReferralService
 
 
@@ -93,10 +93,24 @@ class AdminUserDetailService:
         async with self._factory() as s:
             return await fn(s)
 
-    async def get(self, user_id: UUID) -> UserDetail:
+    async def get(
+        self,
+        user_id: UUID,
+        *,
+        actor: Actor | None = None,
+    ) -> UserDetail:
         user = await self._q(lambda s: UserRepository(s).get(user_id))
         if user is None:
             raise AppError(ErrorCode.NOT_FOUND, "User not found.")
+
+        # Audit-log every PII read. Admins see email, phone, birthdate,
+        # subscription history, and payment history on this page —
+        # exactly the lens a curious or malicious admin would scrape.
+        # The audit row leaves a queryable trail without slowing the
+        # request. Logged once per actor here; route layer doesn't need
+        # to repeat it.
+        if actor is not None and actor.user_id != user.id:
+            await self._log_pii_read(actor=actor, target_user_id=user.id)
 
         referral_code = await self._ensure_referral_code(user)
 
@@ -147,6 +161,24 @@ class AdminUserDetailService:
             ),
             last_active_at=user.last_active_at,
         )
+
+    async def _log_pii_read(
+        self, *, actor: Actor, target_user_id: UUID
+    ) -> None:
+        """Write a `user.pii_read` audit row in its own committed
+        session. Kept separate from the request's read-only fan-out
+        so the GET path can stay parallelised; commit here is what
+        durably persists the trail.
+        """
+        async with self._factory() as s:
+            audit = AuditService(AuditRepository(s))
+            await audit.log(
+                actor=actor,
+                action="user.pii_read",
+                entity_type="user",
+                entity_id=target_user_id,
+            )
+            await s.commit()
 
     async def _ensure_referral_code(self, user: User) -> str:
         """Defensive backfill — most users have a code from signup;

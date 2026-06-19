@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from typing import Any, Awaitable, Callable
 
 from redis.asyncio import Redis
@@ -29,6 +31,17 @@ class AdminMetricsService:
     for the connectivity probe in `_system_health`.
     """
 
+    # Redis cache settings for `overview()`. 21 parallel queries per
+    # dashboard load (several on hot `checkins`) made repeated tab
+    # opens / sidebar nav O(N²) on connection pool. With a 60s cache,
+    # the typical dashboard refresh hits Redis and returns in <5 ms;
+    # the first miss within the window pays the full cost once, every
+    # subsequent admin in that minute shares it. Cache busts on the
+    # `force_refresh=True` path so an admin who just took an action
+    # can verify it landed.
+    _CACHE_KEY = "admin:metrics:overview:v1"
+    _CACHE_TTL_SECONDS = 60
+
     def __init__(
         self,
         session: AsyncSession,
@@ -43,7 +56,40 @@ class AdminMetricsService:
         async with self._factory() as s:
             return await fn(s)
 
-    async def overview(self) -> dict[str, Any]:
+    async def overview(self, *, force_refresh: bool = False) -> dict[str, Any]:
+        # Defence-in-depth cache layer separate from the route's
+        # response-body cache (`api/v1/admin/metrics.py`). Useful when
+        # callers consume the service directly (Celery jobs, internal
+        # admin tools) without going through the HTTP route. The route
+        # cache absorbs the typical hot path; this layer absorbs the
+        # rest. `force_refresh=True` skips both reads. Cache errors
+        # (Redis down) fall through to the live query — degraded, not
+        # broken.
+        if not force_refresh:
+            try:
+                cached = await self.redis.get(self._CACHE_KEY)
+            except Exception:  # noqa: BLE001
+                cached = None
+            if cached is not None:
+                try:
+                    return json.loads(cached)
+                except (ValueError, TypeError):
+                    pass
+
+        payload = await self._build_overview()
+        try:
+            # Stable serialiser handles Decimal and date keys without
+            # forcing every consumer to switch shape.
+            await self.redis.set(
+                self._CACHE_KEY,
+                json.dumps(payload, default=_json_default),
+                ex=self._CACHE_TTL_SECONDS,
+            )
+        except Exception:  # noqa: BLE001 — cache write is best-effort
+            pass
+        return payload
+
+    async def _build_overview(self) -> dict[str, Any]:
         now = datetime.now(UTC)
         start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
         start_of_month = start_of_today.replace(day=1)
@@ -146,6 +192,21 @@ class AdminMetricsService:
             log.warning("health.redis_probe_failed", error=str(exc))
             redis_ok = "error"
         return {"db": db_ok, "redis": redis_ok, "api": "ok"}
+
+
+def _json_default(value: Any) -> Any:
+    """Stable JSON encoder for the overview cache.
+
+    Decimal → str (avoids float drift); datetime/date → ISO; UUID →
+    str. Anything else falls through to `repr`, which means new
+    types get cached as their string form rather than blowing up
+    the cache write.
+    """
+    if isinstance(value, Decimal):
+        return str(value)
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return repr(value)
 
 
 __all__ = ["AdminMetricsService"]

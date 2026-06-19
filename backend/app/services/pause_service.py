@@ -64,7 +64,12 @@ class PauseService:
                 ErrorCode.VALIDATION_ERROR,
                 "Pause end date must be on or after the start date.",
             )
-        today = utcnow().date()
+        # Asia/Amman day boundary — the pause-eligibility window is
+        # described to the member as "you can pause for N days a year
+        # starting today" in their local wall clock. UTC would roll
+        # over at 03:00 local and shift the window edge.
+        from app.utils.time import amman_today
+        today = amman_today()
         if starts_on < today:
             raise AppError(
                 ErrorCode.VALIDATION_ERROR,
@@ -234,7 +239,10 @@ class PauseService:
         actor: Actor,
         reason: str,
     ) -> SubscriptionPause:
-        today = now.date()
+        # Same local-day rationale as `schedule()` — "ended today" in
+        # member terms means the local calendar day, not the UTC one.
+        from app.utils.time import AMMAN
+        today = now.astimezone(AMMAN).date()
         # Effective window: clamp into [starts_on, ends_on]. A manual
         # resume before starts_on (cancel a scheduled pause that hadn't
         # begun yet) yields zero days consumed; the partial unique

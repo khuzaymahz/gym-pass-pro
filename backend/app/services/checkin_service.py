@@ -22,7 +22,7 @@ from app.repositories.subscription_repo import SubscriptionRepository
 from app.services.audit_service import Actor, AuditService
 from app.services.day_pass_service import DayPassService
 from app.services.rate_limit import RateLimiter
-from app.utils.time import current_period_start, utcnow
+from app.utils.time import amman_today, current_period_start, utcnow
 
 # Per-(user, gym) dedupe window. Protects against rapid re-scans at
 # the same gym (double-tap, network retry) and surfaces a friendly
@@ -200,7 +200,13 @@ class CheckinService:
         # for the admin queue.
         open_pause = await self.pauses.open_for_subscription(sub.id)
         if open_pause is not None:
-            today = utcnow().date()
+            # Pause windows are calendar-day boundaries the member sees
+            # on their phone; the local day in Asia/Amman is what they
+            # mean by "pause ends today". The previous UTC date rolled
+            # over at 03:00 local, blocking a scan that should have
+            # succeeded between local midnight and 03:00 on the
+            # ends_on day.
+            today = amman_today()
             in_window = (
                 open_pause.starts_on <= today <= open_pause.ends_on
             )

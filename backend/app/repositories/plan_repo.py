@@ -35,8 +35,11 @@ class PlanRepository:
         return plan
 
     async def update(self, plan: Plan, **fields: object) -> Plan:
+        # Caller uses Pydantic `exclude_unset=True`, so an explicit
+        # null clears the field; "None means skip" silently dropped
+        # legitimate unsets. See gym_repo.update for the matching
+        # rationale.
         for k, v in fields.items():
-            if v is not None:
-                setattr(plan, k, v)
+            setattr(plan, k, v)
         await self.session.flush()
         return plan

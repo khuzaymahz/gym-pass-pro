@@ -32,6 +32,10 @@ class _SignInPageState extends ConsumerState<SignInPage> {
   final _formKey = GlobalKey<FormState>();
   bool _passwordVisible = false;
   bool _passwordSubmitAttempted = false;
+  // True while `_submit` is awaiting its first network call. Hard guard
+  // against a determined double-tap before the controller flips its
+  // own `loading` flag — prevents a duplicate OTP request fanning out.
+  bool _submitting = false;
 
   /// Resolved on first frame: true when the device can biometric AND the
   /// user has saved creds in the vault. Drives the biometric pill's
@@ -111,30 +115,47 @@ class _SignInPageState extends ConsumerState<SignInPage> {
   }
 
   Future<void> _submit(AuthState state) async {
+    // In-flight guard. The Continue button's loading state catches the
+    // first tap by setting `loading=true`, but the controller flips
+    // that state AFTER the first awaited call returns — a determined
+    // double-tap (or a flaky tap-tap from a slow render) fires the
+    // second `_submit` while the first await is still in flight. Both
+    // would race through `checkPhone` → `requestOtp` and fire TWO OTP
+    // SMS for the same phone. The local `_submitting` flag closes the
+    // window deterministically without depending on the controller's
+    // state update cadence.
+    if (_submitting) return;
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    FocusScope.of(context).unfocus();
-    final phone = '+962${_normalized()}';
-    final controller = ref.read(authControllerProvider.notifier);
-    if (state.requiresPassword) {
-      setState(() => _passwordSubmitAttempted = true);
-      if (_passwordCtrl.text.isEmpty) return;
-      controller.signInWithPassword(_passwordCtrl.text);
-      return;
+    setState(() => _submitting = true);
+    try {
+      FocusScope.of(context).unfocus();
+      final phone = '+962${_normalized()}';
+      final controller = ref.read(authControllerProvider.notifier);
+      if (state.requiresPassword) {
+        setState(() => _passwordSubmitAttempted = true);
+        if (_passwordCtrl.text.isEmpty) return;
+        controller.signInWithPassword(_passwordCtrl.text);
+        return;
+      }
+      // Authoritative re-check on explicit intent. The auto-check might
+      // have been skipped (e.g. paste event that arrived while another
+      // check was loading, or a race where the controller bootstrap
+      // wasn't ready yet) so we look up the phone one more time here.
+      // If a registered account exists, we surface the password gate
+      // instead of shotgunning an OTP.
+      await controller.checkPhone(phone);
+      if (!mounted) return;
+      final refreshed = ref.read(authControllerProvider);
+      if (refreshed.requiresPassword) {
+        // Password gate revealed itself — let the user see the new
+        // field and type their password instead of auto-submitting
+        // stale input.
+        return;
+      }
+      controller.requestOtp(phone);
+    } finally {
+      if (mounted) setState(() => _submitting = false);
     }
-    // Authoritative re-check on explicit intent. The auto-check might have
-    // been skipped (e.g. paste event that arrived while another check was
-    // loading, or a race where the controller bootstrap wasn't ready yet)
-    // so we look up the phone one more time here. If a registered account
-    // exists, we surface the password gate instead of shotgunning an OTP.
-    await controller.checkPhone(phone);
-    if (!mounted) return;
-    final refreshed = ref.read(authControllerProvider);
-    if (refreshed.requiresPassword) {
-      // Password gate revealed itself — let the user see the new field and
-      // type their password instead of auto-submitting stale input.
-      return;
-    }
-    controller.requestOtp(phone);
   }
 
   Future<void> _onBiometric() async {

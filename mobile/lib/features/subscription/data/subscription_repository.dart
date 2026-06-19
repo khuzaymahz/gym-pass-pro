@@ -124,6 +124,28 @@ class SubscriptionRepository {
     );
     return BackendSubscription.fromJson(response.data!);
   }
+
+  /// Atomic cancel-and-buy. Backend wraps both mutations in a single
+  /// DB transaction; either both land or neither does. Replaces the
+  /// prior client-side `cancel()` then `purchase()` pair which left
+  /// the member in a paid-cancelled-no-replacement state on network
+  /// drops between the two calls.
+  Future<BackendSubscription> replace({
+    required String planId,
+    required String paymentMethodKind,
+    String? paymentMethodId,
+  }) async {
+    final response = await _api.post<Map<String, dynamic>>(
+      '/api/v1/subscriptions/replace',
+      body: {
+        'planId': planId,
+        'paymentMethod': paymentMethodKind,
+        if (paymentMethodId != null) 'paymentMethodId': paymentMethodId,
+      },
+      authed: true,
+    );
+    return BackendSubscription.fromJson(response.data!);
+  }
 }
 
 final subscriptionRepositoryProvider = Provider<SubscriptionRepository>((ref) {

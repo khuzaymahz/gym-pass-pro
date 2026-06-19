@@ -134,9 +134,15 @@ class GymRepository:
         return gym
 
     async def update(self, gym: Gym, **fields: object) -> Gym:
+        # The service layer drives `exclude_unset=True` on the Pydantic
+        # model_dump, so any key arriving here is one the caller
+        # explicitly set — including an explicit `null`. Setting `None`
+        # must therefore clear the field; the previous "skip None"
+        # branch made it impossible to null out optional columns like
+        # `area` / `phone` / `logo_alignment` via the API even when
+        # the operator intentionally sent null.
         for k, v in fields.items():
-            if v is not None:
-                setattr(gym, k, v)
+            setattr(gym, k, v)
         await self.session.flush()
         return gym
 

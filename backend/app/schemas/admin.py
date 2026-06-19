@@ -74,6 +74,14 @@ class AdminUserDetailSubscription(BaseModel):
     plan_id: UUID | None = Field(alias="planId", default=None)
     plan_tier: Tier | None = Field(alias="planTier", default=None)
     plan_duration_months: int | None = Field(alias="planDurationMonths", default=None)
+    # Snapshot of the price the member actually paid at purchase time.
+    # Source-of-truth for historical receipts — `plan_price_jod` mirrors
+    # the current Plan row and shifts whenever an admin edits it.
+    # Frontend should prefer `purchased_price_jod`; `plan_price_jod` is
+    # kept for the (rarer) "what does this plan cost now" lens.
+    purchased_price_jod: Decimal | None = Field(
+        alias="purchasedPriceJod", default=None
+    )
     plan_price_jod: Decimal | None = Field(alias="planPriceJod", default=None)
     plan_monthly_visits: int | None = Field(alias="planMonthlyVisits", default=None)
     starts_at: datetime = Field(alias="startsAt")

@@ -80,3 +80,33 @@ that subtree.
 client first render**. Move client-only branches (animation start
 from 0, reduced-motion checks) into a `useEffect` that runs
 post-mount. See `gym-partner/src/components/CountUp.tsx`.
+
+
+---
+
+## Historical migrations 0014 + 0018 — known risks at scale
+
+Two past migrations have known sharp edges that we can't fix in-place
+(CLAUDE.md §12 #8 forbids editing past migrations), so flagging here
+for anyone replaying them against a large prod DB:
+
+**0014_partner_hot_path_indexes**: creates indexes on `checkins`
+WITHOUT `CREATE INDEX CONCURRENTLY`. On a non-empty checkins table
+this acquires `ACCESS EXCLUSIVE` for the duration and every scan in
+flight 500s. Pre-prod ran clean because the table was nearly empty
+at upgrade time. Before the first real-prod replay, drop the
+indexes manually with `DROP INDEX CONCURRENTLY`, then re-create
+them online with `CREATE INDEX CONCURRENTLY` before the alembic
+step — or run alembic with the indexes already in place so
+alembic's `CREATE` becomes a `IF NOT EXISTS` no-op.
+
+**0018_audit_log_partitioned**: backfills the new partitioned
+`audit_log` from `audit_log_pre_partition` in a single transaction
+via `INSERT ... SELECT *`. With millions of pre-existing audit rows
+this OOMs the migrator container. Before replaying, chunk the
+backfill manually in 50k-row batches gated by `created_at` range,
+then run the migration which finds the data already moved.
+
+**Fix shape**: both are operator runbook items, not code edits.
+Add a flagged paragraph to `docs/deploy.md` when the first big
+prod cutover is scheduled.

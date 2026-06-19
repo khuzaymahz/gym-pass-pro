@@ -49,7 +49,13 @@ class Settings(BaseSettings):
     jwt_access_ttl_seconds: int = 900
     jwt_refresh_ttl_seconds: int = 2_592_000
     jwt_service_ttl_seconds: int = 300  # 5 min — admin → backend hop
-    jwt_algorithm: str = "HS256"
+    # Pinned. `none` is famously an `algorithm` an unpatched JWT lib
+    # would accept, and a flipped env var to a different family would
+    # silently weaken every token until the next deploy. HS256 is the
+    # current shared-secret family; RS256 stays in the Literal so a
+    # future asymmetric rollout (mobile→backend via signing-key
+    # rotation) doesn't need a code edit.
+    jwt_algorithm: Literal["HS256", "RS256"] = "HS256"
 
     # OAuth
     google_oauth_client_id: str | None = None
@@ -197,6 +203,15 @@ class Settings(BaseSettings):
             "dev-nextauth-secret-change-me",
             "admin123",
             "changeme-admin-exchange-secret",
+            # `docker-compose.yml` provides these fallback strings as
+            # `${NEXTAUTH_SECRET:-dev-…}` / `${ADMIN_EXCHANGE_SECRET:-changeme-…}`
+            # so a fresh clone boots, but they pass the >=32-char length
+            # check on their own. Adding them here means staging or
+            # production deploys that forget to override the env var
+            # crash-fast at boot rather than silently shipping a
+            # well-known secret.
+            "dev-nextauth-secret-change-me-please-32chars-min",
+            "changeme-admin-exchange-secret-dev-only",
         }
     )
 

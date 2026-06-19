@@ -150,19 +150,25 @@ class BillingState {
 }
 
 class BillingNotifier extends StateNotifier<BillingState> {
-  BillingNotifier(this._repo) : super(const BillingState()) {
-    _hydrate();
-  }
+  BillingNotifier(this._repo) : super(const BillingState());
 
   final BillingRepository _repo;
 
-  // Methods + invoices come from the backend. There is no auto-renew
-  // toggle: real recurring billing depends on a payment gateway we
-  // haven't picked yet, and offering the toggle under the mock
-  // provider would falsely promise an automatic charge.
-  Future<void> _hydrate() async {
-    await refreshFromBackend();
-  }
+  // NOTE: There used to be an eager `_hydrate()` call in the
+  // constructor. Removed because the notifier is created during
+  // ProviderContainer bootstrap, BEFORE the auth controller has
+  // resolved its phase. The hydrate call would fire `/billing/...`
+  // with no bearer, 401, mark `loaded:true`, and then re-fetch on the
+  // real sign-in. The wasted call hit the rate limiter and produced
+  // noisy log entries.
+  //
+  // Callers are now responsible for invoking `refreshFromBackend()`:
+  //   * post-login (post_login_hydrate memory rule) wires this in,
+  //   * billing page pull-to-refresh refreshes on demand,
+  //   * checkout calls `refreshFromBackend()` after a purchase.
+  //
+  // The notifier ships in the "no methods, not loaded" state which
+  // the UI already knows how to render.
 
   /// Pull payment methods + invoices from the backend in one round trip.
   /// Called on cold-start, after add/remove/set-default mutations, after

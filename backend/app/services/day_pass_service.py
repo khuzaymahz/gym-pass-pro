@@ -25,7 +25,7 @@ from app.repositories.gym_repo import GymRepository
 from app.repositories.payment_repo import PaymentRepository
 from app.repositories.subscription_repo import SubscriptionRepository
 from app.services.audit_service import Actor, AuditService
-from app.utils.time import utcnow
+from app.utils.time import amman_day_bounds, amman_today, utcnow
 
 log = structlog.get_logger(__name__)
 
@@ -234,11 +234,14 @@ class DayPassService:
             )
 
         # Daily cap (cheap pre-flight check; concurrent attempts
-        # are also blocked by the advisory lock above).
+        # are also blocked by the advisory lock above). Bounds are
+        # the Asia/Amman calendar day — UTC midnight rollover lands
+        # at 03:00 local in Jordan, so a partner promising "12 passes
+        # per day" would see the cap reset mid-afternoon if we used
+        # UTC. amman_day_bounds() returns UTC instants for the SQL
+        # range filter, so the timestamptz comparison stays correct.
         if offering.daily_cap is not None:
-            now = utcnow()
-            day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-            day_end = day_start + timedelta(days=1)
+            day_start, day_end = amman_day_bounds(amman_today())
             sold_today = await self.passes.count_for_offering_on_date(
                 offering_id=offering.id,
                 day_start=day_start,
