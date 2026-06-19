@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/config/env.dart';
 import '../../../core/network/network_error.dart';
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
@@ -8,6 +9,7 @@ import '../../../core/widgets/gym_logo.dart';
 import '../../../core/widgets/pill_button.dart';
 import '../../../core/widgets/tier_chip.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../billing/data/billing_state.dart';
 import '../data/day_pass.dart';
 import '../data/day_pass_repository.dart';
 
@@ -81,18 +83,37 @@ class _BuyDayPassSheetBodyState extends ConsumerState<_BuyDayPassSheetBody> {
 
   Future<void> _onPay() async {
     final l = AppLocalizations.of(context);
+    // Resolve the member's default stored payment method. In production
+    // the day-pass purchase MUST attach a real method — the backend
+    // mock provider only accepts `paymentMethodKind: 'mock'` in dev/
+    // staging, and shipping a hardcoded `'mock'` to a release build
+    // routes every purchase through the no-op provider. Members on
+    // production with no method get a clear "add a method" error
+    // rather than silently buying through a mock that may not exist.
+    final billing = ref.read(billingProvider);
+    final method = billing.defaultMethod;
+    final isProd = AppEnv().isProduction;
+    if (isProd && method == null) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(l.dayPassNeedPaymentMethod)));
+      return;
+    }
     setState(() => _busy = true);
     try {
       final pass = await ref
           .read(dayPassRepositoryProvider)
           .purchase(
             gymSlug: widget.gymSlug,
-            // Dev mode runs the mock provider; production swaps in a
-            // real gateway through the same `paymentMethod` enum. The
-            // mock requires no payment-method-id, which is why
-            // we don't surface a method picker on the sheet — the
-            // first iteration assumes the member's default method.
-            paymentMethodKind: 'mock',
+            // Use the stored method's kind when present; fall back to
+            // 'mock' only in non-production builds. The backend's
+            // `should_mock_payments` policy gates whether the mock
+            // provider is even wired, so a leaked 'mock' string in
+            // production would 400 — but we'd rather refuse client-
+            // side with a clear message than rely on that server-side
+            // failure.
+            paymentMethodKind: method?.kind.storageKey ?? 'mock',
+            paymentMethodId: method?.id,
           );
       // Invalidate so the Profile "Active passes" card + the
       // gym detail page's CTA refresh on the very next frame.

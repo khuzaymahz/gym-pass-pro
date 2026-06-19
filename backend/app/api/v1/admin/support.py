@@ -177,6 +177,7 @@ async def reply(
     message = await svc.reply(
         ticket_id,
         author_user_id=admin.id,
+        author_role=admin.role,
         body=body.body,
         is_internal_note=body.is_internal_note,
         actor=authed_actor(request, admin),

@@ -144,3 +144,22 @@ class GymRepository:
         gym.deleted_at = now
         gym.is_active = False
         await self.session.flush()
+
+    async def count_successful_checkins(self, gym_id: UUID) -> int:
+        """Lifetime successful check-ins at a gym.
+
+        Used by the admin delete confirmation: anything with history
+        must be soft-deleted (the default `delete()` path) or refused
+        — never hard-deleted, since the payout ledger and audit log
+        join through `checkins.gym_id` and a cascade would orphan
+        irreplaceable financial history.
+        """
+        stmt = (
+            select(func.count())
+            .select_from(Checkin)
+            .where(
+                Checkin.gym_id == gym_id,
+                Checkin.status == CheckinStatus.SUCCESS,
+            )
+        )
+        return int((await self.session.execute(stmt)).scalar_one())

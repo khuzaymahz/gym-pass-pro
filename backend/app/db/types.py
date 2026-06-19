@@ -32,8 +32,13 @@ TimestampTZNullable = Annotated[
     mapped_column(DateTime(timezone=True), nullable=True),
 ]
 
-Money = Annotated[Decimal, mapped_column(Numeric(10, 2), nullable=False)]
-MoneyBig = Annotated[Decimal, mapped_column(Numeric(12, 2), nullable=False)]
+# JOD has 3 minor units (fils): 1.234 JOD is legal money. A 2-decimal
+# scale silently rounds the third fil away on every write — over a
+# payout batch this compounds to a real reconciliation gap. The
+# 12-row migration `0021_jod_money_scale_3.py` widens every existing
+# money column in lock-step.
+Money = Annotated[Decimal, mapped_column(Numeric(10, 3), nullable=False)]
+MoneyBig = Annotated[Decimal, mapped_column(Numeric(12, 3), nullable=False)]
 
 
 def pg_enum(name: str, *values: str) -> PgEnum:

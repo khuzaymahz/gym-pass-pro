@@ -24,8 +24,21 @@ from app.services.day_pass_service import DayPassService
 from app.services.rate_limit import RateLimiter
 from app.utils.time import current_period_start, utcnow
 
+# Per-(user, gym) dedupe window. Protects against rapid re-scans at
+# the same gym (double-tap, network retry) and surfaces a friendly
+# "already scanned here" error rather than a budget-burn. Strictly a
+# UX gate — does NOT close the concurrency race against the visit
+# budget, which is what the FOR UPDATE row lock below is for.
 CHECKIN_RATE_LIMIT = 1
 CHECKIN_RATE_WINDOW_SECONDS = 30 * 60
+# Per-user global concurrency gate. Short window — just enough to
+# blunt the obvious case of one member's two devices scanning at
+# two different gyms in the same millisecond. The real correctness
+# guarantee is the `lock_active_for_user` row lock; this limiter is
+# a cheap early bounce so we don't waste a DB round-trip on every
+# rapid double-scan across gyms.
+CHECKIN_USER_RATE_LIMIT = 1
+CHECKIN_USER_RATE_WINDOW_SECONDS = 5
 
 
 @dataclass(frozen=True)
@@ -103,8 +116,13 @@ class CheckinService:
             )
             raise AppError(ErrorCode.CHECKIN_QR_INVALID, "Invalid QR.") from None
 
-        # Rate limit BEFORE touching subscription — prevents auth user from
-        # burning visits via spam scans.
+        # Two-stage rate limit BEFORE touching the subscription. The
+        # per-(user, gym) bucket carries the friendly "scanned here
+        # recently" UX message; the per-user bucket blunts concurrent
+        # scans across gyms before they reach the DB. Neither is the
+        # primary race-correctness guarantee — `lock_active_for_user`
+        # below is — but they're cheap enough that letting an obvious
+        # spam pattern reach the row lock would just be wasteful.
         rl_key = f"checkin:{user.id}:{gym.id}"
         if not await self.rate_limiter.allow(
             rl_key, limit=CHECKIN_RATE_LIMIT,
@@ -119,6 +137,21 @@ class CheckinService:
             raise AppError(
                 ErrorCode.CHECKIN_ALREADY_SCANNED,
                 "Already scanned recently at this gym.",
+            )
+        user_rl_key = f"checkin:{user.id}"
+        if not await self.rate_limiter.allow(
+            user_rl_key, limit=CHECKIN_USER_RATE_LIMIT,
+            window_seconds=CHECKIN_USER_RATE_WINDOW_SECONDS,
+        ):
+            await self.checkins.create(
+                user_id=user.id, gym_id=gym.id, subscription_id=None,
+                status=CheckinStatus.RATE_LIMITED,
+                failure_reason="concurrent_scan_across_gyms",
+                ip_address=actor.ip_address, user_agent=actor.user_agent,
+            )
+            raise AppError(
+                ErrorCode.CHECKIN_ALREADY_SCANNED,
+                "Another scan is in progress. Try again in a moment.",
             )
 
         # Day-pass branch: a non-subscriber (or even a subscriber
@@ -143,7 +176,14 @@ class CheckinService:
                 actor=actor,
             )
 
-        sub = await self.subs.active_for_user(user.id)
+        # Take `SELECT … FOR UPDATE` on the active subscription row.
+        # Holding this lock until the transaction commits is what
+        # makes the visit-budget gate below race-safe: two concurrent
+        # scans for the same user (different gyms or otherwise)
+        # serialize on the lock, so the count + INSERT pair runs
+        # atomically per-subscription. The lock is released at the
+        # session-level commit/rollback the route layer drives.
+        sub = await self.subs.lock_active_for_user(user.id)
         if sub is None or sub.status != SubscriptionStatus.ACTIVE:
             await self.checkins.create(
                 user_id=user.id, gym_id=gym.id, subscription_id=None,

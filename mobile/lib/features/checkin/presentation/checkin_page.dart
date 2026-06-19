@@ -708,13 +708,14 @@ class _CheckinPageState extends ConsumerState<CheckinPage>
       if (kDebugMode) {
         return _devTestingPanel();
       }
-      return PillButton(
-        label: l.checkinDemoButton,
-        trailingIcon: Icons.flash_on,
-        onPressed: () {
-          ref.read(checkinControllerProvider.notifier).onQrDetected('iron-forge');
-        },
-      );
+      // Release builds: no button — the QR scanner overlay is the
+      // only way in. The previous fallback button hardcoded the
+      // 'iron-forge' slug into a release-mode tap callback, which
+      // (a) injected a demo seed into production behaviour and
+      // (b) let any member bypass the QR/dedupe flow with a single
+      // tap. Removed; the scanner viewport above this widget is the
+      // only check-in entry point in non-debug builds.
+      return const SizedBox.shrink();
     }
     return PillButton(
       label: l.checkinSeePlansCta,

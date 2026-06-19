@@ -41,6 +41,18 @@ class ApiClient {
   /// wait for it, and everyone retries with the new access token.
   Future<bool>? _refreshInFlight;
 
+  /// Short-lived memo of the most recent refresh result. Closes the
+  /// trailing-401 race the prior coalescer left open: a third 401
+  /// arriving the millisecond `_refreshInFlight` cleared would start a
+  /// SECOND refresh, which the backend invalidates the just-issued
+  /// access token against. With this memo, late-arriving 401s see
+  /// "we refreshed N ms ago — just re-read the token and retry" for a
+  /// short window (10s). Stamped with the new access token's prefix so
+  /// we can detect the 401 was caused by an even-newer rotation.
+  static const _refreshMemoTtl = Duration(seconds: 10);
+  DateTime? _lastRefreshAt;
+  String? _lastRefreshAccessPrefix;
+
   InterceptorsWrapper _buildInterceptor() {
     return InterceptorsWrapper(
       onRequest: (options, handler) async {
@@ -55,26 +67,29 @@ class ApiClient {
       },
       onError: (error, handler) async {
         final resp = error.response;
-        // Token expired / invalid — try to refresh once, then retry
-        // the original request with the new access token. Only fires
-        // for requests that asked for auth (`requireAuth == true`)
-        // and only if we have a refresh token to use. The refresh
-        // call itself sets `extra.skipRefresh = true` so a failure
-        // there doesn't recurse.
         final isAuthRequest = error.requestOptions.extra['requireAuth'] == true;
         final isRefreshCall =
             error.requestOptions.extra['skipRefresh'] == true;
-        final isExpired = resp?.statusCode == 401 &&
-            (resp?.data is Map &&
-                (resp!.data as Map)['error'] is Map &&
-                (((resp.data as Map)['error'] as Map)['code'] ==
-                        'AUTH_TOKEN_EXPIRED' ||
-                    ((resp.data as Map)['error'] as Map)['code'] ==
-                        'AUTH_TOKEN_INVALID'));
-        if (isAuthRequest && !isRefreshCall && isExpired) {
-          final refreshed = await _refreshOnce();
-          if (refreshed) {
-            // Retry the original request with the new access token.
+        // Treat ANY 401 on an authed request as refresh-eligible. The
+        // backend emits a typed `AUTH_TOKEN_EXPIRED` / `AUTH_TOKEN_INVALID`
+        // envelope on its 401s, but a 401 from an upstream proxy, a
+        // malformed JSON body, or a future error code we don't enumerate
+        // here would skip refresh and bounce the member to sign-in for
+        // what was actually a recoverable token expiry. Treating bare
+        // 401 as refresh-eligible (still gated on `requireAuth` and
+        // `!isRefreshCall`) is the conservative shape — worst case is
+        // one wasted refresh on a hard 401, vs. a member punished for
+        // an expiry the interceptor was built to absorb.
+        final isUnauthorised = resp?.statusCode == 401;
+        if (isAuthRequest && !isRefreshCall && isUnauthorised) {
+          // Check if a recent refresh memo covers us. If the token the
+          // failing request carried matches the access token we issued
+          // < `_refreshMemoTtl` ago, a second refresh would invalidate
+          // the still-good token. Just retry with whatever's in store.
+          final sentAuth =
+              error.requestOptions.headers['authorization'] as String?;
+          final memo = _recentRefreshCovers(sentAuth);
+          if (memo) {
             final newToken = await _tokens.readAccess();
             final retryOptions = error.requestOptions
               ..headers['authorization'] = 'Bearer $newToken';
@@ -83,7 +98,23 @@ class ApiClient {
               handler.resolve(response);
               return;
             } catch (retryErr) {
-              // Fall through to the structured-envelope unwrap below.
+              if (retryErr is DioException) {
+                _emitStructured(retryErr, handler);
+                return;
+              }
+              rethrow;
+            }
+          }
+          final refreshed = await _refreshOnce();
+          if (refreshed) {
+            final newToken = await _tokens.readAccess();
+            final retryOptions = error.requestOptions
+              ..headers['authorization'] = 'Bearer $newToken';
+            try {
+              final response = await dio.fetch<dynamic>(retryOptions);
+              handler.resolve(response);
+              return;
+            } catch (retryErr) {
               if (retryErr is DioException) {
                 _emitStructured(retryErr, handler);
                 return;
@@ -95,6 +126,29 @@ class ApiClient {
         _emitStructured(error, handler);
       },
     );
+  }
+
+  /// Does a recently-completed refresh cover this 401? Returns true
+  /// when the failed request's Authorization header carried a token
+  /// older than the one we just stored, and the memo is still warm.
+  /// Lets trailing-window 401s skip the redundant refresh.
+  bool _recentRefreshCovers(String? failedAuthHeader) {
+    final at = _lastRefreshAt;
+    final prefix = _lastRefreshAccessPrefix;
+    if (at == null || prefix == null) return false;
+    if (DateTime.now().difference(at) > _refreshMemoTtl) return false;
+    if (failedAuthHeader == null) return true;
+    // If the failing request was already carrying the new access
+    // token's prefix, the 401 was for a different reason — don't
+    // suppress refresh.
+    final sentPrefix = _prefixOf(failedAuthHeader);
+    return sentPrefix != prefix;
+  }
+
+  static String? _prefixOf(String authHeader) {
+    if (!authHeader.toLowerCase().startsWith('bearer ')) return null;
+    final token = authHeader.substring(7);
+    return token.length >= 16 ? token.substring(0, 16) : token;
   }
 
   /// Wrap server `{"error": {"code": ..., "message": ...}}` payloads
@@ -157,6 +211,9 @@ class ApiClient {
         refresh: refresh,
         persistent: persistent,
       );
+      _lastRefreshAt = DateTime.now();
+      _lastRefreshAccessPrefix =
+          access.length >= 16 ? access.substring(0, 16) : access;
       return true;
     } catch (_) {
       // Refresh failed — token revoked, expired refresh, network

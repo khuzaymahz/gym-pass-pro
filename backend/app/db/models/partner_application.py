@@ -13,6 +13,7 @@ from app.db.base import Base
 from app.db.enums import ApplicationStatus, AudienceGender, Category
 from app.db.types import (
     TimestampTZ,
+    TimestampTZNullable,
     TimestampTZUpdate,
     UUIDCol,
     pg_enum_cls,
@@ -84,9 +85,11 @@ class PartnerApplication(Base):
 
     # Admin review trail.
     admin_notes: Mapped[str | None] = mapped_column(nullable=True)
-    reviewed_at: Mapped[datetime | None] = mapped_column(
-        nullable=True
-    )
+    # `TimestampTZNullable` maps to `DateTime(timezone=True)` and the
+    # DB column was created `timestamptz` in migration 0017. Without
+    # the typed annotation, SQLAlchemy inferred a naive `DateTime`
+    # and silently dropped the offset on every read/write.
+    reviewed_at: Mapped[TimestampTZNullable]
     reviewed_by_user_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )

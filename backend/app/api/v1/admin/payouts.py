@@ -10,6 +10,7 @@ from app.api.deps import (
     admin_payout_service,
     authed_actor,
     current_admin,
+    current_admin_super,
     db_session,
 )
 from app.db.enums import PayoutStatus
@@ -64,9 +65,12 @@ async def generate_payouts(
     body: AdminPayoutGenerate,
     request: Request,
     svc: Annotated[AdminPayoutService, Depends(admin_payout_service)],
-    admin: Annotated[User, Depends(current_admin)],
+    admin: Annotated[User, Depends(current_admin_super)],
     session: Annotated[AsyncSession, Depends(db_session)],
 ) -> list[AdminPayoutRead]:
+    # Super-only — payout generation reshapes the ledger and is the
+    # primary money-out batch. An `ops` admin marks individual payouts
+    # paid, but generating the period roll-up is reserved.
     created = await svc.generate(
         period_start=body.period_start,
         period_end=body.period_end,

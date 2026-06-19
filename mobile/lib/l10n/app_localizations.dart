@@ -231,6 +231,7 @@ abstract class AppLocalizations {
   String get dayPassSheetPaying;
   String get dayPassSheetTerms;
   String get dayPassPurchasedSnack;
+  String get dayPassNeedPaymentMethod;
   String get currencyJod;
   String get profileDayPassesTitle;
   String get profileDayPassesEmpty;

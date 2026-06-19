@@ -204,6 +204,7 @@
   "dayPassSheetPaying": "جارٍ معالجة الدفع",
   "dayPassSheetTerms": "دفع تجريبي في الوضع التطويري. لا يتم سحب أي مبلغ من البطاقة.",
   "dayPassPurchasedSnack": "تم تفعيل التذكرة — امسح رمز النادي لتسجيل دخولك.",
+  "dayPassNeedPaymentMethod": "أضف وسيلة دفع من تبويب الفوترة قبل شراء تذكرة يومية.",
   "currencyJod": "دينار",
   "profileDayPassesTitle": "التذاكر المفعّلة",
   "profileDayPassesEmpty": "لا توجد تذاكر يومية مفعّلة.",

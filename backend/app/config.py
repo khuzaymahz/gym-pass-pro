@@ -95,6 +95,15 @@ class Settings(BaseSettings):
     # leaked signed payload can't be replayed beyond a minute.
     admin_exchange_max_skew_seconds: int = 60
 
+    # Trusted-proxy IP allowlist for `X-Forwarded-For` honour. nginx
+    # (and only nginx) sits in front of the backend on prod / staging
+    # and rewrites the header to the real client IP — every other
+    # peer is untrusted and the header must be ignored. Default is a
+    # narrow RFC1918 + loopback list that matches the docker bridge
+    # topology; operators on a wider ingress should pin this to the
+    # specific nginx container address. Comma-separated.
+    trusted_proxies: str = "127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+
     # Media / uploads
     # Files live on the backend container disk at media_root and are served
     # over HTTP at media_url_prefix. Filenames are opaque UUIDs, so the public

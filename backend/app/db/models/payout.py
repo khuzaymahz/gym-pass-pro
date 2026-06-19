@@ -30,7 +30,7 @@ class PayoutLedger(Base):
         ForeignKey("checkins.id", ondelete="RESTRICT"), nullable=False
     )
     amount_jod: Mapped[Money]
-    rate_applied: Mapped[Money] = mapped_column(Numeric(10, 2), nullable=False)
+    rate_applied: Mapped[Money] = mapped_column(Numeric(10, 3), nullable=False)
     payout_id: Mapped[UUIDFk | None] = mapped_column(
         ForeignKey("payouts.id", ondelete="RESTRICT"), nullable=True
     )

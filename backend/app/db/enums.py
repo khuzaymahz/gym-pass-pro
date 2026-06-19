@@ -30,6 +30,28 @@ class Role(StrEnum):
     GYM_OWNER = "gym_owner"
 
 
+class AdminScope(StrEnum):
+    """Sub-role for `Role.ADMIN` users.
+
+    Stored as a nullable text column on `User`; null is treated as
+    `super` for back-compat with the bootstrap admin and admins
+    created before this column existed. Newly minted admins default
+    to `ops` — `super` must be granted explicitly by a SUPER_ADMIN.
+
+    Capability matrix (enforced in [api/deps.py]):
+      super  — every admin action, including create/reset/delete-
+               admin, broadcast, generate-payouts, hard-delete gym.
+      ops    — day-to-day operator: read everything; mutate
+               subscriptions, plans, checkins, support tickets,
+               photos; mark payouts paid; review partner apps.
+      viewer — read-only; safe for analysts / contractors.
+    """
+
+    SUPER = "super"
+    OPS = "ops"
+    VIEWER = "viewer"
+
+
 class SubscriptionStatus(StrEnum):
     PENDING = "pending"
     ACTIVE = "active"
@@ -201,6 +223,7 @@ ENUM_DEFINITIONS: dict[str, type[StrEnum]] = {
     "tier_enum": Tier,
     "category_enum": Category,
     "role_enum": Role,
+    "admin_scope_enum": AdminScope,
     "sub_status_enum": SubscriptionStatus,
     "payment_method_enum": PaymentMethod,
     "payment_status_enum": PaymentStatus,

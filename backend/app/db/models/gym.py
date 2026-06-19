@@ -50,7 +50,7 @@ class Gym(Base):
         server_default=text("'mixed'"),
     )
     per_visit_rate_jod: Mapped[Money] = mapped_column(
-        Numeric(10, 2), nullable=False, server_default=text("2.00")
+        Numeric(10, 3), nullable=False, server_default=text("2.000")
     )
     rating: Mapped[Decimal | None] = mapped_column(Numeric(2, 1), nullable=True)
     review_count: Mapped[int] = mapped_column(

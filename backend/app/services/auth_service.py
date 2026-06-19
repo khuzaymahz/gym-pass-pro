@@ -96,9 +96,26 @@ class AuthService:
     # ---------- Phone OTP ----------
 
     async def request_phone_otp(self, phone: str, *, actor: Actor) -> None:
-        rl_key = f"otp:req:{phone}"
+        # Dual bucket: per-phone (cap individual SMS spend) AND
+        # per-IP (blunt phone-space enumeration). Without the IP
+        # bucket, an attacker iterating known +962 numbers from one
+        # host hits a brand-new per-phone counter on every number,
+        # bypassing the limit entirely. 20/min per IP is comfortably
+        # higher than any honest tester needs (one person can't
+        # legitimately request OTPs for 20 different phones in a
+        # minute) but tight enough to make Jordanian-phone-space
+        # enumeration uneconomic.
+        phone_key = f"otp:req:{phone}"
+        ip = (actor.ip_address or "unknown").lower()
+        ip_key = f"otp:req:ip:{ip}"
         if not await self.rate_limiter.allow(
-            rl_key, limit=OTP_RATE_LIMIT, window_seconds=OTP_RATE_WINDOW_SECONDS
+            phone_key,
+            limit=OTP_RATE_LIMIT,
+            window_seconds=OTP_RATE_WINDOW_SECONDS,
+        ) or not await self.rate_limiter.allow(
+            ip_key,
+            limit=20,
+            window_seconds=OTP_RATE_WINDOW_SECONDS,
         ):
             raise AppError(
                 ErrorCode.AUTH_OTP_LOCKED,
@@ -285,13 +302,31 @@ class AuthService:
     # ---------- Phone identity check ----------
 
     async def check_phone(
-        self, phone: str
+        self, phone: str, *, actor: Actor | None = None
     ) -> tuple[bool, bool, str | None]:
-        """Returns (exists, has_password, masked_email) for a phone. Used by
-        the sign-in page to decide between OTP and password sign-in, and by
-        the forgot-password page to know whether email-reset is on the menu.
-        No rate-limit: only leaks existence (unavoidable given the OTP UX)
-        plus a masked email — never the full address."""
+        """Returns (exists, has_password, masked_email) for a phone.
+
+        Used by the sign-in page to decide between OTP and password sign-
+        in, and by the forgot-password page to know whether email-reset
+        is on the menu. The endpoint leaks existence (unavoidable given
+        the OTP UX) plus a masked email — never the full address — so
+        the per-IP rate-limit isn't about secrecy but about making bulk
+        scraping of the +962 phone space + masked-email harvesting too
+        slow to be worthwhile. 30/min per IP is a generous ceiling for
+        honest sign-in retries.
+        """
+        if actor is not None:
+            ip = (actor.ip_address or "unknown").lower()
+            allowed = await self.rate_limiter.allow(
+                f"phone:check:ip:{ip}",
+                limit=30,
+                window_seconds=60,
+            )
+            if not allowed:
+                raise AppError(
+                    ErrorCode.RATE_LIMITED,
+                    "Too many lookups. Try again in a minute.",
+                )
         user = await self.users.get_by_phone(phone)
         if user is None:
             return False, False, None
@@ -422,11 +457,14 @@ class AuthService:
     # ---------- Admin email+password ----------
 
     async def login_admin(self, email: str, password: str, *, actor: Actor) -> User:
-        # Rate-limit on both IP and email to blunt credential stuffing while
-        # still letting one typo-prone admin retry without global lockout.
+        # Normalise email to lowercase up front so the rate-limit bucket
+        # and the DB lookup agree. Without this, mixed-case from the
+        # browser hits a different bucket than the lowercase stored row,
+        # and would 401 on a correct password.
+        email = email.lower()
         ip = (actor.ip_address or "unknown").lower()
         ip_key = f"admin:login:ip:{ip}"
-        email_key = f"admin:login:email:{email.lower()}"
+        email_key = f"admin:login:email:{email}"
         if not await self.rate_limiter.allow(
             ip_key, limit=10, window_seconds=300
         ) or not await self.rate_limiter.allow(
@@ -483,9 +521,17 @@ class AuthService:
 
         Service tokens are short-lived (5 min by default) and are used
         by the admin / partner Next.js apps when they exchange a
-        NextAuth session for a backend bearer.
+        NextAuth session for a backend bearer. The `tv` claim binds
+        the token to the user's current `token_version`; a credential
+        rotation (`bump_token_version`) invalidates every outstanding
+        service token for that user on the next API call.
         """
-        extras: dict[str, object] = {"role": user.role.value}
+        extras: dict[str, object] = {
+            "role": user.role.value,
+            "tv": user.token_version,
+        }
+        if user.admin_scope is not None:
+            extras["scope"] = user.admin_scope.value
         token, exp = encode_token(
             subject=user.id, token_type="service", extra=extras
         )
@@ -508,6 +554,7 @@ class AuthService:
         extras: dict[str, object] = {
             "role": user.role.value,
             "gym_id": str(user.gym_id),
+            "tv": user.token_version,
         }
         token, exp = encode_token(
             subject=user.id, token_type="service", extra=extras
@@ -607,10 +654,16 @@ class AuthService:
 
     async def _issue_tokens(self, user: User) -> TokenBundle:
         jti = uuid4()
+        access_extras: dict[str, object] = {
+            "role": user.role.value,
+            "tv": user.token_version,
+        }
+        if user.admin_scope is not None:
+            access_extras["scope"] = user.admin_scope.value
         access, access_exp = encode_token(
             subject=user.id,
             token_type="access",
-            extra={"role": user.role.value},
+            extra=access_extras,
         )
         refresh, refresh_exp = encode_token(
             subject=user.id, token_type="refresh", jti=str(jti)

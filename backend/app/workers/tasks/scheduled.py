@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 
 import structlog
+from sqlalchemy import text
+from sqlalchemy.exc import DBAPIError, OperationalError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.db.session import make_engine
@@ -17,8 +19,25 @@ from app.workers.celery_app import celery_app
 
 log = structlog.get_logger(__name__)
 
+# Shared autoretry policy for transient DB / Redis blips. Tasks that
+# do real DB work pass this through their `@celery_app.task` decorator
+# so a flaky moment doesn't drop the work entirely. `retry_backoff=True`
+# uses Celery's exponential schedule (10s, 20s, 40s, ...); 5 retries
+# plus the original attempt is ~10 minutes worst case before the task
+# is shelved and Sentry breadcrumbs the failure.
+_TRANSIENT_RETRY_KW: dict[str, object] = {
+    "autoretry_for": (OperationalError, DBAPIError, ConnectionError),
+    "retry_backoff": True,
+    "retry_backoff_max": 600,
+    "retry_jitter": True,
+    "max_retries": 5,
+}
 
-@celery_app.task(name="app.workers.tasks.scheduled.expire_subscriptions")
+
+@celery_app.task(
+    name="app.workers.tasks.scheduled.expire_subscriptions",
+    **_TRANSIENT_RETRY_KW,
+)
 def expire_subscriptions() -> dict[str, int]:
     """Flip ACTIVE subscriptions whose `expires_at` has rolled past to
     EXPIRED. Runs hourly (see `celery_app.beat_schedule`). Bounded to
@@ -84,14 +103,10 @@ async def _run_expire_subscriptions() -> dict[str, int]:
         await engine.dispose()
 
 
-@celery_app.task(name="app.workers.tasks.scheduled.retry_failed_payouts")
-def retry_failed_payouts() -> dict[str, int]:
-    """Placeholder: retry payouts that failed in the last window."""
-    log.info("worker.retry_failed_payouts.tick")
-    return {"retried": 0}
-
-
-@celery_app.task(name="app.workers.tasks.scheduled.auto_resume_pauses")
+@celery_app.task(
+    name="app.workers.tasks.scheduled.auto_resume_pauses",
+    **_TRANSIENT_RETRY_KW,
+)
 def auto_resume_pauses() -> dict[str, int]:
     """Sweep subscription pauses whose window has ended and finalise
     them: stamp `ended_at`, compute `days_consumed`, and shift the
@@ -141,7 +156,10 @@ async def _run_auto_resume() -> dict[str, int]:
 _AUDIT_LOG_RETENTION_MONTHS_DEFAULT = 12
 
 
-@celery_app.task(name="app.workers.tasks.scheduled.audit_log_maintenance")
+@celery_app.task(
+    name="app.workers.tasks.scheduled.audit_log_maintenance",
+    **_TRANSIENT_RETRY_KW,
+)
 def audit_log_maintenance() -> dict[str, int]:
     """Pre-create next month's audit_log partition and drop any
     partition older than the retention window.
@@ -249,5 +267,131 @@ async def _run_audit_log_maintenance() -> dict[str, int]:
             retention_months=retention_months,
         )
         return {"dropped": dropped}
+    finally:
+        await engine.dispose()
+
+
+# Retention windows for the three unbounded-growth tables. Tuned for
+# the smallest window that preserves the user-facing UX:
+#   - notifications: 90 d  (member's "all" tab shows the last few
+#                          weeks; beyond that nobody scrolls)
+#   - otps:           7 d  (purely a verify cache; consumed rows
+#                          age out within minutes anyway)
+#   - refresh_tokens: 30 d (matches the JWT refresh TTL +
+#                          a small grace for the reuse-detection
+#                          look-back window)
+_NOTIFICATION_RETENTION_DAYS = 90
+_OTP_RETENTION_DAYS = 7
+_REFRESH_TOKEN_RETENTION_DAYS = 30
+_CLEANUP_BATCH_SIZE = 10_000
+
+
+@celery_app.task(
+    name="app.workers.tasks.scheduled.cleanup_old_notifications",
+    **_TRANSIENT_RETRY_KW,
+)
+def cleanup_old_notifications() -> dict[str, int]:
+    """Delete `notifications` rows older than the retention window.
+
+    Only sweeps rows the member has already read OR that were created
+    more than 2× the window ago — unread-but-still-fresh rows stay
+    so a member returning after a quiet month still sees their queue.
+    Bounded per-tick so a one-off backlog drains across runs rather
+    than a single multi-million-row delete.
+    """
+    return asyncio.run(
+        _run_cleanup(
+            sql=(
+                f"""
+                DELETE FROM notifications
+                WHERE id IN (
+                    SELECT id
+                    FROM notifications
+                    WHERE (
+                        read_at IS NOT NULL
+                        AND created_at < now() - interval '{_NOTIFICATION_RETENTION_DAYS} days'
+                    )
+                    OR created_at < now() - interval '{_NOTIFICATION_RETENTION_DAYS * 2} days'
+                    LIMIT {_CLEANUP_BATCH_SIZE}
+                )
+                """
+            ),
+            label="cleanup_old_notifications",
+        )
+    )
+
+
+@celery_app.task(
+    name="app.workers.tasks.scheduled.cleanup_old_otps",
+    **_TRANSIENT_RETRY_KW,
+)
+def cleanup_old_otps() -> dict[str, int]:
+    """Delete OTP rows older than the retention window.
+
+    OTP rows are short-lived by design (5-min TTL) but accumulate
+    forever without a sweep. After expiry there's no UX value to
+    keeping them; the audit log already captured the request/verify.
+    """
+    return asyncio.run(
+        _run_cleanup(
+            sql=(
+                f"""
+                DELETE FROM otp_codes
+                WHERE id IN (
+                    SELECT id FROM otp_codes
+                    WHERE expires_at < now() - interval '{_OTP_RETENTION_DAYS} days'
+                    LIMIT {_CLEANUP_BATCH_SIZE}
+                )
+                """
+            ),
+            label="cleanup_old_otps",
+        )
+    )
+
+
+@celery_app.task(
+    name="app.workers.tasks.scheduled.cleanup_old_refresh_tokens",
+    **_TRANSIENT_RETRY_KW,
+)
+def cleanup_old_refresh_tokens() -> dict[str, int]:
+    """Delete `refresh_tokens` rows that are revoked or expired beyond
+    the retention window.
+
+    Kept long enough for the reuse-detection look-back to still catch
+    a stolen token presented late; once outside the window the token
+    is unrecoverable anyway and the row is dead weight.
+    """
+    return asyncio.run(
+        _run_cleanup(
+            sql=(
+                f"""
+                DELETE FROM refresh_tokens
+                WHERE id IN (
+                    SELECT id FROM refresh_tokens
+                    WHERE (
+                        (revoked_at IS NOT NULL OR expires_at < now())
+                        AND created_at < now() - interval '{_REFRESH_TOKEN_RETENTION_DAYS} days'
+                    )
+                    LIMIT {_CLEANUP_BATCH_SIZE}
+                )
+                """
+            ),
+            label="cleanup_old_refresh_tokens",
+        )
+    )
+
+
+async def _run_cleanup(*, sql: str, label: str) -> dict[str, int]:
+    """Shared scaffolding for the retention tasks. One DELETE per call,
+    bounded by `_CLEANUP_BATCH_SIZE`. Fresh engine per call — see
+    `_run_expire_subscriptions` for the loop-attachment rationale.
+    """
+    engine = make_engine()
+    try:
+        async with engine.begin() as conn:
+            result = await conn.execute(text(sql))
+            deleted = int(result.rowcount or 0)
+        log.info(f"worker.{label}.tick", deleted=deleted)
+        return {"deleted": deleted}
     finally:
         await engine.dispose()

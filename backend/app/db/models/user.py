@@ -8,7 +8,7 @@ from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
-from app.db.enums import Gender, Locale, Role
+from app.db.enums import AdminScope, Gender, Locale, Role
 from app.db.types import (
     TimestampTZ,
     TimestampTZNullable,
@@ -38,6 +38,27 @@ class User(Base):
         pg_enum_cls("role_enum", Role),
         nullable=False,
         server_default=text("'member'"),
+    )
+    # Sub-role for `role='admin'` users only. NULL on non-admin rows
+    # and on legacy admin rows that predate the column — both are
+    # treated as `super` by `current_admin_scope` so the bootstrap
+    # admin keeps full capability without a manual migration of
+    # existing data. New admins minted via `AdminUserService.create_admin`
+    # default to `ops` and must be promoted explicitly by a super.
+    admin_scope: Mapped[AdminScope | None] = mapped_column(
+        pg_enum_cls("admin_scope_enum", AdminScope),
+        nullable=True,
+    )
+    # Bumped by every credential-rotation event (password reset,
+    # forced logout, deactivation). Existing access/service tokens
+    # carry the version they were minted with; `_authed` compares
+    # against the current row and rejects mismatches. This is what
+    # lets `reset_admin_password` actually invalidate live sessions
+    # instead of waiting for the JWT TTL to lapse.
+    token_version: Mapped[int] = mapped_column(
+        nullable=False,
+        default=0,
+        server_default=text("0"),
     )
     locale: Mapped[Locale] = mapped_column(
         pg_enum_cls("locale_enum", Locale),

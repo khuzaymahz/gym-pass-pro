@@ -422,6 +422,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get dayPassPurchasedSnack =>
       'تم تفعيل التذكرة — امسح رمز النادي لتسجيل دخولك.';
   @override
+  String get dayPassNeedPaymentMethod =>
+      'أضف وسيلة دفع من تبويب الفوترة قبل شراء تذكرة يومية.';
+  @override
   String get currencyJod => 'دينار';
   @override
   String get profileDayPassesTitle => 'التذاكر المفعّلة';
