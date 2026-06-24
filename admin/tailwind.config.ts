@@ -51,6 +51,25 @@ const config: Config = {
           "system-ui",
           "sans-serif",
         ],
+        // Display — headings, brand, big numbers. Archivo's wider
+        // grotesque gives the dashboard a distinct voice vs. the Inter
+        // body. Falls back to the sans stack for Arabic glyphs.
+        display: [
+          "var(--font-display)",
+          "var(--font-sans)",
+          "Inter",
+          "ui-sans-serif",
+          "system-ui",
+          "sans-serif",
+        ],
+        // Mono — tabular data, ids, labels. JetBrains Mono mirrors the
+        // mobile app's label face.
+        mono: [
+          "var(--font-mono)",
+          "ui-monospace",
+          "SFMono-Regular",
+          "monospace",
+        ],
       },
       fontSize: {
         "2xs": ["11px", { lineHeight: "14px" }],
@@ -62,6 +81,10 @@ const config: Config = {
         "2xl": "12px",
       },
       transitionTimingFunction: {
+        // `DEFAULT` makes the bare `ease` utility resolve to our
+        // signature curve (snappy out-glide), used across buttons,
+        // rows, inputs and the nav for one consistent motion feel.
+        DEFAULT: "cubic-bezier(0.2, 0.7, 0.2, 1)",
         ease: "cubic-bezier(0.2, 0.7, 0.2, 1)",
       },
     },

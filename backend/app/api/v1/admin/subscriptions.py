@@ -10,11 +10,19 @@ from app.api.deps import (
     admin_subscription_service,
     authed_actor,
     current_admin,
+    current_admin_ops,
     db_session,
 )
 from app.db.enums import SubscriptionStatus, Tier
 from app.db.models import User
-from app.schemas.admin import AdminSubscriptionListItem
+from app.schemas.admin import (
+    AdminSubscriptionComp,
+    AdminSubscriptionExtend,
+    AdminSubscriptionListItem,
+    AdminSubscriptionRead,
+    AdminSubscriptionTier,
+    AdminSubscriptionVisits,
+)
 from app.schemas.common import Page
 from app.services.admin_subscription_service import AdminSubscriptionService
 
@@ -31,9 +39,7 @@ async def list_subscriptions(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100, alias="pageSize"),
 ) -> Page[AdminSubscriptionListItem]:
-    rows, total = await svc.list(
-        status=status, tier=tier, q=q, page=page, page_size=page_size
-    )
+    rows, total = await svc.list(status=status, tier=tier, q=q, page=page, page_size=page_size)
     items = [
         AdminSubscriptionListItem(
             id=s.id,
@@ -52,9 +58,7 @@ async def list_subscriptions(
         )
         for s, u in rows
     ]
-    return Page[AdminSubscriptionListItem](
-        items=items, total=total, page=page, pageSize=page_size
-    )
+    return Page[AdminSubscriptionListItem](items=items, total=total, page=page, pageSize=page_size)
 
 
 @router.post("/{sub_id}/cancel", status_code=204)
@@ -67,3 +71,89 @@ async def cancel_subscription(
 ) -> None:
     await svc.cancel(sub_id, actor=authed_actor(request, admin))
     await session.commit()
+
+
+@router.post("/{sub_id}/extend", response_model=AdminSubscriptionRead)
+async def extend_subscription(
+    sub_id: UUID,
+    body: AdminSubscriptionExtend,
+    request: Request,
+    svc: Annotated[AdminSubscriptionService, Depends(admin_subscription_service)],
+    admin: Annotated[User, Depends(current_admin_ops)],
+    session: Annotated[AsyncSession, Depends(db_session)],
+) -> AdminSubscriptionRead:
+    sub = await svc.extend(sub_id, days=body.days, actor=authed_actor(request, admin))
+    await session.commit()
+    return AdminSubscriptionRead.model_validate(sub)
+
+
+@router.post("/{sub_id}/visits", response_model=AdminSubscriptionRead)
+async def set_subscription_visits(
+    sub_id: UUID,
+    body: AdminSubscriptionVisits,
+    request: Request,
+    svc: Annotated[AdminSubscriptionService, Depends(admin_subscription_service)],
+    admin: Annotated[User, Depends(current_admin_ops)],
+    session: Annotated[AsyncSession, Depends(db_session)],
+) -> AdminSubscriptionRead:
+    sub = await svc.set_visits(
+        sub_id, visits_used=body.visits_used, actor=authed_actor(request, admin)
+    )
+    await session.commit()
+    return AdminSubscriptionRead.model_validate(sub)
+
+
+@router.post("/{sub_id}/tier", response_model=AdminSubscriptionRead)
+async def change_subscription_tier(
+    sub_id: UUID,
+    body: AdminSubscriptionTier,
+    request: Request,
+    svc: Annotated[AdminSubscriptionService, Depends(admin_subscription_service)],
+    admin: Annotated[User, Depends(current_admin_ops)],
+    session: Annotated[AsyncSession, Depends(db_session)],
+) -> AdminSubscriptionRead:
+    sub = await svc.change_tier(sub_id, tier=body.tier, actor=authed_actor(request, admin))
+    await session.commit()
+    return AdminSubscriptionRead.model_validate(sub)
+
+
+@router.post("/{sub_id}/restore", response_model=AdminSubscriptionRead)
+async def restore_subscription(
+    sub_id: UUID,
+    request: Request,
+    svc: Annotated[AdminSubscriptionService, Depends(admin_subscription_service)],
+    admin: Annotated[User, Depends(current_admin_ops)],
+    session: Annotated[AsyncSession, Depends(db_session)],
+) -> AdminSubscriptionRead:
+    sub = await svc.restore(sub_id, actor=authed_actor(request, admin))
+    await session.commit()
+    return AdminSubscriptionRead.model_validate(sub)
+
+
+@router.post("/{sub_id}/resume-pause", status_code=204)
+async def resume_subscription_pause(
+    sub_id: UUID,
+    request: Request,
+    svc: Annotated[AdminSubscriptionService, Depends(admin_subscription_service)],
+    admin: Annotated[User, Depends(current_admin_ops)],
+    session: Annotated[AsyncSession, Depends(db_session)],
+) -> None:
+    await svc.resume_pause(sub_id, actor=authed_actor(request, admin))
+    await session.commit()
+
+
+@router.post("/comp", response_model=AdminSubscriptionRead, status_code=201)
+async def comp_subscription(
+    body: AdminSubscriptionComp,
+    request: Request,
+    svc: Annotated[AdminSubscriptionService, Depends(admin_subscription_service)],
+    admin: Annotated[User, Depends(current_admin_ops)],
+    session: Annotated[AsyncSession, Depends(db_session)],
+) -> AdminSubscriptionRead:
+    sub = await svc.comp(
+        user_id=body.user_id,
+        plan_id=body.plan_id,
+        actor=authed_actor(request, admin),
+    )
+    await session.commit()
+    return AdminSubscriptionRead.model_validate(sub)

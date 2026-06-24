@@ -92,7 +92,7 @@ class _BuyDayPassSheetBodyState extends ConsumerState<_BuyDayPassSheetBody> {
     // rather than silently buying through a mock that may not exist.
     final billing = ref.read(billingProvider);
     final method = billing.defaultMethod;
-    final isProd = AppEnv().isProduction;
+    final isProd = AppEnv.current.isProduction;
     if (isProd && method == null) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()

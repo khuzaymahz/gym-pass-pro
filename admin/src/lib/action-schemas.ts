@@ -65,6 +65,10 @@ export const UserUpdateBodySchema = z
     name: z.string().max(128),
     firstName: z.string().max(128),
     lastName: z.string().max(128),
+    // Loose strings — the backend normalises "" → NULL and enforces
+    // uniqueness. Empty allowed so an admin can clear a stale value.
+    email: z.string().max(254),
+    phone: z.string().max(24),
     gender: GENDER,
     // ISO date 'YYYY-MM-DD'. Empty string is filtered upstream.
     birthdate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import AsyncIterator
 
 import structlog
 from fastapi import FastAPI
@@ -14,39 +14,37 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.core.redis_client import get_redis
-from app.db.session import get_engine
-
 from app.api.v1 import auth as auth_router
 from app.api.v1 import partner_applications as partner_applications_router
 from app.api.v1 import realtime as realtime_router
+from app.api.v1.admin import checkins as admin_checkins_router
+from app.api.v1.admin import day_passes as admin_day_passes_router
+from app.api.v1.admin import gyms as admin_gyms_router
+from app.api.v1.admin import metrics as admin_metrics_router
+from app.api.v1.admin import notifications as admin_notifications_router
+from app.api.v1.admin import owners as admin_owners_router
+from app.api.v1.admin import (
+    partner_applications as admin_partner_applications_router,
+)
+from app.api.v1.admin import payments as admin_payments_router
+from app.api.v1.admin import payouts as admin_payouts_router
+from app.api.v1.admin import plans as admin_plans_router
+from app.api.v1.admin import referrals as admin_referrals_router
+from app.api.v1.admin import settings as admin_settings_router
+from app.api.v1.admin import subscriptions as admin_subscriptions_router
+from app.api.v1.admin import support as admin_support_router
+from app.api.v1.admin import users as admin_users_router
 from app.api.v1.member import checkins as checkins_router
+from app.api.v1.member import day_passes as member_day_passes_router
 from app.api.v1.member import gyms as gyms_router
 from app.api.v1.member import invoices as invoices_router
 from app.api.v1.member import me as me_router
 from app.api.v1.member import notifications as notifications_router
-from app.api.v1.member import day_passes as member_day_passes_router
 from app.api.v1.member import pauses as pauses_router
 from app.api.v1.member import payment_methods as payment_methods_router
 from app.api.v1.member import referrals as referrals_router
 from app.api.v1.member import subscriptions as subscriptions_router
 from app.api.v1.member import tickets as tickets_router
-from app.api.v1.admin import audit as admin_audit_router
-from app.api.v1.admin import checkins as admin_checkins_router
-from app.api.v1.admin import gyms as admin_gyms_router
-from app.api.v1.admin import (
-    partner_applications as admin_partner_applications_router,
-)
-from app.api.v1.admin import metrics as admin_metrics_router
-from app.api.v1.admin import notifications as admin_notifications_router
-from app.api.v1.admin import owners as admin_owners_router
-from app.api.v1.admin import payouts as admin_payouts_router
-from app.api.v1.admin import referrals as admin_referrals_router
-from app.api.v1.admin import plans as admin_plans_router
-from app.api.v1.admin import settings as admin_settings_router
-from app.api.v1.admin import subscriptions as admin_subscriptions_router
-from app.api.v1.admin import support as admin_support_router
-from app.api.v1.admin import users as admin_users_router
 from app.api.v1.partner import checkins as partner_checkins_router
 from app.api.v1.partner import day_passes as partner_day_passes_router
 from app.api.v1.partner import me as partner_me_router
@@ -64,7 +62,9 @@ from app.core.error_handlers import (
 from app.core.exceptions import AppError
 from app.core.logging import configure_logging
 from app.core.middleware import RequestContextMiddleware
+from app.core.redis_client import get_redis
 from app.core.sentry import configure_sentry
+from app.db.session import get_engine
 
 
 @asynccontextmanager
@@ -128,15 +128,14 @@ def create_app() -> FastAPI:
     # because the caller is anonymous (not member / admin / partner).
     app.include_router(partner_applications_router.router, prefix=v1_prefix)
     app.include_router(admin_gyms_router.router, prefix=v1_prefix)
-    app.include_router(
-        admin_partner_applications_router.router, prefix=v1_prefix
-    )
+    app.include_router(admin_partner_applications_router.router, prefix=v1_prefix)
     app.include_router(admin_users_router.router, prefix=v1_prefix)
     app.include_router(admin_plans_router.router, prefix=v1_prefix)
     app.include_router(admin_subscriptions_router.router, prefix=v1_prefix)
     app.include_router(admin_checkins_router.router, prefix=v1_prefix)
+    app.include_router(admin_day_passes_router.router, prefix=v1_prefix)
+    app.include_router(admin_payments_router.router, prefix=v1_prefix)
     app.include_router(admin_payouts_router.router, prefix=v1_prefix)
-    app.include_router(admin_audit_router.router, prefix=v1_prefix)
     app.include_router(admin_metrics_router.router, prefix=v1_prefix)
     app.include_router(admin_notifications_router.router, prefix=v1_prefix)
     app.include_router(admin_support_router.router, prefix=v1_prefix)

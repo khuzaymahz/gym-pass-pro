@@ -80,13 +80,15 @@
       "checkins": "تسجيلات الدخول",
       "referrals": "الإحالات",
       "notifications": "الإشعارات",
-      "audit": "سجل التدقيق",
       "admins": "المشرفون",
-      "settings": "الإعدادات"
+      "settings": "الإعدادات",
+      "dayPasses": "تذاكر اليوم"
     }
   },
   "account": {
-    "signOut": "تسجيل الخروج"
+    "signOut": "تسجيل الخروج",
+    "openMenu": "فتح القائمة",
+    "closeMenu": "إغلاق القائمة"
   },
   "locale": {
     "toggleTo": {
@@ -129,7 +131,9 @@
     "disabled": "معطّل",
     "none": "—",
     "of": "من",
-    "back": "رجوع"
+    "back": "رجوع",
+    "done": "تمّ.",
+    "savedToast": "تم حفظ التغييرات."
   },
   "login": {
     "title": "تسجيل الدخول",
@@ -280,7 +284,25 @@
       "invited": "المدعوّ",
       "identity": "الهوية",
       "memberSince": "عضو منذ",
-      "lastActive": "آخر نشاط"
+      "lastActive": "آخر نشاط",
+      "refund": "استرجاع",
+      "refundConfirm": "استرجاع هذه الدفعة؟ سيتم وضع علامة استرجاع عليها."
+    },
+    "sessions": {
+      "title": "الجلسات والأجهزة",
+      "forceLogout": "تسجيل خروج إجباري",
+      "revokeConfirm": "إلغاء جميع الجلسات؟ سيتعيّن على العضو تسجيل الدخول مجددًا على كل جهاز.",
+      "none": "لا توجد جلسات مُسجّلة.",
+      "device": "الجهاز",
+      "status": "الحالة",
+      "lastUsed": "آخر استخدام",
+      "created": "أُنشئت",
+      "unknownDevice": "جهاز غير معروف",
+      "states": {
+        "active": "نشطة",
+        "revoked": "مُلغاة",
+        "expired": "منتهية"
+      }
     }
   },
   "gyms": {
@@ -369,7 +391,9 @@
       "hide": "إخفاء",
       "revoke": "إلغاء الحساب",
       "revokeHint": "الإلغاء يُسجِّل خروج الشريك من جميع الأجهزة ويمنع الدخول لاحقاً. ملف النادي والصور والسجل تبقى دون تغيير.",
-      "revokeConfirm": "إلغاء حساب الشريك لـ {phone}؟ سيتم تسجيل خروجه فوراً."
+      "revokeConfirm": "إلغاء حساب الشريك لـ {phone}؟ سيتم تسجيل خروجه فوراً.",
+      "createdToast": "تم إنشاء دخول الشريك.",
+      "revokedToast": "تم إلغاء دخول الشريك."
     },
     "logo": {
       "title": "الشعار",
@@ -437,7 +461,20 @@
       "hint": "امسح المرشّحات أو انتظر اشتراك عضو."
     },
     "cancel": "إلغاء",
-    "cancelConfirm": "إلغاء هذا الاشتراك؟"
+    "cancelConfirm": "إلغاء هذا الاشتراك؟",
+    "manage": {
+      "manage": "إدارة",
+      "title": "إدارة الاشتراك",
+      "extendDays": "تمديد بـ (أيام)",
+      "apply": "تطبيق",
+      "visitsUsed": "الزيارات المستخدمة",
+      "set": "تعيين",
+      "tier": "الفئة",
+      "change": "تغيير",
+      "restore": "استعادة",
+      "resumePause": "إنهاء الإيقاف",
+      "hint": "تُسجَّل جميع الإجراءات في سجل التدقيق."
+    }
   },
   "plans": {
     "title": "الباقات",
@@ -540,32 +577,6 @@
       "userId": "معرّف المستخدم",
       "since": "من",
       "until": "إلى",
-      "uuidPlaceholder": "uuid"
-    }
-  },
-  "audit": {
-    "title": "سجل التدقيق",
-    "description": "كل تعديل في النظام موثّق هنا.",
-    "found": "نتيجة",
-    "table": {
-      "when": "متى",
-      "actor": "الفاعل",
-      "action": "الإجراء",
-      "entity": "الكيان",
-      "diff": "الفرق",
-      "ip": "IP"
-    },
-    "empty": {
-      "title": "لا قيود مطابقة",
-      "hint": "عدّل المرشّحات أو انتظر نشاطاً."
-    },
-    "filters": {
-      "search": "الفاعل / الإجراء / الكيان…",
-      "entity": "الكيان",
-      "entityPlaceholder": "user, plan, payout…",
-      "actionPrefix": "بادئة الإجراء",
-      "actionPlaceholder": "admin.user.update",
-      "actorUuid": "معرّف الفاعل",
       "uuidPlaceholder": "uuid"
     }
   },
@@ -774,6 +785,7 @@
   "checkinStatuses": {
     "success": "ناجح",
     "tier_locked": "باقة محظورة",
+    "gender_locked": "الجنس محظور",
     "no_visits": "لا زيارات متبقية",
     "expired": "منتهٍ",
     "invalid_qr": "QR غير صالح",
@@ -788,7 +800,8 @@
   "paymentStatuses": {
     "pending": "معلّق",
     "succeeded": "ناجح",
-    "failed": "فاشل"
+    "failed": "فاشل",
+    "refunded": "مُسترجعة"
   },
   "paymentMethods": {
     "card": "بطاقة",
@@ -852,5 +865,58 @@
     "approvedSummary": "تمت الموافقة على هذا الطلب.",
     "rejectedSummary": "تم رفض هذا الطلب.",
     "viewGym": "عرض النادي ←"
+  },
+  "dayPassStatuses": {
+    "pending": "قيد الانتظار",
+    "active": "نشطة",
+    "used": "مستخدمة",
+    "expired": "منتهية",
+    "refunded": "مُسترجعة"
+  },
+  "dayPasses": {
+    "title": "تذاكر اليوم",
+    "description": "عروض كل نادٍ والتذاكر المُباعة عليها.",
+    "offeringsTitle": "العروض",
+    "passesTitle": "التذاكر المُباعة",
+    "on": "مفعّل",
+    "off": "متوقف",
+    "refund": "استرجاع",
+    "refundConfirm": "استرجاع تذكرة اليوم هذه؟ سيتم وضع علامة استرجاع على الدفعة.",
+    "stats": {
+      "offerings": "العروض",
+      "enabled": "المُفعّلة",
+      "passesSold": "التذاكر المُباعة"
+    },
+    "offeringsEmpty": {
+      "title": "لا توجد عروض مُهيّأة",
+      "hint": "فعّل تذاكر اليوم على نادٍ لتظهر هنا."
+    },
+    "passesEmpty": {
+      "title": "لا توجد تذاكر مطابقة",
+      "hint": "امسح عوامل التصفية، أو انتظر شراء أحد الأعضاء."
+    },
+    "table": {
+      "gym": "النادي",
+      "status": "الحالة",
+      "price": "السعر",
+      "feePct": "نسبة العمولة",
+      "validity": "الصلاحية",
+      "cap": "الحد اليومي",
+      "member": "العضو",
+      "net": "صافي النادي",
+      "window": "الفترة"
+    },
+    "configure": {
+      "configure": "تهيئة",
+      "title": "تهيئة العرض",
+      "enabled": "مُفعّل للبيع",
+      "price": "السعر (د.أ)",
+      "feePct": "نسبة عمولة المنصة",
+      "validity": "الصلاحية (ساعات)",
+      "dailyCap": "الحد اليومي",
+      "unlimited": "∞",
+      "save": "حفظ",
+      "hint": "نسبة العمولة والصلاحية للمشرف فقط."
+    }
   }
 }

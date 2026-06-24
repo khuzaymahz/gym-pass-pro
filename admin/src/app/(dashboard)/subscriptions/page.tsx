@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import CancelSubscriptionButton from "@/components/CancelSubscriptionButton";
 import EmptyState from "@/components/EmptyState";
 import { FilterBar, Segmented, SearchInput } from "@/components/FilterBar";
+import ManageSubscription from "@/components/ManageSubscription";
 import Pager from "@/components/Pager";
 import StatTile from "@/components/StatTile";
 import StatusPill from "@/components/StatusPill";
@@ -81,6 +82,26 @@ export default async function SubscriptionsPage({
   async function cancel(id: string) {
     "use server";
     return runAction(() => AdminSDK.cancelSubscription(id));
+  }
+  async function extend(id: string, days: number) {
+    "use server";
+    return runAction(() => AdminSDK.extendSubscription(id, days));
+  }
+  async function setVisits(id: string, visitsUsed: number) {
+    "use server";
+    return runAction(() => AdminSDK.setSubscriptionVisits(id, visitsUsed));
+  }
+  async function changeTier(id: string, tier: Tier) {
+    "use server";
+    return runAction(() => AdminSDK.changeSubscriptionTier(id, tier));
+  }
+  async function restore(id: string) {
+    "use server";
+    return runAction(() => AdminSDK.restoreSubscription(id));
+  }
+  async function resumePause(id: string) {
+    "use server";
+    return runAction(() => AdminSDK.resumeSubscriptionPause(id));
   }
 
   const totalPages = Math.max(1, Math.ceil(result.total / result.pageSize));
@@ -203,11 +224,26 @@ export default async function SubscriptionsPage({
                     </span>
                   </td>
                   <td className="text-right">
-                    {s.status === "active" || s.status === "pending" ? (
-                      <CancelSubscriptionButton action={cancel.bind(null, s.id)} />
-                    ) : (
-                      <span className="text-[11px] text-muted">—</span>
-                    )}
+                    <div className="flex items-center justify-end gap-2">
+                      <ManageSubscription
+                        sub={{
+                          id: s.id,
+                          status: s.status,
+                          tier: s.tier,
+                          visitsUsed: s.visitsUsed,
+                        }}
+                        extend={extend.bind(null, s.id)}
+                        setVisits={setVisits.bind(null, s.id)}
+                        changeTier={changeTier.bind(null, s.id)}
+                        restore={restore.bind(null, s.id)}
+                        resumePause={resumePause.bind(null, s.id)}
+                      />
+                      {s.status === "active" || s.status === "pending" ? (
+                        <CancelSubscriptionButton
+                          action={cancel.bind(null, s.id)}
+                        />
+                      ) : null}
+                    </div>
                   </td>
                 </tr>
               ))}

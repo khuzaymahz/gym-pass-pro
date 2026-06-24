@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getServerSession } from "next-auth";
+import { cache } from "react";
 
 import { api } from "@/lib/api";
 import { authOptions } from "@/lib/auth";
@@ -35,7 +36,11 @@ export type Role = "admin" | "member";
 export type Gender = "male" | "female";
 export type ReferralStatus = "pending" | "converted" | "expired";
 export type PaymentMethod = "card" | "cliq" | "apple_pay" | "mock";
-export type PaymentStatus = "pending" | "succeeded" | "failed";
+export type PaymentStatus =
+  | "pending"
+  | "succeeded"
+  | "failed"
+  | "refunded";
 
 export type AdminUser = {
   id: string;
@@ -60,12 +65,23 @@ export type AdminUserUpdate = Partial<{
   name: string;
   firstName: string;
   lastName: string;
+  email: string;
+  phone: string;
   gender: Gender;
   birthdate: string;
   role: Role;
   locale: "ar" | "en";
   isActive: boolean;
 }>;
+
+export type AdminSession = {
+  id: string;
+  deviceInfo: string | null;
+  createdAt: string;
+  lastUsedAt: string | null;
+  expiresAt: string;
+  revokedAt: string | null;
+};
 
 export type AdminReferralPersonRef = {
   id: string;
@@ -209,6 +225,71 @@ export type AdminSubscription = {
   cancelledAt: string | null;
 };
 
+/** Single subscription returned by the management mutations. Mirrors
+ *  the backend AdminSubscriptionRead (no joined user fields — the UI
+ *  refreshes the row from its existing context). */
+export type AdminSubscriptionRead = {
+  id: string;
+  userId: string;
+  planId: string;
+  tier: Tier;
+  status: SubscriptionStatus;
+  startsAt: string;
+  expiresAt: string;
+  visitsUsed: number;
+  autoRenew: boolean;
+  cancelledAt: string | null;
+};
+
+export type DayPassStatus =
+  | "pending"
+  | "active"
+  | "used"
+  | "expired"
+  | "refunded";
+
+export type AudienceGender = "mixed" | "female_only" | "male_only";
+
+export type AdminDayPassOffering = {
+  id: string;
+  gymId: string;
+  gymNameEn: string;
+  gymNameAr: string;
+  gymSlug: string;
+  isEnabled: boolean;
+  priceJod: string;
+  platformFeePct: string;
+  validityHours: number;
+  dailyCap: number | null;
+  audienceGenderOverride: AudienceGender | null;
+};
+
+export type AdminDayPassOfferingConfigure = {
+  isEnabled: boolean;
+  priceJod: string;
+  platformFeePct: string;
+  validityHours: number;
+  dailyCap: number | null;
+  audienceGenderOverride: AudienceGender | null;
+};
+
+export type AdminDayPass = {
+  id: string;
+  userId: string;
+  userName: string | null;
+  userPhone: string | null;
+  gymId: string;
+  gymNameEn: string;
+  status: DayPassStatus;
+  priceJod: string;
+  platformFeeJod: string;
+  netAmountJod: string;
+  purchasedAt: string;
+  expiresAt: string;
+  usedAt: string | null;
+  refundedAt: string | null;
+};
+
 export type AdminCheckin = {
   id: string;
   userId: string;
@@ -252,18 +333,6 @@ export type AdminPayoutDetail = {
   totalEntries: number;
   page: number;
   pageSize: number;
-};
-
-export type AdminAuditEntry = {
-  id: string;
-  actorUserId: string | null;
-  actorRole: Role | null;
-  action: string;
-  entityType: string;
-  entityId: string | null;
-  diff: Record<string, unknown>;
-  ipAddress: string | null;
-  createdAt: string;
 };
 
 export type SystemSettings = {
@@ -412,13 +481,21 @@ export type BroadcastBody = {
  *  so service-specific SDKs (`lib/gyms.ts`, `lib/referrals.ts`,
  *  etc.) reuse a single implementation rather than redeclaring
  *  their own — drift in the token source would otherwise be three
- *  bugs to find. */
-export async function serviceToken(): Promise<string> {
+ *  bugs to find.
+ *
+ *  Wrapped in React `cache()` so the session is decoded ONCE per
+ *  server request, no matter how many SDK calls a render fans out.
+ *  Previously every `AdminSDK.*` call (the layout's 3 sidebar badges
+ *  + each page's fetches) re-ran `getServerSession` — cookie parse +
+ *  JWT decrypt + callbacks — adding avoidable latency to every
+ *  navigation. `cache` dedupes it within a request without leaking
+ *  across requests/users. */
+export const serviceToken = cache(async (): Promise<string> => {
   const session = await getServerSession(authOptions);
   const token = session?.serviceToken;
   if (!token) throw new Error("Missing admin service token.");
   return token;
-}
+});
 
 function qs(params: Record<string, string | number | boolean | null | undefined>) {
   const parts = Object.entries(params)
@@ -481,6 +558,17 @@ export const AdminSDK = {
       token: await serviceToken(),
     });
   },
+  async listUserSessions(id: string): Promise<AdminSession[]> {
+    return api(`/api/v1/admin/users/${id}/sessions`, {
+      token: await serviceToken(),
+    });
+  },
+  async revokeUserSessions(id: string): Promise<void> {
+    return api(`/api/v1/admin/users/${id}/revoke-sessions`, {
+      method: "POST",
+      token: await serviceToken(),
+    });
+  },
 
   // Plans
   async listPlans(): Promise<PlanRead[]> {
@@ -508,6 +596,104 @@ export const AdminSDK = {
   },
   async cancelSubscription(id: string): Promise<void> {
     return api(`/api/v1/admin/subscriptions/${id}/cancel`, {
+      method: "POST",
+      token: await serviceToken(),
+    });
+  },
+  async extendSubscription(
+    id: string,
+    days: number,
+  ): Promise<AdminSubscriptionRead> {
+    return api(`/api/v1/admin/subscriptions/${id}/extend`, {
+      method: "POST",
+      body: JSON.stringify({ days }),
+      token: await serviceToken(),
+    });
+  },
+  async setSubscriptionVisits(
+    id: string,
+    visitsUsed: number,
+  ): Promise<AdminSubscriptionRead> {
+    return api(`/api/v1/admin/subscriptions/${id}/visits`, {
+      method: "POST",
+      body: JSON.stringify({ visitsUsed }),
+      token: await serviceToken(),
+    });
+  },
+  async changeSubscriptionTier(
+    id: string,
+    tier: Tier,
+  ): Promise<AdminSubscriptionRead> {
+    return api(`/api/v1/admin/subscriptions/${id}/tier`, {
+      method: "POST",
+      body: JSON.stringify({ tier }),
+      token: await serviceToken(),
+    });
+  },
+  async restoreSubscription(id: string): Promise<AdminSubscriptionRead> {
+    return api(`/api/v1/admin/subscriptions/${id}/restore`, {
+      method: "POST",
+      token: await serviceToken(),
+    });
+  },
+  async resumeSubscriptionPause(id: string): Promise<void> {
+    return api(`/api/v1/admin/subscriptions/${id}/resume-pause`, {
+      method: "POST",
+      token: await serviceToken(),
+    });
+  },
+  async compSubscription(
+    userId: string,
+    planId: string,
+  ): Promise<AdminSubscriptionRead> {
+    return api(`/api/v1/admin/subscriptions/comp`, {
+      method: "POST",
+      body: JSON.stringify({ userId, planId }),
+      token: await serviceToken(),
+    });
+  },
+
+  // Day passes
+  async listDayPassOfferings(params: {
+    enabled?: boolean;
+    page?: number;
+    pageSize?: number;
+  }): Promise<Page<AdminDayPassOffering>> {
+    return api(`/api/v1/admin/day-pass/offerings${qs(params)}`, {
+      token: await serviceToken(),
+    });
+  },
+  async configureDayPassOffering(
+    gymId: string,
+    body: AdminDayPassOfferingConfigure,
+  ): Promise<AdminDayPassOffering> {
+    return api(`/api/v1/admin/day-pass/offerings/${gymId}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+      token: await serviceToken(),
+    });
+  },
+  async listDayPasses(params: {
+    status?: DayPassStatus;
+    gymId?: string;
+    userId?: string;
+    page?: number;
+    pageSize?: number;
+  }): Promise<Page<AdminDayPass>> {
+    return api(`/api/v1/admin/day-pass/passes${qs(params)}`, {
+      token: await serviceToken(),
+    });
+  },
+  async refundDayPass(passId: string): Promise<AdminDayPass> {
+    return api(`/api/v1/admin/day-pass/passes/${passId}/refund`, {
+      method: "POST",
+      token: await serviceToken(),
+    });
+  },
+
+  // Payments
+  async refundPayment(paymentId: string): Promise<{ id: string; status: PaymentStatus }> {
+    return api(`/api/v1/admin/payments/${paymentId}/refund`, {
       method: "POST",
       token: await serviceToken(),
     });
@@ -559,18 +745,6 @@ export const AdminSDK = {
     });
   },
 
-  // Audit
-  async listAudit(params: {
-    entityType?: string;
-    actorUserId?: string;
-    action?: string;
-    page?: number;
-    pageSize?: number;
-  }): Promise<Page<AdminAuditEntry>> {
-    return api(`/api/v1/admin/audit${qs(params)}`, {
-      token: await serviceToken(),
-    });
-  },
 
   // Notifications
   async broadcast(body: BroadcastBody): Promise<{ recipients: number }> {

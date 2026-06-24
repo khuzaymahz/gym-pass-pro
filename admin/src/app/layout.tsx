@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Archivo, Inter, JetBrains_Mono } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import { cookies } from "next/headers";
@@ -8,9 +8,25 @@ import type { ReactNode } from "react";
 import { themeBootScript } from "@/components/ThemeToggle";
 import "@/styles/globals.css";
 
+// Type system (brand-consistent with the mobile app):
+//  • Inter         — body / UI text
+//  • Archivo       — display: headings, brand, stat values
+//  • JetBrains Mono — data: tabular numbers, ids, labels
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
+  display: "swap",
+});
+const archivo = Archivo({
+  subsets: ["latin"],
+  variable: "--font-display",
+  weight: ["500", "600", "700"],
+  display: "swap",
+});
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+  weight: ["400", "500"],
   display: "swap",
 });
 
@@ -38,7 +54,7 @@ export default async function RootLayout({
     <html
       lang={locale}
       dir={dir}
-      className={inter.variable}
+      className={`${inter.variable} ${archivo.variable} ${jetbrainsMono.variable}`}
       data-theme={theme}
       suppressHydrationWarning
     >

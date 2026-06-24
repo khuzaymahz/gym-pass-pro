@@ -38,11 +38,12 @@ from app.repositories.subscription_pause_repo import SubscriptionPauseRepository
 from app.repositories.subscription_repo import SubscriptionRepository
 from app.repositories.support_ticket_repo import SupportTicketRepository
 from app.repositories.user_repo import UserRepository
-from app.services.admin_audit_service import AdminAuditService
 from app.services.admin_broadcast_service import AdminBroadcastService
 from app.services.admin_checkin_read_service import AdminCheckinReadService
+from app.services.admin_day_pass_service import AdminDayPassService
 from app.services.admin_metrics_service import AdminMetricsService
 from app.services.admin_partner_service import AdminPartnerService
+from app.services.admin_payment_service import AdminPaymentService
 from app.services.admin_payout_service import AdminPayoutService
 from app.services.admin_plan_service import AdminPlanService
 from app.services.admin_subscription_service import AdminSubscriptionService
@@ -158,6 +159,7 @@ def referral_repo(session: SessionDep) -> ReferralRepository:
 
 # ----- Providers -----
 
+
 def sms_provider() -> SmsProvider:
     return build_sms_provider()
 
@@ -172,13 +174,12 @@ def push_provider() -> PushProvider:
 
 # ----- Services -----
 
+
 def rate_limiter(redis: Annotated[Redis, Depends(redis_client)]) -> RateLimiter:
     return RateLimiter(redis)
 
 
-def audit_service(
-    repo: Annotated[AuditRepository, Depends(audit_repo)]
-) -> AuditService:
+def audit_service(repo: Annotated[AuditRepository, Depends(audit_repo)]) -> AuditService:
     return AuditService(repo)
 
 
@@ -191,9 +192,7 @@ def auth_service(
     audit: Annotated[AuditService, Depends(audit_service)],
     referrals_svc: Annotated[ReferralService, Depends(referral_service)],
 ) -> AuthService:
-    return AuthService(
-        users, otps, refreshes, rl, sms, audit, referrals_svc
-    )
+    return AuthService(users, otps, refreshes, rl, sms, audit, referrals_svc)
 
 
 def referral_service(
@@ -213,15 +212,11 @@ def subscription_service(
     audit: Annotated[AuditService, Depends(audit_service)],
     referrals_svc: Annotated[ReferralService, Depends(referral_service)],
 ) -> SubscriptionService:
-    return SubscriptionService(
-        subs, plans, payments, checkins, provider, audit, referrals_svc
-    )
+    return SubscriptionService(subs, plans, payments, checkins, provider, audit, referrals_svc)
 
 
 def day_pass_service(
-    offerings: Annotated[
-        DayPassOfferingRepository, Depends(day_pass_offering_repo)
-    ],
+    offerings: Annotated[DayPassOfferingRepository, Depends(day_pass_offering_repo)],
     passes: Annotated[DayPassRepository, Depends(day_pass_repo)],
     gyms: Annotated[GymRepository, Depends(gym_repo)],
     subs: Annotated[SubscriptionRepository, Depends(subscription_repo)],
@@ -245,9 +240,7 @@ def checkin_service(
     subs: Annotated[SubscriptionRepository, Depends(subscription_repo)],
     plans: Annotated[PlanRepository, Depends(plan_repo)],
     checkins: Annotated[CheckinRepository, Depends(checkin_repo)],
-    pauses: Annotated[
-        SubscriptionPauseRepository, Depends(subscription_pause_repo)
-    ],
+    pauses: Annotated[SubscriptionPauseRepository, Depends(subscription_pause_repo)],
     ledger: Annotated[PayoutLedgerRepository, Depends(payout_repo)],
     rl: Annotated[RateLimiter, Depends(rate_limiter)],
     audit: Annotated[AuditService, Depends(audit_service)],
@@ -283,9 +276,7 @@ def partner_application_repo(
 
 def partner_application_service(
     session: SessionDep,
-    repo: Annotated[
-        PartnerApplicationRepository, Depends(partner_application_repo)
-    ],
+    repo: Annotated[PartnerApplicationRepository, Depends(partner_application_repo)],
     gyms: Annotated[GymRepository, Depends(gym_repo)],
     users: Annotated[UserRepository, Depends(user_repo)],
     audit: Annotated[AuditService, Depends(audit_service)],
@@ -301,9 +292,7 @@ def payment_method_service(
 
 
 def pause_service(
-    pauses: Annotated[
-        SubscriptionPauseRepository, Depends(subscription_pause_repo)
-    ],
+    pauses: Annotated[SubscriptionPauseRepository, Depends(subscription_pause_repo)],
     subs: Annotated[SubscriptionRepository, Depends(subscription_repo)],
     plans: Annotated[PlanRepository, Depends(plan_repo)],
     audit: Annotated[AuditService, Depends(audit_service)],
@@ -312,6 +301,7 @@ def pause_service(
 
 
 # ----- Admin services -----
+
 
 def admin_user_service(
     users: Annotated[UserRepository, Depends(user_repo)],
@@ -338,9 +328,29 @@ def admin_plan_service(
 
 def admin_subscription_service(
     subs: Annotated[SubscriptionRepository, Depends(subscription_repo)],
+    plans: Annotated[PlanRepository, Depends(plan_repo)],
+    pauses: Annotated[SubscriptionPauseRepository, Depends(subscription_pause_repo)],
+    pauses_svc: Annotated[PauseService, Depends(pause_service)],
     audit: Annotated[AuditService, Depends(audit_service)],
 ) -> AdminSubscriptionService:
-    return AdminSubscriptionService(subs, audit)
+    return AdminSubscriptionService(subs, plans, pauses, pauses_svc, audit)
+
+
+def admin_day_pass_service(
+    offerings: Annotated[DayPassOfferingRepository, Depends(day_pass_offering_repo)],
+    passes: Annotated[DayPassRepository, Depends(day_pass_repo)],
+    payments: Annotated[PaymentRepository, Depends(payment_repo)],
+    gyms: Annotated[GymRepository, Depends(gym_repo)],
+    audit: Annotated[AuditService, Depends(audit_service)],
+) -> AdminDayPassService:
+    return AdminDayPassService(offerings, passes, payments, gyms, audit)
+
+
+def admin_payment_service(
+    payments: Annotated[PaymentRepository, Depends(payment_repo)],
+    audit: Annotated[AuditService, Depends(audit_service)],
+) -> AdminPaymentService:
+    return AdminPaymentService(payments, audit)
 
 
 def admin_payout_service(
@@ -397,12 +407,6 @@ def admin_partner_service(
     return AdminPartnerService(users, gyms, audit)
 
 
-def admin_audit_service(
-    repo: Annotated[AuditRepository, Depends(audit_repo)],
-) -> AdminAuditService:
-    return AdminAuditService(repo)
-
-
 def admin_checkin_read_service(
     checkins: Annotated[CheckinRepository, Depends(checkin_repo)],
 ) -> AdminCheckinReadService:
@@ -416,6 +420,7 @@ def partner_checkin_read_service(
 
 
 # ----- Auth / actor -----
+
 
 def _client_ip(request: Request) -> str | None:
     """Resolve the originating client IP, honoring `X-Forwarded-For` /
@@ -638,9 +643,7 @@ async def current_gym_owner(
     if user.role != Role.GYM_OWNER:
         raise AppError(ErrorCode.AUTH_FORBIDDEN, "Gym owner role required.")
     if user.gym_id is None:
-        raise AppError(
-            ErrorCode.AUTH_FORBIDDEN, "Gym owner is not linked to a gym."
-        )
+        raise AppError(ErrorCode.AUTH_FORBIDDEN, "Gym owner is not linked to a gym.")
     return user
 
 

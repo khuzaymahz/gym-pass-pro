@@ -11,6 +11,7 @@ from app.api.deps import (
     admin_user_service,
     authed_actor,
     current_admin,
+    current_admin_ops,
     current_admin_super,
     db_session,
 )
@@ -20,6 +21,7 @@ from app.schemas.admin import (
     AdminCreate,
     AdminPasswordReset,
     AdminReferralPersonRef,
+    AdminSessionRead,
     AdminUserDetail,
     AdminUserDetailCheckin,
     AdminUserDetailPayment,
@@ -49,8 +51,11 @@ async def list_users(
     page_size: int = Query(default=20, ge=1, le=100, alias="pageSize"),
 ) -> Page[AdminUserRead]:
     rows, total = await svc.list(
-        role=role, q=q, include_deleted=include_deleted,
-        page=page, page_size=page_size,
+        role=role,
+        q=q,
+        include_deleted=include_deleted,
+        page=page,
+        page_size=page_size,
     )
     return Page[AdminUserRead](
         items=[AdminUserRead.model_validate(r) for r in rows],
@@ -126,9 +131,32 @@ async def reset_password(
 ) -> None:
     # Resetting another admin's password — same risk shape as
     # creating one. Super-only.
-    await svc.reset_admin_password(
-        user_id, body.password, actor=authed_actor(request, admin)
-    )
+    await svc.reset_admin_password(user_id, body.password, actor=authed_actor(request, admin))
+    await session.commit()
+
+
+@router.get("/{user_id}/sessions", response_model=list[AdminSessionRead])
+async def list_sessions(
+    user_id: UUID,
+    svc: Annotated[AdminUserService, Depends(admin_user_service)],
+    _: Annotated[User, Depends(current_admin)],
+) -> list[AdminSessionRead]:
+    rows = await svc.list_sessions(user_id)
+    return [AdminSessionRead.model_validate(r) for r in rows]
+
+
+@router.post("/{user_id}/revoke-sessions", status_code=204)
+async def revoke_sessions(
+    user_id: UUID,
+    request: Request,
+    svc: Annotated[AdminUserService, Depends(admin_user_service)],
+    admin: Annotated[User, Depends(current_admin_ops)],
+    session: Annotated[AsyncSession, Depends(db_session)],
+) -> None:
+    # Force-logout: any ops admin can revoke a member's (or admin's)
+    # sessions — a security/account-recovery action, not a privilege
+    # escalation, so it doesn't need super.
+    await svc.revoke_sessions(user_id, actor=authed_actor(request, admin))
     await session.commit()
 
 
@@ -165,13 +193,9 @@ def _to_detail_schema(detail: UserDetail) -> AdminUserDetail:
                 status=item.subscription.status,
                 planId=item.subscription.plan_id,
                 planTier=item.plan.tier if item.plan else None,
-                planDurationMonths=(
-                    item.plan.duration_months if item.plan else None
-                ),
+                planDurationMonths=(item.plan.duration_months if item.plan else None),
                 planPriceJod=item.plan.price_jod if item.plan else None,
-                planMonthlyVisits=(
-                    item.plan.monthly_visits if item.plan else None
-                ),
+                planMonthlyVisits=(item.plan.monthly_visits if item.plan else None),
                 startsAt=item.subscription.starts_at,
                 expiresAt=item.subscription.expires_at,
                 visitsUsed=item.subscription.visits_used,
@@ -184,12 +208,8 @@ def _to_detail_schema(detail: UserDetail) -> AdminUserDetail:
         payments=[
             AdminUserDetailPayment(
                 id=entry.payment.id,
-                subscriptionId=(
-                    entry.subscription.id if entry.subscription else None
-                ),
-                subscriptionTier=(
-                    entry.subscription.tier if entry.subscription else None
-                ),
+                subscriptionId=(entry.subscription.id if entry.subscription else None),
+                subscriptionTier=(entry.subscription.tier if entry.subscription else None),
                 amountJod=entry.payment.amount_jod,
                 method=entry.payment.method,
                 status=entry.payment.status,
@@ -226,9 +246,7 @@ def _to_detail_schema(detail: UserDetail) -> AdminUserDetail:
             for c, g in detail.recent_checkins
         ],
         paymentMethods=[
-            AdminUserDetailPaymentMethodsEntry(
-                method=m["method"], count=m["count"], last=m["last"]
-            )
+            AdminUserDetailPaymentMethodsEntry(method=m["method"], count=m["count"], last=m["last"])
             for m in detail.payment_method_summary["methods"]
         ],
         totals=AdminUserDetailTotals(

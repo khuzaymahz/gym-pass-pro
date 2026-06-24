@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import RefreshToken
@@ -31,6 +31,19 @@ class RefreshTokenRepository:
 
     async def get(self, jti: UUID) -> RefreshToken | None:
         return await self.session.get(RefreshToken, jti)
+
+    async def list_for_user(self, user_id: UUID, *, limit: int = 50) -> list[RefreshToken]:
+        """All refresh-token (session) rows for a user, newest first.
+        Powers the admin "active devices" view + the force-logout
+        decision. Includes revoked/expired rows so the admin can see
+        recent session history, not just live ones."""
+        stmt = (
+            select(RefreshToken)
+            .where(RefreshToken.user_id == user_id)
+            .order_by(RefreshToken.created_at.desc())
+            .limit(limit)
+        )
+        return list((await self.session.execute(stmt)).scalars().all())
 
     async def revoke(self, row: RefreshToken, now: datetime) -> None:
         row.revoked_at = now

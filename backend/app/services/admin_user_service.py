@@ -43,8 +43,11 @@ class AdminUserService:
         page_size: int,
     ) -> tuple[list[User], int]:
         return await self.users.list_paginated(
-            role=role, q=q, include_deleted=include_deleted,
-            page=page, page_size=page_size,
+            role=role,
+            q=q,
+            include_deleted=include_deleted,
+            page=page,
+            page_size=page_size,
         )
 
     async def get(self, user_id: UUID) -> User:
@@ -53,12 +56,38 @@ class AdminUserService:
             raise AppError(ErrorCode.NOT_FOUND, "User not found.")
         return user
 
-    async def update(
-        self, user_id: UUID, data: AdminUserUpdate, *, actor: Actor
-    ) -> User:
+    async def update(self, user_id: UUID, data: AdminUserUpdate, *, actor: Actor) -> User:
         user = await self.get(user_id)
         before = _snapshot(user)
         updates = data.model_dump(by_alias=False, exclude_unset=True)
+
+        # ----- Contact-change guards (phone / email) -----
+        # Admins can correct a member's contact details, but the
+        # unique-when-not-null indexes would 500 on a collision — turn
+        # those into clean validation errors. Empty string normalises
+        # to NULL so an admin can clear a stale value.
+        if "email" in updates:
+            email = (updates["email"] or "").strip() or None
+            updates["email"] = email
+            if email is not None:
+                clash = await self.users.get_by_email(email)
+                if clash is not None and clash.id != user.id:
+                    raise AppError(
+                        ErrorCode.VALIDATION_ERROR,
+                        "Email already in use.",
+                        details={"field": "email"},
+                    )
+        if "phone" in updates:
+            phone = (updates["phone"] or "").strip() or None
+            updates["phone"] = phone
+            if phone is not None:
+                clash = await self.users.get_by_phone(phone)
+                if clash is not None and clash.id != user.id:
+                    raise AppError(
+                        ErrorCode.VALIDATION_ERROR,
+                        "Phone already in use.",
+                        details={"field": "phone"},
+                    )
 
         # ----- Role-change guards -----
         # Admin can't change their *own* role — they'd lock themselves
@@ -74,11 +103,7 @@ class AdminUserService:
         # system would have no one with admin permissions, and the
         # only recovery path is a server-side bootstrap. Counts only
         # *active* (non-deleted) admins to ignore tombstoned rows.
-        if (
-            "role" in updates
-            and updates["role"] != Role.ADMIN
-            and user.role == Role.ADMIN
-        ):
+        if "role" in updates and updates["role"] != Role.ADMIN and user.role == Role.ADMIN:
             live_admins = await self.users.count_by_role(Role.ADMIN)
             if live_admins <= 1:
                 raise AppError(
@@ -91,9 +116,7 @@ class AdminUserService:
             await self.users.restore(user)
         elif is_active is False:
             if user.id == actor.user_id:
-                raise AppError(
-                    ErrorCode.VALIDATION_ERROR, "Cannot deactivate yourself."
-                )
+                raise AppError(ErrorCode.VALIDATION_ERROR, "Cannot deactivate yourself.")
             # Same last-admin guard for soft-delete: deactivating an
             # admin counts as "no longer admin" for access purposes.
             if user.role == Role.ADMIN:
@@ -159,17 +182,11 @@ class AdminUserService:
         )
         return user
 
-    async def reset_admin_password(
-        self, user_id: UUID, new_password: str, *, actor: Actor
-    ) -> None:
+    async def reset_admin_password(self, user_id: UUID, new_password: str, *, actor: Actor) -> None:
         user = await self.get(user_id)
         if user.role != Role.ADMIN:
-            raise AppError(
-                ErrorCode.VALIDATION_ERROR, "Target user is not an admin."
-            )
-        await self.users.update_fields(
-            user, password_hash=await hash_password_async(new_password)
-        )
+            raise AppError(ErrorCode.VALIDATION_ERROR, "Target user is not an admin.")
+        await self.users.update_fields(user, password_hash=await hash_password_async(new_password))
         # Bump token_version so every outstanding access / service token
         # the target admin holds is rejected on the next request, AND
         # revoke every live refresh token so they can't trade a stale
@@ -186,6 +203,34 @@ class AdminUserService:
             entity_id=user.id,
             diff={"token_version": new_version, "sessions_revoked": True},
         )
+
+    async def revoke_sessions(self, user_id: UUID, *, actor: Actor) -> int:
+        """Force-logout: bump `token_version` (rejects every outstanding
+        access/service token on its next request) and revoke every live
+        refresh token (so a stale refresh can't be traded for a new
+        pair). Works for any user — members and admins alike. Returns
+        the number of refresh sessions revoked."""
+        user = await self.get(user_id)
+        new_version = await self.users.bump_token_version(user.id)
+        revoked = 0
+        if self.refreshes is not None:
+            revoked = await self.refreshes.revoke_all_for_user(user.id, utcnow())
+        await self.audit.log(
+            actor=actor,
+            action="admin.user.revoke_sessions",
+            entity_type="user",
+            entity_id=user.id,
+            diff={"token_version": new_version, "sessions_revoked": revoked},
+        )
+        return revoked
+
+    async def list_sessions(self, user_id: UUID) -> list:
+        """The user's refresh-token rows (active devices + recent
+        history) for the admin sessions panel."""
+        await self.get(user_id)  # 404 if the user doesn't exist
+        if self.refreshes is None:
+            return []
+        return await self.refreshes.list_for_user(user_id)
 
 
 def _snapshot(user: User) -> dict[str, object]:

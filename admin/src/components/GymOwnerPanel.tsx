@@ -3,6 +3,8 @@
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
+import PendingButton from "@/components/PendingButton";
+import { useToast } from "@/components/ui/Toast";
 import type { GymOwnerRead } from "@/lib/gyms";
 
 type CreateInput = { phone: string; password: string; name: string };
@@ -39,6 +41,7 @@ export function GymOwnerPanel({
 }: Props) {
   const t = useTranslations("gyms.owner");
   const tCommon = useTranslations("common");
+  const { toast } = useToast();
   const [owner, setOwner] = useState<GymOwnerRead | null>(initial);
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
@@ -54,13 +57,16 @@ export function GymOwnerPanel({
     const result = await createAction({ phone, password, name });
     setBusy(false);
     if (!result.ok) {
-      setError(result.error || tCommon("errorGeneric"));
+      const msg = result.error || tCommon("errorGeneric");
+      setError(msg);
+      toast(msg, "error");
       return;
     }
     setOwner(result.value);
     setPhone("");
     setPassword("");
     setName("");
+    toast(t("createdToast"), "success");
   }
 
   async function onRevoke() {
@@ -76,10 +82,13 @@ export function GymOwnerPanel({
     const result = await deleteAction();
     setBusy(false);
     if (!result.ok) {
-      setError(result.error || tCommon("errorGeneric"));
+      const msg = result.error || tCommon("errorGeneric");
+      setError(msg);
+      toast(msg, "error");
       return;
     }
     setOwner(null);
+    toast(t("revokedToast"), "success");
   }
 
   return (
@@ -102,14 +111,14 @@ export function GymOwnerPanel({
           </div>
           <div className="flex items-center justify-between border-t border-line pt-3">
             <p className="text-[11.5px] text-muted">{t("revokeHint")}</p>
-            <button
+            <PendingButton
               type="button"
-              className="btn-danger btn-sm"
               onClick={onRevoke}
-              disabled={busy}
-            >
-              {busy ? tCommon("saving") : t("revoke")}
-            </button>
+              pending={busy}
+              pendingLabel={tCommon("saving")}
+              idleLabel={t("revoke")}
+              className="btn-danger btn-sm"
+            />
           </div>
           {error ? (
             <p className="text-[12px] text-red-300">{error}</p>
@@ -176,13 +185,13 @@ export function GymOwnerPanel({
             ) : (
               <p className="text-[11.5px] text-muted">{t("createHint")}</p>
             )}
-            <button
+            <PendingButton
               type="submit"
+              pending={busy}
+              pendingLabel={tCommon("saving")}
+              idleLabel={t("create")}
               className="btn-primary btn-sm"
-              disabled={busy}
-            >
-              {busy ? tCommon("saving") : t("create")}
-            </button>
+            />
           </div>
         </form>
       )}

@@ -1,4 +1,5 @@
 import { useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 
 import StatusPill from "@/components/StatusPill";
 import EmptyRow from "@/components/users/EmptyRow";
@@ -10,12 +11,14 @@ import type {
   PaymentStatus,
 } from "@/lib/sdk";
 
-function payTone(status: PaymentStatus): "ok" | "warn" | "bad" {
+function payTone(status: PaymentStatus): "ok" | "warn" | "bad" | "mute" {
   switch (status) {
     case "succeeded":
       return "ok";
     case "pending":
       return "warn";
+    case "refunded":
+      return "mute";
     case "failed":
     default:
       return "bad";
@@ -65,9 +68,13 @@ function paymentMetaSummary(
 export default function PaymentsSection({
   payments,
   paymentMethods,
+  renderActions,
 }: {
   payments: AdminUserDetailPayment[];
   paymentMethods: AdminUserDetailPaymentMethod[];
+  /// Optional per-row action (e.g. refund), injected by the page so
+  /// this component stays presentation-only.
+  renderActions?: (payment: AdminUserDetailPayment) => ReactNode;
 }) {
   const t = useTranslations("users.detail");
   const tStatuses = useTranslations("paymentStatuses");
@@ -118,6 +125,7 @@ export default function PaymentsSection({
                 <th>{t("tier")}</th>
                 <th>{t("status")}</th>
                 <th className="num">{t("amount")}</th>
+                {renderActions ? <th className="w-0" /> : null}
               </tr>
             </thead>
             <tbody>
@@ -139,6 +147,9 @@ export default function PaymentsSection({
                     </StatusPill>
                   </td>
                   <td className="num">{p.amountJod} JOD</td>
+                  {renderActions ? (
+                    <td className="text-right">{renderActions(p)}</td>
+                  ) : null}
                 </tr>
               ))}
             </tbody>

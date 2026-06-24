@@ -1,4 +1,5 @@
 import { useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 
 import StatusPill from "@/components/StatusPill";
 import EmptyRow from "@/components/users/EmptyRow";
@@ -27,8 +28,13 @@ function subTone(status: SubscriptionStatus): "ok" | "warn" | "bad" | "mute" {
 /// renders the table or an empty row.
 export default function SubscriptionsSection({
   subscriptions,
+  renderActions,
 }: {
   subscriptions: AdminUserDetailSubscription[];
+  /// Optional per-row management control (injected by the page so this
+  /// component stays presentation-only). When omitted the table is
+  /// read-only, matching its original behaviour.
+  renderActions?: (sub: AdminUserDetailSubscription) => ReactNode;
 }) {
   const t = useTranslations("users.detail");
   const tStatuses = useTranslations("subscriptionStatuses");
@@ -55,6 +61,7 @@ export default function SubscriptionsSection({
                 <th className="num">{t("visits")}</th>
                 <th className="num">{t("price")}</th>
                 <th>{t("autoRenew")}</th>
+                {renderActions ? <th className="w-0" /> : null}
               </tr>
             </thead>
             <tbody>
@@ -95,6 +102,9 @@ export default function SubscriptionsSection({
                       <span className="text-muted">off</span>
                     )}
                   </td>
+                  {renderActions ? (
+                    <td className="text-right">{renderActions(s)}</td>
+                  ) : null}
                 </tr>
               ))}
             </tbody>

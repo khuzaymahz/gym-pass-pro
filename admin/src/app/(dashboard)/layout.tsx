@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 
 import { OfflineBanner } from "@/components/OfflineBanner";
 import Sidebar from "@/components/Sidebar";
+import { ToastProvider } from "@/components/ui/Toast";
 import { authOptions } from "@/lib/auth";
 import { AdminSDK } from "@/lib/sdk";
 
@@ -71,9 +72,11 @@ export default async function DashboardLayout({
           urgentTicketCount={urgentTicketCount}
           pendingApplicationCount={pendingApplicationCount}
         />
-        <main className="flex-1 overflow-x-hidden">
-          <div className="mx-auto w-full max-w-[1280px] px-10 py-8">
-            {children}
+        <main className="min-w-0 flex-1 overflow-x-hidden">
+          {/* pt clears the fixed mobile top bar (lg: the persistent rail
+              takes its place, so normal top padding returns). */}
+          <div className="fade-in mx-auto w-full max-w-[1280px] px-4 pb-12 pt-[72px] sm:px-6 lg:px-10 lg:pt-8">
+            <ToastProvider>{children}</ToastProvider>
           </div>
         </main>
       </div>

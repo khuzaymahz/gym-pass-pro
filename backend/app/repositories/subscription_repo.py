@@ -117,9 +117,7 @@ class SubscriptionRepository:
         sub.cancelled_at = now
         await self.session.flush()
 
-    async def list_expired_active(
-        self, *, now: datetime, limit: int
-    ) -> list[Subscription]:
+    async def list_expired_active(self, *, now: datetime, limit: int) -> list[Subscription]:
         """Return ACTIVE subscriptions whose `expires_at` is in the past.
 
         Used by the `expire_subscriptions` Celery beat task. The `limit`
@@ -147,15 +145,37 @@ class SubscriptionRepository:
         sub.status = SubscriptionStatus.EXPIRED
         await self.session.flush()
 
-    async def shift_expiry(
-        self, sub: Subscription, new_expires_at: datetime
-    ) -> None:
+    async def shift_expiry(self, sub: Subscription, new_expires_at: datetime) -> None:
         """Move the subscription's `expires_at` forward. Used by the
         pause service to credit days a member couldn't use back to the
         end of their term. The check-in service treats `expires_at` as
         the hard ceiling, so a successful shift extends real access.
         """
         sub.expires_at = new_expires_at
+        await self.session.flush()
+
+    async def set_visits(self, sub: Subscription, visits_used: int) -> None:
+        """Absolute set of `visits_used`. Used by admin support to credit
+        a member back visits a glitched check-in consumed, or to correct
+        a miscount. Caller owns the audit-log entry + commit."""
+        sub.visits_used = visits_used
+        await self.session.flush()
+
+    async def set_tier(self, sub: Subscription, tier: Tier) -> None:
+        """Change the subscription's denormalized tier snapshot. The
+        check-in tier ladder reads this column, so an admin upgrade/
+        downgrade takes effect on the next scan. Caller owns audit + commit."""
+        sub.tier = tier
+        await self.session.flush()
+
+    async def restore(self, sub: Subscription) -> None:
+        """Flip a cancelled/expired subscription back to ACTIVE and clear
+        the cancellation stamp. Caller must first confirm the user has no
+        other active subscription (the partial unique index will raise
+        otherwise) and that `expires_at` is still in the future. Caller
+        owns the audit-log entry + commit."""
+        sub.status = SubscriptionStatus.ACTIVE
+        sub.cancelled_at = None
         await self.session.flush()
 
     async def increment_visits(self, sub_id: UUID) -> int:
@@ -206,10 +226,7 @@ class SubscriptionRepository:
             count_stmt = count_stmt.where(*conditions)
         total = (await self.session.execute(count_stmt)).scalar_one()
 
-        stmt = (
-            select(Subscription, User)
-            .join(User, User.id == Subscription.user_id)
-        )
+        stmt = select(Subscription, User).join(User, User.id == Subscription.user_id)
         if conditions:
             stmt = stmt.where(*conditions)
         stmt = (
@@ -237,9 +254,7 @@ class SubscriptionRepository:
         rows = (await self.session.execute(stmt)).all()
         return {tier.value: int(count) for tier, count in rows}
 
-    async def count_expiring_between(
-        self, *, after: datetime, before: datetime
-    ) -> int:
+    async def count_expiring_between(self, *, after: datetime, before: datetime) -> int:
         """Count of ACTIVE subscriptions expiring in [`after`, `before`).
         Used by the admin overview to flag the at-risk set for a
         renewal nudge."""
@@ -256,9 +271,7 @@ class SubscriptionRepository:
         )
         return int((await self.session.execute(stmt)).scalar_one())
 
-    async def history_for_user(
-        self, user_id: UUID
-    ) -> list[tuple[Subscription, Plan | None]]:
+    async def history_for_user(self, user_id: UUID) -> list[tuple[Subscription, Plan | None]]:
         """Full subscription history for a user joined with the plan
         snapshot at the time of purchase. Outer-joined so a deleted
         plan still surfaces the row (with `plan=None`) — admins still

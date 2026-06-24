@@ -4,11 +4,11 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.enums import AudienceGender, DayPassStatus
-from app.db.models import DayPass, DayPassOffering
+from app.db.models import DayPass, DayPassOffering, Gym, User
 from app.utils.ids import uuid7
 
 
@@ -30,14 +30,17 @@ class DayPassOfferingRepository:
         price_jod: Decimal,
         daily_cap: int | None,
         audience_gender_override: AudienceGender | None,
+        platform_fee_pct: Decimal | None = None,
+        validity_hours: int | None = None,
     ) -> DayPassOffering:
         """Idempotent create-or-update keyed on `gym_id`.
 
         Partners save the entire offering on every form submit (PUT
         semantics), so we mutate the existing row when it's there
         and insert otherwise. Platform fee + validity hours are
-        admin-controlled — preserved on update, set to defaults
-        only on insert.
+        admin-controlled: the partner path leaves them None so the
+        existing values (or the table defaults of 10% / 24h) stand;
+        the admin path passes explicit values to set them.
         """
         existing = await self.for_gym(gym_id)
         if existing is None:
@@ -49,6 +52,12 @@ class DayPassOfferingRepository:
                 daily_cap=daily_cap,
                 audience_gender_override=audience_gender_override,
             )
+            # Only set the admin-owned columns when explicitly given;
+            # otherwise let the server_default (10% / 24h) apply.
+            if platform_fee_pct is not None:
+                offering.platform_fee_pct = platform_fee_pct
+            if validity_hours is not None:
+                offering.validity_hours = validity_hours
             self.session.add(offering)
             await self.session.flush()
             return offering
@@ -56,8 +65,45 @@ class DayPassOfferingRepository:
         existing.price_jod = price_jod
         existing.daily_cap = daily_cap
         existing.audience_gender_override = audience_gender_override
+        if platform_fee_pct is not None:
+            existing.platform_fee_pct = platform_fee_pct
+        if validity_hours is not None:
+            existing.validity_hours = validity_hours
         await self.session.flush()
         return existing
+
+    async def list_with_gym(
+        self,
+        *,
+        enabled: bool | None = None,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> tuple[list[tuple[DayPassOffering, Gym]], int]:
+        """Admin overview: every configured offering joined to its gym,
+        newest-config first. `enabled` filters to on/off offerings."""
+        conditions: list = []
+        if enabled is not None:
+            conditions.append(DayPassOffering.is_enabled == enabled)
+
+        count_stmt = (
+            select(func.count())
+            .select_from(DayPassOffering)
+            .join(Gym, Gym.id == DayPassOffering.gym_id)
+        )
+        if conditions:
+            count_stmt = count_stmt.where(*conditions)
+        total = (await self.session.execute(count_stmt)).scalar_one()
+
+        stmt = select(DayPassOffering, Gym).join(Gym, Gym.id == DayPassOffering.gym_id)
+        if conditions:
+            stmt = stmt.where(*conditions)
+        stmt = (
+            stmt.order_by(DayPassOffering.updated_at.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        rows = (await self.session.execute(stmt)).all()
+        return [(o, g) for o, g in rows], int(total)
 
 
 class DayPassRepository:
@@ -68,6 +114,53 @@ class DayPassRepository:
 
     async def get(self, pass_id: UUID) -> DayPass | None:
         return await self.session.get(DayPass, pass_id)
+
+    async def set_refunded(self, day_pass: DayPass, now: datetime) -> None:
+        """Flip a pass to REFUNDED + stamp `refunded_at`. The refunded
+        pass becomes ineligible for check-in. Caller owns the matching
+        payment-row reversal + audit + commit."""
+        day_pass.status = DayPassStatus.REFUNDED
+        day_pass.refunded_at = now
+        await self.session.flush()
+
+    async def list_paginated(
+        self,
+        *,
+        status: DayPassStatus | None = None,
+        gym_id: UUID | None = None,
+        user_id: UUID | None = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> tuple[list[tuple[DayPass, User, Gym]], int]:
+        """Admin sold-passes view: passes joined to buyer + gym, newest
+        purchase first, with optional status/gym/user filters."""
+        conditions: list = []
+        if status is not None:
+            conditions.append(DayPass.status == status)
+        if gym_id is not None:
+            conditions.append(DayPass.gym_id == gym_id)
+        if user_id is not None:
+            conditions.append(DayPass.user_id == user_id)
+
+        count_stmt = select(func.count()).select_from(DayPass)
+        if conditions:
+            count_stmt = count_stmt.where(*conditions)
+        total = (await self.session.execute(count_stmt)).scalar_one()
+
+        stmt = (
+            select(DayPass, User, Gym)
+            .join(User, User.id == DayPass.user_id)
+            .join(Gym, Gym.id == DayPass.gym_id)
+        )
+        if conditions:
+            stmt = stmt.where(*conditions)
+        stmt = (
+            stmt.order_by(DayPass.purchased_at.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        rows = (await self.session.execute(stmt)).all()
+        return [(dp, u, g) for dp, u, g in rows], int(total)
 
     async def lock_user_for_purchase(self, user_id: UUID) -> None:
         """Same idiom as `SubscriptionRepository.lock_user_for_purchase`
@@ -195,7 +288,6 @@ class DayPassRepository:
         active + used + expired (anything that consumed inventory),
         excludes refunded (already returned).
         """
-        from sqlalchemy import func
 
         stmt = (
             select(func.count())
