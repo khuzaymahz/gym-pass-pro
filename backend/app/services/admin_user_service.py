@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from uuid import UUID
 
 from app.core.exceptions import AppError, ErrorCode
@@ -56,6 +57,36 @@ class AdminUserService:
             raise AppError(ErrorCode.NOT_FOUND, "User not found.")
         return user
 
+    async def _normalize_unique_contact(
+        self,
+        raw: str | None,
+        *,
+        user: User,
+        lookup: Callable[[str], Awaitable[User | None]],
+        field: str,
+        message: str,
+    ) -> str | None:
+        """Normalise a contact value (empty string → NULL so an admin can
+        clear it) and reject a collision with another user as a clean
+        validation error rather than letting the unique index 500."""
+        value = (raw or "").strip() or None
+        if value is not None:
+            clash = await lookup(value)
+            if clash is not None and clash.id != user.id:
+                raise AppError(
+                    ErrorCode.VALIDATION_ERROR,
+                    message,
+                    details={"field": field},
+                )
+        return value
+
+    async def _guard_last_active_admin(self, message: str) -> None:
+        """Refuse an operation that would leave zero active admins.
+        Counts only non-deleted admins, so tombstoned rows don't keep
+        the door propped open."""
+        if await self.users.count_by_role(Role.ADMIN) <= 1:
+            raise AppError(ErrorCode.VALIDATION_ERROR, message)
+
     async def update(self, user_id: UUID, data: AdminUserUpdate, *, actor: Actor) -> User:
         user = await self.get(user_id)
         before = _snapshot(user)
@@ -67,27 +98,21 @@ class AdminUserService:
         # those into clean validation errors. Empty string normalises
         # to NULL so an admin can clear a stale value.
         if "email" in updates:
-            email = (updates["email"] or "").strip() or None
-            updates["email"] = email
-            if email is not None:
-                clash = await self.users.get_by_email(email)
-                if clash is not None and clash.id != user.id:
-                    raise AppError(
-                        ErrorCode.VALIDATION_ERROR,
-                        "Email already in use.",
-                        details={"field": "email"},
-                    )
+            updates["email"] = await self._normalize_unique_contact(
+                updates["email"],
+                user=user,
+                lookup=self.users.get_by_email,
+                field="email",
+                message="Email already in use.",
+            )
         if "phone" in updates:
-            phone = (updates["phone"] or "").strip() or None
-            updates["phone"] = phone
-            if phone is not None:
-                clash = await self.users.get_by_phone(phone)
-                if clash is not None and clash.id != user.id:
-                    raise AppError(
-                        ErrorCode.VALIDATION_ERROR,
-                        "Phone already in use.",
-                        details={"field": "phone"},
-                    )
+            updates["phone"] = await self._normalize_unique_contact(
+                updates["phone"],
+                user=user,
+                lookup=self.users.get_by_phone,
+                field="phone",
+                message="Phone already in use.",
+            )
 
         # ----- Role-change guards -----
         # Admin can't change their *own* role — they'd lock themselves
@@ -104,12 +129,7 @@ class AdminUserService:
         # only recovery path is a server-side bootstrap. Counts only
         # *active* (non-deleted) admins to ignore tombstoned rows.
         if "role" in updates and updates["role"] != Role.ADMIN and user.role == Role.ADMIN:
-            live_admins = await self.users.count_by_role(Role.ADMIN)
-            if live_admins <= 1:
-                raise AppError(
-                    ErrorCode.VALIDATION_ERROR,
-                    "Cannot demote the last active admin.",
-                )
+            await self._guard_last_active_admin("Cannot demote the last active admin.")
 
         is_active = updates.pop("is_active", None)
         if is_active is True:
@@ -120,12 +140,7 @@ class AdminUserService:
             # Same last-admin guard for soft-delete: deactivating an
             # admin counts as "no longer admin" for access purposes.
             if user.role == Role.ADMIN:
-                live_admins = await self.users.count_by_role(Role.ADMIN)
-                if live_admins <= 1:
-                    raise AppError(
-                        ErrorCode.VALIDATION_ERROR,
-                        "Cannot deactivate the last active admin.",
-                    )
+                await self._guard_last_active_admin("Cannot deactivate the last active admin.")
             await self.users.soft_delete(user, utcnow())
 
         if updates:
