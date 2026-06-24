@@ -11,12 +11,12 @@ from app.db.enums import PaymentStatus, SubscriptionStatus
 from app.db.models import Payment, Plan, Subscription, User
 from app.providers.payments import PaymentProvider
 from app.realtime import publish as realtime_publish
+from app.repositories.checkin_repo import CheckinRepository
 from app.repositories.payment_repo import PaymentRepository
 from app.repositories.plan_repo import PlanRepository
 from app.repositories.subscription_repo import SubscriptionRepository
 from app.services.audit_service import Actor, AuditService
 from app.services.referral_service import ReferralService
-from app.repositories.checkin_repo import CheckinRepository
 from app.utils.time import add_months, current_period_start, utcnow
 
 log = structlog.get_logger(__name__)
@@ -79,9 +79,7 @@ class SubscriptionService:
         if plan is None:
             return sub, None, None, plan
         period_start = current_period_start(sub.starts_at, utcnow())
-        period_visits = await self.checkins.count_success_since_for_user(
-            user.id, period_start
-        )
+        period_visits = await self.checkins.count_success_since_for_user(user.id, period_start)
         remaining = max(0, plan.monthly_visits - period_visits)
         return sub, period_visits, remaining, plan
 
@@ -122,17 +120,57 @@ class SubscriptionService:
             purchased_price_jod=plan.price_jod,
         )
 
+        await self._charge_and_activate(
+            sub=sub,
+            plan=plan,
+            payment_method=payment_method,
+            payment_method_id=payment_method_id,
+            extra_raw=None,
+            actor=actor,
+            audit_action="subscription.purchase",
+            audit_diff={"plan_id": str(plan.id), "tier": plan.tier.value},
+        )
+
+        await _safe_publish(
+            f"user/{user.id}",
+            {
+                "type": "subscription.created",
+                "subscriptionId": str(sub.id),
+                "tier": plan.tier.value,
+            },
+        )
+        return sub
+
+    async def _charge_and_activate(
+        self,
+        *,
+        sub: Subscription,
+        plan: Plan,
+        payment_method: str,
+        payment_method_id: UUID | None,
+        extra_raw: dict[str, Any] | None,
+        actor: Actor,
+        audit_action: str,
+        audit_diff: dict[str, Any],
+    ) -> None:
+        """Charge for `sub`, record the payment row, then flip the
+        subscription to ACTIVE with audit + referral conversion. Shared
+        by `purchase()` and `replace()` — the only differences between
+        those flows are the audit action/diff, the extra `raw_response`
+        fields, and the realtime payload, which the callers own.
+
+        If the charge declines, raises PAYMENT_DECLINED. If the charge
+        succeeds but activation fails, refunds via
+        `_compensate_failed_activation` and re-raises PAYMENT_GATEWAY_ERROR
+        so the caller never double-charges on retry.
+        """
         result = await self.payment_provider.charge(
             amount_jod=plan.price_jod,
             method=payment_method,
             idempotency_key=str(sub.id),
         )
 
-        status = (
-            PaymentStatus.SUCCEEDED
-            if result.status == "succeeded"
-            else PaymentStatus.FAILED
-        )
+        status = PaymentStatus.SUCCEEDED if result.status == "succeeded" else PaymentStatus.FAILED
         # Stamp the saved-method id into raw_response when the caller supplied
         # one — keeps the payments audit trail self-contained without
         # cluttering the dedicated columns. Mobile reads payments back via
@@ -140,6 +178,8 @@ class SubscriptionService:
         raw = dict(result.raw or {})
         if payment_method_id is not None:
             raw["paymentMethodId"] = str(payment_method_id)
+        if extra_raw is not None:
+            raw.update(extra_raw)
         payment = await self.payments.create(
             subscription_id=sub.id,
             amount_jod=plan.price_jod,
@@ -169,13 +209,15 @@ class SubscriptionService:
         try:
             await self.subs.activate(sub)
             await self.audit.log(
-                actor=actor, action="subscription.purchase",
-                entity_type="subscription", entity_id=sub.id,
-                diff={"plan_id": str(plan.id), "tier": plan.tier.value},
+                actor=actor,
+                action=audit_action,
+                entity_type="subscription",
+                entity_id=sub.id,
+                diff=audit_diff,
             )
             # Convert any pending referral on the invited user's first paid
             # subscription. Safe to call unconditionally — no-op if no row.
-            await self.referrals.mark_converted_if_pending(user.id)
+            await self.referrals.mark_converted_if_pending(sub.user_id)
         except Exception as activation_err:
             await self._compensate_failed_activation(
                 payment=payment,
@@ -192,16 +234,6 @@ class SubscriptionService:
                 "subscription. The payment has been refunded — "
                 "please try again or contact support.",
             ) from activation_err
-
-        await _safe_publish(
-            f"user/{user.id}",
-            {
-                "type": "subscription.created",
-                "subscriptionId": str(sub.id),
-                "tier": plan.tier.value,
-            },
-        )
-        return sub
 
     async def _compensate_failed_activation(
         self,
@@ -265,15 +297,12 @@ class SubscriptionService:
                 "refund_succeeded": refund_succeeded,
                 "refund_txn_id": refund_txn_id,
                 "refund_call_failed": (
-                    str(refund_call_failed)[:512]
-                    if refund_call_failed is not None
-                    else None
+                    str(refund_call_failed)[:512] if refund_call_failed is not None else None
                 ),
             },
         )
         log.error(
-            "payment.compensation_required" if not refund_succeeded
-            else "payment.compensated",
+            "payment.compensation_required" if not refund_succeeded else "payment.compensated",
             entity_type=entity_type,
             entity_id=str(entity_id),
             payment_id=str(payment.id),
@@ -288,8 +317,10 @@ class SubscriptionService:
             raise AppError(ErrorCode.SUB_CANCELLED, "Subscription already cancelled.")
         await self.subs.cancel(sub, utcnow())
         await self.audit.log(
-            actor=actor, action="subscription.cancel",
-            entity_type="subscription", entity_id=sub.id,
+            actor=actor,
+            action="subscription.cancel",
+            entity_type="subscription",
+            entity_id=sub.id,
         )
         await _safe_publish(
             f"user/{user.id}",
@@ -364,83 +395,35 @@ class SubscriptionService:
             purchased_price_jod=plan.price_jod,
         )
 
-        result = await self.payment_provider.charge(
-            amount_jod=plan.price_jod,
-            method=payment_method,
-            idempotency_key=str(sub.id),
+        replaced_id = str(existing.id) if existing is not None else None
+        await self._charge_and_activate(
+            sub=sub,
+            plan=plan,
+            payment_method=payment_method,
+            payment_method_id=payment_method_id,
+            extra_raw=({"replacedSubscriptionId": replaced_id} if existing is not None else None),
+            actor=actor,
+            audit_action="subscription.replace",
+            audit_diff={
+                "plan_id": str(plan.id),
+                "tier": plan.tier.value,
+                "replaced_subscription_id": replaced_id,
+            },
         )
-
-        status = (
-            PaymentStatus.SUCCEEDED
-            if result.status == "succeeded"
-            else PaymentStatus.FAILED
-        )
-        raw = dict(result.raw or {})
-        if payment_method_id is not None:
-            raw["paymentMethodId"] = str(payment_method_id)
-        if existing is not None:
-            raw["replacedSubscriptionId"] = str(existing.id)
-        payment = await self.payments.create(
-            subscription_id=sub.id,
-            amount_jod=plan.price_jod,
-            method=self._coerce_method(payment_method),
-            gateway_txn_id=result.gateway_txn_id,
-            status=status,
-            raw_response=raw,
-            processed_at=utcnow(),
-        )
-
-        if status != PaymentStatus.SUCCEEDED:
-            raise AppError(ErrorCode.PAYMENT_DECLINED, "Payment declined.")
-
-        try:
-            await self.subs.activate(sub)
-            await self.audit.log(
-                actor=actor,
-                action="subscription.replace",
-                entity_type="subscription",
-                entity_id=sub.id,
-                diff={
-                    "plan_id": str(plan.id),
-                    "tier": plan.tier.value,
-                    "replaced_subscription_id": (
-                        str(existing.id) if existing is not None else None
-                    ),
-                },
-            )
-            await self.referrals.mark_converted_if_pending(user.id)
-        except Exception as activation_err:
-            await self._compensate_failed_activation(
-                payment=payment,
-                amount=plan.price_jod,
-                idempotency_key=f"refund:{sub.id}",
-                actor=actor,
-                entity_type="subscription",
-                entity_id=sub.id,
-                activation_err=activation_err,
-            )
-            raise AppError(
-                ErrorCode.PAYMENT_GATEWAY_ERROR,
-                "We charged your card but couldn't activate your "
-                "subscription. The payment has been refunded — "
-                "please try again or contact support.",
-            ) from activation_err
 
         await _safe_publish(
             f"user/{user.id}",
             {
                 "type": "subscription.replaced",
                 "subscriptionId": str(sub.id),
-                "replacedSubscriptionId": (
-                    str(existing.id) if existing is not None else None
-                ),
+                "replacedSubscriptionId": replaced_id,
                 "tier": plan.tier.value,
             },
         )
         return sub
 
     @staticmethod
-    def _coerce_method(raw: str) -> "PaymentMethod":  # noqa: F821
+    def _coerce_method(raw: str) -> PaymentMethod:  # noqa: F821
         from app.db.enums import PaymentMethod
 
         try:
