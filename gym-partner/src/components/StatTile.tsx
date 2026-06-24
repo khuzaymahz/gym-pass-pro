@@ -51,14 +51,7 @@ export function StatTile({
   tone?: Tone;
 }) {
   const numeric = typeof value === "number" ? value : null;
-  const valueClass =
-    tone === "ok"
-      ? "text-accent"
-      : tone === "warn"
-        ? "text-accent"
-        : tone === "bad"
-          ? "text-red-400"
-          : "text-paper";
+  const valueClass = toneValueClass(tone);
 
   return (
     <div className="steel lift-on-hover group relative flex flex-col gap-2.5 overflow-hidden rounded-lg p-5">
@@ -90,6 +83,21 @@ export function StatTile({
       ) : null}
     </div>
   );
+}
+
+// Maps a tile tone to the gauge-numeral colour token. `ok` and `warn`
+// both read as the accent colour today; `bad` is the only one that
+// recolours the number.
+function toneValueClass(tone: Tone): string {
+  switch (tone) {
+    case "ok":
+    case "warn":
+      return "text-accent";
+    case "bad":
+      return "text-red-400";
+    default:
+      return "text-paper";
+  }
 }
 
 function DeltaBadge({ delta }: { delta: number }) {

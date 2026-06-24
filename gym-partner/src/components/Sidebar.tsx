@@ -7,6 +7,7 @@ import { signOut } from "next-auth/react";
 import { useTranslations } from "next-intl";
 import { Component, type ReactNode, useEffect, useState } from "react";
 
+import { makeInitials } from "@/lib/initials";
 import { resolveMediaUrl } from "@/lib/media";
 import { DEFAULT_LOGO_ALIGNMENT, type LogoAlignment } from "@/lib/sdk-types";
 
@@ -346,6 +347,15 @@ function useIsOpenLocal(
   return open;
 }
 
+/// True when `minutes` (since midnight) falls inside the `[open, close)`
+/// window. A cross-midnight window (`close <= open`, e.g. 18:00 → 02:00)
+/// means "open through midnight" — open when past `open` OR before `close`.
+function isWithinWindow(minutes: number, open: number, close: number): boolean {
+  return close > open
+    ? minutes >= open && minutes < close
+    : minutes >= open || minutes < close;
+}
+
 /// "HH:MM" → minutes-since-midnight. Returns null on garbage input.
 function parseHhMm(value: unknown): number | null {
   if (typeof value !== "string") return null;
@@ -384,12 +394,7 @@ function computeIsOpen(
       const open = parseHhMm(today.open);
       const close = parseHhMm(today.close);
       if (open != null && close != null) {
-        // Same-day window. Cross-midnight windows (close <= open)
-        // mean "open through midnight"; we treat them as open if
-        // we're past `open` OR before `close`.
-        return close > open
-          ? minutes >= open && minutes < close
-          : minutes >= open || minutes < close;
+        return isWithinWindow(minutes, open, close);
       }
     }
   }
@@ -398,9 +403,7 @@ function computeIsOpen(
   const open = parseHhMm(hours.open);
   const close = parseHhMm(hours.close);
   if (open != null && close != null) {
-    return close > open
-      ? minutes >= open && minutes < close
-      : minutes >= open || minutes < close;
+    return isWithinWindow(minutes, open, close);
   }
 
   // Unknown shape — same optimistic fallback as the no-data branch.
@@ -482,11 +485,4 @@ function NavIcon({ name, active }: { name: NavKey; active: boolean }) {
         </svg>
       );
   }
-}
-
-function makeInitials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[1][0]).toUpperCase();
 }
