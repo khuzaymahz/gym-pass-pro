@@ -43,6 +43,9 @@ export default function ManageSubscription({
   const [visits, setVisits_] = useState(String(sub.visitsUsed));
   const [tier, setTier] = useState<Tier>(sub.tier);
 
+  // Every mutation here shows the same "Saved." toast on success.
+  const savedOpts = { success: tCommon("savedDot") };
+
   const canRestore = sub.status === "cancelled" || sub.status === "expired";
   const canResume = sub.status === "active";
 
@@ -66,9 +69,7 @@ export default function ManageSubscription({
           idleLabel={t("apply")}
           className="btn btn-sm"
           onClick={() =>
-            run(() => extend(Number.parseInt(days || "0", 10)), {
-              success: tCommon("savedDot"),
-            })
+            run(() => extend(Number.parseInt(days || "0", 10)), savedOpts)
           }
         />
       </div>
@@ -92,9 +93,7 @@ export default function ManageSubscription({
           idleLabel={t("set")}
           className="btn btn-sm"
           onClick={() =>
-            run(() => setVisits(Number.parseInt(visits || "0", 10)), {
-              success: tCommon("savedDot"),
-            })
+            run(() => setVisits(Number.parseInt(visits || "0", 10)), savedOpts)
           }
         />
       </div>
@@ -122,7 +121,7 @@ export default function ManageSubscription({
           idleLabel={t("change")}
           className="btn btn-sm"
           onClick={() =>
-            run(() => changeTier(tier), { success: tCommon("savedDot") })
+            run(() => changeTier(tier), savedOpts)
           }
         />
       </div>
@@ -137,7 +136,7 @@ export default function ManageSubscription({
               idleLabel={t("restore")}
               className="btn btn-sm"
               onClick={() =>
-                run(() => restore(), { success: tCommon("savedDot") })
+                run(() => restore(), savedOpts)
               }
             />
           )}
@@ -149,7 +148,7 @@ export default function ManageSubscription({
               idleLabel={t("resumePause")}
               className="btn btn-sm"
               onClick={() =>
-                run(() => resumePause(), { success: tCommon("savedDot") })
+                run(() => resumePause(), savedOpts)
               }
             />
           )}
