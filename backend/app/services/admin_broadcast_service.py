@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from redis.asyncio import Redis
 
 # Insert batch size for the fan-out. Each batch is one round-trip;
-# 500 rows × ~250 bytes/row stays comfortably under asyncpg's default
+# 500 rows x ~250 bytes/row stays comfortably under asyncpg's default
 # 32 MB statement buffer while keeping the network amortised. At
 # 100K members this is 200 batches — a couple of seconds total on a
 # warm DB, still acceptable inline. Above ~100K we'd hand off to
@@ -105,9 +105,7 @@ class AdminBroadcastService:
             )
 
         if dry_run:
-            return BroadcastResult(
-                recipients=len(recipients), duplicate=False
-            )
+            return BroadcastResult(recipients=len(recipients), duplicate=False)
 
         # Redis-backed idempotency. `set nx ex` is atomic; a second
         # caller within the window gets `False` back and we return the
@@ -118,17 +116,13 @@ class AdminBroadcastService:
             cached = await self.redis.get(lock_key)
             if cached is not None:
                 try:
-                    return BroadcastResult(
-                        recipients=int(cached), duplicate=True
-                    )
+                    return BroadcastResult(recipients=int(cached), duplicate=True)
                 except ValueError:
                     pass
             # 5-minute lock window — long enough to absorb any
             # reasonable client retry, short enough to clear before
             # the next legitimate broadcast for the same audience.
-            await self.redis.set(
-                lock_key, str(len(recipients)), nx=True, ex=300
-            )
+            await self.redis.set(lock_key, str(len(recipients)), nx=True, ex=300)
 
         # Chunked fan-out. Each chunk is one INSERT.
         total = 0
@@ -155,8 +149,7 @@ class AdminBroadcastService:
                     "recipients": total,
                     "title_en": title_en,
                     "idempotency_key": dedupe[:64],
-                    "batch_count": (len(recipients) + _BATCH_SIZE - 1)
-                    // _BATCH_SIZE,
+                    "batch_count": (len(recipients) + _BATCH_SIZE - 1) // _BATCH_SIZE,
                 }
             },
         )

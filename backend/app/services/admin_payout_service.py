@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING
@@ -10,8 +10,8 @@ from app.core.exceptions import AppError, ErrorCode
 from app.db.enums import PayoutStatus
 from app.db.models import Gym, Payout
 from app.realtime import publish as realtime_publish
-from app.repositories.payout_repo import PayoutLedgerRepository, PayoutRepository
 from app.repositories.gym_repo import GymRepository
+from app.repositories.payout_repo import PayoutLedgerRepository, PayoutRepository
 from app.services.audit_service import Actor, AuditService
 from app.utils.time import utcnow
 
@@ -56,10 +56,7 @@ class AdminPayoutService:
         if self.redis is None:
             yield
             return
-        key = (
-            f"admin:payout:generate:"
-            f"{period_start.isoformat()}:{period_end.isoformat()}"
-        )
+        key = f"admin:payout:generate:{period_start.isoformat()}:{period_end.isoformat()}"
         # 10-minute lock — generation is fast but the aggregation can
         # take seconds on a big window; this leaves comfortable head-
         # room while ensuring a crashed worker doesn't leave the lock
@@ -68,16 +65,13 @@ class AdminPayoutService:
         if not acquired:
             raise AppError(
                 ErrorCode.RATE_LIMITED,
-                "A payout generation is already in progress for this "
-                "period. Retry in a moment.",
+                "A payout generation is already in progress for this period. Retry in a moment.",
             )
         try:
             yield
         finally:
-            try:
+            with suppress(Exception):
                 await self.redis.delete(key)
-            except Exception:  # noqa: BLE001 — lock TTL is the backstop
-                pass
 
     async def list(
         self,
@@ -91,9 +85,7 @@ class AdminPayoutService:
             status=status, gym_id=gym_id, page=page, page_size=page_size
         )
 
-    async def generate(
-        self, *, period_start: date, period_end: date, actor: Actor
-    ) -> list[Payout]:
+    async def generate(self, *, period_start: date, period_end: date, actor: Actor) -> list[Payout]:
         if period_start > period_end:
             raise AppError(
                 ErrorCode.VALIDATION_ERROR,
@@ -208,14 +200,10 @@ class AdminPayoutService:
             raise AppError(ErrorCode.NOT_FOUND, "Gym not found.")
         return payout, gym
 
-    async def list_entries(
-        self, payout_id: UUID, *, limit: int = 200, offset: int = 0
-    ):
+    async def list_entries(self, payout_id: UUID, *, limit: int = 200, offset: int = 0):
         """Constituent ledger entries for the drill-down view —
         the admin's reconciliation lens onto a payout. Paginated to
         protect against very large month-long payouts on busy gyms.
         Returns (rows, total).
         """
-        return await self.ledger.list_for_payout(
-            payout_id, limit=limit, offset=offset
-        )
+        return await self.ledger.list_for_payout(payout_id, limit=limit, offset=offset)

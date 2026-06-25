@@ -423,7 +423,7 @@ class SubscriptionService:
         return sub
 
     @staticmethod
-    def _coerce_method(raw: str) -> PaymentMethod:  # noqa: F821
+    def _coerce_method(raw: str) -> "PaymentMethod":  # noqa: F821
         from app.db.enums import PaymentMethod
 
         try:
