@@ -9,7 +9,7 @@ import '../../../core/widgets/gym_tile.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
 import '../../../l10n/app_localizations.dart';
-import 'gym_detail_page.dart' show favoritedGymsProvider;
+import '../data/favorited_gyms.dart';
 import 'gyms_filter_state.dart';
 
 class GymsPage extends ConsumerStatefulWidget {
@@ -101,57 +101,57 @@ class _GymsPageState extends ConsumerState<GymsPage> {
           ListView(
             padding: EdgeInsets.fromLTRB(20, topInset + 12, 20, 16),
             children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [Overline(l.clubsCount(GPGym.seed.length))],
-            ),
-            const SizedBox(height: 22),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                DisplayText(l.gymsHeadline, size: 36),
-                const SizedBox(width: 10),
-                SerifAccent(l.gymsHeadlineAccent, size: 36),
-              ],
-            ),
-            const SizedBox(height: 18),
-            _searchField(l, gp),
-            const SizedBox(height: 14),
-            _filterPills(l, gp, category),
-            const SizedBox(height: 14),
-            _miniMap(filtered, gp),
-            const SizedBox(height: 14),
-            if (filtered.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 40),
-                child: Center(
-                  child: Text(
-                    favoritesOnly && favorites.isEmpty
-                        ? l.gymsEmptyFavorites
-                        : l.gymsEmpty,
-                    style: GPText.body(size: 14, color: gp.muted),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              )
-            else
-              ...filtered.map(
-                (g) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: GymRow(
-                    gym: g,
-                    onTap: () => context.push('/gyms/${g.slug}'),
-                  ),
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [Overline(l.clubsCount(GPGym.seed.length))],
               ),
-          ],
-        ),
-        PositionedDirectional(
-          top: topInset + 12,
-          start: 20,
-          child: const BackBtn(),
-        ),
+              const SizedBox(height: 22),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  DisplayText(l.gymsHeadline, size: 36),
+                  const SizedBox(width: 10),
+                  SerifAccent(l.gymsHeadlineAccent, size: 36),
+                ],
+              ),
+              const SizedBox(height: 18),
+              _searchField(l, gp),
+              const SizedBox(height: 14),
+              _filterPills(l, gp, category),
+              const SizedBox(height: 14),
+              _miniMap(filtered, gp),
+              const SizedBox(height: 14),
+              if (filtered.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 40),
+                  child: Center(
+                    child: Text(
+                      favoritesOnly && favorites.isEmpty
+                          ? l.gymsEmptyFavorites
+                          : l.gymsEmpty,
+                      style: GPText.body(size: 14, color: gp.muted),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                )
+              else
+                ...filtered.map(
+                  (g) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: GymRow(
+                      gym: g,
+                      onTap: () => context.push('/gyms/${g.slug}'),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          PositionedDirectional(
+            top: topInset + 12,
+            start: 20,
+            child: const BackBtn(),
+          ),
           PositionedDirectional(
             top: topInset + 12,
             end: 20,

@@ -11,12 +11,12 @@ import 'package:latlong2/latlong.dart';
 import '../../../core/theme/gp_tokens.dart';
 import '../../../core/widgets/gym_loader.dart';
 import '../../../l10n/app_localizations.dart';
+import '../data/favorited_gyms.dart';
 import '../data/gym_repository.dart';
 import '../data/gym_summary.dart';
 import '../data/home_region_store.dart';
 import '../data/jordan_regions.dart';
 import '../data/location_service.dart';
-import 'gym_detail_page.dart' show favoritedGymsProvider;
 import 'gyms_filter_state.dart';
 import 'widgets/explore_top_bar.dart';
 import 'widgets/filters_sheet.dart';
@@ -302,9 +302,8 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
   Future<void> _expandSheetMax() async {
     if (!_sheetCtrl.isAttached) return;
     final current = _sheetCtrl.size;
-    final target = current >= exploreSheetMax - 0.02
-        ? exploreSheetMin
-        : exploreSheetMax;
+    final target =
+        current >= exploreSheetMax - 0.02 ? exploreSheetMin : exploreSheetMax;
     await _sheetCtrl.animateTo(
       target,
       duration: const Duration(milliseconds: 280),
@@ -347,7 +346,9 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
 
     if (panMap) {
       // Locate-me intent — zoom in tight on the user's pin.
-      unawaited(_animateCameraTo(LatLng(pos.latitude, pos.longitude), zoom: 14));
+      unawaited(
+        _animateCameraTo(LatLng(pos.latitude, pos.longitude), zoom: 14),
+      );
     } else {
       // Initial / auto detect — frame the user's region as an
       // eagle view (bounds-fit), so all gyms in that region are
@@ -417,8 +418,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
     );
     _cameraAnim = ctl;
 
-    final curved =
-        CurvedAnimation(parent: ctl, curve: Curves.easeInOutCubic);
+    final curved = CurvedAnimation(parent: ctl, curve: Curves.easeInOutCubic);
     final latTween = Tween<double>(
       begin: startCenter.latitude,
       end: target.latitude,
@@ -872,8 +872,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
                   // blank canvas matches the rest of the app from
                   // the very first frame, so the blur just darkens
                   // a uniform dark field instead of a white one.
-                  backgroundColor:
-                      Theme.of(context).scaffoldBackgroundColor,
+                  backgroundColor: Theme.of(context).scaffoldBackgroundColor,
                   // `contain` — the entire camera VIEWPORT must stay
                   // within Jordan's bounding rectangle. minZoom 7 is
                   // the user-defined "pinch-out floor" where Jordan
