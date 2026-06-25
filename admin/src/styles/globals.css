@@ -145,12 +145,18 @@
   );
 }
 
+html {
+  /* Display utility used Archivo (Latin-only); point it at the one
+     shared face so headings render in Cairo for Arabic + English too. */
+  --font-display: var(--font-sans);
+}
+
 html,
 body {
   height: 100%;
   background: rgb(var(--c-ink));
   color: rgb(var(--c-paper));
-  font-family: var(--font-sans), Inter, ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   font-feature-settings: "cv11", "ss01", "ss03";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -180,9 +186,9 @@ a {
 
 /* --- Typography utilities ------------------------------------ */
 
-/* Small technical label — JetBrains Mono, tracked + uppercase. */
+/* Small uppercase label — normal UI face (Cairo) for Arabic + English. */
 .label {
-  @apply font-mono text-[10px] font-medium uppercase tracking-[0.08em] text-muted;
+  @apply font-sans text-[10px] font-semibold uppercase text-muted;
 }
 
 /* Tabular numerals for any numeric column — set in the mono face so
@@ -218,9 +224,16 @@ a {
   @apply font-display text-[13px] font-semibold text-paper;
 }
 
-/* Sidebar group label — amber chip, mono for a technical register. */
+/* Sidebar group label — amber chip in the normal UI face (Cairo) so it's
+   legible in both Arabic and English; the old mono face had no Arabic
+   glyphs and read poorly. */
 .nav-group-label {
-  @apply mb-1.5 inline-flex items-center rounded bg-accent px-1.5 py-0.5 font-mono text-[9.5px] font-bold uppercase tracking-[0.1em] text-accent-ink;
+  @apply mb-1.5 inline-flex items-center rounded bg-accent px-1.5 py-0.5 font-sans text-[10px] font-bold uppercase text-accent-ink;
+}
+/* Letter-spacing on uppercase chrome labels in LTR only — it breaks
+   Arabic's cursive letter joins, so AR renders without it. */
+[dir="ltr"] :is(.nav-group-label, .label, .stat-label, .table thead th) {
+  @apply tracking-[0.07em];
 }
 
 /* --- Buttons ------------------------------------------------- */
@@ -409,7 +422,7 @@ a {
 }
 
 .stat-label {
-  @apply font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-muted;
+  @apply font-sans text-[10px] font-semibold uppercase text-muted;
 }
 
 .stat-value {
@@ -440,7 +453,7 @@ a {
 }
 
 .table thead th {
-  @apply border-b border-line bg-surface/60 px-3 py-2.5 text-left font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-muted;
+  @apply border-b border-line bg-surface/60 px-3 py-2.5 text-left font-sans text-[10px] font-semibold uppercase text-muted;
   position: sticky;
   top: 0;
   backdrop-filter: blur(8px);

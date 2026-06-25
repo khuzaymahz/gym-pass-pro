@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Archivo, Inter, JetBrains_Mono } from "next/font/google";
+import { Cairo, JetBrains_Mono } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import { cookies } from "next/headers";
@@ -8,19 +8,16 @@ import type { ReactNode } from "react";
 import { themeBootScript } from "@/components/ThemeToggle";
 import "@/styles/globals.css";
 
-// Type system (brand-consistent with the mobile app):
-//  • Inter         — body / UI text
-//  • Archivo       — display: headings, brand, stat values
-//  • JetBrains Mono — data: tabular numbers, ids, labels
-const inter = Inter({
-  subsets: ["latin"],
+// Type system: one face for the whole console so Arabic and English
+// render in the *same* typeface (Inter/Archivo were Latin-only, so
+// Arabic fell back to a system font and looked different).
+//  • Cairo          — body, UI, headings, brand (Latin + Arabic)
+//  • JetBrains Mono — data: tabular numbers, ids, labels (Latin);
+//                     Arabic in these spots falls back to Cairo.
+const cairo = Cairo({
+  subsets: ["latin", "arabic"],
   variable: "--font-sans",
-  display: "swap",
-});
-const archivo = Archivo({
-  subsets: ["latin"],
-  variable: "--font-display",
-  weight: ["500", "600", "700"],
+  weight: ["400", "500", "600", "700"],
   display: "swap",
 });
 const jetbrainsMono = JetBrains_Mono({
@@ -54,7 +51,7 @@ export default async function RootLayout({
     <html
       lang={locale}
       dir={dir}
-      className={`${inter.variable} ${archivo.variable} ${jetbrainsMono.variable}`}
+      className={`${cairo.variable} ${jetbrainsMono.variable}`}
       data-theme={theme}
       suppressHydrationWarning
     >
