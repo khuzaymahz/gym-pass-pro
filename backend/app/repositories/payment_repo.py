@@ -88,31 +88,13 @@ class PaymentRepository:
         await self.session.flush()
         return payment
 
-    async def list_for_user(
-        self, user_id: UUID, *, limit: int = 50
+    async def _payments_with_subscription(
+        self, user_id: UUID, *, limit: int
     ) -> list[tuple[Payment, Subscription]]:
-        """Return the user's payments newest-first joined with the
-        subscription they paid for. Used by `GET /me/invoices` so the
-        mobile invoice ledger can render `tier`, `period`, and
-        `amount` from the same row without a second round trip."""
-        stmt = (
-            select(Payment, Subscription)
-            .join(Subscription, Subscription.id == Payment.subscription_id)
-            .where(Subscription.user_id == user_id)
-            .order_by(Payment.created_at.desc())
-            .limit(limit)
-        )
-        rows = (await self.session.execute(stmt)).all()
-        return [(p, s) for p, s in rows]
-
-    async def history_for_user(
-        self, user_id: UUID, *, limit: int = 100
-    ) -> list[tuple[Payment, Subscription]]:
-        """Admin user-detail view: the payment ledger for `user_id`.
-
-        Same shape as `list_for_user` but with a different default
-        limit so the admin detail page can show a longer trail without
-        the mobile invoice list bloating to match.
+        """User's payments newest-first, joined to the subscription
+        they paid for. Shared body for `list_for_user` (mobile invoice
+        ledger) and `history_for_user` (admin user-detail trail), which
+        differ only in their default limit.
         """
         stmt = (
             select(Payment, Subscription)
@@ -123,6 +105,26 @@ class PaymentRepository:
         )
         rows = (await self.session.execute(stmt)).all()
         return [(p, s) for p, s in rows]
+
+    async def list_for_user(
+        self, user_id: UUID, *, limit: int = 50
+    ) -> list[tuple[Payment, Subscription]]:
+        """Return the user's payments newest-first joined with the
+        subscription they paid for. Used by `GET /me/invoices` so the
+        mobile invoice ledger can render `tier`, `period`, and
+        `amount` from the same row without a second round trip."""
+        return await self._payments_with_subscription(user_id, limit=limit)
+
+    async def history_for_user(
+        self, user_id: UUID, *, limit: int = 100
+    ) -> list[tuple[Payment, Subscription]]:
+        """Admin user-detail view: the payment ledger for `user_id`.
+
+        Same shape as `list_for_user` but with a different default
+        limit so the admin detail page can show a longer trail without
+        the mobile invoice list bloating to match.
+        """
+        return await self._payments_with_subscription(user_id, limit=limit)
 
     async def sum_succeeded_in_window(
         self, since: datetime, until: datetime | None = None
@@ -136,9 +138,7 @@ class PaymentRepository:
             stmt = stmt.where(Payment.created_at < until)
         return Decimal(str((await self.session.execute(stmt)).scalar_one()))
 
-    async def succeeded_per_day_since(
-        self, since: datetime
-    ) -> list[tuple[str, Decimal]]:
+    async def succeeded_per_day_since(self, since: datetime) -> list[tuple[str, Decimal]]:
         """Per-day SUCCEEDED revenue since `since` (inclusive)."""
         stmt = (
             select(

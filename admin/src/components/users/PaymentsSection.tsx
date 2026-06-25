@@ -25,30 +25,15 @@ function payTone(status: PaymentStatus): "ok" | "warn" | "bad" | "mute" {
   }
 }
 
-function methodSummaryDescription(
-  entry: AdminUserDetailPaymentMethod,
-): string | null {
-  const last = entry.last;
-  if (!last) return null;
-  if (entry.method === "cliq") {
-    const alias = typeof last.alias === "string" ? last.alias : null;
-    const phone = typeof last.phone === "string" ? last.phone : null;
-    return alias ?? phone ?? null;
-  }
-  if (entry.method === "card") {
-    const brand = typeof last.brand === "string" ? last.brand : null;
-    const last4 = typeof last.last4 === "string" ? last.last4 : null;
-    if (brand && last4) return `${brand.toUpperCase()} •• ${last4}`;
-    if (last4) return `•• ${last4}`;
-    return brand ?? null;
-  }
-  return null;
-}
-
+/// Build a short human-readable summary of a payment method from its
+/// meta blob (CliQ alias/phone, or card brand •• last4). Shared by the
+/// saved-methods cards (`entry.last`) and the per-payment rows (`meta`)
+/// since both carry the same loosely-typed shape.
 function paymentMetaSummary(
   method: PaymentMethod,
-  meta: Record<string, unknown>,
+  meta: Record<string, unknown> | null,
 ): string | null {
+  if (!meta) return null;
   if (method === "cliq") {
     const alias = typeof meta.alias === "string" ? meta.alias : null;
     const phone = typeof meta.phone === "string" ? meta.phone : null;
@@ -103,7 +88,7 @@ export default function PaymentsSection({
                 </span>
               </div>
               <div className="mt-1 text-[13px] text-paper">
-                {methodSummaryDescription(m) ?? (
+                {paymentMetaSummary(m.method, m.last) ?? (
                   <span className="text-muted">—</span>
                 )}
               </div>

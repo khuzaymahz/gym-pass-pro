@@ -795,12 +795,8 @@ class GymDetailPage extends ConsumerWidget {
     bool included,
   ) {
     final color = included ? gp.accentInk : GP.danger;
-    final bg = included
-        ? gp.accentInk.withValues(alpha: 0.12)
-        : GP.danger.withValues(alpha: 0.12);
-    final border = included
-        ? gp.accentInk.withValues(alpha: 0.44)
-        : GP.danger.withValues(alpha: 0.5);
+    final bg = color.withValues(alpha: 0.12);
+    final border = color.withValues(alpha: included ? 0.44 : 0.5);
     final banner = Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -1192,24 +1188,26 @@ class _AudienceBadge extends StatelessWidget {
     final l = AppLocalizations.of(context);
     final gp = context.gp;
     final isMixed = audience == 'mixed';
-    final isFemale = audience == 'female_only';
+
     // Mixed reads as neutral chrome (muted token), not a warning —
     // it's the open-to-everyone default, just made explicit.
-    final color = isMixed
-        ? gp.mutedSoft
-        : isFemale
-            ? const Color(0xFFEC4899)
-            : const Color(0xFF60A5FA);
-    final label = isMixed
-        ? l.audienceMixed
-        : isFemale
-            ? l.audienceFemaleOnly
-            : l.audienceMaleOnly;
-    final icon = isMixed
-        ? Icons.groups_outlined
-        : isFemale
-            ? Icons.female
-            : Icons.male;
+    final Color color;
+    final String label;
+    final IconData icon;
+    switch (audience) {
+      case 'mixed':
+        color = gp.mutedSoft;
+        label = l.audienceMixed;
+        icon = Icons.groups_outlined;
+      case 'female_only':
+        color = const Color(0xFFEC4899);
+        label = l.audienceFemaleOnly;
+        icon = Icons.female;
+      default:
+        color = const Color(0xFF60A5FA);
+        label = l.audienceMaleOnly;
+        icon = Icons.male;
+    }
     return Container(
       padding: const EdgeInsetsDirectional.fromSTEB(8, 4, 10, 4),
       decoration: BoxDecoration(

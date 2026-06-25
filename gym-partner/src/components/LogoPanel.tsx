@@ -10,6 +10,7 @@ import {
   uploadLogoAction,
 } from "@/app/(dashboard)/profile/actions";
 import GymLoader from "@/components/GymLoader";
+import { makeInitials } from "@/lib/initials";
 import { resolveMediaUrl } from "@/lib/media";
 import {
   DEFAULT_LOGO_ALIGNMENT,
@@ -275,11 +276,4 @@ function UploadIcon() {
       <line x1="12" y1="3" x2="12" y2="15" />
     </svg>
   );
-}
-
-function makeInitials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[1][0]).toUpperCase();
 }

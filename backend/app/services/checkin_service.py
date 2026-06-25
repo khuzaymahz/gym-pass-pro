@@ -9,7 +9,6 @@ from app.db.enums import (
     CheckinStatus,
     Gender,
     SubscriptionStatus,
-    Tier,
 )
 from app.db.models import Checkin, DayPass, Gym, User
 from app.repositories.checkin_repo import CheckinRepository
@@ -125,14 +124,18 @@ class CheckinService:
         # spam pattern reach the row lock would just be wasteful.
         rl_key = f"checkin:{user.id}:{gym.id}"
         if not await self.rate_limiter.allow(
-            rl_key, limit=CHECKIN_RATE_LIMIT,
+            rl_key,
+            limit=CHECKIN_RATE_LIMIT,
             window_seconds=CHECKIN_RATE_WINDOW_SECONDS,
         ):
             await self.checkins.create(
-                user_id=user.id, gym_id=gym.id, subscription_id=None,
+                user_id=user.id,
+                gym_id=gym.id,
+                subscription_id=None,
                 status=CheckinStatus.RATE_LIMITED,
                 failure_reason="duplicate_scan_within_window",
-                ip_address=actor.ip_address, user_agent=actor.user_agent,
+                ip_address=actor.ip_address,
+                user_agent=actor.user_agent,
             )
             raise AppError(
                 ErrorCode.CHECKIN_ALREADY_SCANNED,
@@ -140,14 +143,18 @@ class CheckinService:
             )
         user_rl_key = f"checkin:{user.id}"
         if not await self.rate_limiter.allow(
-            user_rl_key, limit=CHECKIN_USER_RATE_LIMIT,
+            user_rl_key,
+            limit=CHECKIN_USER_RATE_LIMIT,
             window_seconds=CHECKIN_USER_RATE_WINDOW_SECONDS,
         ):
             await self.checkins.create(
-                user_id=user.id, gym_id=gym.id, subscription_id=None,
+                user_id=user.id,
+                gym_id=gym.id,
+                subscription_id=None,
                 status=CheckinStatus.RATE_LIMITED,
                 failure_reason="concurrent_scan_across_gyms",
-                ip_address=actor.ip_address, user_agent=actor.user_agent,
+                ip_address=actor.ip_address,
+                user_agent=actor.user_agent,
             )
             raise AppError(
                 ErrorCode.CHECKIN_ALREADY_SCANNED,
@@ -186,9 +193,13 @@ class CheckinService:
         sub = await self.subs.lock_active_for_user(user.id)
         if sub is None or sub.status != SubscriptionStatus.ACTIVE:
             await self.checkins.create(
-                user_id=user.id, gym_id=gym.id, subscription_id=None,
-                status=CheckinStatus.EXPIRED, failure_reason="no_active_subscription",
-                ip_address=actor.ip_address, user_agent=actor.user_agent,
+                user_id=user.id,
+                gym_id=gym.id,
+                subscription_id=None,
+                status=CheckinStatus.EXPIRED,
+                failure_reason="no_active_subscription",
+                ip_address=actor.ip_address,
+                user_agent=actor.user_agent,
             )
             raise AppError(ErrorCode.SUB_EXPIRED, "No active subscription.")
 
@@ -201,15 +212,16 @@ class CheckinService:
         open_pause = await self.pauses.open_for_subscription(sub.id)
         if open_pause is not None:
             today = utcnow().date()
-            in_window = (
-                open_pause.starts_on <= today <= open_pause.ends_on
-            )
+            in_window = open_pause.starts_on <= today <= open_pause.ends_on
             if in_window:
                 await self.checkins.create(
-                    user_id=user.id, gym_id=gym.id, subscription_id=sub.id,
+                    user_id=user.id,
+                    gym_id=gym.id,
+                    subscription_id=sub.id,
                     status=CheckinStatus.EXPIRED,
                     failure_reason="subscription_paused",
-                    ip_address=actor.ip_address, user_agent=actor.user_agent,
+                    ip_address=actor.ip_address,
+                    user_agent=actor.user_agent,
                 )
                 raise AppError(
                     ErrorCode.SUB_PAUSED,
@@ -221,16 +233,18 @@ class CheckinService:
 
         if sub.tier.rank < gym.required_tier.rank:
             await self.checkins.create(
-                user_id=user.id, gym_id=gym.id, subscription_id=sub.id,
+                user_id=user.id,
+                gym_id=gym.id,
+                subscription_id=sub.id,
                 status=CheckinStatus.TIER_LOCKED,
                 failure_reason=f"required_tier={gym.required_tier.value}",
-                ip_address=actor.ip_address, user_agent=actor.user_agent,
+                ip_address=actor.ip_address,
+                user_agent=actor.user_agent,
             )
             raise AppError(
                 ErrorCode.CHECKIN_TIER_LOCKED,
                 f"{gym.required_tier.value.capitalize()} tier required.",
-                details={"requiredTier": gym.required_tier.value,
-                         "userTier": sub.tier.value},
+                details={"requiredTier": gym.required_tier.value, "userTier": sub.tier.value},
             )
 
         # Gender-audience check: a male member scanning at a
@@ -243,20 +257,21 @@ class CheckinService:
         # this gate.
         if gym.audience_gender != AudienceGender.MIXED:
             allowed_gender = (
-                Gender.MALE
-                if gym.audience_gender == AudienceGender.MALE_ONLY
-                else Gender.FEMALE
+                Gender.MALE if gym.audience_gender == AudienceGender.MALE_ONLY else Gender.FEMALE
             )
             if user.gender != allowed_gender:
                 await self.checkins.create(
-                    user_id=user.id, gym_id=gym.id, subscription_id=sub.id,
+                    user_id=user.id,
+                    gym_id=gym.id,
+                    subscription_id=sub.id,
                     status=CheckinStatus.GENDER_LOCKED,
                     failure_reason=(
                         f"audience={gym.audience_gender.value}"
                         f" user_gender="
                         f"{user.gender.value if user.gender else 'unset'}"
                     ),
-                    ip_address=actor.ip_address, user_agent=actor.user_agent,
+                    ip_address=actor.ip_address,
+                    user_agent=actor.user_agent,
                 )
                 label = (
                     "Women-only"
@@ -268,9 +283,7 @@ class CheckinService:
                     f"{label} gym — check-in not available.",
                     details={
                         "audienceGender": gym.audience_gender.value,
-                        "userGender": (
-                            user.gender.value if user.gender else None
-                        ),
+                        "userGender": (user.gender.value if user.gender else None),
                     },
                 )
 
@@ -290,35 +303,37 @@ class CheckinService:
         if plan is None:
             raise AppError(ErrorCode.PLAN_NOT_FOUND, "Plan missing for subscription.")
         period_start = current_period_start(sub.starts_at, utcnow())
-        current_period_visits = (
-            await self.checkins.count_success_since_for_user(
-                user.id, period_start
-            )
+        current_period_visits = await self.checkins.count_success_since_for_user(
+            user.id, period_start
         )
         if current_period_visits >= plan.monthly_visits:
             await self.checkins.create(
-                user_id=user.id, gym_id=gym.id, subscription_id=sub.id,
+                user_id=user.id,
+                gym_id=gym.id,
+                subscription_id=sub.id,
                 status=CheckinStatus.NO_VISITS,
                 failure_reason="visits_exhausted",
-                ip_address=actor.ip_address, user_agent=actor.user_agent,
+                ip_address=actor.ip_address,
+                user_agent=actor.user_agent,
             )
-            raise AppError(
-                ErrorCode.CHECKIN_NO_VISITS, "Visit budget exhausted."
-            )
+            raise AppError(ErrorCode.CHECKIN_NO_VISITS, "Visit budget exhausted.")
 
         # Success path.
         checkin = await self.checkins.create(
-            user_id=user.id, gym_id=gym.id, subscription_id=sub.id,
+            user_id=user.id,
+            gym_id=gym.id,
+            subscription_id=sub.id,
             status=CheckinStatus.SUCCESS,
-            ip_address=actor.ip_address, user_agent=actor.user_agent,
+            ip_address=actor.ip_address,
+            user_agent=actor.user_agent,
         )
         await self.subs.increment_visits(sub.id)
-        await self.ledger.record(
-            gym_id=gym.id, checkin_id=checkin.id, rate=gym.per_visit_rate_jod
-        )
+        await self.ledger.record(gym_id=gym.id, checkin_id=checkin.id, rate=gym.per_visit_rate_jod)
         await self.audit.log(
-            actor=actor, action="checkin.success",
-            entity_type="checkin", entity_id=checkin.id,
+            actor=actor,
+            action="checkin.success",
+            entity_type="checkin",
+            entity_id=checkin.id,
             diff={"gym_id": str(gym.id)},
         )
 
@@ -357,9 +372,7 @@ class CheckinService:
         )
         # Mark the pass used + audit (delegated to DayPassService so
         # the full pass lifecycle stays in one audit-action namespace).
-        await self.day_pass_service.redeem(
-            day_pass, checkin_id=checkin.id, actor=actor
-        )
+        await self.day_pass_service.redeem(day_pass, checkin_id=checkin.id, actor=actor)
         # Payout ledger: gym is owed the NET amount the day pass
         # snapshotted at purchase time. Distinct from the
         # per_visit_rate path subscription scans take, but lands in

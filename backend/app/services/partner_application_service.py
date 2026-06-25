@@ -6,7 +6,6 @@ from decimal import Decimal
 from pathlib import Path
 from uuid import UUID, uuid4
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
@@ -120,9 +119,7 @@ class PartnerApplicationService:
     async def get(self, app_id: UUID) -> PartnerApplication:
         app = await self.repo.get(app_id)
         if app is None:
-            raise AppError(
-                ErrorCode.NOT_FOUND, "Application not found."
-            )
+            raise AppError(ErrorCode.NOT_FOUND, "Application not found.")
         return app
 
     async def list(
@@ -133,7 +130,9 @@ class PartnerApplicationService:
         page_size: int,
     ) -> tuple[list[PartnerApplication], int]:
         return await self.repo.list_with_status(
-            status=status, page=page, page_size=page_size,
+            status=status,
+            page=page,
+            page_size=page_size,
         )
 
     async def count_pending(self) -> int:
@@ -223,12 +222,8 @@ class PartnerApplicationService:
         app_dir = media_root / "applications" / str(app.id)
         gym_dir = media_root / "gym_photos" / str(gym.id)
         gym_dir.mkdir(parents=True, exist_ok=True)
-        app_url_prefix = (
-            f"{settings.media_url_prefix.rstrip('/')}/applications/{app.id}/"
-        )
-        gym_url_prefix = (
-            f"{settings.media_url_prefix.rstrip('/')}/gym_photos/{gym.id}/"
-        )
+        app_url_prefix = f"{settings.media_url_prefix.rstrip('/')}/applications/{app.id}/"
+        gym_url_prefix = f"{settings.media_url_prefix.rstrip('/')}/gym_photos/{gym.id}/"
 
         def _copy_one(src_url: str) -> str | None:
             """Copy a single staged file into the gym dir. Returns the
@@ -251,7 +246,7 @@ class PartnerApplicationService:
 
             if not src_url.startswith(app_url_prefix):
                 return None
-            filename = src_url[len(app_url_prefix):]
+            filename = src_url[len(app_url_prefix) :]
             src = app_dir / filename
             if not src.exists():
                 return None
@@ -259,9 +254,7 @@ class PartnerApplicationService:
             shutil.copy2(str(src), str(dst))
             return f"{gym_url_prefix}{filename}"
 
-        new_logo_url = (
-            _copy_one(app.logo_url) if app.logo_url else None
-        ) or app.logo_url
+        new_logo_url = (_copy_one(app.logo_url) if app.logo_url else None) or app.logo_url
         if new_logo_url is not None:
             gym.logo_url = new_logo_url
 

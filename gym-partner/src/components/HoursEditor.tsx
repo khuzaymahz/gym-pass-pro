@@ -37,9 +37,8 @@ function inferMode(value: Record<string, unknown> | null | undefined): Mode {
   if (value["24_7"] === true) return "always_open";
   const hasDayKey = DAYS.some((d) => d in value);
   if (hasDayKey) return "per_day";
-  if (typeof value.open === "string" && typeof value.close === "string") {
-    return "uniform";
-  }
+  // Everything else — the legacy single-window `{open, close}` shape
+  // and any unrecognised payload — defaults to the uniform editor.
   return "uniform";
 }
 

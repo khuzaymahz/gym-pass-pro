@@ -58,6 +58,16 @@ class AdminSubscriptionService:
             raise AppError(ErrorCode.SUB_NOT_FOUND, "Subscription not found.")
         return sub
 
+    async def _guard_no_active_subscription(self, user_id: UUID) -> None:
+        """Enforce the one-active-per-user invariant before minting or
+        restoring a subscription to ACTIVE for `user_id`."""
+        existing = await self.subs.active_for_user(user_id)
+        if existing is not None:
+            raise AppError(
+                ErrorCode.SUB_DUPLICATE_ACTIVE,
+                "Member already has an active subscription.",
+            )
+
     async def cancel(self, sub_id: UUID, *, actor: Actor) -> Subscription:
         sub = await self.get(sub_id)
         if sub.status == SubscriptionStatus.CANCELLED:
@@ -151,12 +161,7 @@ class AdminSubscriptionService:
                 ErrorCode.SUB_EXPIRED,
                 "Term has elapsed — extend the expiry before restoring.",
             )
-        existing = await self.subs.active_for_user(sub.user_id)
-        if existing is not None:
-            raise AppError(
-                ErrorCode.SUB_DUPLICATE_ACTIVE,
-                "Member already has an active subscription.",
-            )
+        await self._guard_no_active_subscription(sub.user_id)
         before = sub.status
         await self.subs.restore(sub)
         await self.audit.log(
@@ -179,12 +184,7 @@ class AdminSubscriptionService:
         plan = await self.plans.get(plan_id)
         if plan is None:
             raise AppError(ErrorCode.PLAN_NOT_FOUND, "Plan not found.")
-        existing = await self.subs.active_for_user(user_id)
-        if existing is not None:
-            raise AppError(
-                ErrorCode.SUB_DUPLICATE_ACTIVE,
-                "Member already has an active subscription.",
-            )
+        await self._guard_no_active_subscription(user_id)
         now = utcnow()
         sub = await self.subs.create_pending(
             user_id=user_id,

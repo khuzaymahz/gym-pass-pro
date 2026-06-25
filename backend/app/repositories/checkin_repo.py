@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -41,9 +41,7 @@ class CheckinRepository:
         await self.session.flush()
         return row
 
-    async def history_for_user(
-        self, user_id: UUID, limit: int = 20
-    ) -> list[tuple[Checkin, Gym]]:
+    async def history_for_user(self, user_id: UUID, limit: int = 20) -> list[tuple[Checkin, Gym]]:
         stmt = (
             select(Checkin, Gym)
             .join(Gym, Gym.id == Checkin.gym_id)
@@ -90,9 +88,7 @@ class CheckinRepository:
         if conditions:
             stmt = stmt.where(*conditions)
         stmt = (
-            stmt.order_by(Checkin.scanned_at.desc())
-            .offset((page - 1) * page_size)
-            .limit(page_size)
+            stmt.order_by(Checkin.scanned_at.desc()).offset((page - 1) * page_size).limit(page_size)
         )
         rows = (await self.session.execute(stmt)).all()
         return [(c, g, u) for c, g, u in rows], int(total)
@@ -105,9 +101,7 @@ class CheckinRepository:
         )
         return int((await self.session.execute(stmt)).scalar_one())
 
-    async def count_success_since_for_user(
-        self, user_id: UUID, since: datetime
-    ) -> int:
+    async def count_success_since_for_user(self, user_id: UUID, since: datetime) -> int:
         """Number of successful check-ins for a single user since `since`.
 
         Used by the check-in service to compute a member's per-month visit
@@ -130,7 +124,7 @@ class CheckinRepository:
     async def count_per_day_last(
         self, days: int, now: datetime | None = None
     ) -> list[tuple[str, int]]:
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.now(UTC)
         stmt = (
             select(
                 func.date_trunc("day", Checkin.scanned_at).label("day"),
@@ -146,9 +140,7 @@ class CheckinRepository:
         rows = (await self.session.execute(stmt)).all()
         return [(d.date().isoformat(), int(c)) for d, c in rows]
 
-    async def count_per_day_since(
-        self, since: datetime
-    ) -> list[tuple[str, int]]:
+    async def count_per_day_since(self, since: datetime) -> list[tuple[str, int]]:
         """SUCCESS checkin counts bucketed by day, since `since` (inclusive)."""
         stmt = (
             select(
@@ -165,9 +157,7 @@ class CheckinRepository:
         rows = (await self.session.execute(stmt)).all()
         return [(d.date().isoformat(), int(c)) for d, c in rows]
 
-    async def recent_with_user_and_gym(
-        self, *, limit: int
-    ) -> list[dict[str, Any]]:
+    async def recent_with_user_and_gym(self, *, limit: int) -> list[dict[str, Any]]:
         """Most recent check-ins joined with their gym and user. Read-only
         admin-overview shape — returns plain dicts so the service layer
         doesn't have to know about the join."""
@@ -194,9 +184,7 @@ class CheckinRepository:
 
     # ----- partner-scoped aggregates -----
 
-    async def count_success_for_gym_since(
-        self, gym_id: UUID, since: datetime
-    ) -> int:
+    async def count_success_for_gym_since(self, gym_id: UUID, since: datetime) -> int:
         stmt = (
             select(func.count())
             .select_from(Checkin)
@@ -208,16 +196,11 @@ class CheckinRepository:
         )
         return int((await self.session.execute(stmt)).scalar_one())
 
-    async def count_unique_members_for_gym_since(
-        self, gym_id: UUID, since: datetime
-    ) -> int:
-        stmt = (
-            select(func.count(func.distinct(Checkin.user_id)))
-            .where(
-                Checkin.gym_id == gym_id,
-                Checkin.status == CheckinStatus.SUCCESS,
-                Checkin.scanned_at >= since,
-            )
+    async def count_unique_members_for_gym_since(self, gym_id: UUID, since: datetime) -> int:
+        stmt = select(func.count(func.distinct(Checkin.user_id))).where(
+            Checkin.gym_id == gym_id,
+            Checkin.status == CheckinStatus.SUCCESS,
+            Checkin.scanned_at >= since,
         )
         return int((await self.session.execute(stmt)).scalar_one())
 
@@ -240,9 +223,7 @@ class CheckinRepository:
         rows = (await self.session.execute(stmt)).all()
         return [(d.date().isoformat(), int(c)) for d, c in rows]
 
-    async def tier_breakdown_for_gym_since(
-        self, gym_id: UUID, since: datetime
-    ) -> dict[str, int]:
+    async def tier_breakdown_for_gym_since(self, gym_id: UUID, since: datetime) -> dict[str, int]:
         stmt = (
             select(Subscription.tier, func.count(Checkin.id))
             .join(Subscription, Subscription.id == Checkin.subscription_id)
@@ -275,9 +256,7 @@ class CheckinRepository:
         rows = (await self.session.execute(stmt)).all()
         return [(int(h), int(c)) for h, c in rows]
 
-    async def recent_with_user_for_gym(
-        self, gym_id: UUID, *, limit: int
-    ) -> list[dict[str, Any]]:
+    async def recent_with_user_for_gym(self, gym_id: UUID, *, limit: int) -> list[dict[str, Any]]:
         """Recent successful check-ins at this gym, partner-facing.
 
         Member names are masked to "First L." per the partner PII

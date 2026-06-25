@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import secrets
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
 from uuid import UUID, uuid4
 
 import structlog
@@ -17,7 +17,7 @@ from app.core.security import (
     verify_password_async,
 )
 from app.db.enums import Role
-from app.db.models import User
+from app.db.models import OtpCode, User
 from app.providers.sms import SmsProvider
 from app.repositories.otp_repo import OtpRepository
 from app.repositories.refresh_token_repo import RefreshTokenRepository
@@ -66,6 +66,39 @@ def _dummy_password_hash() -> str:
     return _DUMMY_PASSWORD_HASH
 
 
+def _actor_ip(actor: Actor) -> str:
+    """Normalised IP for rate-limit bucket keys: lowercased, with a
+    stable `unknown` fallback so a missing IP still maps to one bucket
+    rather than scattering across empty strings."""
+    return (actor.ip_address or "unknown").lower()
+
+
+def _role_tv_extras(user: User) -> dict[str, object]:
+    """Shared JWT `extra` claims for access + admin service tokens: the
+    user's role and current `token_version` (`tv`), plus `scope` when the
+    user has an admin scope. The partner service token uses its own
+    `gym_id`-bearing shape and does not go through here."""
+    extras: dict[str, object] = {
+        "role": user.role.value,
+        "tv": user.token_version,
+    }
+    if user.admin_scope is not None:
+        extras["scope"] = user.admin_scope.value
+    return extras
+
+
+def _actor_for_user(user: User, actor: Actor) -> Actor:
+    """Re-stamp an Actor with the resolved user's identity while keeping
+    the request's network context (IP / user-agent). Used on success
+    paths where the audit entry should be attributed to the user."""
+    return Actor(
+        user_id=user.id,
+        role=user.role,
+        ip_address=actor.ip_address,
+        user_agent=actor.user_agent,
+    )
+
+
 @dataclass(frozen=True)
 class TokenBundle:
     access_token: str
@@ -93,6 +126,48 @@ class AuthService:
         self.audit = audit
         self.referrals = referrals
 
+    # ---------- OTP seam (shared) ----------
+
+    async def _generate_and_send_otp(self, phone: str) -> None:
+        """Generate, persist, and send a one-time code for `phone`.
+
+        Keeps the dev/staging fixed-OTP branch intact: when
+        `should_use_fixed_otp` is set the code is the fixed DEV_OTP,
+        otherwise a fresh 4-digit random code. The hash, TTL, expired-row
+        cleanup, and SMS dispatch are identical for every OTP we send, so
+        the request flows share this one body.
+        """
+        settings = get_settings()
+        code = DEV_OTP if settings.should_use_fixed_otp else f"{secrets.randbelow(10000):04d}"
+        code_hash = await hash_otp_async(code)
+        now = utcnow()
+        await self.otps.delete_expired_for_phone(phone, now)
+        await self.otps.insert(
+            phone=phone,
+            code_hash=code_hash,
+            expires_at=now + timedelta(seconds=OTP_TTL_SECONDS),
+        )
+        await self.sms.send_otp(phone, code)
+
+    async def _consume_otp_or_raise(self, phone: str, code: str) -> tuple[OtpCode, datetime]:
+        """Run the OTP verification ladder for `phone` and return the
+        validated row together with `now`. Raises the canonical
+        AUTH_OTP_EXPIRED / LOCKED / INVALID errors. On an invalid code the
+        attempt counter is incremented before raising; on success the
+        caller is responsible for `mark_consumed` once any remaining
+        guards (e.g. phone-uniqueness re-check) have passed.
+        """
+        latest = await self.otps.latest_for_phone(phone)
+        now = utcnow()
+        if latest is None or latest.expires_at < now:
+            raise AppError(ErrorCode.AUTH_OTP_EXPIRED, "OTP expired.")
+        if latest.attempts >= OTP_MAX_ATTEMPTS:
+            raise AppError(ErrorCode.AUTH_OTP_LOCKED, "OTP locked.")
+        if not await verify_otp_async(code, latest.code_hash):
+            await self.otps.increment_attempts(latest)
+            raise AppError(ErrorCode.AUTH_OTP_INVALID, "OTP invalid.")
+        return latest, now
+
     # ---------- Phone OTP ----------
 
     async def request_phone_otp(self, phone: str, *, actor: Actor) -> None:
@@ -106,8 +181,7 @@ class AuthService:
         # minute) but tight enough to make Jordanian-phone-space
         # enumeration uneconomic.
         phone_key = f"otp:req:{phone}"
-        ip = (actor.ip_address or "unknown").lower()
-        ip_key = f"otp:req:ip:{ip}"
+        ip_key = f"otp:req:ip:{_actor_ip(actor)}"
         if not await self.rate_limiter.allow(
             phone_key,
             limit=OTP_RATE_LIMIT,
@@ -122,19 +196,12 @@ class AuthService:
                 "Too many OTP requests. Try again later.",
             )
 
-        settings = get_settings()
-        code = DEV_OTP if settings.should_use_fixed_otp else f"{secrets.randbelow(10000):04d}"
-        code_hash = await hash_otp_async(code)
-        now = utcnow()
-        await self.otps.delete_expired_for_phone(phone, now)
-        await self.otps.insert(
-            phone=phone,
-            code_hash=code_hash,
-            expires_at=now + timedelta(seconds=OTP_TTL_SECONDS),
-        )
-        await self.sms.send_otp(phone, code)
+        await self._generate_and_send_otp(phone)
         await self.audit.log(
-            actor=actor, action="auth.otp.request", entity_type="user", entity_id=None,
+            actor=actor,
+            action="auth.otp.request",
+            entity_type="user",
+            entity_id=None,
             diff={"phone": _mask_phone(phone)},
         )
 
@@ -146,15 +213,7 @@ class AuthService:
         actor: Actor,
         referral_code: str | None = None,
     ) -> tuple[User, TokenBundle]:
-        latest = await self.otps.latest_for_phone(phone)
-        now = utcnow()
-        if latest is None or latest.expires_at < now:
-            raise AppError(ErrorCode.AUTH_OTP_EXPIRED, "OTP expired.")
-        if latest.attempts >= OTP_MAX_ATTEMPTS:
-            raise AppError(ErrorCode.AUTH_OTP_LOCKED, "OTP locked.")
-        if not await verify_otp_async(code, latest.code_hash):
-            await self.otps.increment_attempts(latest)
-            raise AppError(ErrorCode.AUTH_OTP_INVALID, "OTP invalid.")
+        latest, now = await self._consume_otp_or_raise(phone, code)
 
         await self.otps.mark_consumed(latest, now)
         user = await self.users.get_by_phone(phone)
@@ -164,12 +223,13 @@ class AuthService:
             await self.referrals.ensure_code_for_user(user, actor=actor)
         if is_new_user and referral_code:
             await self.referrals.claim_on_signup(
-                invited_user=user, referral_code=referral_code, actor=actor,
+                invited_user=user,
+                referral_code=referral_code,
+                actor=actor,
             )
         tokens = await self._issue_tokens(user)
         await self.audit.log(
-            actor=Actor(user_id=user.id, role=user.role,
-                        ip_address=actor.ip_address, user_agent=actor.user_agent),
+            actor=_actor_for_user(user, actor),
             action="auth.otp.verify",
             entity_type="user",
             entity_id=user.id,
@@ -178,9 +238,7 @@ class AuthService:
 
     # ---------- Phone change (authenticated) ----------
 
-    async def request_phone_change_otp(
-        self, user: User, new_phone: str, *, actor: Actor
-    ) -> None:
+    async def request_phone_change_otp(self, user: User, new_phone: str, *, actor: Actor) -> None:
         """Send an OTP to a new phone for an already-authenticated user.
 
         Pre-flight checks fail fast on the obvious cases (same number, already
@@ -193,9 +251,7 @@ class AuthService:
             )
         existing = await self.users.get_by_phone(new_phone)
         if existing is not None and existing.id != user.id:
-            raise AppError(
-                ErrorCode.VALIDATION_ERROR, "Phone already in use."
-            )
+            raise AppError(ErrorCode.VALIDATION_ERROR, "Phone already in use.")
 
         rl_key = f"otp:req:{new_phone}"
         if not await self.rate_limiter.allow(
@@ -206,17 +262,7 @@ class AuthService:
                 "Too many OTP requests. Try again later.",
             )
 
-        settings = get_settings()
-        code = DEV_OTP if settings.should_use_fixed_otp else f"{secrets.randbelow(10000):04d}"
-        code_hash = await hash_otp_async(code)
-        now = utcnow()
-        await self.otps.delete_expired_for_phone(new_phone, now)
-        await self.otps.insert(
-            phone=new_phone,
-            code_hash=code_hash,
-            expires_at=now + timedelta(seconds=OTP_TTL_SECONDS),
-        )
-        await self.sms.send_otp(new_phone, code)
+        await self._generate_and_send_otp(new_phone)
         await self.audit.log(
             actor=actor,
             action="auth.phone_change.request",
@@ -229,22 +275,12 @@ class AuthService:
         self, user: User, new_phone: str, code: str, *, actor: Actor
     ) -> User:
         """Verify the OTP and swap the user's phone."""
-        latest = await self.otps.latest_for_phone(new_phone)
-        now = utcnow()
-        if latest is None or latest.expires_at < now:
-            raise AppError(ErrorCode.AUTH_OTP_EXPIRED, "OTP expired.")
-        if latest.attempts >= OTP_MAX_ATTEMPTS:
-            raise AppError(ErrorCode.AUTH_OTP_LOCKED, "OTP locked.")
-        if not await verify_otp_async(code, latest.code_hash):
-            await self.otps.increment_attempts(latest)
-            raise AppError(ErrorCode.AUTH_OTP_INVALID, "OTP invalid.")
+        latest, now = await self._consume_otp_or_raise(new_phone, code)
 
         # Re-check uniqueness against a race window between request and verify.
         existing = await self.users.get_by_phone(new_phone)
         if existing is not None and existing.id != user.id:
-            raise AppError(
-                ErrorCode.VALIDATION_ERROR, "Phone already in use."
-            )
+            raise AppError(ErrorCode.VALIDATION_ERROR, "Phone already in use.")
 
         await self.otps.mark_consumed(latest, now)
         old_phone = user.phone
@@ -261,8 +297,14 @@ class AuthService:
     # ---------- Google ----------
 
     async def exchange_google(
-        self, *, email: str, name: str | None, google_sub: str, avatar_url: str | None,
-        actor: Actor, referral_code: str | None = None,
+        self,
+        *,
+        email: str,
+        name: str | None,
+        google_sub: str,
+        avatar_url: str | None,
+        actor: Actor,
+        referral_code: str | None = None,
     ) -> tuple[User, TokenBundle]:
         user = await self.users.get_by_google_sub(google_sub)
         is_new_user = False
@@ -270,7 +312,10 @@ class AuthService:
             user = await self.users.get_by_email(email) if email else None
             if user is None:
                 user = await self.users.create_member_by_google(
-                    email=email, name=name, google_sub=google_sub, avatar_url=avatar_url,
+                    email=email,
+                    name=name,
+                    google_sub=google_sub,
+                    avatar_url=avatar_url,
                 )
                 await self.referrals.ensure_code_for_user(user, actor=actor)
                 is_new_user = True
@@ -287,12 +332,13 @@ class AuthService:
                 await self.users.update_fields(user, google_sub=google_sub)
         if is_new_user and referral_code:
             await self.referrals.claim_on_signup(
-                invited_user=user, referral_code=referral_code, actor=actor,
+                invited_user=user,
+                referral_code=referral_code,
+                actor=actor,
             )
         tokens = await self._issue_tokens(user)
         await self.audit.log(
-            actor=Actor(user_id=user.id, role=user.role,
-                        ip_address=actor.ip_address, user_agent=actor.user_agent),
+            actor=_actor_for_user(user, actor),
             action="auth.google.exchange",
             entity_type="user",
             entity_id=user.id,
@@ -316,9 +362,8 @@ class AuthService:
         honest sign-in retries.
         """
         if actor is not None:
-            ip = (actor.ip_address or "unknown").lower()
             allowed = await self.rate_limiter.allow(
-                f"phone:check:ip:{ip}",
+                f"phone:check:ip:{_actor_ip(actor)}",
                 limit=30,
                 window_seconds=60,
             )
@@ -342,7 +387,7 @@ class AuthService:
         # Window is short (30 s) per the mobile-action policy — admin
         # login keeps the longer 5-minute window since admin sessions
         # mint service tokens.
-        ip = (actor.ip_address or "unknown").lower()
+        ip = _actor_ip(actor)
         if not await self.rate_limiter.allow(
             f"login:ip:{ip}",
             limit=10,
@@ -360,19 +405,12 @@ class AuthService:
         user = await self.users.get_by_phone(phone)
         if user is None or not user.password_hash:
             await verify_password_async(password, _dummy_password_hash())
-            raise AppError(
-                ErrorCode.AUTH_INVALID_CREDENTIALS, "Invalid credentials."
-            )
+            raise AppError(ErrorCode.AUTH_INVALID_CREDENTIALS, "Invalid credentials.")
         if not await verify_password_async(password, user.password_hash):
-            raise AppError(
-                ErrorCode.AUTH_INVALID_CREDENTIALS, "Invalid credentials."
-            )
+            raise AppError(ErrorCode.AUTH_INVALID_CREDENTIALS, "Invalid credentials.")
         tokens = await self._issue_tokens(user)
         await self.audit.log(
-            actor=Actor(
-                user_id=user.id, role=user.role,
-                ip_address=actor.ip_address, user_agent=actor.user_agent,
-            ),
+            actor=_actor_for_user(user, actor),
             action="auth.password.login",
             entity_type="user",
             entity_id=user.id,
@@ -381,9 +419,7 @@ class AuthService:
 
     # ---------- Gym partner phone+password ----------
 
-    async def login_partner(
-        self, phone: str, password: str, *, actor: Actor
-    ) -> User:
+    async def login_partner(self, phone: str, password: str, *, actor: Actor) -> User:
         """Authenticate a gym-owner by Jordanian phone + password.
 
         Mirrors `login_admin` in shape (rate-limited dual bucket,
@@ -392,14 +428,11 @@ class AuthService:
         is also registered as a member sees a coherent identity.
         Refuses anything that isn't `Role.GYM_OWNER`.
         """
-        ip = (actor.ip_address or "unknown").lower()
-        ip_key = f"partner:login:ip:{ip}"
+        ip_key = f"partner:login:ip:{_actor_ip(actor)}"
         phone_key = f"partner:login:phone:{phone}"
         if not await self.rate_limiter.allow(
             ip_key, limit=10, window_seconds=300
-        ) or not await self.rate_limiter.allow(
-            phone_key, limit=5, window_seconds=300
-        ):
+        ) or not await self.rate_limiter.allow(phone_key, limit=5, window_seconds=300):
             log.warning(
                 "partner_login_rate_limited",
                 phone=_mask_phone(phone),
@@ -423,15 +456,16 @@ class AuthService:
                 phone=_mask_phone(phone),
                 ip=actor.ip_address,
                 reason=(
-                    "user_not_found" if user is None
-                    else "wrong_role" if user.role != Role.GYM_OWNER
-                    else "no_password" if not user.password_hash
+                    "user_not_found"
+                    if user is None
+                    else "wrong_role"
+                    if user.role != Role.GYM_OWNER
+                    else "no_password"
+                    if not user.password_hash
                     else "no_gym_link"
                 ),
             )
-            raise AppError(
-                ErrorCode.AUTH_INVALID_CREDENTIALS, "Invalid credentials."
-            )
+            raise AppError(ErrorCode.AUTH_INVALID_CREDENTIALS, "Invalid credentials.")
         if not await verify_password_async(password, user.password_hash):
             log.warning(
                 "partner_login_failed",
@@ -440,14 +474,9 @@ class AuthService:
                 reason="bad_password",
                 user_id=str(user.id),
             )
-            raise AppError(
-                ErrorCode.AUTH_INVALID_CREDENTIALS, "Invalid credentials."
-            )
+            raise AppError(ErrorCode.AUTH_INVALID_CREDENTIALS, "Invalid credentials.")
         await self.audit.log(
-            actor=Actor(
-                user_id=user.id, role=user.role,
-                ip_address=actor.ip_address, user_agent=actor.user_agent,
-            ),
+            actor=_actor_for_user(user, actor),
             action="auth.partner.login",
             entity_type="user",
             entity_id=user.id,
@@ -462,14 +491,11 @@ class AuthService:
         # browser hits a different bucket than the lowercase stored row,
         # and would 401 on a correct password.
         email = email.lower()
-        ip = (actor.ip_address or "unknown").lower()
-        ip_key = f"admin:login:ip:{ip}"
+        ip_key = f"admin:login:ip:{_actor_ip(actor)}"
         email_key = f"admin:login:email:{email}"
         if not await self.rate_limiter.allow(
             ip_key, limit=10, window_seconds=300
-        ) or not await self.rate_limiter.allow(
-            email_key, limit=5, window_seconds=300
-        ):
+        ) or not await self.rate_limiter.allow(email_key, limit=5, window_seconds=300):
             log.warning(
                 "admin_login_rate_limited",
                 email=_mask_email(email),
@@ -488,14 +514,14 @@ class AuthService:
                 email=_mask_email(email),
                 ip=actor.ip_address,
                 reason=(
-                    "user_not_found" if user is None
-                    else "wrong_role" if user.role != Role.ADMIN
+                    "user_not_found"
+                    if user is None
+                    else "wrong_role"
+                    if user.role != Role.ADMIN
                     else "no_password"
                 ),
             )
-            raise AppError(
-                ErrorCode.AUTH_INVALID_CREDENTIALS, "Invalid credentials."
-            )
+            raise AppError(ErrorCode.AUTH_INVALID_CREDENTIALS, "Invalid credentials.")
         if not await verify_password_async(password, user.password_hash):
             log.warning(
                 "admin_login_failed",
@@ -504,12 +530,9 @@ class AuthService:
                 reason="bad_password",
                 user_id=str(user.id),
             )
-            raise AppError(
-                ErrorCode.AUTH_INVALID_CREDENTIALS, "Invalid credentials."
-            )
+            raise AppError(ErrorCode.AUTH_INVALID_CREDENTIALS, "Invalid credentials.")
         await self.audit.log(
-            actor=Actor(user_id=user.id, role=user.role,
-                        ip_address=actor.ip_address, user_agent=actor.user_agent),
+            actor=_actor_for_user(user, actor),
             action="auth.admin.login",
             entity_type="user",
             entity_id=user.id,
@@ -526,20 +549,12 @@ class AuthService:
         rotation (`bump_token_version`) invalidates every outstanding
         service token for that user on the next API call.
         """
-        extras: dict[str, object] = {
-            "role": user.role.value,
-            "tv": user.token_version,
-        }
-        if user.admin_scope is not None:
-            extras["scope"] = user.admin_scope.value
         token, exp = encode_token(
-            subject=user.id, token_type="service", extra=extras
+            subject=user.id, token_type="service", extra=_role_tv_extras(user)
         )
         return token, exp
 
-    async def issue_service_token_for_partner(
-        self, user: User
-    ) -> tuple[str, object]:
+    async def issue_service_token_for_partner(self, user: User) -> tuple[str, object]:
         """Service-token variant for gym-owners.
 
         Embeds `gym_id` in the JWT extras so downstream channel-scope
@@ -556,9 +571,7 @@ class AuthService:
             "gym_id": str(user.gym_id),
             "tv": user.token_version,
         }
-        token, exp = encode_token(
-            subject=user.id, token_type="service", extra=extras
-        )
+        token, exp = encode_token(subject=user.id, token_type="service", extra=extras)
         return token, exp
 
     # ---------- Refresh ----------
@@ -606,8 +619,7 @@ class AuthService:
         await self.refreshes.revoke(row, now)
         tokens = await self._issue_tokens(user)
         await self.audit.log(
-            actor=Actor(user_id=user.id, role=user.role,
-                        ip_address=actor.ip_address, user_agent=actor.user_agent),
+            actor=_actor_for_user(user, actor),
             action="auth.refresh",
             entity_type="user",
             entity_id=user.id,
@@ -625,7 +637,7 @@ class AuthService:
 
         try:
             payload = decode_token(refresh_token, expected_type="refresh")
-        except Exception:  # noqa: BLE001 — any decode failure → silent OK
+        except Exception:
             return
         jti = payload.get("jti")
         if not jti:
@@ -654,23 +666,13 @@ class AuthService:
 
     async def _issue_tokens(self, user: User) -> TokenBundle:
         jti = uuid4()
-        access_extras: dict[str, object] = {
-            "role": user.role.value,
-            "tv": user.token_version,
-        }
-        if user.admin_scope is not None:
-            access_extras["scope"] = user.admin_scope.value
         access, access_exp = encode_token(
             subject=user.id,
             token_type="access",
-            extra=access_extras,
+            extra=_role_tv_extras(user),
         )
-        refresh, refresh_exp = encode_token(
-            subject=user.id, token_type="refresh", jti=str(jti)
-        )
-        await self.refreshes.create(
-            jti=jti, user_id=user.id, expires_at=refresh_exp
-        )
+        refresh, refresh_exp = encode_token(subject=user.id, token_type="refresh", jti=str(jti))
+        await self.refreshes.create(jti=jti, user_id=user.id, expires_at=refresh_exp)
         return TokenBundle(
             access_token=access,
             refresh_token=refresh,
