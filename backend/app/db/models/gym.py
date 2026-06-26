@@ -53,18 +53,14 @@ class Gym(Base):
         Numeric(10, 3), nullable=False, server_default=text("2.000")
     )
     rating: Mapped[Decimal | None] = mapped_column(Numeric(2, 1), nullable=True)
-    review_count: Mapped[int] = mapped_column(
-        nullable=False, default=0, server_default="0"
-    )
+    review_count: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
     cover_image_url: Mapped[str | None] = mapped_column(nullable=True)
     logo_url: Mapped[str | None] = mapped_column(nullable=True)
     # Optional render hints for the logo. Shape:
     #   {"fit": "cover" | "contain", "position": "top" | "center" | "bottom"}
     # NULL = use the default ({fit:"cover", position:"center"}). See
     # migration 0015 for the rationale.
-    logo_alignment: Mapped[dict[str, Any] | None] = mapped_column(
-        JSONB, nullable=True
-    )
+    logo_alignment: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     amenities: Mapped[list[str]] = mapped_column(
         JSONB, nullable=False, server_default=text("'[]'::jsonb")
     )
@@ -87,4 +83,5 @@ class Gym(Base):
             postgresql_where=text("is_active = true AND deleted_at IS NULL"),
         ),
         Index("ix_gyms_area", "area"),
+        Index("ix_gyms_audience_gender", "audience_gender"),
     )

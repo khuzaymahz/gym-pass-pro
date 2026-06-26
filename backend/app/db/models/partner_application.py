@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from datetime import datetime
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import ForeignKey, Numeric, text
+from sqlalchemy import ForeignKey, Index, Numeric, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -108,3 +107,14 @@ class PartnerApplication(Base):
     updated_at: Mapped[TimestampTZUpdate]
     # No soft-delete column — the `rejected` status serves the same
     # purpose (row retained for audit, no real gym/user spawned).
+
+    __table_args__ = (
+        # Status filter for the admin review queue (created in migration 0017;
+        # declared here so the model is the full source of truth).
+        Index("ix_partner_applications_status", "status"),
+        # Supporting indexes for the three FK columns so SET NULL on a
+        # deleted user/gym doesn't seq-scan this table (see migration 0024).
+        Index("ix_partner_applications_reviewed_by", "reviewed_by_user_id"),
+        Index("ix_partner_applications_approved_gym", "approved_gym_id"),
+        Index("ix_partner_applications_approved_owner", "approved_owner_user_id"),
+    )
