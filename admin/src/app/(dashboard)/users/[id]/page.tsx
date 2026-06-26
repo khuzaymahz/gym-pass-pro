@@ -2,6 +2,8 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
+import ManageSubscription from "@/components/ManageSubscription";
+import RefundPaymentButton from "@/components/RefundPaymentButton";
 import StatTile from "@/components/StatTile";
 import Toolbar from "@/components/Toolbar";
 import UserEditForm from "@/components/UserEditForm";
@@ -11,21 +13,27 @@ import PaymentsSection from "@/components/users/PaymentsSection";
 import ReferralPanel from "@/components/users/ReferralPanel";
 import SubscriptionsSection from "@/components/users/SubscriptionsSection";
 import TicketsSection from "@/components/users/TicketsSection";
+import UserSessionsPanel from "@/components/users/UserSessionsPanel";
 import { runAction } from "@/lib/action-result";
 import { UserUpdateBodySchema, parseAction } from "@/lib/action-schemas";
-import { AdminSDK, type AdminUserUpdate } from "@/lib/sdk";
+import { AdminSDK, type AdminUserUpdate, type Tier } from "@/lib/sdk";
 
 type Props = { params: Promise<{ id: string }> };
 
 export default async function UserDetailPage({ params }: Props) {
   const { id } = await params;
   const t = await getTranslations("users.detail");
-  let detail;
-  try {
-    detail = await AdminSDK.getUserDetail(id);
-  } catch {
+  // Fetch detail (required) + sessions (soft) concurrently rather than
+  // in a waterfall — they're independent, halving the round-trip wait.
+  const [detailR, sessionsR] = await Promise.allSettled([
+    AdminSDK.getUserDetail(id),
+    AdminSDK.listUserSessions(id),
+  ]);
+  if (detailR.status !== "fulfilled") {
     notFound();
   }
+  const detail = detailR.value;
+  const sessions = sessionsR.status === "fulfilled" ? sessionsR.value : [];
 
   const {
     user,
@@ -46,6 +54,34 @@ export default async function UserDetailPage({ params }: Props) {
     const validated = parseAction(UserUpdateBodySchema, data);
     if (!validated.ok) return validated;
     return runAction(() => AdminSDK.updateUser(id, validated.data));
+  }
+  async function extendSub(subId: string, days: number) {
+    "use server";
+    return runAction(() => AdminSDK.extendSubscription(subId, days));
+  }
+  async function setSubVisits(subId: string, visitsUsed: number) {
+    "use server";
+    return runAction(() => AdminSDK.setSubscriptionVisits(subId, visitsUsed));
+  }
+  async function changeSubTier(subId: string, tier: Tier) {
+    "use server";
+    return runAction(() => AdminSDK.changeSubscriptionTier(subId, tier));
+  }
+  async function restoreSub(subId: string) {
+    "use server";
+    return runAction(() => AdminSDK.restoreSubscription(subId));
+  }
+  async function resumeSubPause(subId: string) {
+    "use server";
+    return runAction(() => AdminSDK.resumeSubscriptionPause(subId));
+  }
+  async function refundPayment(paymentId: string) {
+    "use server";
+    return runAction(() => AdminSDK.refundPayment(paymentId));
+  }
+  async function revokeSessions() {
+    "use server";
+    return runAction(() => AdminSDK.revokeUserSessions(id));
   }
 
   const displayName =
@@ -112,11 +148,38 @@ export default async function UserDetailPage({ params }: Props) {
             <UserEditForm user={user} action={update} />
           </section>
 
-          <SubscriptionsSection subscriptions={subscriptions} />
+          <SubscriptionsSection
+            subscriptions={subscriptions}
+            renderActions={(s) => (
+              <ManageSubscription
+                sub={{
+                  id: s.id,
+                  status: s.status,
+                  tier: s.tier,
+                  visitsUsed: s.visitsUsed,
+                }}
+                extend={extendSub.bind(null, s.id)}
+                setVisits={setSubVisits.bind(null, s.id)}
+                changeTier={changeSubTier.bind(null, s.id)}
+                restore={restoreSub.bind(null, s.id)}
+                resumePause={resumeSubPause.bind(null, s.id)}
+              />
+            )}
+          />
           <PaymentsSection
             payments={payments}
             paymentMethods={paymentMethods}
+            renderActions={(p) =>
+              p.status === "succeeded" ? (
+                <RefundPaymentButton
+                  action={refundPayment.bind(null, p.id)}
+                />
+              ) : (
+                <span className="text-[11px] text-muted">—</span>
+              )
+            }
           />
+          <UserSessionsPanel sessions={sessions} revoke={revokeSessions} />
           <TicketsSection tickets={tickets} />
           <CheckinsSection checkins={recentCheckins} />
         </div>

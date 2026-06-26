@@ -71,11 +71,10 @@ class SupportTicketMessage(Base):
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     body: Mapped[str] = mapped_column(nullable=False)
-    is_internal_note: Mapped[bool] = mapped_column(
-        nullable=False, server_default=text("false")
-    )
+    is_internal_note: Mapped[bool] = mapped_column(nullable=False, server_default=text("false"))
     created_at: Mapped[TimestampTZ]
 
     __table_args__ = (
         Index("ix_support_ticket_messages_ticket", "ticket_id", "created_at"),
+        Index("ix_support_ticket_messages_author", "author_user_id"),
     )

@@ -3,6 +3,33 @@
 @tailwind utilities;
 
 /* ============================================================
+   GymPass Admin — Design System
+   ------------------------------------------------------------
+   One amber-on-neutral system, density-first (Linear/Vercel/Stripe
+   register), themed via `data-theme` on <html>. Build UI from the
+   primitives below — don't hand-roll surfaces, shadows or controls.
+
+   PALETTE   ink · paper · surface[/-1/-2] · line[/-2] · muted ·
+             accent(#EAB308)/accent-ink   (+ status: red/amber/sky)
+   ELEVATION --shadow-sm|md|lg|pop + --highlight-top (1px top edge).
+             Surfaces float via shadow, never heavy borders alone.
+   RADIUS    md 6 · lg 8 · xl 10 · 2xl 12 (tailwind.config).
+   TYPE      .h1 22 · .h2 15 · .h3 13 · body 13.5 · .label 10.5up.
+             Numerics use .num (tabular). Tracking tightens with size.
+   MOTION    150ms ease-out micro / 200–320ms cubic for reveals.
+             All honour prefers-reduced-motion (see bottom).
+   PRIMITIVES
+     surfaces  .card .panel .pop .stat  (+ .lift hover)
+     controls  .btn-{primary,secondary,ghost,danger} .btn-sm .btn-icon
+     inputs    .input .input-sm .select .field/.field-label
+     data      .table (sticky head, amber row rail) .kbd .code .num
+     status    .pill-{ok,warn,bad,info,mute} .dot
+     nav       .nav-item(.is-active) .nav-group-label .seg
+     chrome    .toolbar  · React: <Toolbar> <Stat> <StatusPill>
+               <EmptyState> <Pager> <Popover> <ConfirmActionButton>
+   ============================================================ */
+
+/* ============================================================
    Theme tokens. Two themes, one set of utility classes.
 
    Switching is done by toggling `data-theme="light|dark"` on the
@@ -44,6 +71,24 @@
      so the selected run is obviously highlighted. */
   --c-select-bg: 234 179 8;
   --c-select-fg: 9 9 11;
+
+  /* --- Elevation system (depth, not colour) -------------------
+     Layered black-alpha shadows + a 1px white-alpha top highlight
+     give surfaces a "lit from above" read. Tuned deep for the
+     dark canvas so panels actually float off near-black. */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.32);
+  --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.28), 0 4px 12px rgba(0, 0, 0, 0.26);
+  --shadow-lg: 0 2px 6px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.4);
+  --shadow-pop: 0 4px 10px rgba(0, 0, 0, 0.4), 0 18px 44px rgba(0, 0, 0, 0.5);
+  --highlight-top: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  /* Soft amber glow for the primary CTA on hover. */
+  --glow-accent: 0 2px 12px rgba(234, 179, 8, 0.25);
+  /* Ambient page wash — a single faint amber bloom top-centre. */
+  --app-wash: radial-gradient(
+    900px 420px at 50% -8%,
+    rgba(234, 179, 8, 0.04),
+    transparent 70%
+  );
 }
 
 [data-theme="light"] {
@@ -82,6 +127,28 @@
 
   --c-select-bg: 234 179 8;
   --c-select-fg: 24 24 27;
+
+  /* --- Elevation system, light register ----------------------
+     Softer, cooler shadows (slate-tinted black) so the dense
+     table look stays calm; a strong white top highlight sells the
+     "paper card on a light desk" depth. */
+  --shadow-sm: 0 1px 2px rgba(24, 24, 27, 0.06);
+  --shadow-md: 0 1px 3px rgba(24, 24, 27, 0.08), 0 4px 12px rgba(24, 24, 27, 0.06);
+  --shadow-lg: 0 2px 6px rgba(24, 24, 27, 0.08), 0 12px 28px rgba(24, 24, 27, 0.12);
+  --shadow-pop: 0 4px 10px rgba(24, 24, 27, 0.1), 0 18px 40px rgba(24, 24, 27, 0.16);
+  --highlight-top: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  --glow-accent: 0 2px 12px rgba(234, 179, 8, 0.28);
+  --app-wash: radial-gradient(
+    900px 420px at 50% -8%,
+    rgba(234, 179, 8, 0.05),
+    transparent 70%
+  );
+}
+
+html {
+  /* Display utility used Archivo (Latin-only); point it at the one
+     shared face so headings render in Cairo for Arabic + English too. */
+  --font-display: var(--font-sans);
 }
 
 html,
@@ -89,15 +156,21 @@ body {
   height: 100%;
   background: rgb(var(--c-ink));
   color: rgb(var(--c-paper));
-  font-family: var(--font-sans), Inter, ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   font-feature-settings: "cv11", "ss01", "ss03";
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 }
 
 body {
   font-size: 13.5px;
   letter-spacing: -0.005em;
+  /* Fixed ambient amber bloom behind the whole app — adds depth
+     without tinting any surface. Stays put while content scrolls. */
+  background-image: var(--app-wash);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
 }
 
 a {
@@ -113,60 +186,82 @@ a {
 
 /* --- Typography utilities ------------------------------------ */
 
-/* Small mono-ish label (still Inter, with tracking to feel technical). */
+/* Small uppercase label — normal UI face (Cairo) for Arabic + English. */
 .label {
-  @apply text-[10.5px] font-medium uppercase tracking-[0.08em] text-muted;
+  @apply font-sans text-[10px] font-semibold uppercase text-muted;
 }
 
-/* Tabular numerals for any numeric column. */
+/* Tabular numerals for any numeric column — set in the mono face so
+   data columns line up and read as deliberately technical. */
 .num {
-  font-variant-numeric: tabular-nums;
-}
-
-/* Code-ish inline: same font, tighter letter-spacing + slightly smaller. */
-.code {
-  @apply text-[12px] text-muted;
+  font-family: var(--font-mono), ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
 }
 
-/* Keyboard / id chip — rounded, bordered. */
-.kbd {
-  @apply inline-flex items-center rounded border border-line-2 bg-surface px-1.5 py-[1px] text-[10.5px] text-muted;
+/* Code-ish inline. */
+.code {
+  @apply font-mono text-[12px] text-muted;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.005em;
 }
 
-/* Headings - the only three you ever need. */
+/* Keyboard / id chip — rounded, bordered, mono. */
+.kbd {
+  @apply inline-flex items-center rounded border border-line-2 bg-surface px-1.5 py-[1px] font-mono text-[10.5px] text-muted;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Headings — Archivo display face for a distinct, branded voice. */
 .h1 {
-  @apply text-[22px] font-semibold tracking-[-0.015em] text-paper;
+  @apply font-display text-[23px] font-bold tracking-[-0.02em] text-paper;
 }
 
 .h2 {
-  @apply text-[15px] font-semibold tracking-[-0.01em] text-paper;
+  @apply font-display text-[15px] font-semibold tracking-[-0.01em] text-paper;
 }
 
 .h3 {
-  @apply text-[13px] font-medium text-paper;
+  @apply font-display text-[13px] font-semibold text-paper;
 }
 
-/* Sidebar group label — amber chip, unmistakably differentiates sections. */
+/* Sidebar group label — amber chip in the normal UI face (Cairo) so it's
+   legible in both Arabic and English; the old mono face had no Arabic
+   glyphs and read poorly. */
 .nav-group-label {
-  @apply mb-1.5 inline-flex items-center rounded bg-accent px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-accent-ink;
+  @apply mb-1.5 inline-flex items-center rounded bg-accent px-1.5 py-0.5 font-sans text-[10px] font-bold uppercase text-accent-ink;
+}
+/* Letter-spacing on uppercase chrome labels in LTR only — it breaks
+   Arabic's cursive letter joins, so AR renders without it. */
+[dir="ltr"] :is(.nav-group-label, .label, .stat-label, .table thead th) {
+  @apply tracking-[0.07em];
 }
 
 /* --- Buttons ------------------------------------------------- */
 
 .btn {
-  @apply inline-flex h-8 items-center justify-center gap-1.5 rounded-md px-3 text-[12.5px] font-medium transition-colors duration-150 ease-out;
+  @apply inline-flex h-8 select-none items-center justify-center gap-1.5 rounded-md px-3 text-[12.5px] font-medium transition-all duration-150 ease-out;
+  /* Springy press: lifts on hover, settles on click. */
+  will-change: transform;
+}
+.btn:active {
+  transform: translateY(0.5px);
 }
 
 .btn-primary {
-  @apply btn bg-accent text-accent-ink hover:bg-accent/90 active:brightness-95;
+  @apply btn bg-accent text-accent-ink hover:-translate-y-px hover:bg-accent/95 active:translate-y-0;
+  box-shadow: var(--shadow-sm), var(--highlight-top);
+}
+.btn-primary:hover {
+  box-shadow: var(--shadow-md), var(--glow-accent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
 .btn-secondary {
-  @apply btn border border-line-2 bg-surface text-paper hover:bg-line;
+  @apply btn border border-line-2 bg-surface text-paper hover:-translate-y-px hover:border-line-2 hover:bg-surface-1 active:translate-y-0;
+  box-shadow: var(--shadow-sm), var(--highlight-top);
+}
+.btn-secondary:hover {
+  box-shadow: var(--shadow-md), var(--highlight-top);
 }
 
 .btn-ghost {
@@ -174,7 +269,7 @@ a {
 }
 
 .btn-danger {
-  @apply btn border border-red-500/30 bg-red-500/10 text-red-500 hover:border-red-500/60 hover:bg-red-500/20;
+  @apply btn border border-red-500/30 bg-red-500/10 text-red-500 transition-all hover:-translate-y-px hover:border-red-500/60 hover:bg-red-500/20 active:translate-y-0;
 }
 
 .btn-sm {
@@ -188,7 +283,10 @@ a {
 /* --- Inputs ------------------------------------------------- */
 
 .input {
-  @apply block w-full rounded-md border border-line-2 bg-ink px-3 py-1.5 text-[13px] text-paper shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] transition-colors placeholder:text-muted focus:border-accent/60 focus:outline-none focus:ring-1 focus:ring-accent/30;
+  @apply block w-full rounded-md border border-line-2 bg-ink px-3 py-1.5 text-[13px] text-paper shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] transition-all duration-150 ease-out placeholder:text-muted hover:border-line-2 focus:border-accent/70 focus:outline-none focus:ring-[3px] focus:ring-accent/15;
+}
+.input:hover:not(:focus) {
+  border-color: rgb(var(--c-muted) / 0.5);
 }
 
 .input-sm {
@@ -215,40 +313,120 @@ a {
 /* --- Surfaces ----------------------------------------------- */
 
 .card {
-  @apply rounded-xl border border-line bg-surface p-5;
+  @apply rounded-xl border border-line p-5;
+  background-image: linear-gradient(
+    180deg,
+    rgb(var(--c-surface-1)),
+    rgb(var(--c-surface))
+  );
+  box-shadow: var(--shadow-md), var(--highlight-top);
 }
 
 .panel {
   @apply rounded-lg border border-line bg-surface;
+  box-shadow: var(--shadow-sm), var(--highlight-top);
+}
+
+/* Floating layer — popovers, menus, dialogs. Stronger lift so they
+   clearly detach from the surface below. */
+.pop {
+  @apply rounded-lg border border-line-2 bg-surface;
+  box-shadow: var(--shadow-pop), var(--highlight-top);
 }
 
 .divider {
   @apply border-b border-line;
 }
 
+/* Interactive lift — opt-in hover elevation for clickable cards. */
+.lift {
+  @apply transition-all duration-200 ease-out;
+  will-change: transform;
+}
+.lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg), var(--highlight-top);
+}
+
 /* --- Page chrome (toolbar / shell) -------------------------- */
 
 /* Sticky top bar with page title + primary action. */
 .toolbar {
-  @apply sticky top-0 z-20 -mx-10 flex items-center justify-between gap-4 border-b border-line bg-ink/80 px-10 py-4 backdrop-blur;
+  @apply sticky top-0 z-20 -mx-10 flex items-center justify-between gap-4 border-b border-line bg-ink/70 px-10 py-4 backdrop-blur-xl;
+  box-shadow: 0 1px 0 rgb(var(--c-line) / 0.6), 0 6px 16px -12px rgba(0, 0, 0, 0.5);
 }
 
 .toolbar-inline {
   @apply flex items-center justify-between gap-4 border-b border-line pb-4;
 }
 
+/* --- Sidebar nav item -------------------------------------- */
+
+.nav-item {
+  @apply relative flex h-8 items-center justify-between rounded-md px-2.5 text-[13px] text-muted transition-all duration-150 ease-out;
+}
+.nav-item:hover {
+  @apply bg-surface text-paper;
+}
+.nav-item.is-active {
+  @apply bg-accent/10 font-medium text-paper;
+}
+/* Amber rail flush to the rounded-md left edge marks the active route. */
+.nav-item.is-active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  height: 16px;
+  width: 2.5px;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  background: rgb(var(--c-accent));
+  box-shadow: 0 0 8px rgb(var(--c-accent) / 0.5);
+}
+
 /* --- Stat tile (6-up dashboard grid) ----------------------- */
 
 .stat {
-  @apply flex flex-col gap-1 rounded-lg border border-line bg-surface px-4 py-3.5;
+  @apply relative flex flex-col gap-1 overflow-hidden rounded-lg border border-line px-4 py-3.5 transition-all duration-200 ease-out;
+  background-image: linear-gradient(
+    180deg,
+    rgb(var(--c-surface-1)),
+    rgb(var(--c-surface))
+  );
+  box-shadow: var(--shadow-sm), var(--highlight-top);
+  will-change: transform;
+}
+/* Hairline accent sliver across the top — lights up on hover. */
+.stat::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgb(var(--c-accent) / 0.55),
+    transparent
+  );
+  opacity: 0;
+  transition: opacity 200ms var(--ease, ease);
+}
+.stat:hover {
+  transform: translateY(-2px);
+  border-color: rgb(var(--c-line-2));
+  box-shadow: var(--shadow-md), var(--highlight-top);
+}
+.stat:hover::before {
+  opacity: 1;
 }
 
 .stat-label {
-  @apply text-[11px] font-medium text-muted;
+  @apply font-sans text-[10px] font-semibold uppercase text-muted;
 }
 
 .stat-value {
-  @apply text-[22px] font-semibold tracking-[-0.02em] text-paper;
+  @apply font-display text-[24px] font-bold tracking-[-0.03em] text-paper;
   font-variant-numeric: tabular-nums;
 }
 
@@ -263,8 +441,22 @@ a {
   @apply w-full border-collapse;
 }
 
+/* Responsive tables, zero markup churn: a panel wrapping a data table
+   scrolls horizontally when the dense grid can't fit (phones/tablets).
+   `:not(.overflow-visible)` respects panels that deliberately let a
+   popover spill out (e.g. the day-pass offerings configure menu).
+   overflow-x:auto only engages when content actually overflows, so
+   desktop is untouched. */
+.panel:has(table.table):not(.overflow-visible) {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .table thead th {
-  @apply border-b border-line px-3 py-2 text-left text-[11px] font-medium uppercase tracking-[0.04em] text-muted;
+  @apply border-b border-line bg-surface/60 px-3 py-2.5 text-left font-sans text-[10px] font-semibold uppercase text-muted;
+  position: sticky;
+  top: 0;
+  backdrop-filter: blur(8px);
 }
 
 .table tbody td {
@@ -277,11 +469,15 @@ a {
 }
 
 .table tbody tr {
-  @apply transition-colors;
+  @apply transition-colors duration-100 ease-out;
+  /* Left rail that lights up amber on hover — the Linear/Stripe
+     row-focus signature. Painted via box-shadow so it adds no layout. */
+  box-shadow: inset 2px 0 0 transparent;
 }
 
 .table tbody tr:hover {
-  @apply bg-line/40;
+  background: rgb(var(--c-accent) / 0.05);
+  box-shadow: inset 2px 0 0 rgb(var(--c-accent) / 0.5);
 }
 
 .table td.num,
@@ -331,28 +527,65 @@ a {
 
 .seg {
   @apply inline-flex items-center rounded-md border border-line bg-surface p-0.5;
+  box-shadow: var(--shadow-sm), var(--highlight-top);
 }
 
 .seg a,
 .seg button {
-  @apply inline-flex h-7 items-center rounded px-2.5 text-[12px] font-medium text-muted transition-colors hover:text-paper;
+  @apply inline-flex h-7 items-center rounded px-2.5 text-[12px] font-medium text-muted transition-all duration-150 ease-out hover:text-paper;
 }
 
 .seg a.is-active,
 .seg button.is-active {
-  @apply bg-line text-paper shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)];
+  @apply bg-surface-2 text-paper;
+  box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 /* --- Animation --------------------------------------------- */
 
 @keyframes fade-up {
-  from { opacity: 0; transform: translateY(4px); }
+  from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* Mobile drawer slide-in (from the inline edge). */
+@keyframes slide-in {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* Toast entrance — rise + fade from the corner. */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 .fade-in {
-  animation: fade-up 180ms ease both;
+  animation: fade-up 260ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
   animation-delay: var(--delay, 0ms);
+}
+
+/* Staggered reveal for grids/lists — set on the parent, children
+   cascade in. Cheap (transform + opacity only). */
+.stagger > * {
+  animation: fade-up 320ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.stagger > *:nth-child(1) { animation-delay: 20ms; }
+.stagger > *:nth-child(2) { animation-delay: 55ms; }
+.stagger > *:nth-child(3) { animation-delay: 90ms; }
+.stagger > *:nth-child(4) { animation-delay: 125ms; }
+.stagger > *:nth-child(5) { animation-delay: 160ms; }
+.stagger > *:nth-child(6) { animation-delay: 195ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fade-in,
+  .stagger > *,
+  .pulse {
+    animation: none !important;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+  }
 }
 
 @keyframes pulse-dot {

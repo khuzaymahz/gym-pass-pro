@@ -31,6 +31,33 @@ export type GymRead = {
 
 export type Page<T> = { items: T[]; total: number; page: number; pageSize: number };
 
+/// Multipart upload helper. The shared `api()` client forces a JSON
+/// content-type and body, so the two file-upload endpoints (photo /
+/// logo) bypass it and post `FormData` directly. This factors out the
+/// otherwise byte-for-byte response parsing + `ApiError` mapping they
+/// both repeated. Throws the same `ApiError` shape as `api()` on
+/// non-2xx so callers / error boundaries handle it identically.
+async function uploadFormData<T>(path: string, formData: FormData): Promise<T> {
+  const bearer = await serviceToken();
+  const response = await fetch(`${serverEnv.API_BASE_URL}${path}`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${bearer}` },
+    body: formData,
+    cache: "no-store",
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const err = body?.error;
+    throw new ApiError(
+      err?.code ?? "UNKNOWN",
+      err?.message ?? response.statusText,
+      response.status,
+      err?.details,
+    );
+  }
+  return body as T;
+}
+
 export type GymListFilters = {
   page?: number;
   pageSize?: number;
@@ -115,27 +142,7 @@ export async function uploadGymPhoto(
   gymId: string,
   formData: FormData,
 ): Promise<GymPhotoRead> {
-  const bearer = await serviceToken();
-  const response = await fetch(
-    `${serverEnv.API_BASE_URL}/api/v1/admin/gyms/${gymId}/photos`,
-    {
-      method: "POST",
-      headers: { authorization: `Bearer ${bearer}` },
-      body: formData,
-      cache: "no-store",
-    },
-  );
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const err = body?.error;
-    throw new ApiError(
-      err?.code ?? "UNKNOWN",
-      err?.message ?? response.statusText,
-      response.status,
-      err?.details,
-    );
-  }
-  return body as GymPhotoRead;
+  return uploadFormData(`/api/v1/admin/gyms/${gymId}/photos`, formData);
 }
 
 export async function updateGymPhoto(
@@ -169,27 +176,7 @@ export async function uploadGymLogo(
   gymId: string,
   formData: FormData,
 ): Promise<GymRead> {
-  const bearer = await serviceToken();
-  const response = await fetch(
-    `${serverEnv.API_BASE_URL}/api/v1/admin/gyms/${gymId}/logo`,
-    {
-      method: "POST",
-      headers: { authorization: `Bearer ${bearer}` },
-      body: formData,
-      cache: "no-store",
-    },
-  );
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const err = body?.error;
-    throw new ApiError(
-      err?.code ?? "UNKNOWN",
-      err?.message ?? response.statusText,
-      response.status,
-      err?.details,
-    );
-  }
-  return body as GymRead;
+  return uploadFormData(`/api/v1/admin/gyms/${gymId}/logo`, formData);
 }
 
 export async function deleteGymLogo(gymId: string): Promise<GymRead> {

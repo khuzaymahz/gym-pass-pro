@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -10,6 +10,7 @@ from app.db.enums import Role, TicketCategory, TicketPriority, TicketStatus
 from app.db.models import SupportTicket, SupportTicketMessage
 from app.repositories.support_ticket_repo import SupportTicketRepository
 from app.services.audit_service import Actor, AuditService
+from app.utils.time import utcnow
 
 # Caps for the freeform `meta` JSONB on a ticket. Members can attach
 # arbitrary key/value context (build version, last-screen, etc.), and
@@ -56,8 +57,7 @@ def _validate_meta(meta: dict[str, Any] | None) -> dict[str, Any] | None:
         if isinstance(v, (str, int, float, bool)) or v is None:
             continue
         if isinstance(v, list) and all(
-            isinstance(item, (str, int, float, bool)) or item is None
-            for item in v
+            isinstance(item, (str, int, float, bool)) or item is None for item in v
         ):
             continue
         raise AppError(
@@ -83,9 +83,7 @@ def _validate_meta(meta: dict[str, Any] | None) -> dict[str, Any] | None:
 
 
 class SupportTicketService:
-    def __init__(
-        self, repo: SupportTicketRepository, audit: AuditService
-    ) -> None:
+    def __init__(self, repo: SupportTicketRepository, audit: AuditService) -> None:
         self.repo = repo
         self.audit = audit
 
@@ -180,7 +178,7 @@ class SupportTicketService:
         resolved_cleared = False
         if status is not None:
             if status in (TicketStatus.RESOLVED, TicketStatus.CLOSED):
-                resolved_at = datetime.now(timezone.utc)
+                resolved_at = utcnow()
             elif ticket.resolved_at is not None:
                 resolved_cleared = True
 

@@ -55,9 +55,7 @@ class DayPassOffering(Base):
     platform_fee_pct: Mapped[Decimal] = mapped_column(
         Numeric(5, 2), nullable=False, server_default=text("10.00")
     )
-    validity_hours: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default=text("24")
-    )
+    validity_hours: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("24"))
     daily_cap: Mapped[int | None] = mapped_column(Integer, nullable=True)
     audience_gender_override: Mapped[AudienceGender | None] = mapped_column(
         pg_enum_cls("audience_gender_enum", AudienceGender), nullable=True
@@ -131,9 +129,7 @@ class DayPass(Base):
         nullable=False,
         server_default=text("now()"),
     )
-    expires_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     used_at: Mapped[TimestampTZNullable]
     checkin_id: Mapped[UUIDFk | None] = mapped_column(
         ForeignKey("checkins.id", ondelete="RESTRICT"), nullable=True
@@ -144,6 +140,8 @@ class DayPass(Base):
 
     __table_args__ = (
         Index("ix_day_passes_user_status", "user_id", "status"),
+        Index("ix_day_passes_payment_id", "payment_id"),
+        Index("ix_day_passes_checkin_id", "checkin_id"),
         Index(
             "ix_day_passes_active_lookup",
             "user_id",

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Cairo, JetBrains_Mono } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import { cookies } from "next/headers";
@@ -8,9 +8,22 @@ import type { ReactNode } from "react";
 import { themeBootScript } from "@/components/ThemeToggle";
 import "@/styles/globals.css";
 
-const inter = Inter({
-  subsets: ["latin"],
+// Type system: one face for the whole console so Arabic and English
+// render in the *same* typeface (Inter/Archivo were Latin-only, so
+// Arabic fell back to a system font and looked different).
+//  • Cairo          — body, UI, headings, brand (Latin + Arabic)
+//  • JetBrains Mono — data: tabular numbers, ids, labels (Latin);
+//                     Arabic in these spots falls back to Cairo.
+const cairo = Cairo({
+  subsets: ["latin", "arabic"],
   variable: "--font-sans",
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+  weight: ["400", "500"],
   display: "swap",
 });
 
@@ -38,7 +51,7 @@ export default async function RootLayout({
     <html
       lang={locale}
       dir={dir}
-      className={inter.variable}
+      className={`${cairo.variable} ${jetbrainsMono.variable}`}
       data-theme={theme}
       suppressHydrationWarning
     >

@@ -62,5 +62,13 @@
         <domain includeSubdomains="true">192.168.0.0</domain>
         <domain includeSubdomains="true">192.168.1.0</domain>
         <domain includeSubdomains="true">10.0.0.0</domain>
+        <!-- Exact host IP of this dev machine's Wi-Fi interface.
+             Android matches IP literals exactly (no CIDR / range
+             support), so a real device hitting the laptop's LAN
+             backend needs the precise address listed here — the
+             /24-prefix entries above do NOT cover sibling IPs like
+             .5 on the same subnet. Update this when the dev box's
+             DHCP lease changes. Debug builds only. -->
+        <domain includeSubdomains="false">192.168.100.5</domain>
     </domain-config>
 </network-security-config>

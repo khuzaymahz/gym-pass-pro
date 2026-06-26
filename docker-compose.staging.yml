@@ -156,7 +156,7 @@ services:
     env_file:
       - .env.staging
     environment:
-      APP_ENV: staging
+      APP_ENV: development
       POSTGRES_HOST: db
       POSTGRES_PORT: "5432"
     command:
@@ -202,7 +202,7 @@ services:
       - media_data:/app/media
     ports: !reset []
     environment:
-      APP_ENV: staging
+      APP_ENV: development
     deploy:
       resources:
         limits:
@@ -239,7 +239,7 @@ services:
       - .env.staging
     volumes: !reset []
     environment:
-      APP_ENV: staging
+      APP_ENV: development
     deploy:
       resources:
         limits:
@@ -265,7 +265,7 @@ services:
       - .env.staging
     volumes: !reset []
     environment:
-      APP_ENV: staging
+      APP_ENV: development
     deploy:
       resources:
         limits:

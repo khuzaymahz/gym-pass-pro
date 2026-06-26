@@ -44,12 +44,26 @@ const config: Config = {
         lime: "rgb(var(--c-accent) / <alpha-value>)",
       },
       fontFamily: {
-        sans: [
+        // One shared face (Cairo) covers Latin + Arabic so the console
+        // reads in the same typeface in both locales.
+        sans: ["var(--font-sans)", "ui-sans-serif", "system-ui", "sans-serif"],
+        // Display — headings, big numbers. Now the same Cairo face
+        // (--font-display is aliased to --font-sans in globals.css).
+        display: [
+          "var(--font-display)",
           "var(--font-sans)",
-          "Inter",
           "ui-sans-serif",
           "system-ui",
           "sans-serif",
+        ],
+        // Mono — tabular data, ids, labels (JetBrains Mono, Latin). Arabic
+        // glyphs in these spots fall through to Cairo, not a system font.
+        mono: [
+          "var(--font-mono)",
+          "var(--font-sans)",
+          "ui-monospace",
+          "SFMono-Regular",
+          "monospace",
         ],
       },
       fontSize: {
@@ -62,6 +76,10 @@ const config: Config = {
         "2xl": "12px",
       },
       transitionTimingFunction: {
+        // `DEFAULT` makes the bare `ease` utility resolve to our
+        // signature curve (snappy out-glide), used across buttons,
+        // rows, inputs and the nav for one consistent motion feel.
+        DEFAULT: "cubic-bezier(0.2, 0.7, 0.2, 1)",
         ease: "cubic-bezier(0.2, 0.7, 0.2, 1)",
       },
     },

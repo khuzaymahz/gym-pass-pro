@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from uuid import UUID
 
@@ -40,18 +40,13 @@ class PayoutLedgerRepository:
         )
         return Decimal(str((await self.session.execute(stmt)).scalar_one()))
 
-    async def sum_for_gym_since(
-        self, gym_id: UUID, *, since: datetime
-    ) -> Decimal:
+    async def sum_for_gym_since(self, gym_id: UUID, *, since: datetime) -> Decimal:
         """Total ledger amount accrued by `gym_id` since `since`. Used
         by partner metrics to surface "what we owe you" earned on
         successful checkins regardless of payout aggregation state."""
-        stmt = (
-            select(func.coalesce(func.sum(PayoutLedger.amount_jod), 0))
-            .where(
-                PayoutLedger.gym_id == gym_id,
-                PayoutLedger.created_at >= since,
-            )
+        stmt = select(func.coalesce(func.sum(PayoutLedger.amount_jod), 0)).where(
+            PayoutLedger.gym_id == gym_id,
+            PayoutLedger.created_at >= since,
         )
         return Decimal(str((await self.session.execute(stmt)).scalar_one()))
 
@@ -122,7 +117,7 @@ class PayoutLedgerRepository:
         the period the payout covers.
 
         Paginated to prevent the admin page from blowing up on a busy
-        gym × month combination (5000+ checkins is plausible). Returns
+        gym x month combination (5000+ checkins is plausible). Returns
         `(rows, total)` so the UI can render a pager.
         """
         count_stmt = (
@@ -141,7 +136,7 @@ class PayoutLedgerRepository:
             .offset(offset)
         )
         rows = (await self.session.execute(stmt)).all()
-        return [(l, c, u) for l, c, u in rows], total
+        return [(ledger, checkin, user) for ledger, checkin, user in rows], total
 
 
 class PayoutRepository:
@@ -203,20 +198,16 @@ class PayoutRepository:
         if conditions:
             stmt = stmt.where(*conditions)
         stmt = (
-            stmt.order_by(Payout.period_end.desc())
-            .offset((page - 1) * page_size)
-            .limit(page_size)
+            stmt.order_by(Payout.period_end.desc()).offset((page - 1) * page_size).limit(page_size)
         )
         rows = (await self.session.execute(stmt)).all()
         return [(p, g) for p, g in rows], int(total)
 
-    async def pending_total(self) -> Decimal:
-        """Money owed across all gyms but not yet paid.
-
-        Same logic as ``pending_total_for_gym`` (sum of ledger rows
-        that aren't tied to a paid Payout) but unscoped. Powers the
-        admin overview tile so it tracks reality, not just the
-        amount-already-bundled.
+    async def _pending_ledger_sum(self, gym_id: UUID | None) -> Decimal:
+        """Sum of ledger rows still owed: not yet bundled into a Payout
+        (``payout_id IS NULL``) OR bundled into one still ``pending``
+        settlement. Rows linked to a ``paid`` Payout are excluded.
+        `gym_id=None` sums across all gyms.
         """
         stmt = (
             select(func.coalesce(func.sum(PayoutLedger.amount_jod), 0))
@@ -229,7 +220,19 @@ class PayoutRepository:
                 ),
             )
         )
+        if gym_id is not None:
+            stmt = stmt.where(PayoutLedger.gym_id == gym_id)
         return Decimal(str((await self.session.execute(stmt)).scalar_one()))
+
+    async def pending_total(self) -> Decimal:
+        """Money owed across all gyms but not yet paid.
+
+        Same logic as ``pending_total_for_gym`` (sum of ledger rows
+        that aren't tied to a paid Payout) but unscoped. Powers the
+        admin overview tile so it tracks reality, not just the
+        amount-already-bundled.
+        """
+        return await self._pending_ledger_sum(None)
 
     async def pending_total_for_gym(self, gym_id: UUID) -> Decimal:
         """Money the gym is owed but hasn't been paid yet.
@@ -247,41 +250,20 @@ class PayoutRepository:
         bundled yet. The widget label promises "what we owe you",
         so the ledger is the right source of truth.
         """
-        stmt = (
-            select(func.coalesce(func.sum(PayoutLedger.amount_jod), 0))
-            .select_from(PayoutLedger)
-            .outerjoin(Payout, PayoutLedger.payout_id == Payout.id)
-            .where(
-                PayoutLedger.gym_id == gym_id,
-                or_(
-                    PayoutLedger.payout_id.is_(None),
-                    Payout.status == PayoutStatus.PENDING,
-                ),
-            )
-        )
-        return Decimal(str((await self.session.execute(stmt)).scalar_one()))
+        return await self._pending_ledger_sum(gym_id)
 
-    async def paid_total_for_gym_since(
-        self, gym_id: UUID, *, since: datetime
-    ) -> Decimal:
-        stmt = (
-            select(func.coalesce(func.sum(Payout.total_amount_jod), 0))
-            .where(
-                Payout.gym_id == gym_id,
-                Payout.status == PayoutStatus.PAID,
-                Payout.paid_at >= since,
-            )
+    async def paid_total_for_gym_since(self, gym_id: UUID, *, since: datetime) -> Decimal:
+        stmt = select(func.coalesce(func.sum(Payout.total_amount_jod), 0)).where(
+            Payout.gym_id == gym_id,
+            Payout.status == PayoutStatus.PAID,
+            Payout.paid_at >= since,
         )
         return Decimal(str((await self.session.execute(stmt)).scalar_one()))
 
 
 def _start_of_day(d: date) -> datetime:
-    from datetime import datetime, time, timezone
-
-    return datetime.combine(d, time.min).replace(tzinfo=timezone.utc)
+    return datetime.combine(d, time.min).replace(tzinfo=UTC)
 
 
 def _start_of_day_after(d: date) -> datetime:
-    from datetime import datetime, time, timedelta, timezone
-
-    return datetime.combine(d + timedelta(days=1), time.min).replace(tzinfo=timezone.utc)
+    return _start_of_day(d + timedelta(days=1))

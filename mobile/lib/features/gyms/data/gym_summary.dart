@@ -8,6 +8,23 @@ class GymSummary {
   final String? tier;
   final String? area;
 
+  /// Full street address, localized. The detail page's Location
+  /// section prefers these over the coarser [area]; falls back to
+  /// [area] when the partner hasn't filled the address in. Both come
+  /// straight off `GymRead.addressEn/addressAr`.
+  final String? addressEn;
+  final String? addressAr;
+
+  /// Raw opening-hours payload, one of three shapes the partner
+  /// portal's `HoursEditor` can produce:
+  ///   - `{ "24_7": true }`                       — always open
+  ///   - `{ open: "06:00", close: "23:00" }`      — same every day
+  ///   - `{ mon: {open,close,closed}, ... }`      — per weekday
+  /// Parsed into a status line + per-day list by [OpeningHours].
+  /// Empty map when the gym hasn't set hours — the detail page shows
+  /// no status rather than the old hardcoded "OPEN 24/7" lie.
+  final Map<String, dynamic> openingHours;
+
   /// Audience gender — drives the "Women only" / "Men only" badge
   /// on the gym card + detail page. Values: 'mixed', 'female_only',
   /// 'male_only'. Backend filters single-sex gyms out of the member
@@ -46,6 +63,9 @@ class GymSummary {
     this.lng,
     this.audienceGender,
     this.amenities = const <String>[],
+    this.addressEn,
+    this.addressAr,
+    this.openingHours = const <String, dynamic>{},
   });
 
   factory GymSummary.fromJson(Map<String, dynamic> json) {
@@ -63,8 +83,18 @@ class GymSummary {
       audienceGender:
           (json['audienceGender'] ?? json['audience_gender']) as String?,
       amenities: _toStringList(json['amenities']),
+      addressEn: (json['addressEn'] ?? json['address_en']) as String?,
+      addressAr: (json['addressAr'] ?? json['address_ar']) as String?,
+      openingHours: _toJsonMap(json['openingHours'] ?? json['opening_hours']),
     );
   }
+}
+
+Map<String, dynamic> _toJsonMap(dynamic raw) {
+  if (raw is Map) {
+    return raw.map((k, v) => MapEntry(k.toString(), v));
+  }
+  return const <String, dynamic>{};
 }
 
 List<String> _toStringList(dynamic raw) {

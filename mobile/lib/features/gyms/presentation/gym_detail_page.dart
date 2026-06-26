@@ -1,95 +1,39 @@
-import 'dart:async';
-import 'dart:math' as math;
-
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/di/providers.dart';
-import '../../../core/realtime/realtime_client.dart';
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
-import '../../../core/widgets/gym_loader.dart';
 import '../../../core/widgets/gym_logo.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
 import '../../../core/widgets/pill_button.dart';
 import '../../../core/widgets/tier_chip.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../../core/prefs/app_preferences.dart';
 import '../../day_pass/data/day_pass.dart';
 import '../../day_pass/data/day_pass_repository.dart';
 import '../../day_pass/presentation/buy_day_pass_sheet.dart';
 import '../../subscription/data/subscription_state.dart';
+import '../data/favorited_gyms.dart';
 import '../data/gym_photo.dart';
 import '../data/gym_photos_repository.dart';
 import '../data/gym_repository.dart';
 import '../data/gym_summary.dart';
 import '../data/home_region_store.dart';
-
-/// Persisted favourite-gym slugs. Backed by [SharedPreferences] under
-/// the `pref.favorited_gyms` key so the heart-tap survives app
-/// restarts. Previously this was a plain in-memory `StateProvider`,
-/// which is why members were tapping favourites, leaving the app,
-/// and coming back to an empty list. The notifier reads the saved
-/// CSV on construction (synchronous read off the cached prefs
-/// handle) and writes back on every mutation; failures during the
-/// write are swallowed because losing one tap to disk is preferable
-/// to crashing the UI.
-const _kFavoritedGymsKey = 'pref.favorited_gyms';
-
-class FavoritedGymsNotifier extends StateNotifier<Set<String>> {
-  FavoritedGymsNotifier(this._shared) : super(_hydrate(_shared));
-
-  final SharedPreferences _shared;
-
-  static Set<String> _hydrate(SharedPreferences shared) {
-    final raw = shared.getStringList(_kFavoritedGymsKey);
-    if (raw == null || raw.isEmpty) return <String>{};
-    return raw.toSet();
-  }
-
-  void _persist() {
-    _shared
-        .setStringList(_kFavoritedGymsKey, state.toList(growable: false))
-        .ignore();
-  }
-
-  /// Idempotent — adding an already-favourited slug is a no-op.
-  /// Returns true when the slug was newly added (UI can show a
-  /// confirmation snack), false when it was already present.
-  bool add(String slug) {
-    if (state.contains(slug)) return false;
-    state = {...state, slug};
-    _persist();
-    return true;
-  }
-
-  bool remove(String slug) {
-    if (!state.contains(slug)) return false;
-    state = {...state}..remove(slug);
-    _persist();
-    return true;
-  }
-
-  /// Toggle and return the resulting membership ("did we just add it?").
-  bool toggle(String slug) {
-    if (state.contains(slug)) {
-      remove(slug);
-      return false;
-    }
-    add(slug);
-    return true;
-  }
-}
-
-final favoritedGymsProvider =
-    StateNotifierProvider<FavoritedGymsNotifier, Set<String>>((ref) {
-  return FavoritedGymsNotifier(ref.watch(sharedPreferencesProvider));
-});
+import '../data/opening_hours.dart';
+import 'gym_detail/audience_badge.dart';
+import 'gym_detail/day_pass_cta.dart';
+import 'gym_detail/gym_detail_helpers.dart';
+import 'gym_detail/hours_section.dart';
+import 'gym_detail/how_to_check_in.dart';
+import 'gym_detail/loading_detail_skeleton.dart';
+import 'gym_detail/location_section.dart';
+import 'gym_detail/not_found.dart';
+import 'gym_detail/photo_slider.dart';
+import 'gym_detail/photo_viewer_screen.dart';
+import 'gym_detail/realtime_bridge.dart';
 
 class GymDetailPage extends ConsumerWidget {
   final String slug;
@@ -159,6 +103,9 @@ class GymDetailPage extends ConsumerWidget {
     final gp = context.gp;
     final isAr = Localizations.localeOf(context).languageCode == 'ar';
     final photosAsync = ref.watch(gymPhotosProvider(slug));
+    // Resolved photo list for the tap-to-open fullscreen viewer (empty
+    // until the fetch lands or when the gym has none → tap is a no-op).
+    final photos = photosAsync.valueOrNull ?? const <GymPhoto>[];
     final mediaBase = ref.watch(envProvider).apiBaseUrl;
     final gymSummaryAsync = ref.watch(gymBySlugProvider(slug));
     final gymSummary = gymSummaryAsync.valueOrNull;
@@ -167,11 +114,10 @@ class GymDetailPage extends ConsumerWidget {
     // came back null. Render a clean "not found" surface with a
     // back-to-explore CTA instead of silently swapping to the first
     // seed gym (which used to send members to the wrong gym page).
-    final isUnknownSlug = _seedGym() == null &&
-        gymSummaryAsync.hasValue &&
-        gymSummary == null;
+    final isUnknownSlug =
+        _seedGym() == null && gymSummaryAsync.hasValue && gymSummary == null;
     if (isUnknownSlug) {
-      return _NotFound(slug: slug);
+      return NotFound(slug: slug);
     }
     // Loading state: the slug isn't in the hardcoded `GPGym.seed` and
     // the backend response hasn't landed yet. Render a skeleton
@@ -181,7 +127,7 @@ class GymDetailPage extends ConsumerWidget {
     // producing an obvious "wrong gym flashes for a second" bug
     // every time a member tapped any non-seed gym.
     if (_seedGym() == null && !gymSummaryAsync.hasValue) {
-      return _LoadingDetailSkeleton(slug: slug);
+      return LoadingDetailSkeleton(slug: slug);
     }
     // Authoritative view-model: prefer the live backend summary so
     // every OSM-imported gym renders its own name / category / tier
@@ -200,399 +146,449 @@ class GymDetailPage extends ConsumerWidget {
         .firstOrNull;
     final remoteLogo = gymSummary?.logoUrl;
     final logoUrl =
-        remoteLogo == null ? null : _resolvePhotoUrl(mediaBase, remoteLogo);
+        remoteLogo == null ? null : resolvePhotoUrl(mediaBase, remoteLogo);
     final favorites = ref.watch(favoritedGymsProvider);
     final isFav = favorites.contains(slug);
 
-    return _RealtimeBridge(
+    // Real opening hours, parsed from the backend payload. `unknown`
+    // when the partner never filled hours in — the header then shows
+    // no status line rather than the old hardcoded "OPEN 24/7" lie.
+    final hours = OpeningHours.fromJson(gymSummary?.openingHours);
+    final openStatus = hours.statusAt(DateTime.now());
+    // Coordinates for the Location section + directions. Backend wins;
+    // falls back to seed coords; null disables the whole section.
+    final gymLat = gymSummary?.lat ?? (gym.lat == 0 ? null : gym.lat);
+    final gymLng = gymSummary?.lng ?? (gym.lng == 0 ? null : gym.lng);
+    final mapsKey = ref.watch(envProvider).googleMapsKey;
+    // Localized street address; falls back to the coarse area label.
+    final address =
+        (isAr ? (gymSummary?.addressAr ?? '') : (gymSummary?.addressEn ?? ''))
+            .trim();
+    // Locked = neither the plan nor an active day-pass unlocks this gym.
+    final locked = !included && activePassForThisGym == null;
+
+    return RealtimeBridge(
       slug: slug,
       gymId: gymSummary?.id,
       child: Scaffold(
         backgroundColor: gp.bg,
         body: Stack(
-        children: [
-          ClipRRect(
-            // Round the photo's bottom corners with the same radius
-            // the white card uses on its top corners (GPRadius.xl2 =
-            // 24). Without this, the photo extends edge-to-edge in a
-            // sharp rectangle and shows two slim triangles peeking
-            // out past the card's curved corners — read by members
-            // as "the photo isn't aligned with the card." Top stays
-            // square because the photo runs into the screen edge
-            // (where the device's display radius handles it).
-            borderRadius: const BorderRadius.vertical(
-              bottom: Radius.circular(GPRadius.xl2),
-            ),
-            child: SizedBox(
-            height: 400,
-            // Crossfade the loading-state gradient → real photo slider
-            // (and back, on error). Without this the swap is a hard cut
-            // from the placeholder gradient to the slider the moment
-            // `photosAsync` resolves — read by members as "something
-            // else loaded first, *then* the gym profile appeared."
-            // 280 ms is long enough to feel like a single hand-off,
-            // short enough that it doesn't delay reading the page.
-            //
-            // Keys matter: `AnimatedSwitcher` diffs by key. Same key
-            // for fallback in loading / error / empty branches keeps
-            // the gradient *steady* across those non-data states; a
-            // distinct key for the slider triggers the crossfade only
-            // when real photos land.
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 280),
-              switchInCurve: Curves.easeOut,
-              switchOutCurve: Curves.easeIn,
-              // Default layoutBuilder centers children, which collapses
-              // the gradient (no intrinsic size). `StackFit.expand`
-              // forces both children to fill the 400-px slot so they
-              // overlap pixel-for-pixel during the fade.
-              layoutBuilder: (currentChild, previousChildren) {
-                return Stack(
-                  fit: StackFit.expand,
-                  alignment: Alignment.center,
-                  children: [
-                    ...previousChildren,
-                    if (currentChild != null) currentChild,
-                  ],
-                );
-              },
-              child: photosAsync.when(
-                data: (photos) => photos.isEmpty
-                    ? KeyedSubtree(
-                        key: const ValueKey('hero-fallback'),
-                        child: _heroFallback(gp, gym),
-                      )
-                    : KeyedSubtree(
-                        key: const ValueKey('hero-slider'),
-                        child: _PhotoSlider(
-                          photos: photos,
-                          isAr: isAr,
-                          fadeColor: gp.bg,
-                          mediaBase: mediaBase,
+          children: [
+            // Photo header — pinned at 20% of screen so it stays visible
+            // while you scroll, stretches/zooms on pull-down overscroll,
+            // and tap-opens the fullscreen viewer. The app bar's `shape`
+            // rounds its bottom corners (even when collapsed/pinned) so
+            // the card's flush rounded top nests cleanly with no overlap
+            // (overlap is what bled the photo through the card before).
+            CustomScrollView(
+              physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics(),
+              ),
+              slivers: [
+                SliverAppBar(
+                  expandedHeight: 400,
+                  collapsedHeight: MediaQuery.sizeOf(context).height * 0.07,
+                  pinned: true,
+                  stretch: true,
+                  automaticallyImplyLeading: false,
+                  backgroundColor: gp.bg,
+                  surfaceTintColor: Colors.transparent,
+                  elevation: 0,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(
+                      bottom: Radius.circular(GPRadius.xl2),
+                    ),
+                  ),
+                  flexibleSpace: FlexibleSpaceBar(
+                    stretchModes: const [StretchMode.zoomBackground],
+                    background: GestureDetector(
+                      onTap: () =>
+                          _openPhotoViewer(context, photos, mediaBase, isAr),
+                      child: SizedBox(
+                        height: 400,
+                        // Crossfade the loading-state gradient → real photo slider
+                        // (and back, on error). Without this the swap is a hard cut
+                        // from the placeholder gradient to the slider the moment
+                        // `photosAsync` resolves — read by members as "something
+                        // else loaded first, *then* the gym profile appeared."
+                        // 280 ms is long enough to feel like a single hand-off,
+                        // short enough that it doesn't delay reading the page.
+                        //
+                        // Keys matter: `AnimatedSwitcher` diffs by key. Same key
+                        // for fallback in loading / error / empty branches keeps
+                        // the gradient *steady* across those non-data states; a
+                        // distinct key for the slider triggers the crossfade only
+                        // when real photos land.
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 280),
+                          switchInCurve: Curves.easeOut,
+                          switchOutCurve: Curves.easeIn,
+                          // Default layoutBuilder centers children, which collapses
+                          // the gradient (no intrinsic size). `StackFit.expand`
+                          // forces both children to fill the 400-px slot so they
+                          // overlap pixel-for-pixel during the fade.
+                          layoutBuilder: (currentChild, previousChildren) {
+                            return Stack(
+                              fit: StackFit.expand,
+                              alignment: Alignment.center,
+                              children: [
+                                ...previousChildren,
+                                if (currentChild != null) currentChild,
+                              ],
+                            );
+                          },
+                          child: photosAsync.when(
+                            data: (photos) => photos.isEmpty
+                                ? KeyedSubtree(
+                                    key: const ValueKey('hero-fallback'),
+                                    child: _heroFallback(gp, gym),
+                                  )
+                                : KeyedSubtree(
+                                    key: const ValueKey('hero-slider'),
+                                    child: PhotoSlider(
+                                      photos: photos,
+                                      isAr: isAr,
+                                      fadeColor: gp.bg,
+                                      mediaBase: mediaBase,
+                                    ),
+                                  ),
+                            // Loading + error + empty all share the same
+                            // gradient placeholder. No loader on top — the
+                            // gradient + faint category icon already reads
+                            // as "we have a hero slot, content is filling
+                            // it"; a centered dumbbell on top made the page
+                            // feel like it was *blocked* on a fetch instead
+                            // of progressively painting. Same key across
+                            // these three states so AnimatedSwitcher holds
+                            // the gradient stable until real photos arrive.
+                            loading: () => KeyedSubtree(
+                              key: const ValueKey('hero-fallback'),
+                              child: _heroFallback(gp, gym),
+                            ),
+                            error: (_, __) => KeyedSubtree(
+                              key: const ValueKey('hero-fallback'),
+                              child: _heroFallback(gp, gym),
+                            ),
+                          ),
                         ),
                       ),
-                // Loading + error + empty all share the same
-                // gradient placeholder. No loader on top — the
-                // gradient + faint category icon already reads
-                // as "we have a hero slot, content is filling
-                // it"; a centered dumbbell on top made the page
-                // feel like it was *blocked* on a fetch instead
-                // of progressively painting. Same key across
-                // these three states so AnimatedSwitcher holds
-                // the gradient stable until real photos arrive.
-                loading: () => KeyedSubtree(
-                  key: const ValueKey('hero-fallback'),
-                  child: _heroFallback(gp, gym),
-                ),
-                error: (_, __) => KeyedSubtree(
-                  key: const ValueKey('hero-fallback'),
-                  child: _heroFallback(gp, gym),
-                ),
-              ),
-            ),
-          ),
-          ),
-          // Subtle top vignette so the floating back / fav / share
-          // buttons stay legible over any hero photo. Originally this
-          // faded from `gp.bg` (≈white in light mode) at 85% alpha —
-          // which painted a heavy white wash across the top third of
-          // the photo and bleached gym imagery in light mode. The
-          // buttons already have an opaque `bg3` fill + border, so we
-          // only need a *gentle* darkening at the very top, applied
-          // theme-agnostically. ~28% black for 96 px feels like
-          // photographic vignetting rather than a UI scrim.
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 96,
-            child: IgnorePointer(
-              child: DecoratedBox(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Color(0x47000000), Color(0x00000000)],
+                    ),
                   ),
                 ),
-              ),
-            ),
-          ),
-          SafeArea(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 12, 18, 12),
-                  // Drop the forced LTR — back / fav / share follow
-                  // the locale's reading order so the back button
-                  // anchors visually-left in EN and visually-right
-                  // in AR (BackBtn already flips its arrow icon).
-                  child: Row(
-                    children: [
-                      const BackBtn(fallback: '/explore'),
-                      const Spacer(),
-                      IconBtn(
-                        icon: isFav ? Icons.favorite : Icons.favorite_border,
-                        onPressed: () {
-                          final added = ref
-                              .read(favoritedGymsProvider.notifier)
-                              .toggle(slug);
-                          ScaffoldMessenger.of(context)
-                            ..hideCurrentSnackBar()
-                            ..showSnackBar(
-                              SnackBar(
-                                content: Text(added
-                                    ? l.favAddedMessage
-                                    : l.favRemovedMessage,),
-                                duration: const Duration(seconds: 2),
-                              ),
-                            );
-                        },
+                SliverToBoxAdapter(
+                  // Card sits flush below the pinned photo — no overlap,
+                  // so it never paints over the app bar and nothing
+                  // bleeds through. The app bar's rounded-bottom shape
+                  // meets this rounded top cleanly.
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: gp.bg,
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(GPRadius.xl2),
                       ),
-                      const SizedBox(width: 10),
-                      Builder(
-                        builder: (btnCtx) {
-                          return IconBtn(
-                            icon: Icons.ios_share,
-                            // Native share sheet — pre-fills the OS
-                            // chooser with the gym's display name plus
-                            // its public URL so a member can drop the
-                            // gym into WhatsApp / Messages / Mail in
-                            // one gesture. Replaces the previous
-                            // snackbar-only stub. The gym name
-                            // resolves from the backend summary when
-                            // available, falling back to the seed
-                            // entry for offline / pre-hydrate cases.
-                            onPressed: () => _shareGym(
-                              context: btnCtx,
-                              webBase: ref.read(envProvider).webBaseUrl,
-                              nameAr: gymSummary?.nameAr ?? gym.name,
-                              nameEn: gymSummary?.nameEn ?? gym.name,
-                              slug: slug,
-                              isAr: isAr,
-                            ),
-                          );
-                        },
+                    ),
+                    child: Padding(
+                      // Bottom inset clears the system nav bar — the
+                      // card is no longer wrapped in a SafeArea now
+                      // that it scrolls inside the CustomScrollView.
+                      padding: EdgeInsets.fromLTRB(
+                        22,
+                        22,
+                        22,
+                        20 + MediaQuery.viewPaddingOf(context).bottom,
                       ),
-                    ],
-                  ),
-                ),
-                // Card-top anchor. Previously a `Spacer()` here
-                // pushed the card to the bottom of the SafeArea —
-                // which on tall screens left a noticeable empty
-                // band between the 400-px photo and the card's
-                // rounded top edge. A fixed offset anchors the
-                // card just inside the photo's fade region (photo
-                // visible-content ends at ~360, fade runs 360–400)
-                // so the rounded card top sits flush with the
-                // photo's visible bottom on every screen size.
-                //
-                // Computed against `topInset + 64` (action-buttons
-                // row: 12 padding top + 40 button + 12 padding
-                // bottom) so the card lands at approximately
-                // y=360 on every device.
-                SizedBox(
-                  height: math.max(
-                    0,
-                    360 - MediaQuery.viewPaddingOf(context).top - 64,
-                  ),
-                ),
-                Container(
-                  decoration: BoxDecoration(
-                    color: gp.bg,
-                    borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(GPRadius.xl2),),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Identity card: logo on the left, all gym
-                        // details (eyebrow + name + open/distance) in
-                        // a column to the right. Previously these
-                        // stacked vertically (logo+eyebrow on row 1,
-                        // name on row 2, open/distance on row 3),
-                        // which left the logo looking isolated. The
-                        // single-row layout reads as one cohesive
-                        // identity block.
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Hero(
-                              tag: 'gym-logo-${gym.slug}',
-                              // 64 px (up from 56) so the logo
-                              // visually balances the three-line
-                              // text column to its right.
-                              child: GymLogo(
-                                gym: gym,
-                                logoUrl: logoUrl,
-                                size: 64,
-                                shape: GymLogoShape.circle,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Identity card: logo on the left, all gym
+                          // details (eyebrow + name + open/distance) in
+                          // a column to the right. Previously these
+                          // stacked vertically (logo+eyebrow on row 1,
+                          // name on row 2, open/distance on row 3),
+                          // which left the logo looking isolated. The
+                          // single-row layout reads as one cohesive
+                          // identity block.
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Hero(
+                                tag: 'gym-logo-${gym.slug}',
+                                // 64 px (up from 56) so the logo
+                                // visually balances the three-line
+                                // text column to its right.
+                                child: GymLogo(
+                                  gym: gym,
+                                  logoUrl: logoUrl,
+                                  size: 64,
+                                  shape: GymLogoShape.circle,
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Overline(
-                                    '${_categoryLabel(l, gym.category)} · ${gym.area.toUpperCase()}',
-                                  ),
-                                  const SizedBox(height: 4),
-                                  // Name. display 22 (down from 34)
-                                  // so it fits in the constrained
-                                  // column next to the logo. Still
-                                  // big enough to read as the
-                                  // identity statement.
-                                  DisplayText(
-                                    gym.name,
-                                    size: 22,
-                                    color: gp.fg,
-                                    height: 1.0,
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Row(
-                                    children: [
-                                      Container(
-                                        width: 6,
-                                        height: 6,
-                                        decoration: BoxDecoration(
-                                          color: gp.accentInk,
-                                          shape: BoxShape.circle,
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Overline(
+                                      '${_categoryLabel(l, gym.category)} · ${gym.area.toUpperCase()}',
+                                    ),
+                                    const SizedBox(height: 4),
+                                    // Name. display 22 (down from 34)
+                                    // so it fits in the constrained
+                                    // column next to the logo. Still
+                                    // big enough to read as the
+                                    // identity statement.
+                                    DisplayText(
+                                      gym.name,
+                                      size: 22,
+                                      color: gp.fg,
+                                      height: 1.0,
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Row(
+                                      children: [
+                                        // Real open/closed status from the
+                                        // backend `opening_hours`. Empty
+                                        // (no dot, no text) when the gym
+                                        // never set hours — better an
+                                        // honest blank than the old
+                                        // hardcoded "OPEN 24/7".
+                                        ..._headerStatusChildren(
+                                          l,
+                                          gp,
+                                          openStatus,
                                         ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        l.gymOpen247,
-                                        style: GPText.mono(
-                                          size: 10,
-                                          letterSpacing: 1.4,
-                                          color: gp.mutedSoft,
+                                        // Live distance from the
+                                        // member's GPS, hidden when
+                                        // the GPS hasn't resolved yet
+                                        // — a "—" would add chrome
+                                        // with no signal.
+                                        ..._buildDistanceRow(
+                                          ref,
+                                          gp,
+                                          l,
+                                          gymSummary,
+                                          gym,
                                         ),
-                                      ),
-                                      // Live distance from the
-                                      // member's GPS, hidden when
-                                      // the GPS hasn't resolved yet
-                                      // — a "—" would add chrome
-                                      // with no signal.
-                                      ..._buildDistanceRow(
-                                        ref,
-                                        gp,
-                                        l,
-                                        gymSummary,
-                                        gym,
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
+                            ],
+                          ),
+                          // Audience badge — surfaces who the venue is
+                          // for so a member who lands here from a deep
+                          // link / share sees the policy before they try
+                          // to scan in. Single-sex gyms get the loud
+                          // pink/blue pill; "mixed" gets a calm neutral
+                          // "Everyone welcome" row (previously mixed
+                          // rendered nothing, leaving members unsure
+                          // whether the gym was open to them at all).
+                          if (gymSummary?.audienceGender == 'female_only' ||
+                              gymSummary?.audienceGender == 'male_only' ||
+                              gymSummary?.audienceGender == 'mixed') ...[
+                            const SizedBox(height: 12),
+                            AudienceBadge(
+                              audience: gymSummary!.audienceGender!,
                             ),
                           ],
-                        ),
-                        // Audience badge — surfaces "Women only" /
-                        // "Men only" for single-sex venues so a
-                        // member who lands on the page from a deep
-                        // link / share sees the policy before they
-                        // try to scan in. Mixed gyms render no badge
-                        // (open-to-everyone is the implicit default).
-                        if (gymSummary?.audienceGender == 'female_only' ||
-                            gymSummary?.audienceGender == 'male_only') ...[
-                          const SizedBox(height: 12),
-                          _AudienceBadge(
-                            audience: gymSummary!.audienceGender!,
+                          const SizedBox(height: 18),
+                          _accessBanner(context, l, gp, gym, included),
+                          const SizedBox(height: 18),
+                          _amenityGrid(
+                            context,
+                            l,
+                            gp,
+                            gymSummary?.amenities ?? const <String>[],
                           ),
+                          // Opening hours — the full per-day schedule,
+                          // expandable from the live status line. Hidden
+                          // entirely when the gym never set hours.
+                          if (hours.isKnown) ...[
+                            const SizedBox(height: 18),
+                            HoursSection(
+                              hours: hours,
+                              status: openStatus,
+                            ),
+                          ],
+                          // Location — address + tappable static-map
+                          // preview + "Get directions" deep-linking to
+                          // Google Maps. Skipped when we have no coords
+                          // (can't point anywhere useful).
+                          if (gymLat != null && gymLng != null) ...[
+                            const SizedBox(height: 18),
+                            LocationSection(
+                              lat: gymLat,
+                              lng: gymLng,
+                              address: address,
+                              areaFallback: gym.area,
+                              label: gym.name,
+                              mapsKey: mapsKey,
+                              isAr: isAr,
+                            ),
+                          ],
+                          // How to check in — the 3-step QR flow. Adapts
+                          // its subtitle when the gym is still locked.
+                          const SizedBox(height: 18),
+                          HowToCheckIn(locked: locked),
+                          const SizedBox(height: 18),
+                          Text(
+                            l.gymAbout.toUpperCase(),
+                            style: GPText.mono(
+                              size: 10,
+                              letterSpacing: 1.8,
+                              color: gp.muted,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            l.gymDescriptionFallback(gym.area),
+                            style: GPText.body(
+                              size: 13,
+                              color: gp.mutedSoft,
+                              height: 1.5,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          if (justCheckedIn)
+                            _checkedInBadge(l, gp)
+                          // Active day-pass for THIS gym — same "Check
+                          // in here" affordance as the subscription
+                          // path, because both unlock the QR scanner.
+                          else if (activePassForThisGym != null)
+                            PillButton(
+                              label: l.gymCheckInHere,
+                              trailingIcon: Icons.qr_code_scanner,
+                              onPressed: () => context.go('/checkin'),
+                            )
+                          else if (included)
+                            PillButton(
+                              label: l.gymCheckInHere,
+                              trailingIcon: Icons.qr_code_scanner,
+                              // /checkin lives inside the bottom-nav ShellRoute.
+                              // Pushing from this top-level route stacks
+                              // the shell on top and trips the navigator
+                              // duplicate-page-key assertion. `go` swaps
+                              // to the scan tab cleanly.
+                              onPressed: () => context.go('/checkin'),
+                            )
+                          // Locked-tier branch. When the gym sells day
+                          // passes, the day-pass CTA is the primary
+                          // call to action — a one-off pass is a much
+                          // lower friction than a plan upgrade, and
+                          // converts a "I'm just curious about this
+                          // place" into a real visit. The upgrade
+                          // path is preserved via the red "Requires
+                          // <tier>" banner above, which is now
+                          // tappable and routes to /plans.
+                          //
+                          // Day-pass works for both unsubscribed
+                          // members and subscribers locked out by
+                          // tier (e.g. Silver looking at a Platinum
+                          // gym). The backend refuses only when the
+                          // active subscription ALREADY covers the
+                          // gym — handled there, not gated here.
+                          else if (offering.isEnabled)
+                            DayPassCta(
+                              priceJod: offering.priceJod,
+                              validityHours: offering.validityHours,
+                              onPressed: () async {
+                                await showBuyDayPassSheet(
+                                  context: context,
+                                  gymSlug: slug,
+                                  gymName: gym.name,
+                                  offering: offering,
+                                  gym: gym,
+                                  gymLogoUrl: logoUrl,
+                                );
+                              },
+                            ),
+                          // No CTA when the gym is locked AND has
+                          // no day-pass offering: the red "Requires
+                          // <tier>" banner above is already the
+                          // upgrade affordance (tappable, routes to
+                          // /plans). A second "Upgrade to <tier>"
+                          // pill at the bottom was redundant.
+                          const SizedBox(height: 6),
                         ],
-                        const SizedBox(height: 18),
-                        _accessBanner(context, l, gp, gym, included),
-                        const SizedBox(height: 18),
-                        _amenityGrid(
-                          context,
-                          l,
-                          gp,
-                          gymSummary?.amenities ?? const <String>[],
-                        ),
-                        const SizedBox(height: 18),
-                        Text(l.gymAbout.toUpperCase(),
-                            style: GPText.mono(size: 10, letterSpacing: 1.8, color: gp.muted),),
-                        const SizedBox(height: 10),
-                        Text(
-                          l.gymDescriptionFallback(gym.area),
-                          style: GPText.body(size: 13, color: gp.mutedSoft, height: 1.5),
-                        ),
-                        const SizedBox(height: 20),
-                        if (justCheckedIn)
-                          _checkedInBadge(l, gp)
-                        // Active day-pass for THIS gym — same "Check
-                        // in here" affordance as the subscription
-                        // path, because both unlock the QR scanner.
-                        else if (activePassForThisGym != null)
-                          PillButton(
-                            label: l.gymCheckInHere,
-                            trailingIcon: Icons.qr_code_scanner,
-                            onPressed: () => context.go('/checkin'),
-                          )
-                        else if (included)
-                          PillButton(
-                            label: l.gymCheckInHere,
-                            trailingIcon: Icons.qr_code_scanner,
-                            // /checkin lives inside the bottom-nav ShellRoute.
-                            // Pushing from this top-level route stacks
-                            // the shell on top and trips the navigator
-                            // duplicate-page-key assertion. `go` swaps
-                            // to the scan tab cleanly.
-                            onPressed: () => context.go('/checkin'),
-                          )
-                        // Locked-tier branch. When the gym sells day
-                        // passes, the day-pass CTA is the primary
-                        // call to action — a one-off pass is a much
-                        // lower friction than a plan upgrade, and
-                        // converts a "I'm just curious about this
-                        // place" into a real visit. The upgrade
-                        // path is preserved via the red "Requires
-                        // <tier>" banner above, which is now
-                        // tappable and routes to /plans.
-                        //
-                        // Day-pass works for both unsubscribed
-                        // members and subscribers locked out by
-                        // tier (e.g. Silver looking at a Platinum
-                        // gym). The backend refuses only when the
-                        // active subscription ALREADY covers the
-                        // gym — handled there, not gated here.
-                        else if (offering.isEnabled)
-                          _DayPassCta(
-                            priceJod: offering.priceJod,
-                            validityHours: offering.validityHours,
-                            onPressed: () async {
-                              await showBuyDayPassSheet(
-                                context: context,
-                                gymSlug: slug,
-                                gymName: gym.name,
-                                offering: offering,
-                                gym: gym,
-                                gymLogoUrl: logoUrl,
-                              );
-                            },
-                          ),
-                        // No CTA when the gym is locked AND has
-                        // no day-pass offering: the red "Requires
-                        // <tier>" banner above is already the
-                        // upgrade affordance (tappable, routes to
-                        // /plans). A second "Upgrade to <tier>"
-                        // pill at the bottom was redundant.
-                        const SizedBox(height: 6),
-                      ],
+                      ),
                     ),
                   ),
                 ),
               ],
             ),
-          ),
-        ],
-      ),
+            // Subtle top vignette so the floating back / fav /
+            // share buttons stay legible over any hero photo — a
+            // gentle ~28% black wash for the top 96 px.
+            const Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 96,
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0x47000000), Color(0x00000000)],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            // Floating action row (back / favourite / share),
+            // pinned over the hero so the back button stays
+            // reachable even after the photo scrolls away.
+            SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 12, 18, 12),
+                child: Row(
+                  children: [
+                    const BackBtn(fallback: '/explore'),
+                    const Spacer(),
+                    IconBtn(
+                      icon: isFav ? Icons.favorite : Icons.favorite_border,
+                      onPressed: () {
+                        final added = ref
+                            .read(favoritedGymsProvider.notifier)
+                            .toggle(slug);
+                        ScaffoldMessenger.of(context)
+                          ..hideCurrentSnackBar()
+                          ..showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                added ? l.favAddedMessage : l.favRemovedMessage,
+                              ),
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                      },
+                    ),
+                    const SizedBox(width: 10),
+                    Builder(
+                      builder: (btnCtx) {
+                        return IconBtn(
+                          icon: Icons.ios_share,
+                          onPressed: () => _shareGym(
+                            context: btnCtx,
+                            webBase: ref.read(envProvider).webBaseUrl,
+                            nameAr: gymSummary?.nameAr ?? gym.name,
+                            nameEn: gymSummary?.nameEn ?? gym.name,
+                            slug: slug,
+                            isAr: isAr,
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -667,6 +663,43 @@ class GymDetailPage extends ConsumerWidget {
         decoration: BoxDecoration(color: gp.muted, shape: BoxShape.circle),
       );
 
+  /// The leading "● Open now · closes 23:00" cluster in the gym
+  /// header. Returns an empty list when hours are unknown so the row
+  /// collapses to just the distance (or nothing) — no hardcoded
+  /// fallback. The bullet is brand-tinted when open, muted when shut.
+  List<Widget> _headerStatusChildren(
+    AppLocalizations l,
+    GpColors gp,
+    OpenStatus status,
+  ) {
+    final label = openStatusLine(l, status);
+    if (label == null) return const [];
+    final open = status.isOpen || status.always;
+    return [
+      Container(
+        width: 6,
+        height: 6,
+        decoration: BoxDecoration(
+          color: open ? gp.accentInk : gp.muted,
+          shape: BoxShape.circle,
+        ),
+      ),
+      const SizedBox(width: 6),
+      Flexible(
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: GPText.mono(
+            size: 10,
+            letterSpacing: 1.4,
+            color: open ? gp.accentInk : gp.mutedSoft,
+          ),
+        ),
+      ),
+    ];
+  }
+
   /// Build the "· N.N KM" suffix that follows "OPEN 24/7" in the
   /// gym header. Backend coords win; falls back to seed coords;
   /// returns no widgets when the user GPS hasn't resolved or
@@ -696,15 +729,16 @@ class GymDetailPage extends ConsumerWidget {
     ];
   }
 
-  Widget _accessBanner(BuildContext context, AppLocalizations l, GpColors gp,
-      GPGym gym, bool included,) {
+  Widget _accessBanner(
+    BuildContext context,
+    AppLocalizations l,
+    GpColors gp,
+    GPGym gym,
+    bool included,
+  ) {
     final color = included ? gp.accentInk : GP.danger;
-    final bg = included
-        ? gp.accentInk.withValues(alpha: 0.12)
-        : GP.danger.withValues(alpha: 0.12);
-    final border = included
-        ? gp.accentInk.withValues(alpha: 0.44)
-        : GP.danger.withValues(alpha: 0.5);
+    final bg = color.withValues(alpha: 0.12);
+    final border = color.withValues(alpha: included ? 0.44 : 0.5);
     final banner = Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -714,8 +748,11 @@ class GymDetailPage extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          Icon(included ? Icons.check_circle : Icons.lock_outline,
-              color: color, size: 18,),
+          Icon(
+            included ? Icons.check_circle : Icons.lock_outline,
+            color: color,
+            size: 18,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -920,155 +957,28 @@ class GymDetailPage extends ConsumerWidget {
   }
 }
 
-String _resolvePhotoUrl(String mediaBase, String url) {
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  return '$mediaBase$url';
-}
-
-/// Subscribes the realtime client to this gym's channels for the
-/// lifetime of the detail page, then invalidates the relevant
-/// Riverpod providers each time the server pushes a matching event.
-/// Result: a partner saving a profile / logo / photo change is
-/// reflected on this page within a frame, no pull-to-refresh needed.
-/// Single-sex audience badge — shown above the gym name when the
-/// venue is `female_only` or `male_only`. Same colour language as
-/// the admin pill: pink for women-only, blue for men-only. No badge
-/// for mixed (the open-to-everyone default).
-class _AudienceBadge extends StatelessWidget {
-  const _AudienceBadge({required this.audience});
-
-  final String audience;
-
-  @override
-  Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context);
-    final isFemale = audience == 'female_only';
-    final color = isFemale
-        ? const Color(0xFFEC4899)
-        : const Color(0xFF60A5FA);
-    final label = isFemale ? l.audienceFemaleOnly : l.audienceMaleOnly;
-    final icon = isFemale ? Icons.female : Icons.male;
-    return Container(
-      padding: const EdgeInsetsDirectional.fromSTEB(8, 4, 10, 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(GPRadius.pill),
-        border: Border.all(color: color.withValues(alpha: 0.45)),
+/// Push a fullscreen, swipeable, pinch-zoomable photo gallery. No-op
+/// when the gym has no photos (the hero shows the gradient fallback,
+/// so there's nothing to open).
+void _openPhotoViewer(
+  BuildContext context,
+  List<GymPhoto> photos,
+  String mediaBase,
+  bool isAr, {
+  int initialIndex = 0,
+}) {
+  if (photos.isEmpty) return;
+  Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      fullscreenDialog: true,
+      builder: (_) => PhotoViewerScreen(
+        photos: photos,
+        mediaBase: mediaBase,
+        isAr: isAr,
+        initialIndex: initialIndex,
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 6),
-          Text(
-            label.toUpperCase(),
-            style: GPText.mono(
-              size: 10,
-              letterSpacing: 1.2,
-              color: color,
-              weight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Stays a thin wrapper rather than refactoring the whole detail
-/// page to ConsumerStatefulWidget — minimal blast radius, the
-/// build tree above is unchanged.
-class _RealtimeBridge extends ConsumerStatefulWidget {
-  const _RealtimeBridge({
-    required this.slug,
-    required this.gymId,
-    required this.child,
-  });
-
-  final String slug;
-
-  /// Backend gym UUID. Null while `gymBySlugProvider` is still
-  /// hydrating — the bridge defers subscribing until we know it,
-  /// since the channel name is `gym/<id>`.
-  final String? gymId;
-  final Widget child;
-
-  @override
-  ConsumerState<_RealtimeBridge> createState() => _RealtimeBridgeState();
-}
-
-class _RealtimeBridgeState extends ConsumerState<_RealtimeBridge> {
-  StreamSubscription<RealtimeEvent>? _sub;
-  String? _activeGymId;
-  // Cache the client at initState so dispose() doesn't have to touch
-  // `ref` — Riverpod throws "Cannot use ref after the widget was
-  // disposed" if a late-arriving stream event or our own dispose()
-  // accesses ref after super.dispose has run. Holding the client
-  // directly sidesteps that whole class of races.
-  RealtimeClient? _client;
-
-  @override
-  void initState() {
-    super.initState();
-    _client = ref.read(realtimeClientProvider);
-    _refreshSubscription();
-  }
-
-  @override
-  void didUpdateWidget(covariant _RealtimeBridge old) {
-    super.didUpdateWidget(old);
-    if (old.gymId != widget.gymId) {
-      _refreshSubscription();
-    }
-  }
-
-  void _refreshSubscription() {
-    final id = widget.gymId;
-    if (id == _activeGymId) return;
-    _activeGymId = id;
-    _sub?.cancel();
-    _sub = null;
-    if (id == null) return;
-
-    final client = _client;
-    if (client == null) return;
-    client.setChannels(['gym/$id', 'gym/$id/photos']);
-    _sub = client.events.listen((event) {
-      // Stream events can land mid-teardown — the subscription
-      // cancel is async, so an event already in flight will still
-      // fire its listener. Without the `mounted` guard we'd hit
-      // "Cannot use ref after the widget was disposed" the moment
-      // a partner edited their gym while a member was navigating
-      // away. Cheap check, eliminates the race entirely.
-      if (!mounted) return;
-      if (!event.channel.startsWith('gym/$id')) return;
-      // Any of the published gym events (`gym.updated`,
-      // `gym.logo.set`, `gym.logo.cleared`, `gym.photo.added`,
-      // `gym.photo.removed`) means at least one of these two
-      // providers is now stale — re-fetch them. Riverpod's
-      // invalidate is cheap (just clears the cached value); the
-      // page will rebuild and the page already handles the
-      // "loading" branch.
-      ref.invalidate(gymBySlugProvider(widget.slug));
-      ref.invalidate(gymPhotosProvider(widget.slug));
-    });
-  }
-
-  @override
-  void dispose() {
-    _sub?.cancel();
-    _sub = null;
-    // Use the cached client instead of ref — see the field comment.
-    // Keep the realtimeClient alive (other pages might subscribe
-    // next), but clear its channel set so we're not paying for an
-    // event stream we no longer consume.
-    _client?.setChannels(const []);
-    _client = null;
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => widget.child;
+    ),
+  );
 }
 
 /// Pop the OS share sheet with the gym's name and a public URL the
@@ -1099,442 +1009,3 @@ Future<void> _shareGym({
     sharePositionOrigin: origin,
   );
 }
-
-class _PhotoSlider extends StatefulWidget {
-  const _PhotoSlider({
-    required this.photos,
-    required this.isAr,
-    required this.fadeColor,
-    required this.mediaBase,
-  });
-  final List<GymPhoto> photos;
-  final bool isAr;
-  final Color fadeColor;
-  final String mediaBase;
-
-  @override
-  State<_PhotoSlider> createState() => _PhotoSliderState();
-}
-
-class _PhotoSliderState extends State<_PhotoSlider> {
-  final PageController _controller = PageController();
-  int _index = 0;
-  bool _firstPrefetchDone = false;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  /// Decoded-bitmap target width. The page hero is the device width
-  /// rendered at the device pixel ratio — anything bigger than that
-  /// is wasted RAM and decode time. Capped at 1600 px so a 4K phone
-  /// with 3.5× DPR (≈1400 logical × 3.5 = 4900 raw) doesn't try to
-  /// keep a 50 MB bitmap in cache; the cap is well above any sane
-  /// hero JPEG.
-  int _targetCacheWidth(BuildContext context) {
-    final mq = MediaQuery.of(context);
-    final raw = (mq.size.width * mq.devicePixelRatio).round();
-    return raw.clamp(360, 1600);
-  }
-
-  /// `precacheImage` decodes the JPEG into the image-cache so when
-  /// `PageView` builds the neighbour child, the bitmap is already
-  /// ready and the swipe doesn't wait on network → decode. We do
-  /// this on first frame for the visible page + the next one, then
-  /// chase the user as they swipe.
-  void _prefetchNeighbours(BuildContext context, int center) {
-    final w = _targetCacheWidth(context);
-    final candidates = <int>{center - 1, center + 1};
-    for (final i in candidates) {
-      if (i < 0 || i >= widget.photos.length) continue;
-      final url = _resolvePhotoUrl(widget.mediaBase, widget.photos[i].url);
-      final provider = ResizeImage(
-        CachedNetworkImageProvider(url),
-        width: w,
-      );
-      // `precacheImage` is a no-op if the provider is already in the
-      // cache, so calling it on every page change is cheap.
-      precacheImage(provider, context);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final cacheW = _targetCacheWidth(context);
-    if (!_firstPrefetchDone) {
-      _firstPrefetchDone = true;
-      // Defer to post-frame so the surrounding Scaffold has a chance
-      // to lay out — `precacheImage` reads the size from MediaQuery,
-      // which is stable by then.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        _prefetchNeighbours(context, _index);
-      });
-    }
-    return Stack(
-      children: [
-        Positioned.fill(
-          // Two stacked ShaderMasks composite their alphas (each runs
-          // BlendMode.dstIn on its child), so the photo's final
-          // opacity at any pixel is `linearAlpha × radialAlpha`.
-          //   * Outer (radial): keeps the center fully opaque, fades
-          //     only the four corner pixels. Wide radius + late fade
-          //     stop so the falloff stays tight to the corners and
-          //     doesn't read as a global vignette.
-          //   * Inner (linear): existing bottom-edge softening into
-          //     the white card. Untouched.
-          child: ShaderMask(
-            shaderCallback: (rect) => const RadialGradient(
-              center: Alignment.center,
-              radius: 0.95,
-              colors: [Colors.black, Colors.black, Colors.transparent],
-              stops: [0.0, 0.75, 1.0],
-            ).createShader(rect),
-            blendMode: BlendMode.dstIn,
-            child: ShaderMask(
-            shaderCallback: (rect) => const LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Colors.black, Colors.black, Colors.transparent],
-              stops: [0.0, 0.9, 1.0],
-            ).createShader(rect),
-            blendMode: BlendMode.dstIn,
-            child: PageView.builder(
-              controller: _controller,
-              itemCount: widget.photos.length,
-              onPageChanged: (i) {
-                setState(() => _index = i);
-                _prefetchNeighbours(context, i);
-              },
-              itemBuilder: (_, i) {
-                final photo = widget.photos[i];
-                final alt = widget.isAr
-                    ? (photo.altTextAr ?? photo.altTextEn ?? '')
-                    : (photo.altTextEn ?? photo.altTextAr ?? '');
-                return Semantics(
-                  label: alt,
-                  image: true,
-                  // `CachedNetworkImage` adds three things `Image.network`
-                  // doesn't:
-                  //   1. `flutter_cache_manager`-backed disk cache —
-                  //      cold launches no longer re-fetch every photo.
-                  //   2. `memCacheWidth` — the JPEG decodes to the
-                  //      display width, not the source width, so a
-                  //      4000-px hero doesn't sit in RAM as a
-                  //      4000×3000 ARGB bitmap (≈48 MB) for a
-                  //      400-px slot.
-                  //   3. `fadeInDuration` — the new photo crossfades
-                  //      from the placeholder, which masks the brief
-                  //      decode pause when paging.
-                  child: CachedNetworkImage(
-                    imageUrl: _resolvePhotoUrl(widget.mediaBase, photo.url),
-                    fit: BoxFit.cover,
-                    memCacheWidth: cacheW,
-                    maxWidthDiskCache: cacheW,
-                    fadeInDuration: const Duration(milliseconds: 200),
-                    fadeOutDuration: const Duration(milliseconds: 80),
-                    placeholder: (_, __) => Container(color: widget.fadeColor),
-                    errorWidget: (_, __, ___) =>
-                        Container(color: widget.fadeColor),
-                  ),
-                );
-              },
-            ),
-          ),
-          ),
-        ),
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: 76,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(widget.photos.length, (i) {
-              final active = i == _index;
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 220),
-                margin: const EdgeInsets.symmetric(horizontal: 3),
-                width: active ? 20 : 6,
-                height: 6,
-                decoration: BoxDecoration(
-                  color: active ? GP.lime : Colors.white.withValues(alpha: 0.8),
-                  borderRadius: BorderRadius.circular(3),
-                ),
-              );
-            }),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// Skeleton shown while the backend gym summary is in flight for a
-/// slug that isn't part of the hardcoded `GPGym.seed` list (i.e.
-/// every gym onboarded by an admin / imported from OSM). Without
-/// this, the page would render the seed-first fallback (Iron Forge)
-/// for the ~150-400 ms between mount and first network response,
-/// producing the "every gym briefly looks like Iron Forge" bug.
-///
-/// The skeleton mirrors the page's actual silhouette — hero block,
-/// title bar, body slot — so the real page slides in without a
-/// layout shift when the data lands.
-class _LoadingDetailSkeleton extends StatelessWidget {
-  const _LoadingDetailSkeleton({required this.slug});
-  final String slug;
-
-  @override
-  Widget build(BuildContext context) {
-    final gp = context.gp;
-    return Scaffold(
-      backgroundColor: gp.bg,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Hero block — solid neutral panel, matches the 400-px
-                // photo slider height the real page renders.
-                Container(
-                  height: 400,
-                  decoration: BoxDecoration(
-                    color: gp.bg2,
-                    border: Border(
-                      bottom: BorderSide(color: gp.line),
-                    ),
-                  ),
-                  child: const Center(
-                    child: GymLoader(size: GymLoaderSize.large),
-                  ),
-                ),
-                const SizedBox(height: 28),
-                // Title placeholder bar.
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Container(
-                    height: 24,
-                    width: 220,
-                    decoration: BoxDecoration(
-                      color: gp.bg2,
-                      borderRadius: BorderRadius.circular(GPRadius.sm),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                // Subtitle placeholder bar.
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Container(
-                    height: 14,
-                    width: 140,
-                    decoration: BoxDecoration(
-                      color: gp.bg2,
-                      borderRadius: BorderRadius.circular(GPRadius.sm),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const PositionedDirectional(
-              top: 12,
-              start: 20,
-              child: BackBtn(fallback: '/explore'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _NotFound extends StatelessWidget {
-  const _NotFound({required this.slug});
-  final String slug;
-
-  @override
-  Widget build(BuildContext context) {
-    final gp = context.gp;
-    final l = AppLocalizations.of(context);
-    return Scaffold(
-      backgroundColor: gp.bg,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(28),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.location_off_outlined, size: 56, color: gp.muted),
-                  const SizedBox(height: 16),
-                  Text(
-                    l.gymNotFoundTitle,
-                    textAlign: TextAlign.center,
-                    style: GPText.display(24, color: gp.fg, height: 1.0),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    l.gymNotFoundBody(slug),
-                    textAlign: TextAlign.center,
-                    style: GPText.body(size: 14, color: gp.mutedSoft, height: 1.5),
-                  ),
-                  const SizedBox(height: 22),
-                  PillButton(
-                    label: l.gymNotFoundBackToExplore,
-                    trailingIcon: Icons.arrow_forward,
-                    onPressed: () => context.go('/explore'),
-                  ),
-                ],
-              ),
-            ),
-            const PositionedDirectional(
-              top: 12,
-              start: 20,
-              child: BackBtn(fallback: '/explore'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Custom CTA for the day-pass purchase entry. Different shape from
-/// the platform-wide `PillButton` because it carries a secondary
-/// subtitle — the buyer needs to know they're buying a 24-hour
-/// one-off, not a subscription. Visually the lime-on-ink fill
-/// matches the brand accent and signals "this is a paid action,
-/// not navigation".
-class _DayPassCta extends StatefulWidget {
-  const _DayPassCta({
-    required this.priceJod,
-    required this.validityHours,
-    required this.onPressed,
-  });
-
-  final double priceJod;
-  final int validityHours;
-  final VoidCallback? onPressed;
-
-  @override
-  State<_DayPassCta> createState() => _DayPassCtaState();
-}
-
-class _DayPassCtaState extends State<_DayPassCta> {
-  bool _pressed = false;
-
-  void _setPressed(bool v) {
-    if (_pressed == v) return;
-    setState(() => _pressed = v);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context);
-    final disabled = widget.onPressed == null;
-    final priceStr = _formatJodPriceStandalone(widget.priceJod);
-    return AnimatedScale(
-      scale: (_pressed && !disabled) ? 0.97 : 1.0,
-      duration: const Duration(milliseconds: 120),
-      curve: Curves.easeOut,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(GPRadius.pill),
-          onTap: widget.onPressed,
-          onHighlightChanged: _setPressed,
-          child: Container(
-            height: 64,
-            padding: const EdgeInsetsDirectional.fromSTEB(20, 10, 22, 10),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [GP.limeHi, GP.lime],
-              ),
-              borderRadius: BorderRadius.circular(GPRadius.pill),
-              boxShadow: [
-                BoxShadow(
-                  color: GP.lime.withValues(alpha: 0.35),
-                  blurRadius: 18,
-                  spreadRadius: -4,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: GP.ink.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  alignment: Alignment.center,
-                  child: const Icon(
-                    Icons.confirmation_number_outlined,
-                    color: GP.ink,
-                    size: 18,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        l.gymDayPassCta(priceStr),
-                        style: GPText.body(
-                          size: 15,
-                          color: GP.ink,
-                          weight: FontWeight.w800,
-                          height: 1.0,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      // Subtitle is the validity hint cropped to its
-                      // first sentence ("Valid for 24 hours after
-                      // purchase.") — the second clause about
-                      // non-rollover lives in the buy-sheet; the
-                      // CTA only needs the headline reassurance.
-                      Text(
-                        l
-                            .dayPassSheetValidity(widget.validityHours)
-                            .split('.')
-                            .first
-                            .trim(),
-                        style: GPText.body(
-                          size: 11,
-                          color: GP.ink.withValues(alpha: 0.62),
-                          height: 1.0,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                const Icon(
-                  Icons.arrow_forward,
-                  color: GP.ink,
-                  size: 18,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-String _formatJodPriceStandalone(double amount) {
-  if (amount % 1 == 0) return amount.toStringAsFixed(0);
-  return amount.toStringAsFixed(2);
-}
-

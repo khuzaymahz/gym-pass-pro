@@ -351,6 +351,60 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get audienceMaleOnly => 'للرجال فقط';
   @override
+  String get audienceMixed => 'للجميع';
+  @override
+  String get audienceMixedSub => 'مفتوح لكل الأعضاء';
+  @override
+  String get gymStatusOpen => 'مفتوح الآن';
+  @override
+  String get gymStatusClosed => 'مغلق';
+  @override
+  String get gymStatusOpen247 => 'مفتوح 24/7';
+  @override
+  String gymStatusClosesAt(String time) => 'يغلق $time';
+  @override
+  String gymStatusOpensAt(String time) => 'يفتح $time';
+  @override
+  String gymStatusOpensTomorrow(String time) => 'يفتح غدًا $time';
+  @override
+  String gymStatusOpensDay(String day, String time) => 'يفتح $day $time';
+  @override
+  String get gymHoursTitle => 'ساعات العمل';
+  @override
+  String get gymHoursToday => 'اليوم';
+  @override
+  String get gymHoursClosedDay => 'مغلق';
+  @override
+  String get gymDayMon => 'الإثنين';
+  @override
+  String get gymDayTue => 'الثلاثاء';
+  @override
+  String get gymDayWed => 'الأربعاء';
+  @override
+  String get gymDayThu => 'الخميس';
+  @override
+  String get gymDayFri => 'الجمعة';
+  @override
+  String get gymDaySat => 'السبت';
+  @override
+  String get gymDaySun => 'الأحد';
+  @override
+  String get gymLocationTitle => 'الموقع';
+  @override
+  String get gymGetDirections => 'الاتجاهات';
+  @override
+  String get gymOpenInMaps => 'افتح في الخرائط';
+  @override
+  String get gymHowToTitle => 'كيفية تسجيل الدخول';
+  @override
+  String get gymHowToStep1 => 'افتح تبويب المسح في التطبيق';
+  @override
+  String get gymHowToStep2 => 'امسح رمز QR عند الاستقبال';
+  @override
+  String get gymHowToStep3 => 'تم — تُسجَّل زيارتك تلقائيًا';
+  @override
+  String get gymHowToUnlockSub => 'افتح هذه الصالة أولًا عبر اشتراك أو تذكرة يوم';
+  @override
   String gymKmAway(String km) => '$km كم';
   @override
   String get gymAbout => 'نبذة';

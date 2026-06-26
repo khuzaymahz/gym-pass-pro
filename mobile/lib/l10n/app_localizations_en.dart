@@ -353,6 +353,62 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get audienceMaleOnly => 'Men only';
   @override
+  String get audienceMixed => 'Everyone welcome';
+  @override
+  String get audienceMixedSub => 'Open to all members';
+  @override
+  String get gymStatusOpen => 'Open now';
+  @override
+  String get gymStatusClosed => 'Closed';
+  @override
+  String get gymStatusOpen247 => 'Open 24/7';
+  @override
+  String gymStatusClosesAt(String time) => 'Closes $time';
+  @override
+  String gymStatusOpensAt(String time) => 'Opens $time';
+  @override
+  String gymStatusOpensTomorrow(String time) => 'Opens tomorrow $time';
+  @override
+  String gymStatusOpensDay(String day, String time) => 'Opens $day $time';
+  @override
+  String get gymHoursTitle => 'Opening hours';
+  @override
+  String get gymHoursToday => 'Today';
+  @override
+  String get gymHoursClosedDay => 'Closed';
+  @override
+  String get gymDayMon => 'Mon';
+  @override
+  String get gymDayTue => 'Tue';
+  @override
+  String get gymDayWed => 'Wed';
+  @override
+  String get gymDayThu => 'Thu';
+  @override
+  String get gymDayFri => 'Fri';
+  @override
+  String get gymDaySat => 'Sat';
+  @override
+  String get gymDaySun => 'Sun';
+  @override
+  String get gymLocationTitle => 'Location';
+  @override
+  String get gymGetDirections => 'Get directions';
+  @override
+  String get gymOpenInMaps => 'Open in Maps';
+  @override
+  String get gymHowToTitle => 'How to check in';
+  @override
+  String get gymHowToStep1 => 'Open the Scan tab in the app';
+  @override
+  String get gymHowToStep2 => 'Scan the QR code at the front desk';
+  @override
+  String get gymHowToStep3 =>
+      'You\'re in — your visit is logged automatically';
+  @override
+  String get gymHowToUnlockSub =>
+      'Unlock this gym first with a plan or a day pass';
+  @override
   String gymKmAway(String km) => '$km KM';
   @override
   String get gymAbout => 'About';

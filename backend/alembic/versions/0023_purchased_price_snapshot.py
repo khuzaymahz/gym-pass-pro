@@ -12,7 +12,7 @@ the historical amount — and lie about it the moment an admin changes
 the price.
 
 Revision ID: 0023_purchased_price_snapshot
-Revises: 0022_admin_scope_and_token_version
+Revises: 0022_admin_scope_token_ver
 Create Date: 2026-06-19 00:00:00.000000
 """
 
@@ -22,7 +22,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "0023_purchased_price_snapshot"
-down_revision = "0022_admin_scope_and_token_version"
+down_revision = "0022_admin_scope_token_ver"
 branch_labels = None
 depends_on = None
 

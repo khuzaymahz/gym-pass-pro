@@ -8,7 +8,9 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from app.db.enums import (
+    AudienceGender,
     CheckinStatus,
+    DayPassStatus,
     Gender,
     Locale,
     PaymentMethod,
@@ -49,6 +51,8 @@ class AdminUserUpdate(BaseModel):
     name: str | None = Field(default=None, max_length=128)
     first_name: str | None = Field(alias="firstName", default=None, max_length=64)
     last_name: str | None = Field(alias="lastName", default=None, max_length=64)
+    email: str | None = Field(default=None, max_length=254)
+    phone: str | None = Field(default=None, max_length=24)
     gender: Gender | None = None
     birthdate: date | None = None
     role: Role | None = None
@@ -56,6 +60,17 @@ class AdminUserUpdate(BaseModel):
     is_active: bool | None = Field(alias="isActive", default=None)
 
     model_config = ConfigDict(populate_by_name=True)
+
+
+class AdminSessionRead(BaseModel):
+    id: UUID
+    device_info: str | None = Field(alias="deviceInfo", default=None)
+    created_at: datetime = Field(alias="createdAt")
+    last_used_at: datetime | None = Field(alias="lastUsedAt", default=None)
+    expires_at: datetime = Field(alias="expiresAt")
+    revoked_at: datetime | None = Field(alias="revokedAt", default=None)
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 class AdminReferralPersonRef(BaseModel):
@@ -194,9 +209,7 @@ class AdminUserDetail(BaseModel):
     payments: list[AdminUserDetailPayment]
     tickets: list[AdminUserDetailTicket]
     recent_checkins: list[AdminUserDetailCheckin] = Field(alias="recentCheckins")
-    payment_methods: list[AdminUserDetailPaymentMethodsEntry] = Field(
-        alias="paymentMethods"
-    )
+    payment_methods: list[AdminUserDetailPaymentMethodsEntry] = Field(alias="paymentMethods")
     totals: AdminUserDetailTotals
 
     model_config = ConfigDict(populate_by_name=True)
@@ -257,14 +270,10 @@ class AdminPasswordReset(BaseModel):
 class AdminPlanUpdate(BaseModel):
     price_jod: Decimal | None = Field(alias="priceJod", default=None, ge=0)
     monthly_visits: int | None = Field(alias="monthlyVisits", default=None, gt=0)
-    included_gym_count: int | None = Field(
-        alias="includedGymCount", default=None, ge=0
-    )
+    included_gym_count: int | None = Field(alias="includedGymCount", default=None, ge=0)
     features_en: list[str] | None = Field(alias="featuresEn", default=None)
     features_ar: list[str] | None = Field(alias="featuresAr", default=None)
-    discount_percent: Decimal | None = Field(
-        alias="discountPercent", default=None, ge=0, le=100
-    )
+    discount_percent: Decimal | None = Field(alias="discountPercent", default=None, ge=0, le=100)
     is_active: bool | None = Field(alias="isActive", default=None)
 
     model_config = ConfigDict(populate_by_name=True)
@@ -278,9 +287,7 @@ class AdminPlanCreate(BaseModel):
     included_gym_count: int = Field(alias="includedGymCount", ge=0)
     features_en: list[str] = Field(alias="featuresEn", default_factory=list)
     features_ar: list[str] = Field(alias="featuresAr", default_factory=list)
-    discount_percent: Decimal = Field(
-        alias="discountPercent", default=Decimal("0"), ge=0, le=100
-    )
+    discount_percent: Decimal = Field(alias="discountPercent", default=Decimal("0"), ge=0, le=100)
     is_active: bool = Field(alias="isActive", default=True)
 
     model_config = ConfigDict(populate_by_name=True)
@@ -300,6 +307,113 @@ class AdminSubscriptionListItem(BaseModel):
     visits_used: int = Field(alias="visitsUsed")
     auto_renew: bool = Field(alias="autoRenew")
     cancelled_at: datetime | None = Field(alias="cancelledAt", default=None)
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class AdminSubscriptionRead(BaseModel):
+    """Single-subscription view returned by the management mutations so
+    the UI can refresh the row in place without a list re-fetch."""
+
+    id: UUID
+    user_id: UUID = Field(alias="userId")
+    plan_id: UUID = Field(alias="planId")
+    tier: Tier
+    status: SubscriptionStatus
+    starts_at: datetime = Field(alias="startsAt")
+    expires_at: datetime = Field(alias="expiresAt")
+    visits_used: int = Field(alias="visitsUsed")
+    auto_renew: bool = Field(alias="autoRenew")
+    cancelled_at: datetime | None = Field(alias="cancelledAt", default=None)
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+
+class AdminSubscriptionExtend(BaseModel):
+    # Bounded to ±10 years so a fat-fingered value can't push expiry to
+    # the year 5000. Negative shortens the term.
+    days: int = Field(ge=-3650, le=3650)
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class AdminSubscriptionVisits(BaseModel):
+    visits_used: int = Field(alias="visitsUsed", ge=0, le=100000)
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class AdminSubscriptionTier(BaseModel):
+    tier: Tier
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class AdminSubscriptionComp(BaseModel):
+    user_id: UUID = Field(alias="userId")
+    plan_id: UUID = Field(alias="planId")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class AdminDayPassOfferingRead(BaseModel):
+    id: UUID
+    gym_id: UUID = Field(alias="gymId")
+    gym_name_en: str = Field(alias="gymNameEn")
+    gym_name_ar: str = Field(alias="gymNameAr")
+    gym_slug: str = Field(alias="gymSlug")
+    is_enabled: bool = Field(alias="isEnabled")
+    price_jod: Decimal = Field(alias="priceJod")
+    platform_fee_pct: Decimal = Field(alias="platformFeePct")
+    validity_hours: int = Field(alias="validityHours")
+    daily_cap: int | None = Field(alias="dailyCap", default=None)
+    audience_gender_override: AudienceGender | None = Field(
+        alias="audienceGenderOverride", default=None
+    )
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class AdminDayPassOfferingConfigure(BaseModel):
+    is_enabled: bool = Field(alias="isEnabled")
+    price_jod: Decimal = Field(alias="priceJod", ge=0)
+    platform_fee_pct: Decimal = Field(alias="platformFeePct", ge=0, lt=100)
+    validity_hours: int = Field(alias="validityHours", gt=0, le=168)
+    daily_cap: int | None = Field(alias="dailyCap", default=None, gt=0)
+    audience_gender_override: AudienceGender | None = Field(
+        alias="audienceGenderOverride", default=None
+    )
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class AdminPaymentRead(BaseModel):
+    id: UUID
+    subscription_id: UUID | None = Field(alias="subscriptionId", default=None)
+    amount_jod: Decimal = Field(alias="amountJod")
+    method: PaymentMethod
+    status: PaymentStatus
+    gateway_txn_id: str | None = Field(alias="gatewayTxnId", default=None)
+    processed_at: datetime | None = Field(alias="processedAt", default=None)
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+
+class AdminDayPassRead(BaseModel):
+    id: UUID
+    user_id: UUID = Field(alias="userId")
+    user_name: str | None = Field(alias="userName", default=None)
+    user_phone: str | None = Field(alias="userPhone", default=None)
+    gym_id: UUID = Field(alias="gymId")
+    gym_name_en: str = Field(alias="gymNameEn")
+    status: DayPassStatus
+    price_jod: Decimal = Field(alias="priceJod")
+    platform_fee_jod: Decimal = Field(alias="platformFeeJod")
+    net_amount_jod: Decimal = Field(alias="netAmountJod")
+    purchased_at: datetime = Field(alias="purchasedAt")
+    expires_at: datetime = Field(alias="expiresAt")
+    used_at: datetime | None = Field(alias="usedAt", default=None)
+    refunded_at: datetime | None = Field(alias="refundedAt", default=None)
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -378,20 +492,6 @@ class AdminPayoutDetail(BaseModel):
 
 class AdminPayoutMarkPaid(BaseModel):
     notes: str | None = None
-
-
-class AdminAuditRead(BaseModel):
-    id: UUID
-    actor_user_id: UUID | None = Field(alias="actorUserId", default=None)
-    actor_role: Role | None = Field(alias="actorRole", default=None)
-    action: str
-    entity_type: str = Field(alias="entityType")
-    entity_id: UUID | None = Field(alias="entityId", default=None)
-    diff_json: dict[str, Any] = Field(alias="diff", default_factory=dict)
-    ip_address: str | None = Field(alias="ipAddress", default=None)
-    created_at: datetime = Field(alias="createdAt")
-
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 class DashboardMetrics(BaseModel):

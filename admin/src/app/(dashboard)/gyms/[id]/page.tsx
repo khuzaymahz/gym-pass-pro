@@ -164,23 +164,23 @@ export default async function EditGymPage({ params }: Props) {
   const { id } = await params;
   const t = await getTranslations("gyms");
   const tForm = await getTranslations("gyms.form");
-  let gym;
-  let photos: GymPhotoRead[] = [];
-  let owner: GymOwnerRead | null = null;
-  try {
-    gym = await getGym(id);
-    photos = await listGymPhotos(id);
-    // Owner is optional — a freshly-created gym hasn't been bound to a
-    // partner login yet. Soft-fail: if the owner endpoint errors for
-    // any non-404 reason, the rest of the page should still render.
-    try {
-      owner = await getGymOwner(id);
-    } catch {
-      owner = null;
-    }
-  } catch {
+  // Fetch gym + photos + owner concurrently instead of in a 3-deep
+  // waterfall — they're independent, so latency drops from the sum of
+  // three round-trips to the slowest one. Semantics preserved: gym and
+  // photos are required (404 if either fails); owner is optional (a
+  // fresh gym isn't bound to a partner login yet) and soft-fails.
+  const [gymR, photosR, ownerR] = await Promise.allSettled([
+    getGym(id),
+    listGymPhotos(id),
+    getGymOwner(id),
+  ]);
+  if (gymR.status !== "fulfilled" || photosR.status !== "fulfilled") {
     notFound();
   }
+  const gym = gymR.value;
+  const photos: GymPhotoRead[] = photosR.value;
+  const owner: GymOwnerRead | null =
+    ownerR.status === "fulfilled" ? ownerR.value : null;
 
   const bound = updateAction.bind(null, id);
   const boundDelete = deleteAction.bind(null, id);

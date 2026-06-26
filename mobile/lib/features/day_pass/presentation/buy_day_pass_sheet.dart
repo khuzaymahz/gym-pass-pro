@@ -58,6 +58,14 @@ Future<DayPass?> showBuyDayPassSheet({
   );
 }
 
+/// Renders a JOD amount as a bare number — whole values drop the
+/// decimals (`8`), fractional values keep two (`8.50`). The localized
+/// currency glyph is appended separately at the call site.
+String _formatJodPrice(double amount) {
+  if (amount % 1 == 0) return amount.toStringAsFixed(0);
+  return amount.toStringAsFixed(2);
+}
+
 class _BuyDayPassSheetBody extends ConsumerStatefulWidget {
   const _BuyDayPassSheetBody({
     required this.gymSlug,
@@ -92,7 +100,7 @@ class _BuyDayPassSheetBodyState extends ConsumerState<_BuyDayPassSheetBody> {
     // rather than silently buying through a mock that may not exist.
     final billing = ref.read(billingProvider);
     final method = billing.defaultMethod;
-    final isProd = AppEnv().isProduction;
+    final isProd = AppEnv.current.isProduction;
     if (isProd && method == null) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
@@ -101,9 +109,7 @@ class _BuyDayPassSheetBodyState extends ConsumerState<_BuyDayPassSheetBody> {
     }
     setState(() => _busy = true);
     try {
-      final pass = await ref
-          .read(dayPassRepositoryProvider)
-          .purchase(
+      final pass = await ref.read(dayPassRepositoryProvider).purchase(
             gymSlug: widget.gymSlug,
             // Use the stored method's kind when present; fall back to
             // 'mock' only in non-production builds. The backend's
@@ -139,9 +145,7 @@ class _BuyDayPassSheetBodyState extends ConsumerState<_BuyDayPassSheetBody> {
     final l = AppLocalizations.of(context);
     final isAr = Localizations.localeOf(context).languageCode == 'ar';
     final gp = context.gp;
-    final priceText = widget.offering.priceJod % 1 == 0
-        ? widget.offering.priceJod.toStringAsFixed(0)
-        : widget.offering.priceJod.toStringAsFixed(2);
+    final priceText = _formatJodPrice(widget.offering.priceJod);
     return SafeArea(
       top: false,
       child: Padding(
@@ -243,9 +247,8 @@ class _BuyDayPassSheetBodyState extends ConsumerState<_BuyDayPassSheetBody> {
             ),
             const SizedBox(height: 18),
             PillButton(
-              label: _busy
-                  ? l.dayPassSheetPaying
-                  : l.dayPassSheetPay(priceText),
+              label:
+                  _busy ? l.dayPassSheetPaying : l.dayPassSheetPay(priceText),
               onPressed: _busy ? null : _onPay,
               trailingIcon: _busy ? null : Icons.lock_open,
             ),

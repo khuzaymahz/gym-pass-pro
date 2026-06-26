@@ -35,10 +35,19 @@ class Checkin(Base):
     __table_args__ = (
         Index("ix_checkins_user_scanned_at", "user_id", "scanned_at"),
         Index("ix_checkins_gym_scanned_at", "gym_id", "scanned_at"),
+        Index("ix_checkins_subscription_id", "subscription_id"),
         Index(
             "ix_checkins_status",
             "status",
             postgresql_where=text("status <> 'success'"),
+        ),
+        # Partial composite for tier-budget accounting — only SUCCESS
+        # rows matter (created in migration 0010 as raw DDL).
+        Index(
+            "ix_checkins_success_user_scanned_at",
+            "user_id",
+            text("scanned_at DESC"),
+            postgresql_where=text("status = 'success'"),
         ),
         # Partial composite for the partner-dashboard aggregates
         # (count_today / count_mtd / per_day / hour_breakdown /
@@ -47,7 +56,7 @@ class Checkin(Base):
         Index(
             "ix_checkins_gym_success_scanned",
             "gym_id",
-            "scanned_at",
+            text("scanned_at DESC"),
             postgresql_where=text("status = 'success'"),
         ),
     )

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 from uuid import UUID
@@ -10,7 +10,6 @@ import structlog
 from app.core.exceptions import AppError, ErrorCode
 from app.db.enums import (
     AudienceGender,
-    DayPassStatus,
     PaymentMethod,
     PaymentStatus,
 )
@@ -137,11 +136,7 @@ class DayPassService:
             }
         await self.audit.log(
             actor=actor,
-            action=(
-                "day_pass_offering.create"
-                if before is None
-                else "day_pass_offering.update"
-            ),
+            action=("day_pass_offering.create" if before is None else "day_pass_offering.update"),
             entity_type="day_pass_offering",
             entity_id=offering.id,
             diff=diff,
@@ -223,9 +218,7 @@ class DayPassService:
         # default audience. Mirrors the resolution in
         # gym_service.audience_visible_for so the day-pass
         # ladies-night carve-out works.
-        effective_audience = (
-            offering.audience_gender_override or gym.audience_gender
-        )
+        effective_audience = offering.audience_gender_override or gym.audience_gender
         if not _audience_match(effective_audience, user.gender):
             raise AppError(
                 ErrorCode.DAY_PASS_AUDIENCE_LOCKED,
@@ -257,9 +250,7 @@ class DayPassService:
         # (user, gym) covers them already. Refresh-to-buy on the
         # gym profile would otherwise produce duplicates.
         now = utcnow()
-        existing = await self.passes.active_for_user_gym(
-            user_id=user.id, gym_id=gym.id, now=now
-        )
+        existing = await self.passes.active_for_user_gym(user_id=user.id, gym_id=gym.id, now=now)
         if existing is not None:
             raise AppError(
                 ErrorCode.DAY_PASS_DUPLICATE_ACTIVE,
@@ -299,11 +290,7 @@ class DayPassService:
             idempotency_key=str(day_pass.id),
         )
 
-        status = (
-            PaymentStatus.SUCCEEDED
-            if result.status == "succeeded"
-            else PaymentStatus.FAILED
-        )
+        status = PaymentStatus.SUCCEEDED if result.status == "succeeded" else PaymentStatus.FAILED
         raw = dict(result.raw or {})
         raw["sku"] = "day_pass"
         raw["dayPassId"] = str(day_pass.id)
@@ -421,8 +408,7 @@ class DayPassService:
             await self.payments.mark_refunded(
                 payment,
                 refund_txn_id=refund_txn_id,
-                raw_refund=refund_raw
-                or {"refund_call_failed": str(refund_call_failed)},
+                raw_refund=refund_raw or {"refund_call_failed": str(refund_call_failed)},
                 refund_failed=not refund_succeeded,
             )
         except Exception as mark_err:
@@ -444,15 +430,12 @@ class DayPassService:
                 "refund_succeeded": refund_succeeded,
                 "refund_txn_id": refund_txn_id,
                 "refund_call_failed": (
-                    str(refund_call_failed)[:512]
-                    if refund_call_failed is not None
-                    else None
+                    str(refund_call_failed)[:512] if refund_call_failed is not None else None
                 ),
             },
         )
         log.error(
-            "payment.compensation_required" if not refund_succeeded
-            else "payment.compensated",
+            "payment.compensation_required" if not refund_succeeded else "payment.compensated",
             entity_type="day_pass",
             entity_id=str(entity_id),
             payment_id=str(payment.id),
@@ -468,9 +451,7 @@ class DayPassService:
     # ------------------------------------------------------------------
     # Internal: redeem on check-in (called from CheckinService)
     # ------------------------------------------------------------------
-    async def redeem(
-        self, day_pass: DayPass, *, checkin_id: UUID, actor: Actor
-    ) -> None:
+    async def redeem(self, day_pass: DayPass, *, checkin_id: UUID, actor: Actor) -> None:
         """Mark a pass as used after a successful check-in.
 
         Called from `CheckinService.scan` once the check-in row is
@@ -507,9 +488,7 @@ def _audience_match(audience: AudienceGender, gender: Any) -> bool:
         return True
     if gender is None:
         return False
-    return (
-        audience == AudienceGender.MALE_ONLY and gender.value == "male"
-    ) or (
+    return (audience == AudienceGender.MALE_ONLY and gender.value == "male") or (
         audience == AudienceGender.FEMALE_ONLY and gender.value == "female"
     )
 

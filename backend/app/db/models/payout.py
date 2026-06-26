@@ -44,7 +44,7 @@ class PayoutLedger(Base):
         # filter by (gym_id, created_at >= since). The other composite
         # indexes the (gym_id, payout_id) pairing for batch lookups
         # but doesn't help a time-bounded sum. See migration 0014.
-        Index("ix_payout_ledger_gym_created", "gym_id", "created_at"),
+        Index("ix_payout_ledger_gym_created", "gym_id", text("created_at DESC")),
     )
 
 
@@ -70,9 +70,7 @@ class Payout(Base):
     updated_at: Mapped[TimestampTZUpdate]
 
     __table_args__ = (
-        UniqueConstraint(
-            "gym_id", "period_start", "period_end", name="uq_payouts_gym_period"
-        ),
+        UniqueConstraint("gym_id", "period_start", "period_end", name="uq_payouts_gym_period"),
         Index(
             "ix_payouts_status",
             "status",

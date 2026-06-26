@@ -34,4 +34,6 @@ class Notification(Base):
             "created_at",
             postgresql_where=text("read_at IS NULL"),
         ),
+        # Full per-user timeline (created in migration 0010 as raw DDL).
+        Index("ix_notifications_user_created", "user_id", text("created_at DESC")),
     )

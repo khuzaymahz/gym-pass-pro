@@ -2,118 +2,60 @@
 
 import { useEffect } from "react";
 
-/// Root-level error boundary for anything thrown above the
-/// dashboard segment (e.g. the root layout, NextIntl provider, etc.)
-/// — the (dashboard) error.tsx can't catch failures higher up the
-/// tree, so this is the last line of defense before Next.js falls
-/// back to its built-in 500.
+/// Segment boundary for anything thrown between the root layout and
+/// the (dashboard) segment — e.g. the login route or the dashboard
+/// layout's own data fetches. Root-layout failures are handled one
+/// level up by `global-error.tsx`; failures *inside* the dashboard by
+/// `(dashboard)/error.tsx`.
 ///
-/// No translations on purpose: if the i18n provider itself is the
-/// thing that failed, `useTranslations` would throw again and
-/// nullify the boundary.
-export default function GlobalError({
+/// Renders WITHIN the root layout (which already provides <html>/<body>
+/// and globals.css), so it uses design-system classes. Kept i18n-free
+/// on purpose: this boundary can fire when the NextIntl provider itself
+/// is the failure, and `useTranslations` would re-throw and defeat it.
+export default function AdminError({
   error,
   reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const isNetwork = error.name === "NetworkError";
+
   useEffect(() => {
     if (process.env.NODE_ENV !== "production") {
       // eslint-disable-next-line no-console
-      console.error("[admin:root] unhandled:", error);
+      console.error("[admin] unhandled:", error);
     }
   }, [error]);
 
   return (
-    <html>
-      <body
-        style={{
-          margin: 0,
-          padding: 0,
-          fontFamily:
-            "ui-sans-serif, system-ui, -apple-system, sans-serif",
-          background: "#0B0B0E",
-          color: "#E5E7EB",
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <div style={{ maxWidth: 420, padding: 24 }}>
-          <p
-            style={{
-              fontSize: 11,
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-              color: "#71717A",
-              margin: 0,
-            }}
-          >
-            Admin · fatal error
-          </p>
-          <h1
-            style={{
-              fontSize: 22,
-              fontWeight: 600,
-              margin: "8px 0 12px",
-            }}
-          >
-            Something went wrong loading the console.
-          </h1>
-          <p style={{ fontSize: 13, lineHeight: 1.55, color: "#A1A1AA" }}>
-            The page couldn't render. This is usually a transient
-            problem — try again, and reach out to ops if it keeps
-            happening.
-          </p>
-          <div style={{ marginTop: 16, display: "flex", gap: 8 }}>
-            <button
-              type="button"
-              onClick={() => reset()}
-              style={{
-                background: "#BBFB46",
-                color: "#0B0B0E",
-                border: 0,
-                borderRadius: 6,
-                padding: "8px 14px",
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              Retry
-            </button>
-            <a
-              href="/"
-              style={{
-                background: "transparent",
-                color: "#E5E7EB",
-                border: "1px solid #27272A",
-                borderRadius: 6,
-                padding: "8px 14px",
-                fontSize: 13,
-                textDecoration: "none",
-              }}
-            >
-              Reload
-            </a>
-          </div>
-          {error.digest ? (
-            <p
-              style={{
-                marginTop: 16,
-                fontSize: 10,
-                textTransform: "uppercase",
-                letterSpacing: "0.08em",
-                color: "#71717A",
-              }}
-            >
-              Ref <code style={{ fontFamily: "ui-monospace, monospace" }}>{error.digest}</code>
-            </p>
-          ) : null}
-        </div>
-      </body>
-    </html>
+    <div className="mx-auto flex min-h-[60vh] max-w-md flex-col justify-center gap-4 py-16">
+      <p className="label">Admin · error</p>
+      <h1 className="h2">
+        {isNetwork ? "Can't reach the server" : "Something went wrong"}
+      </h1>
+      <p className="text-[13px] leading-relaxed text-muted">
+        {isNetwork
+          ? "The console couldn't reach the GymPass server. Check your connection and try again."
+          : "This page couldn't load. It's usually a transient hiccup — try again, and reach out to ops if it keeps happening."}
+      </p>
+      <div className="mt-2 flex gap-2">
+        <button
+          type="button"
+          onClick={() => reset()}
+          className="btn-primary btn-sm"
+        >
+          Retry
+        </button>
+        <a href="/" className="btn-ghost btn-sm">
+          Reload
+        </a>
+      </div>
+      {error.digest ? (
+        <p className="label mt-3">
+          Ref <span className="num">{error.digest}</span>
+        </p>
+      ) : null}
+    </div>
   );
 }

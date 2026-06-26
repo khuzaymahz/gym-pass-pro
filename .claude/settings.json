@@ -1,9 +1,45 @@
 {
   "permissions": {
     "allow": [
-      "PowerShell($env:Path += ';C:\\\\Program Files\\\\nodejs'; cd c:/gym-pass-pro/admin; npm install next@15 --include=dev 2>&1 | Select-Object -Last 20)",
-      "PowerShell(docker compose -f c:/gym-pass-pro/docker-compose.yml ps --format 'table {{.Service}}\\\\t{{.State}}' 2>&1)",
-      "Bash(flutter analyze *)"
+      "Bash(flutter analyze:*)",
+      "Bash(dart format:*)",
+      "Bash(flutter test:*)",
+      "Bash(uv run ruff:*)",
+      "Bash(uv run pytest:*)",
+      "Bash(uv run alembic:*)",
+      "Bash(docker compose run --rm migrator:*)",
+      "Bash(git diff:*)",
+      "Bash(git status:*)"
     ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guard.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/format.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "enabledPlugins": {
+    "claude-code-setup@claude-plugins-official": true,
+    "frontend-design@claude-plugins-official": true,
+    "code-review@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": true
   }
 }

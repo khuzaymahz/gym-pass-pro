@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import PendingButton from "@/components/PendingButton";
+import { useToast } from "@/components/ui/Toast";
 import type { ActionResult } from "@/lib/action-result";
 import type { AdminUser, AdminUserUpdate, Gender } from "@/lib/sdk";
 
@@ -17,6 +18,7 @@ export default function UserEditForm({ user, action }: Props) {
   const router = useRouter();
   const t = useTranslations("users.edit");
   const tCommon = useTranslations("common");
+  const { toast } = useToast();
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<{
     tone: "ok" | "err";
@@ -25,6 +27,8 @@ export default function UserEditForm({ user, action }: Props) {
 
   const [firstName, setFirstName] = useState(user.firstName ?? "");
   const [lastName, setLastName] = useState(user.lastName ?? "");
+  const [email, setEmail] = useState(user.email ?? "");
+  const [phone, setPhone] = useState(user.phone ?? "");
   const [gender, setGender] = useState<Gender | "">(user.gender ?? "");
   const [birthdate, setBirthdate] = useState(user.birthdate ?? "");
   const [role, setRole] = useState<AdminUser["role"]>(user.role);
@@ -38,6 +42,8 @@ export default function UserEditForm({ user, action }: Props) {
     const payload: AdminUserUpdate = {};
     if (firstName !== (user.firstName ?? "")) payload.firstName = firstName;
     if (lastName !== (user.lastName ?? "")) payload.lastName = lastName;
+    if (email !== (user.email ?? "")) payload.email = email;
+    if (phone !== (user.phone ?? "")) payload.phone = phone;
     if (gender !== (user.gender ?? "")) {
       payload.gender = gender === "" ? undefined : (gender as Gender);
     }
@@ -57,9 +63,11 @@ export default function UserEditForm({ user, action }: Props) {
       const result = await action(payload);
       if (result.ok) {
         setMessage({ tone: "ok", text: tCommon("savedDot") });
+        toast(tCommon("savedToast"), "success");
         router.refresh();
       } else {
         setMessage({ tone: "err", text: result.message });
+        toast(result.message, "error");
       }
     });
   }
@@ -107,19 +115,18 @@ export default function UserEditForm({ user, action }: Props) {
         <label className="field">
           <span className="field-label">{t("email")}</span>
           <input
+            type="email"
             className="input input-sm num"
-            value={user.email ?? ""}
-            readOnly
-            disabled
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
           />
         </label>
         <label className="field">
           <span className="field-label">{t("phone")}</span>
           <input
             className="input input-sm num"
-            value={user.phone ?? ""}
-            readOnly
-            disabled
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
           />
         </label>
         <label className="field">

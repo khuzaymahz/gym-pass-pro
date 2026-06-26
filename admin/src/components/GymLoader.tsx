@@ -116,7 +116,11 @@ export function GymLoader({
 
   const plateColor = color ?? "rgb(var(--c-accent))";
   const gripColor = "rgb(var(--c-line-2))";
-  const knurlColor = "rgb(var(--c-bg))";
+  // Knurl grooves read as the page background showing through the grip.
+  // This app's surface-pole token is `--c-ink`; the old `--c-bg` name
+  // was never defined here, so the marks rendered with an invalid
+  // colour — only visible at `lg`, which the loading state now uses.
+  const knurlColor = "rgb(var(--c-ink))";
   const capColor = "rgb(var(--c-line-2) / 0.92)";
 
   const knurlVisible = unit >= 16;

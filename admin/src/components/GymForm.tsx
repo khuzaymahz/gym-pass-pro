@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { AmenitiesPicker } from "@/components/AmenitiesPicker";
+import { useToast } from "@/components/ui/Toast";
 import type { GymRead } from "@/lib/gyms";
 import { suggestTier } from "@/lib/tierSuggestion";
 
@@ -28,6 +29,7 @@ export default function GymForm({ initial, action, submitLabel }: Props) {
   const router = useRouter();
   const t = useTranslations("gyms.form");
   const tCommon = useTranslations("common");
+  const { toast } = useToast();
   const [state, setState] = useState<Partial<GymRead>>({
     slug: "",
     nameEn: "",
@@ -52,9 +54,12 @@ export default function GymForm({ initial, action, submitLabel }: Props) {
     const result = await action(state);
     setLoading(false);
     if (!result.ok) {
-      setError(result.error ?? tCommon("errorGeneric"));
+      const msg = result.error ?? tCommon("errorGeneric");
+      setError(msg);
+      toast(msg, "error");
       return;
     }
+    toast(tCommon("savedToast"), "success");
     router.push("/gyms");
     router.refresh();
   }

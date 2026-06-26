@@ -57,9 +57,9 @@
       "checkins": "Check-ins",
       "referrals": "Referrals",
       "notifications": "Notifications",
-      "audit": "Audit log",
       "admins": "Admins",
-      "settings": "Settings"
+      "settings": "Settings",
+      "dayPasses": "Day passes"
     }
   },
   "referrals": {
@@ -86,7 +86,11 @@
     "emptyBody": "Member-to-member referrals will appear here as they're created."
   },
   "account": {
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "collapseSidebar": "Collapse menu",
+    "expandSidebar": "Expand menu"
   },
   "locale": {
     "toggleTo": {
@@ -129,7 +133,9 @@
     "disabled": "Disabled",
     "none": "—",
     "of": "of",
-    "back": "Back"
+    "back": "Back",
+    "done": "Done.",
+    "savedToast": "Changes saved."
   },
   "login": {
     "title": "Sign in",
@@ -280,7 +286,25 @@
       "invited": "Invited",
       "identity": "Identity",
       "memberSince": "Member since",
-      "lastActive": "Last active"
+      "lastActive": "Last active",
+      "refund": "Refund",
+      "refundConfirm": "Refund this payment? It will be marked refunded."
+    },
+    "sessions": {
+      "title": "Sessions & devices",
+      "forceLogout": "Force log out",
+      "revokeConfirm": "Revoke all sessions? The member must sign in again on every device.",
+      "none": "No sessions on record.",
+      "device": "Device",
+      "status": "Status",
+      "lastUsed": "Last used",
+      "created": "Created",
+      "unknownDevice": "Unknown device",
+      "states": {
+        "active": "Active",
+        "revoked": "Revoked",
+        "expired": "Expired"
+      }
     }
   },
   "gyms": {
@@ -369,7 +393,9 @@
       "hide": "Hide",
       "revoke": "Revoke login",
       "revokeHint": "Revoking signs the partner out everywhere and prevents future sign-in. Gym profile, photos, and history stay intact.",
-      "revokeConfirm": "Revoke partner login for {phone}? They will be signed out immediately."
+      "revokeConfirm": "Revoke partner login for {phone}? They will be signed out immediately.",
+      "createdToast": "Partner login created.",
+      "revokedToast": "Partner login revoked."
     },
     "logo": {
       "title": "Logo",
@@ -437,7 +463,20 @@
       "hint": "Clear filters, or wait for a member to subscribe."
     },
     "cancel": "Cancel",
-    "cancelConfirm": "Cancel this subscription?"
+    "cancelConfirm": "Cancel this subscription?",
+    "manage": {
+      "manage": "Manage",
+      "title": "Manage subscription",
+      "extendDays": "Extend by (days)",
+      "apply": "Apply",
+      "visitsUsed": "Visits used",
+      "set": "Set",
+      "tier": "Tier",
+      "change": "Change",
+      "restore": "Restore",
+      "resumePause": "Resume pause",
+      "hint": "Actions are audit-logged."
+    }
   },
   "plans": {
     "title": "Plans",
@@ -540,32 +579,6 @@
       "userId": "User ID",
       "since": "Since",
       "until": "Until",
-      "uuidPlaceholder": "uuid"
-    }
-  },
-  "audit": {
-    "title": "Audit log",
-    "description": "Every mutation across the system is recorded here.",
-    "found": "found",
-    "table": {
-      "when": "When",
-      "actor": "Actor",
-      "action": "Action",
-      "entity": "Entity",
-      "diff": "Diff",
-      "ip": "IP"
-    },
-    "empty": {
-      "title": "No audit entries match",
-      "hint": "Adjust filters or wait for activity."
-    },
-    "filters": {
-      "search": "actor / action / entity…",
-      "entity": "Entity",
-      "entityPlaceholder": "user, plan, payout…",
-      "actionPrefix": "Action prefix",
-      "actionPlaceholder": "admin.user.update",
-      "actorUuid": "Actor UUID",
       "uuidPlaceholder": "uuid"
     }
   },
@@ -774,6 +787,7 @@
   "checkinStatuses": {
     "success": "Success",
     "tier_locked": "Tier locked",
+    "gender_locked": "Gender locked",
     "no_visits": "No visits left",
     "expired": "Expired",
     "invalid_qr": "Invalid QR",
@@ -788,7 +802,8 @@
   "paymentStatuses": {
     "pending": "Pending",
     "succeeded": "Succeeded",
-    "failed": "Failed"
+    "failed": "Failed",
+    "refunded": "Refunded"
   },
   "paymentMethods": {
     "card": "Card",
@@ -852,5 +867,58 @@
     "approvedSummary": "This application has been approved.",
     "rejectedSummary": "This application was rejected.",
     "viewGym": "View gym →"
+  },
+  "dayPassStatuses": {
+    "pending": "Pending",
+    "active": "Active",
+    "used": "Used",
+    "expired": "Expired",
+    "refunded": "Refunded"
+  },
+  "dayPasses": {
+    "title": "Day passes",
+    "description": "Per-gym offerings and the passes sold against them.",
+    "offeringsTitle": "Offerings",
+    "passesTitle": "Sold passes",
+    "on": "ON",
+    "off": "OFF",
+    "refund": "Refund",
+    "refundConfirm": "Refund this day pass? The payment will be marked refunded.",
+    "stats": {
+      "offerings": "Offerings",
+      "enabled": "Enabled",
+      "passesSold": "Passes sold"
+    },
+    "offeringsEmpty": {
+      "title": "No offerings configured",
+      "hint": "Enable day passes on a gym to see it here."
+    },
+    "passesEmpty": {
+      "title": "No passes match",
+      "hint": "Clear filters, or wait for a member to buy one."
+    },
+    "table": {
+      "gym": "Gym",
+      "status": "Status",
+      "price": "Price",
+      "feePct": "Fee %",
+      "validity": "Validity",
+      "cap": "Daily cap",
+      "member": "Member",
+      "net": "Net to gym",
+      "window": "Window"
+    },
+    "configure": {
+      "configure": "Configure",
+      "title": "Configure offering",
+      "enabled": "Enabled for sale",
+      "price": "Price (JOD)",
+      "feePct": "Platform fee %",
+      "validity": "Validity (hours)",
+      "dailyCap": "Daily cap",
+      "unlimited": "∞",
+      "save": "Save",
+      "hint": "Fee % and validity are admin-only."
+    }
   }
 }
