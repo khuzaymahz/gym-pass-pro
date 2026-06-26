@@ -140,11 +140,11 @@ export default function Sidebar({
       aria-label={
         collapsed ? tAccount("expandSidebar") : tAccount("collapseSidebar")
       }
-      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface hover:text-paper"
+      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface hover:text-paper"
     >
       <svg
         viewBox="0 0 24 24"
-        className={`h-[18px] w-[18px] transition-transform ${
+        className={`h-4 w-4 transition-transform ${
           collapsed !== isRtl ? "rotate-180" : ""
         }`}
         fill="none"
@@ -160,14 +160,12 @@ export default function Sidebar({
   );
 
   // Brand header (top of the rail). Expanded: the GYMPASS wordmark + collapse
-  // toggle. Collapsed: the GP monogram stacked above the toggle. `withToggle`
-  // is off for the mobile drawer, which has no collapse concept.
+  // toggle. Collapsed: the GP monogram beside the toggle. `withToggle` is off
+  // for the mobile drawer, which has no collapse concept.
   const renderBrand = (compact: boolean, withToggle: boolean) => (
     <div
-      className={`flex h-14 border-b border-line ${
-        compact
-          ? "flex-col items-center justify-center gap-1 px-2"
-          : "items-center justify-between ps-4 pe-2"
+      className={`flex h-14 items-center border-b border-line ${
+        compact ? "justify-center gap-1.5 px-2" : "justify-between ps-4 pe-2"
       }`}
     >
       {compact ? (
@@ -317,7 +315,7 @@ export default function Sidebar({
       {/* Desktop: persistent rail (lg and up), collapsible */}
       <aside
         className={`sticky top-0 hidden h-screen shrink-0 flex-col border-r border-line bg-ink/60 backdrop-blur-xl transition-[width] duration-200 ease-out lg:flex ${
-          collapsed ? "w-[68px]" : "w-[230px]"
+          collapsed ? "w-[88px]" : "w-[230px]"
         }`}
       >
         {renderBrand(collapsed, true)}
