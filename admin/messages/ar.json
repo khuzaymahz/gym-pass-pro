@@ -88,7 +88,9 @@
   "account": {
     "signOut": "تسجيل الخروج",
     "openMenu": "فتح القائمة",
-    "closeMenu": "إغلاق القائمة"
+    "closeMenu": "إغلاق القائمة",
+    "collapseSidebar": "طي القائمة",
+    "expandSidebar": "توسيع القائمة"
   },
   "locale": {
     "toggleTo": {

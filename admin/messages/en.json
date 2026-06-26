@@ -88,7 +88,9 @@
   "account": {
     "signOut": "Sign out",
     "openMenu": "Open menu",
-    "closeMenu": "Close menu"
+    "closeMenu": "Close menu",
+    "collapseSidebar": "Collapse menu",
+    "expandSidebar": "Expand menu"
   },
   "locale": {
     "toggleTo": {
