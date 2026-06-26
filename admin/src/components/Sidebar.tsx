@@ -140,7 +140,7 @@ export default function Sidebar({
       aria-label={
         collapsed ? tAccount("expandSidebar") : tAccount("collapseSidebar")
       }
-      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface hover:text-paper"
+      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface hover:text-paper"
     >
       <svg
         viewBox="0 0 24 24"
@@ -159,16 +159,20 @@ export default function Sidebar({
     </button>
   );
 
-  // Brand header: the GYMPASS wordmark + the collapse toggle (top of the
-  // rail). When collapsed, only the toggle shows (centered). `withToggle` is
-  // off for the mobile drawer, which has no collapse concept.
+  // Brand header (top of the rail). Expanded: the GYMPASS wordmark + collapse
+  // toggle. Collapsed: the GP monogram stacked above the toggle. `withToggle`
+  // is off for the mobile drawer, which has no collapse concept.
   const renderBrand = (compact: boolean, withToggle: boolean) => (
     <div
-      className={`flex h-14 items-center border-b border-line ${
-        compact ? "justify-center px-2" : "justify-between ps-4 pe-2"
+      className={`flex h-14 border-b border-line ${
+        compact
+          ? "flex-col items-center justify-center gap-1 px-2"
+          : "items-center justify-between ps-4 pe-2"
       }`}
     >
-      {!compact && (
+      {compact ? (
+        <GpMark title={tBrand("name")} className="h-5 w-auto text-paper" />
+      ) : (
         <GympassWordmark
           title={tBrand("name")}
           className="h-6 w-auto text-paper"
