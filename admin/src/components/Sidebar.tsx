@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import { GpMark, GympassWordmark } from "./BrandLogo";
@@ -40,6 +40,7 @@ export default function Sidebar({
   const tGroups = useTranslations("nav.groups");
   const tItems = useTranslations("nav.items");
   const tAccount = useTranslations("account");
+  const isRtl = useLocale() === "ar";
   const [open, setOpen] = useState(false);
   // Desktop rail collapse. Server renders expanded; the stored preference is
   // applied after mount (the width transition makes the adjustment smooth).
@@ -128,21 +129,52 @@ export default function Sidebar({
     },
   ];
 
-  // Brand: the GYMPASS wordmark when expanded, the GP monogram when compact.
-  const renderBrand = (compact: boolean) => (
+  // Icon-only collapse toggle. The chevron points toward the inline-start
+  // edge to collapse and inline-end to expand — `collapsed !== isRtl` flips
+  // it so it reads correctly in both LTR (English) and RTL (Arabic).
+  const collapseButton = (
+    <button
+      type="button"
+      onClick={toggleCollapsed}
+      title={collapsed ? tAccount("expandSidebar") : tAccount("collapseSidebar")}
+      aria-label={
+        collapsed ? tAccount("expandSidebar") : tAccount("collapseSidebar")
+      }
+      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface hover:text-paper"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        className={`h-[18px] w-[18px] transition-transform ${
+          collapsed !== isRtl ? "rotate-180" : ""
+        }`}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        <path d="M15 18l-6-6 6-6" />
+      </svg>
+    </button>
+  );
+
+  // Brand header: the GYMPASS wordmark + the collapse toggle (top of the
+  // rail). When collapsed, only the toggle shows (centered). `withToggle` is
+  // off for the mobile drawer, which has no collapse concept.
+  const renderBrand = (compact: boolean, withToggle: boolean) => (
     <div
       className={`flex h-14 items-center border-b border-line ${
-        compact ? "justify-center px-2" : "px-4"
+        compact ? "justify-center px-2" : "justify-between ps-4 pe-2"
       }`}
     >
-      {compact ? (
-        <GpMark title={tBrand("name")} className="h-6 w-auto text-paper" />
-      ) : (
+      {!compact && (
         <GympassWordmark
           title={tBrand("name")}
           className="h-6 w-auto text-paper"
         />
       )}
+      {withToggle ? collapseButton : null}
     </div>
   );
 
@@ -217,37 +249,6 @@ export default function Sidebar({
     </nav>
   );
 
-  // Collapse toggle — desktop rail only.
-  const collapseToggle = (
-    <button
-      type="button"
-      onClick={toggleCollapsed}
-      title={collapsed ? tAccount("expandSidebar") : tAccount("collapseSidebar")}
-      aria-label={
-        collapsed ? tAccount("expandSidebar") : tAccount("collapseSidebar")
-      }
-      className={`flex h-9 items-center border-t border-line text-muted transition-colors hover:text-paper ${
-        collapsed ? "justify-center px-2" : "px-3"
-      }`}
-    >
-      <svg
-        viewBox="0 0 24 24"
-        className={`h-4 w-4 transition-transform ${collapsed ? "rotate-180" : ""}`}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden
-      >
-        <path d="M15 18l-6-6 6-6" />
-      </svg>
-      {!collapsed && (
-        <span className="ms-2 text-[12px]">{tAccount("collapseSidebar")}</span>
-      )}
-    </button>
-  );
-
   const renderFooter = (compact: boolean) =>
     compact ? (
       <div className="flex flex-col items-center gap-2 border-t border-line px-2 py-3">
@@ -315,9 +316,8 @@ export default function Sidebar({
           collapsed ? "w-[68px]" : "w-[230px]"
         }`}
       >
-        {renderBrand(collapsed)}
+        {renderBrand(collapsed, true)}
         {renderNav(collapsed)}
-        {collapseToggle}
         {renderFooter(collapsed)}
       </aside>
 
@@ -362,7 +362,7 @@ export default function Sidebar({
             className="pop absolute start-0 top-0 flex h-full w-[264px] flex-col rounded-none border-y-0 border-s-0"
             style={{ animation: "slide-in 220ms cubic-bezier(0.2,0.7,0.2,1) both" }}
           >
-            {renderBrand(false)}
+            {renderBrand(false, false)}
             {renderNav(false)}
             {renderFooter(false)}
           </aside>
