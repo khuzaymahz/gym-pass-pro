@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
-from uuid import UUID
 
 import structlog
 from sqlalchemy.exc import IntegrityError
@@ -73,9 +72,7 @@ class PauseService:
 
         plan = await self.plans.get(subscription.plan_id)
         if plan is None:
-            raise AppError(
-                ErrorCode.PLAN_NOT_FOUND, "Plan missing for subscription."
-            )
+            raise AppError(ErrorCode.PLAN_NOT_FOUND, "Plan missing for subscription.")
 
         allowance = pause_allowance_days(subscription.tier, plan.duration_months)
         if allowance == 0:
@@ -93,9 +90,7 @@ class PauseService:
                 details={"max": max_count, "used": used_count},
             )
 
-        days_already_consumed = await self.pauses.total_days_consumed(
-            subscription.id
-        )
+        days_already_consumed = await self.pauses.total_days_consumed(subscription.id)
         # Inclusive day count: a same-day pause is one day, not zero.
         # Falls in line with how a member counts vacations on a calendar.
         requested_days = (ends_on - starts_on).days + 1
@@ -181,9 +176,7 @@ class PauseService:
             reason="manual_resume",
         )
 
-    async def sweep_expired(
-        self, *, now: datetime, actor: Actor
-    ) -> list[SubscriptionPause]:
+    async def sweep_expired(self, *, now: datetime, actor: Actor) -> list[SubscriptionPause]:
         """Cron entry: auto-resume every pause whose window has ended.
         Each finalisation shifts the parent subscription's `expires_at`
         forward by the days the member actually lost. Returns the list
@@ -210,9 +203,7 @@ class PauseService:
                 # Parent subscription got deleted while a pause was open.
                 # Mark the pause finalised with zero days consumed so the
                 # cron doesn't try again next sweep.
-                await self.pauses.finalize(
-                    row, ended_at=now, days_consumed=0
-                )
+                await self.pauses.finalize(row, ended_at=now, days_consumed=0)
                 continue
             finalised.append(
                 await self._finalize(
@@ -250,9 +241,7 @@ class PauseService:
             shifted = subscription.expires_at + timedelta(days=days_consumed)
             await self.subs.shift_expiry(subscription, shifted)
 
-        finalised = await self.pauses.finalize(
-            pause, ended_at=now, days_consumed=days_consumed
-        )
+        finalised = await self.pauses.finalize(pause, ended_at=now, days_consumed=days_consumed)
         await self.audit.log(
             actor=actor,
             action=f"subscription.pause.{reason}",

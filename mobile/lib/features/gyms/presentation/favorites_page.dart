@@ -11,9 +11,9 @@ import '../../../core/widgets/pill_button.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../core/di/providers.dart';
 import '../../home/presentation/home_page.dart' show gymSummaryToGPGym;
+import '../data/favorited_gyms.dart';
 import '../data/gym_repository.dart';
 import '../data/media_url.dart';
-import 'gym_detail_page.dart' show favoritedGymsProvider;
 import 'gyms_filter_state.dart';
 
 /// Standalone favorites surface — reachable from the You menu. Lists
@@ -104,8 +104,8 @@ class FavoritesPage extends ConsumerWidget {
                                 return GymRow(
                                   gym: entry.gpgym,
                                   logoUrl: entry.logoUrl,
-                                  onTap: () => context
-                                      .push('/gyms/${entry.gpgym.slug}'),
+                                  onTap: () =>
+                                      context.push('/gyms/${entry.gpgym.slug}'),
                                 );
                               },
                             ),

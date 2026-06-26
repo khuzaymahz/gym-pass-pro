@@ -7,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/gp_text.dart';
 import '../../../../core/theme/gp_tokens.dart';
 import '../../../../l10n/app_localizations.dart';
-import '../gym_detail_page.dart' show favoritedGymsProvider;
+import '../../data/favorited_gyms.dart';
 import '../gyms_filter_state.dart';
 
 /// Modal filters sheet — favourites toggle, category chips, tier
