@@ -40,7 +40,6 @@ class FavoritesPage extends ConsumerWidget {
     final l = AppLocalizations.of(context);
     final gp = context.gp;
     final favorites = ref.watch(favoritedGymsProvider);
-    final isAr = Localizations.localeOf(context).languageCode == 'ar';
     final gymsAsync = ref.watch(gymsListProvider);
     final apiBaseUrl = ref.watch(envProvider).apiBaseUrl;
     final allGyms = gymsAsync.valueOrNull ?? const [];
@@ -50,7 +49,7 @@ class FavoritesPage extends ConsumerWidget {
     final saved = allGyms
         .where((g) => favorites.contains(g.slug))
         .map((s) => (
-              gpgym: gymSummaryToGPGym(s, isAr: isAr),
+              gpgym: gymSummaryToGPGym(s),
               logoUrl: s.logoUrl == null
                   ? null
                   : resolveMediaUrl(apiBaseUrl, s.logoUrl!),

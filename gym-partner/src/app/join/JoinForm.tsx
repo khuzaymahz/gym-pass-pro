@@ -162,7 +162,6 @@ export function JoinForm() {
       ownerEmail: String(fd.get("ownerEmail") ?? "").trim() || null,
       password: String(fd.get("password") ?? ""),
       gymNameEn: String(fd.get("gymNameEn") ?? "").trim(),
-      gymNameAr: String(fd.get("gymNameAr") ?? "").trim(),
       gymArea: String(fd.get("gymArea") ?? "").trim(),
       gymAddressEn: String(fd.get("gymAddressEn") ?? "").trim(),
       gymAddressAr: String(fd.get("gymAddressAr") ?? "").trim(),
@@ -309,15 +308,6 @@ export function JoinForm() {
               className="input input-sm"
               required
               dir="ltr"
-              maxLength={128}
-            />
-          </label>
-          <label className="field">
-            <span className="field-label">{t("gymNameAr")}</span>
-            <input
-              name="gymNameAr"
-              className="input input-sm"
-              required
               maxLength={128}
             />
           </label>

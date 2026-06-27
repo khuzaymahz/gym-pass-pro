@@ -29,8 +29,7 @@ class SelectedGymCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context);
     final gp = context.gp;
-    final isAr = Localizations.localeOf(context).languageCode == 'ar';
-    final name = isAr && gym.nameAr.isNotEmpty ? gym.nameAr : gym.nameEn;
+    final name = gym.nameEn;
     // Strict tier lookup — returns null for unknown/empty/malformed
     // tier strings rather than falling through to a default. The
     // tier-coloured ring on this card is a load-bearing visual cue

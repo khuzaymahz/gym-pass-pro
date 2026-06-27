@@ -233,7 +233,7 @@ function GymRow({
           <span className="flex min-w-0 flex-col">
             <span className="truncate font-medium text-paper">{g.nameEn}</span>
             <span className="truncate text-[11.5px] text-muted">
-              {g.nameAr} · {g.slug}
+              {g.slug}
             </span>
           </span>
         </Link>

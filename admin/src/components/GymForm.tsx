@@ -33,7 +33,6 @@ export default function GymForm({ initial, action, submitLabel }: Props) {
   const [state, setState] = useState<Partial<GymRead>>({
     slug: "",
     nameEn: "",
-    nameAr: "",
     addressEn: "",
     addressAr: "",
     area: "",
@@ -118,16 +117,6 @@ export default function GymForm({ initial, action, submitLabel }: Props) {
             required
             maxLength={FIELD_LIMITS.name}
             {...bind("nameEn")}
-          />
-        </label>
-        <label className="field">
-          <span className="field-label">{t("nameAr")}</span>
-          <input
-            className="input input-sm"
-            required
-            dir="rtl"
-            maxLength={FIELD_LIMITS.name}
-            {...bind("nameAr")}
           />
         </label>
         <label className="field">

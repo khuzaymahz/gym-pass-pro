@@ -1170,9 +1170,7 @@ class _MiniAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isAr = Localizations.localeOf(context).languageCode == 'ar';
-    final displayName =
-        isAr && gym.nameAr.isNotEmpty ? gym.nameAr : gym.nameEn;
+    final displayName = gym.nameEn;
     // `.characters.first` avoids slicing a multi-byte grapheme (matters for
     // AR gym names where one displayed letter spans multiple code units).
     final initial = displayName.isEmpty

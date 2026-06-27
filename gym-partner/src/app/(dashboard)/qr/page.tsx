@@ -24,7 +24,6 @@ export default async function QrPage() {
           id: gym.id,
           slug: gym.slug,
           nameEn: gym.nameEn,
-          nameAr: gym.nameAr,
         }}
       />
     </section>

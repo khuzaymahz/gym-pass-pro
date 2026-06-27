@@ -180,8 +180,7 @@ class _GymRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isAr = Localizations.localeOf(context).languageCode == 'ar';
-    final displayName = isAr && gym.nameAr.isNotEmpty ? gym.nameAr : gym.nameEn;
+    final displayName = gym.nameEn;
     final logoUrl = gym.logoUrl;
     final resolvedLogo =
         logoUrl == null || logoUrl.isEmpty ? null : resolveMediaUrl(apiBaseUrl, logoUrl);

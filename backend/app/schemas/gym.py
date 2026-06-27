@@ -26,7 +26,6 @@ class LogoAlignment(BaseModel):
 class GymBase(BaseModel):
     slug: str = Field(min_length=2, max_length=64, pattern=r"^[a-z0-9-]+$")
     name_en: str = Field(alias="nameEn", min_length=1, max_length=128)
-    name_ar: str = Field(alias="nameAr", min_length=1, max_length=128)
     address_en: str = Field(alias="addressEn", max_length=512)
     address_ar: str = Field(alias="addressAr", max_length=512)
     area: str = Field(min_length=1, max_length=64)
@@ -80,9 +79,6 @@ class GymUpdate(BaseModel):
     # backstop is whatever the DB column happens to be.
     name_en: str | None = Field(
         alias="nameEn", default=None, min_length=1, max_length=128,
-    )
-    name_ar: str | None = Field(
-        alias="nameAr", default=None, min_length=1, max_length=128,
     )
     address_en: str | None = Field(alias="addressEn", default=None, max_length=512)
     address_ar: str | None = Field(alias="addressAr", default=None, max_length=512)
