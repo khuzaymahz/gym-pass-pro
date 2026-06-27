@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
+import { LocationPicker } from "@/components/LocationPicker";
 import { resolveMediaUrl } from "@/lib/media";
 import {
   isValidJordanianPhone,
@@ -56,6 +57,12 @@ export function JoinForm() {
   const [logoUploading, setLogoUploading] = useState(false);
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
   const [photoUploading, setPhotoUploading] = useState(false);
+
+  // Location is controlled so the map picker can fill it; the inputs below
+  // stay editable. Submit still reads these via FormData (name=).
+  const [gymArea, setGymArea] = useState("");
+  const [gymLat, setGymLat] = useState("31.95");
+  const [gymLng, setGymLng] = useState("35.91");
 
   function imageValidationMessage(err: ImageValidationError): string {
     // Mirror the backend's two reject paths into localized strings.
@@ -329,6 +336,8 @@ export function JoinForm() {
               required
               maxLength={64}
               placeholder={t("gymAreaPlaceholder")}
+              value={gymArea}
+              onChange={(e) => setGymArea(e.target.value)}
             />
           </label>
           <label className="field">
@@ -361,6 +370,23 @@ export function JoinForm() {
               maxLength={512}
             />
           </label>
+
+          {/* Map picker: search or drop a pin to set the gym's coordinates;
+              the area is filled automatically. The lat/lng/area inputs stay
+              editable as a manual fallback. */}
+          <div className="field md:col-span-2">
+            <span className="field-label">{t("mapLabel")}</span>
+            <LocationPicker
+              lat={gymLat ? Number(gymLat) : null}
+              lng={gymLng ? Number(gymLng) : null}
+              onPick={({ lat, lng, area }) => {
+                setGymLat(lat.toFixed(6));
+                setGymLng(lng.toFixed(6));
+                if (area) setGymArea(area);
+              }}
+            />
+          </div>
+
           <label className="field">
             <span className="field-label">{t("gymLat")}</span>
             <input
@@ -369,8 +395,9 @@ export function JoinForm() {
               step="0.000001"
               className="input input-sm"
               required
-              defaultValue="31.95"
               placeholder="31.95"
+              value={gymLat}
+              onChange={(e) => setGymLat(e.target.value)}
             />
           </label>
           <label className="field">
@@ -381,8 +408,9 @@ export function JoinForm() {
               step="0.000001"
               className="input input-sm"
               required
-              defaultValue="35.91"
               placeholder="35.91"
+              value={gymLng}
+              onChange={(e) => setGymLng(e.target.value)}
             />
           </label>
           <label className="field">
