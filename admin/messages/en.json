@@ -373,6 +373,12 @@
       "addressAr": "Address (AR)",
       "lat": "Latitude",
       "lng": "Longitude",
+      "mapLabel": "Location",
+      "map": {
+        "searchPlaceholder": "Search address or place…",
+        "searching": "Searching…",
+        "hint": "Search, or click / drag the pin to set the location. Area fills automatically."
+      },
       "rate": "Rate (JOD / visit)",
       "save": "Save changes",
       "create": "Create gym",

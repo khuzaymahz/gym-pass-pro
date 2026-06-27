@@ -51,7 +51,13 @@
     "gymPhone": "Gym phone (optional)",
     "gymLat": "Latitude",
     "gymLng": "Longitude",
-    "latLngHint": "Find your gym on Google Maps, right-click the pin, the first numbers are lat/lng.",
+    "mapLabel": "Location",
+    "map": {
+      "searchPlaceholder": "Search address or place…",
+      "searching": "Searching…",
+      "hint": "Search, or click / drag the pin to set the location. Area fills automatically."
+    },
+    "latLngHint": "Picked from the map above — you can also type the coordinates by hand.",
     "category": "Category",
     "audience": "Who can attend",
     "categories": {
