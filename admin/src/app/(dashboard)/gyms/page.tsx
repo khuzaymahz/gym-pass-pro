@@ -261,8 +261,17 @@ function GymRow({
         </StatusPill>
       </td>
       <td className="num text-right">
-        <Link href={`/gyms/${g.id}`} className="btn-ghost btn-sm">
-          {editLabel} →
+        <Link
+          href={`/gyms/${g.id}`}
+          className="group btn-secondary btn-sm whitespace-nowrap"
+        >
+          {editLabel}
+          <span
+            aria-hidden
+            className="transition-transform duration-150 ease-out group-hover:translate-x-0.5"
+          >
+            →
+          </span>
         </Link>
       </td>
     </tr>

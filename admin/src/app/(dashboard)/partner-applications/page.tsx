@@ -124,9 +124,15 @@ export default async function PartnerApplicationsPage(props: {
                   <td className="num text-right">
                     <Link
                       href={`/partner-applications/${a.id}`}
-                      className="btn-ghost btn-sm"
+                      className="group btn-secondary btn-sm whitespace-nowrap"
                     >
-                      {t("review")} →
+                      {t("review")}
+                      <span
+                        aria-hidden
+                        className="transition-transform duration-150 ease-out group-hover:translate-x-0.5"
+                      >
+                        →
+                      </span>
                     </Link>
                   </td>
                 </tr>
