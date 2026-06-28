@@ -75,6 +75,22 @@ class NotificationsRepository {
   Future<void> markAllRead() async {
     await _api.post<void>('/api/v1/notifications/read-all', authed: true);
   }
+
+  Future<void> registerDeviceToken(String token, {String platform = 'android'}) async {
+    await _api.put<void>(
+      '/api/v1/me/device-token',
+      data: {'token': token, 'platform': platform},
+      authed: true,
+    );
+  }
+
+  Future<void> deleteDeviceToken(String token, {String platform = 'android'}) async {
+    await _api.delete<void>(
+      '/api/v1/me/device-token',
+      data: {'token': token, 'platform': platform},
+      authed: true,
+    );
+  }
 }
 
 final notificationsRepositoryProvider = Provider<NotificationsRepository>((ref) {

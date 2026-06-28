@@ -33,6 +33,12 @@ __pycache__/
 .coverage
 htmlcov/
 
+# Firebase credentials (never commit service account keys)
+backend/firebase-service-account.json
+firebase-service-account.json
+google-services.json
+GoogleService-Info.plist
+
 # Flutter / Dart
 mobile/.dart_tool/
 mobile/build/

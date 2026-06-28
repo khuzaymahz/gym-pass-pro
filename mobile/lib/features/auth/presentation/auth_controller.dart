@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/push/push_notification_service.dart';
 import '../../billing/data/billing_state.dart';
+import '../../notifications/data/notifications_repository.dart';
 import '../../referral/data/referral_state.dart';
 import '../../subscription/data/subscription_state.dart';
 import '../data/auth_repository.dart';
@@ -64,6 +67,7 @@ class AuthController extends StateNotifier<AuthState> {
     this._billing,
     this._referral,
     this._vault,
+    this._notifications,
   ) : super(const AuthState()) {
     _bootstrapFuture = _bootstrap();
   }
@@ -75,6 +79,7 @@ class AuthController extends StateNotifier<AuthState> {
   final BillingNotifier _billing;
   final ReferralController _referral;
   final BiometricVault _vault;
+  final NotificationsRepository _notifications;
 
   late final Future<void> _bootstrapFuture;
 
@@ -214,6 +219,7 @@ class AuthController extends StateNotifier<AuthState> {
         await _vault.save(phone: state.phone, password: password);
       }
       await _hydrateMemberStores();
+      unawaited(_registerPushToken());
       state = state.copyWith(loading: false, phase: AuthPhase.authed);
     } catch (e) {
       state = state.copyWith(loading: false, error: e.toString());
@@ -243,6 +249,7 @@ class AuthController extends StateNotifier<AuthState> {
       await _profile.restore(me.toProfile());
       await _profile.markPasswordKnown(creds.password);
       await _hydrateMemberStores();
+      unawaited(_registerPushToken());
       state = state.copyWith(loading: false, phase: AuthPhase.authed);
       return true;
     } catch (e) {
@@ -311,6 +318,7 @@ class AuthController extends StateNotifier<AuthState> {
         await _profile.setPhone(state.phone);
       }
       await _hydrateMemberStores();
+      unawaited(_registerPushToken());
       state = state.copyWith(loading: false, phase: AuthPhase.authed);
     } catch (e) {
       state = state.copyWith(loading: false, error: e.toString());
@@ -330,6 +338,32 @@ class AuthController extends StateNotifier<AuthState> {
     ]);
   }
 
+  /// Best-effort FCM token registration after sign-in. Never throws — a
+  /// delivery failure must not abort the sign-in flow.
+  Future<void> _registerPushToken() async {
+    try {
+      final token = await PushNotificationService.instance.getToken();
+      if (token != null) {
+        await _notifications.registerDeviceToken(token);
+      }
+    } catch (_) {
+      // Swallowed — push registration is advisory, not load-bearing.
+    }
+  }
+
+  /// Best-effort FCM token removal on logout. Prevents notifications from
+  /// reaching a device that has since signed out.
+  Future<void> _unregisterPushToken() async {
+    try {
+      final token = await PushNotificationService.instance.getToken();
+      if (token != null) {
+        await _notifications.deleteDeviceToken(token);
+      }
+    } catch (_) {
+      // Swallowed — best-effort, doesn't affect session validity.
+    }
+  }
+
   /// Reset auth state *before* clearing downstream stores. GoRouter's refresh
   /// listener fires on every state change; if the profile is wiped while the
   /// auth phase is still `authed`, the "authed but no profile" branch of the
@@ -337,6 +371,9 @@ class AuthController extends StateNotifier<AuthState> {
   /// /sign-in.
   Future<void> logout() async {
     state = const AuthState();
+    // Unregister push token before clearing the session — the DELETE call
+    // needs the auth token still in store.
+    unawaited(_unregisterPushToken());
     await _repo.logout();
     await _profile.clear();
     await _subscription.clear();
@@ -364,6 +401,7 @@ class AuthController extends StateNotifier<AuthState> {
         await _profile.setEmail(me.email ?? email);
       }
       await _hydrateMemberStores();
+      unawaited(_registerPushToken());
       state = state.copyWith(loading: false, phase: AuthPhase.authed);
     } catch (e) {
       state = state.copyWith(loading: false, error: e.toString());
@@ -381,5 +419,6 @@ final authControllerProvider =
     ref.read(billingProvider.notifier),
     ref.read(referralProvider.notifier),
     ref.read(biometricVaultProvider),
+    ref.read(notificationsRepositoryProvider),
   );
 });

@@ -1,10 +1,13 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app/app.dart';
 import 'core/prefs/app_preferences.dart';
+import 'core/push/push_notification_service.dart';
 import 'core/sentry/sentry_init.dart';
+import 'firebase_options.dart';
 
 Future<void> main() async {
   // `runWithSentry` runs body() inside Sentry's error-capture zone
@@ -12,6 +15,8 @@ Future<void> main() async {
   // just calls body() directly (zero overhead on dev builds).
   await runWithSentry(() async {
     WidgetsFlutterBinding.ensureInitialized();
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    await PushNotificationService.instance.init();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,

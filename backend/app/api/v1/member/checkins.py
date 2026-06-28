@@ -10,12 +10,16 @@ from app.api.deps import (
     checkin_service,
     current_user,
     db_session,
+    notification_repo,
+    push_service,
 )
-from app.db.enums import CheckinStatus
+from app.db.enums import CheckinStatus, NotificationType
 from app.db.models import User
 from app.realtime import publish as realtime_publish
+from app.repositories.notification_repo import NotificationRepository
 from app.schemas.checkin import CheckinHistoryItem, CheckinResult, CheckinScanRequest
 from app.services.checkin_service import CheckinService
+from app.services.push_service import PushService
 
 router = APIRouter(prefix="/checkins", tags=["checkins"])
 
@@ -27,6 +31,8 @@ async def scan(
     user: Annotated[User, Depends(current_user)],
     svc: Annotated[CheckinService, Depends(checkin_service)],
     session: Annotated[AsyncSession, Depends(db_session)],
+    notifications: Annotated[NotificationRepository, Depends(notification_repo)],
+    push: Annotated[PushService, Depends(push_service)],
 ) -> CheckinResult:
     from app.core.exceptions import AppError
 
@@ -61,6 +67,27 @@ async def scan(
             f"user/{user.id}",
             {"type": "checkin.created", "checkinId": str(checkin.id)},
         )
+        # In-app notification row + push — best-effort, never blocks the HTTP response.
+        if gym:
+            try:
+                notif = await notifications.create(
+                    user_id=user.id,
+                    type=NotificationType.CHECKIN,
+                    title_en="Check-in recorded",
+                    title_ar="تم تسجيل الدخول",
+                    body_en=f"You checked in at {gym.name_en}. Remaining visits this period: {result.remaining}.",
+                    body_ar=f"سجّلت دخولك في {gym.name_ar}. الزيارات المتبقية هذه الدورة: {result.remaining}.",
+                    deep_link="/checkins",
+                )
+                await session.flush()
+                await push.notify(
+                    user_id=user.id,
+                    title="Check-in recorded ✓" if user.preferred_language != "ar" else "تم تسجيل الدخول ✓",
+                    body=f"{gym.name_en}" if user.preferred_language != "ar" else f"{gym.name_ar}",
+                    data={"type": "CHECKIN", "deep_link": "/checkins", "notification_id": str(notif.id)},
+                )
+            except Exception:
+                pass  # never surface notification failures as check-in failures
 
     return CheckinResult(
         status=checkin.status,

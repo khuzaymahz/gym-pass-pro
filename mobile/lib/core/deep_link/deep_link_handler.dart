@@ -5,6 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../push/push_notification_service.dart';
+import '../router/app_router.dart';
+
 /// Receives incoming deep links — both cold-start (the app was
 /// launched by tapping a link) and warm (the OS routes a new link
 /// into an already-running app) — and forwards them to the
@@ -148,6 +151,8 @@ class DeepLinkScope extends ConsumerStatefulWidget {
 }
 
 class _DeepLinkScopeState extends ConsumerState<DeepLinkScope> {
+  StreamSubscription<String>? _pushTapSub;
+
   @override
   void initState() {
     super.initState();
@@ -156,7 +161,25 @@ class _DeepLinkScopeState extends ConsumerState<DeepLinkScope> {
     // cold-start link.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(deepLinkHandlerProvider).start();
+      _pushTapSub = PushNotificationService.instance.onNotificationTap.listen(
+        (deepLink) {
+          // Push-notification taps carry internal paths like
+          // "/notifications", "/checkins", "/subscription". Route
+          // them through the same router so auth guards apply.
+          try {
+            ref.read(appRouterProvider).go(deepLink);
+          } catch (_) {
+            // Invalid path — silently drop rather than crash.
+          }
+        },
+      );
     });
+  }
+
+  @override
+  void dispose() {
+    _pushTapSub?.cancel();
+    super.dispose();
   }
 
   @override

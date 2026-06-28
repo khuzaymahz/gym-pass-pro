@@ -146,6 +146,18 @@ dependencies:
   # widens its acceptable range.
   flutter_cache_manager: ^3.4.1
 
+  # Push notifications — Firebase Cloud Messaging.
+  # `firebase_core` initialises the Firebase app from google-services.json
+  # (Android) / GoogleService-Info.plist (iOS). `firebase_messaging` handles
+  # FCM token retrieval, foreground/background message callbacks, and the
+  # notification-tap routing that passes data payloads to go_router.
+  firebase_core: ^3.6.0
+  firebase_messaging: ^15.1.3
+  # Foreground notification display. FCM suppresses system-tray heads-up
+  # when the app is in the foreground; this package re-shows them in-app
+  # and provides the tap-payload callback that feeds our deep-link stream.
+  flutter_local_notifications: ^18.0.1
+
   # Utilities
   intl: ^0.20.2
   freezed_annotation: ^2.4.4

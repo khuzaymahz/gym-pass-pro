@@ -35,6 +35,7 @@ from app.api.v1.admin import subscriptions as admin_subscriptions_router
 from app.api.v1.admin import support as admin_support_router
 from app.api.v1.admin import users as admin_users_router
 from app.api.v1.member import checkins as checkins_router
+from app.api.v1.member import device_tokens as device_tokens_router
 from app.api.v1.member import day_passes as member_day_passes_router
 from app.api.v1.member import gyms as gyms_router
 from app.api.v1.member import invoices as invoices_router
@@ -119,6 +120,7 @@ def create_app() -> FastAPI:
     app.include_router(subscriptions_router.router, prefix=v1_prefix)
     app.include_router(checkins_router.router, prefix=v1_prefix)
     app.include_router(notifications_router.router, prefix=v1_prefix)
+    app.include_router(device_tokens_router.router, prefix=v1_prefix)
     app.include_router(tickets_router.router, prefix=v1_prefix)
     app.include_router(payment_methods_router.router, prefix=v1_prefix)
     app.include_router(invoices_router.router, prefix=v1_prefix)

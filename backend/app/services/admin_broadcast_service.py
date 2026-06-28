@@ -9,6 +9,7 @@ from app.db.enums import NotificationType, Tier
 from app.repositories.notification_repo import NotificationRepository
 from app.repositories.user_repo import UserRepository
 from app.services.audit_service import Actor, AuditService
+from app.services.push_service import PushService
 
 if TYPE_CHECKING:
     from redis.asyncio import Redis
@@ -64,11 +65,13 @@ class AdminBroadcastService:
         users: UserRepository,
         audit: AuditService,
         redis: "Redis | None" = None,
+        push: PushService | None = None,
     ) -> None:
         self.notifications = notifications
         self.users = users
         self.audit = audit
         self.redis = redis
+        self.push = push
 
     async def broadcast(
         self,
@@ -137,6 +140,18 @@ class AdminBroadcastService:
                 body_ar=body_ar,
             )
             total += await self.notifications.bulk_create(rows)
+
+        # Push fan-out — best-effort; delivery failures never abort the broadcast.
+        if self.push is not None and recipients:
+            try:
+                await self.push.notify_many(
+                    user_ids=recipients,
+                    title=title_en,
+                    body=body_en,
+                    data={"type": "BROADCAST", "deep_link": "/notifications"},
+                )
+            except Exception:
+                pass
 
         await self.audit.log(
             actor=actor,

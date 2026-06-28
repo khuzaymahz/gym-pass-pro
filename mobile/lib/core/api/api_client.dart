@@ -249,6 +249,18 @@ class ApiClient {
     );
   }
 
+  Future<Response<T>> put<T>(
+    String path, {
+    Object? data,
+    bool authed = false,
+  }) {
+    return dio.put<T>(
+      path,
+      data: data,
+      options: Options(extra: {'requireAuth': authed}),
+    );
+  }
+
   Future<Response<T>> patch<T>(
     String path, {
     Object? body,
@@ -263,12 +275,12 @@ class ApiClient {
 
   Future<Response<T>> delete<T>(
     String path, {
-    Object? body,
+    Object? data,
     bool authed = false,
   }) {
     return dio.delete<T>(
       path,
-      data: body,
+      data: data,
       options: Options(extra: {'requireAuth': authed}),
     );
   }

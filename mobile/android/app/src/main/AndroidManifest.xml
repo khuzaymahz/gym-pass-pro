@@ -1,6 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.CAMERA"/>
+    <!-- Required on Android 13+ for FCM heads-up / status-bar notifications.
+         On ≤12 the permission is implicitly granted. firebase_messaging
+         calls requestNotificationPermissions() at runtime — this entry
+         makes it work when the user taps "Allow" on the system dialog. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <!-- Location for the Explore map. Both fine + coarse: the SDK
          tries fine first and falls back to coarse on devices where
          the user has scoped permission to "approximate location only"
@@ -22,6 +27,17 @@
         <meta-data
             android:name="net.gympass.gympass.GOOGLE_OAUTH_ANDROID_CLIENT_ID"
             android:value="${googleOAuthAndroidClientId}" />
+
+        <!-- FCM notification channel. Sets the default channel for
+             notifications sent without an explicit channel id. Must match
+             the channel created in PushNotificationService._createChannel(). -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="gympass_default" />
+        <!-- Show the GymPass app icon in FCM notification tray entries. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@mipmap/ic_launcher" />
 
         <activity
             android:name=".MainActivity"

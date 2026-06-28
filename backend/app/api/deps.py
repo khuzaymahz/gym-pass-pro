@@ -25,6 +25,7 @@ from app.repositories.day_pass_repo import (
 )
 from app.repositories.gym_photo_repo import GymPhotoRepository
 from app.repositories.gym_repo import GymRepository
+from app.repositories.device_token_repo import DeviceTokenRepository
 from app.repositories.notification_repo import NotificationRepository
 from app.repositories.otp_repo import OtpRepository
 from app.repositories.partner_application_repo import PartnerApplicationRepository
@@ -60,6 +61,7 @@ from app.services.partner_metrics_service import PartnerMetricsService
 from app.services.pause_service import PauseService
 from app.services.payment_method_service import PaymentMethodService
 from app.services.rate_limit import RateLimiter
+from app.services.push_service import PushService
 from app.services.referral_service import ReferralService
 from app.services.subscription_service import SubscriptionService
 from app.services.support_ticket_service import SupportTicketService
@@ -149,6 +151,10 @@ def notification_repo(session: SessionDep) -> NotificationRepository:
     return NotificationRepository(session)
 
 
+def device_token_repo(session: SessionDep) -> DeviceTokenRepository:
+    return DeviceTokenRepository(session)
+
+
 def support_ticket_repo(session: SessionDep) -> SupportTicketRepository:
     return SupportTicketRepository(session)
 
@@ -170,6 +176,13 @@ def payment_provider() -> PaymentProvider:
 
 def push_provider() -> PushProvider:
     return build_push_provider()
+
+
+def push_service(
+    tokens: Annotated[DeviceTokenRepository, Depends(device_token_repo)],
+    provider: Annotated[PushProvider, Depends(push_provider)],
+) -> PushService:
+    return PushService(tokens, provider)
 
 
 # ----- Services -----
@@ -379,8 +392,9 @@ def admin_broadcast_service(
     users: Annotated[UserRepository, Depends(user_repo)],
     audit: Annotated[AuditService, Depends(audit_service)],
     redis: Annotated[Redis, Depends(redis_client)],
+    push: Annotated[PushService, Depends(push_service)],
 ) -> AdminBroadcastService:
-    return AdminBroadcastService(notifications, users, audit, redis)
+    return AdminBroadcastService(notifications, users, audit, redis, push)
 
 
 def support_ticket_service(
