@@ -59,6 +59,7 @@ class HelpButton extends StatelessWidget {
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (_) => _HelpSheet(tips: tips, l: l, gp: gp),
     );
   }
@@ -84,7 +85,9 @@ class _HelpSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      margin: EdgeInsets.fromLTRB(
+        12, 0, 12, 12 + MediaQuery.of(context).viewPadding.bottom,
+      ),
       decoration: BoxDecoration(
         color: gp.bg2,
         borderRadius: BorderRadius.circular(GPRadius.xl2),
@@ -123,7 +126,7 @@ class _HelpSheet extends StatelessWidget {
           const SizedBox(height: 18),
           ConstrainedBox(
             constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.55,
+              maxHeight: MediaQuery.of(context).size.height * 0.42,
             ),
             child: SingleChildScrollView(
               child: Column(
