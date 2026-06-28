@@ -387,6 +387,13 @@
       "activeLabel": "Active",
       "activeHint": "Uncheck to hide this gym from the mobile Explore tab without soft-deleting. The partner login and history stay intact; flip it back on to restore."
     },
+    "create": {
+      "partnerOptional": "Optional — set up the partner's login now, or add it later from this gym's page.",
+      "photosOptional": "Optional — add gym photos now, or later.",
+      "photosSelected": "{count} selected",
+      "ownerFailed": "Gym created, but the partner login failed: {error}",
+      "photoFailed": "Gym created, but a photo upload failed: {error}"
+    },
     "sections": {
       "details": "Details",
       "partner": "Partner login",

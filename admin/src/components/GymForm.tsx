@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import { AmenitiesPicker } from "@/components/AmenitiesPicker";
 import { LocationPicker } from "@/components/LocationPicker";
@@ -14,6 +14,10 @@ type Props = {
   initial?: Partial<GymRead>;
   action: (data: Partial<GymRead>) => Promise<{ ok: boolean; error?: string }>;
   submitLabel: string;
+  // Optional extra sections rendered inside the form, just above the submit
+  // bar — used by the create flow to fold in optional partner-login + photos
+  // so a gym can be set up in one shot.
+  children?: ReactNode;
 };
 
 // Mirrors backend `schemas/gym.py::GymBase`. Drift here drops UX
@@ -38,7 +42,12 @@ function slugify(name: string): string {
     .slice(0, 48);
 }
 
-export default function GymForm({ initial, action, submitLabel }: Props) {
+export default function GymForm({
+  initial,
+  action,
+  submitLabel,
+  children,
+}: Props) {
   const router = useRouter();
   const t = useTranslations("gyms.form");
   const tCommon = useTranslations("common");
@@ -287,6 +296,8 @@ export default function GymForm({ initial, action, submitLabel }: Props) {
           </span>
         </span>
       </label>
+
+      {children}
 
       <div className="flex items-center justify-between border-t border-line pt-3">
         {error ? (
