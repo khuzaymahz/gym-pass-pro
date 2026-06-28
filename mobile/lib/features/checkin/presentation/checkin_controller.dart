@@ -222,6 +222,14 @@ class CheckinController extends StateNotifier<CheckinUiState> {
   }
 }
 
+/// Stores the route to navigate back to after check-in, when the scanner
+/// was opened from a specific screen (gym profile, day-pass checkout, etc.)
+/// rather than by tapping the scan tab directly.
+/// - Set by any screen that opens /checkin programmatically.
+/// - Cleared by [HomeShell] when the user taps the scan tab from the bottom bar.
+/// - Read by [CheckinPage] to decide whether to show the back button.
+final checkinReturnRouteProvider = StateProvider<String?>((ref) => null);
+
 final checkinControllerProvider =
     StateNotifierProvider.autoDispose<CheckinController, CheckinUiState>((ref) {
   return CheckinController(

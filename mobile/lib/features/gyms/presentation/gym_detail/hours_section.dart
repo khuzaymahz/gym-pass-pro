@@ -101,9 +101,7 @@ class _HoursSectionState extends State<HoursSection> {
     final isToday = DateTime.now().weekday == weekday;
     final value = w.closed
         ? l.gymHoursClosedDay
-        // En-dash range, Western digits in both locales (Jordanian
-        // convention this app follows everywhere).
-        : '${w.open} – ${w.close}';
+        : '${formatAmPm(w.open!, l)} – ${formatAmPm(w.close!, l)}';
     final weight = isToday ? FontWeight.w700 : FontWeight.w400;
     final color = isToday ? gp.fg : gp.mutedSoft;
     return Padding(

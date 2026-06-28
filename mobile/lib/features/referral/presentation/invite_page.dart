@@ -8,6 +8,7 @@ import '../../../core/di/providers.dart';
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
 import '../../../core/widgets/glow.dart';
+import '../../../core/widgets/help_button.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
 import '../../../core/widgets/pill_button.dart';
@@ -140,6 +141,15 @@ class _InvitePageState extends ConsumerState<InvitePage> {
             top: topInset + 12,
             start: 20,
             child: const BackBtn(fallback: '/profile'),
+          ),
+          Positioned(
+            bottom: 78 + MediaQuery.viewPaddingOf(context).bottom,
+            left: 20,
+            child: HelpButton(tips: [
+              HelpTip(icon: Icons.person_add_outlined, text: l.helpHome1),
+              HelpTip(icon: Icons.share_outlined, text: l.helpHome2),
+              HelpTip(icon: Icons.card_giftcard_outlined, text: l.helpHome3),
+            ],),
           ),
         ],
       ),

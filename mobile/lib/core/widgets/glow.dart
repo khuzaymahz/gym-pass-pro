@@ -5,35 +5,39 @@ import '../theme/gp_tokens.dart';
 class RadialGlow extends StatelessWidget {
   final Color color;
   final double opacity;
-  final double size;
   final Alignment alignment;
+  // Gradient radius as a fraction of the shortest side / 2 (Flutter's
+  // RadialGradient convention). 1.33 ≈ the old size:520 glow on a
+  // 390 px-wide phone; increase for a wider bloom.
+  final double radius;
+
+  // `size` is kept for call-site compatibility but is no longer used —
+  // the glow now fills its parent (no more visible box edges).
+  // ignore: unused_element
+  final double size;
 
   const RadialGlow({
     super.key,
     this.color = GP.lime,
     this.opacity = 0.18,
-    this.size = 520,
     this.alignment = Alignment.topCenter,
+    this.radius = 1.33,
+    this.size = 0,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Soft falloff: 5 stops with a cubic-ish curve, gradient `radius: 1.0`
-    // so the dim outer ring fades inside the square's diagonal. A flat
-    // 2-stop linear ramp at `radius: 0.5` produces a visible disc edge
-    // and concentric banding on dark backgrounds; the extra stops give
-    // the GPU enough alpha resolution to dither the falloff smoothly.
-    // No `BoxShape.circle` — the alpha hits 0 at radius 1.0, so a hard
-    // circular clip is unnecessary and only adds an aliased edge.
-    return Align(
-      alignment: alignment,
-      child: IgnorePointer(
-        child: Container(
-          width: size,
-          height: size,
+    // Fills the parent completely (via SizedBox.expand) so there is no
+    // fixed-size container whose edges can show on dark backgrounds.
+    // RadialGradient.center positions the hot-spot; radius controls how
+    // far the glow spreads before fading to transparent alpha=0.
+    return IgnorePointer(
+      child: SizedBox.expand(
+        child: DecoratedBox(
           decoration: BoxDecoration(
             gradient: RadialGradient(
-              radius: 1.0,
+              center: alignment,
+              radius: radius,
               stops: const [0.0, 0.25, 0.5, 0.75, 1.0],
               colors: [
                 color.withValues(alpha: opacity),

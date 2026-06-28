@@ -694,17 +694,6 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
     );
   }
 
-  /// Dev-only stub kept for the QA shortcut on the check-in screen.
-  /// Drains the local visits-remaining count so the early-renewal dialog
-  /// can be exercised without scanning 30 times. Backend isn't notified;
-  /// the next hydrate restores the real visit count.
-  Future<void> devMaxOutVisits() async {
-    if (!state.hasSubscription) return;
-    final total = state.termTotalVisits;
-    if (total <= 0) return;
-    state = state.copyWith(visitsUsed: total);
-  }
-
 }
 
 /// Helper used by checkout to derive the renewal date the UI shows in

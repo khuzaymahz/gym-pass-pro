@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
 import '../../../core/widgets/glow.dart';
+import '../../../core/widgets/help_button.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
 import '../../../core/widgets/tier_chip.dart';
@@ -51,11 +52,7 @@ class ProfilePage extends ConsumerWidget {
         // fetch is in flight.
         WordmarkRefresh(
           onRefresh: () async {
-            // Real refresh — re-fetches from `/me` and
-            // `/subscriptions/me` instead of re-awaiting the
-            // cached `.ready` future (which after first hydrate
-            // is a no-op). Stats column + tier chip update with
-            // whatever the backend currently has.
+            ref.invalidate(myDayPassesProvider);
             await Future.wait([
               ref
                   .read(subscriptionProvider.notifier)
@@ -194,6 +191,15 @@ class ProfilePage extends ConsumerWidget {
             icon: Icons.settings_outlined,
             onPressed: () => context.push('/settings'),
           ),
+        ),
+        Positioned(
+          bottom: 24,
+          left: 20,
+          child: HelpButton(tips: [
+            HelpTip(icon: Icons.credit_card_outlined, text: l.helpProfile1),
+            HelpTip(icon: Icons.upgrade_rounded, text: l.helpProfile2),
+            HelpTip(icon: Icons.history_rounded, text: l.helpProfile3),
+          ],),
         ),
       ],
     );
@@ -639,18 +645,12 @@ class _DayPassesCard extends ConsumerWidget {
     final gp = context.gp;
     final isAr = Localizations.localeOf(context).languageCode == 'ar';
     final async = ref.watch(myDayPassesProvider);
-    final now = DateTime.now().toUtc();
-    final passes = (async.valueOrNull ?? const <DayPass>[])
-        .where((p) => p.isActive(now))
-        .toList();
+    final passes = async.valueOrNull ?? const <DayPass>[];
 
-    if (passes.isEmpty) {
-      // No card when there's nothing to show. Loading + error
-      // states also collapse to nothing — the Profile screen
-      // doesn't need to spin a skeleton for a card that may not
-      // exist at all.
-      return const SizedBox.shrink();
-    }
+    final now = DateTime.now().toUtc();
+    final activePasses = passes.where((p) => p.isActive(now)).toList();
+
+    if (activePasses.isEmpty) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
@@ -683,14 +683,14 @@ class _DayPassesCard extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 10),
-            for (var i = 0; i < passes.length; i++) ...[
+            for (var i = 0; i < activePasses.length; i++) ...[
               if (i > 0)
                 Container(
                   height: 1,
                   color: gp.line,
                   margin: const EdgeInsets.symmetric(vertical: 10),
                 ),
-              _DayPassRow(pass: passes[i], isAr: isAr, l: l, gp: gp),
+              _DayPassRow(pass: activePasses[i], isAr: isAr, l: l, gp: gp),
             ],
           ],
         ),
@@ -805,11 +805,6 @@ class _DayPassRow extends StatelessWidget {
     );
   }
 
-  /// Human duration between now and `expiresAt`. Hours when ≥1h
-  /// remaining, minutes when 1–59m, "Less than a minute" below
-  /// that, "Expired" when in the past. Pluralization handed off
-  /// to the ARB-backed `durationHours / durationMinutes` so
-  /// Arabic dual/plural forms render correctly.
   static String _formatRemainingDuration(
     DateTime expiresAt,
     AppLocalizations l,
@@ -822,5 +817,81 @@ class _DayPassRow extends StatelessWidget {
     if (remaining.isNegative) return l.durationExpired;
     if (remaining.inHours >= 1) return l.durationHours(remaining.inHours);
     return l.durationMinutes(remaining.inMinutes);
+  }
+}
+
+class _PastDayPassRow extends StatelessWidget {
+  const _PastDayPassRow({
+    required this.pass,
+    required this.isAr,
+    required this.l,
+    required this.gp,
+  });
+
+  final DayPass pass;
+  final bool isAr;
+  final AppLocalizations l;
+  final GpColors gp;
+
+  @override
+  Widget build(BuildContext context) {
+    final isUsed = pass.status == 'used';
+    final statusLabel = isUsed
+        ? (pass.usedAt != null
+            ? l.profileDayPassUsed(_formatDate(pass.usedAt!))
+            : l.profileDayPassUsed('—'))
+        : l.dayPassStatusExpired;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => context.push('/gyms/${pass.gymSlug}'),
+        borderRadius: BorderRadius.circular(GPRadius.sm),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+          child: Row(
+            children: [
+              Container(
+                width: 6,
+                height: 6,
+                margin: const EdgeInsetsDirectional.only(end: 10),
+                decoration: BoxDecoration(
+                  color: gp.mutedSoft,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      pass.name(isAr: isAr),
+                      style: GPText.body(
+                        size: 13,
+                        color: gp.mutedSoft,
+                        weight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      statusLabel,
+                      style: GPText.body(size: 12, color: gp.muted),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, size: 18, color: gp.muted),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  static String _formatDate(DateTime dt) {
+    final local = dt.toLocal();
+    return '${local.year}-${local.month.toString().padLeft(2, '0')}-${local.day.toString().padLeft(2, '0')}';
   }
 }

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/gp_text.dart';
 import '../../../../core/theme/gp_tokens.dart';
+import '../../../../core/widgets/help_button.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../data/favorited_gyms.dart';
 import '../gyms_filter_state.dart';
@@ -25,15 +26,14 @@ class FiltersSheet extends ConsumerWidget {
     final category = ref.watch(gymsCategoryFilterProvider);
     final tiers = ref.watch(gymsTierFilterProvider);
 
-    return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      child: BackdropFilter(
+    return Stack(
+      children: [
+        ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          child: BackdropFilter(
         filter: ui.ImageFilter.blur(sigmaX: 24, sigmaY: 24),
         child: Container(
-          decoration: BoxDecoration(
-            color: gp.bg2.withValues(alpha: 0.96),
-            border: Border(top: BorderSide(color: gp.line, width: 0.5)),
-          ),
+          decoration: BoxDecoration(color: gp.bg),
           child: SingleChildScrollView(
             physics: const ClampingScrollPhysics(),
             padding: EdgeInsets.fromLTRB(
@@ -63,10 +63,10 @@ class FiltersSheet extends ConsumerWidget {
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       child: Container(
                         width: 36,
-                        height: 5,
+                        height: 4,
                         decoration: BoxDecoration(
-                          color: gp.line2,
-                          borderRadius: BorderRadius.circular(3),
+                          color: GP.lime,
+                          borderRadius: BorderRadius.circular(2),
                         ),
                       ),
                     ),
@@ -154,6 +154,17 @@ class FiltersSheet extends ConsumerWidget {
           ),
         ),
       ),
+        ),
+        Positioned(
+          bottom: 24 + MediaQuery.viewPaddingOf(context).bottom,
+          left: 20,
+          child: HelpButton(tips: [
+            HelpTip(icon: Icons.tune_rounded, text: l.helpFilter1),
+            HelpTip(icon: Icons.open_in_full_rounded, text: l.helpFilter2),
+            HelpTip(icon: Icons.restart_alt_rounded, text: l.helpFilter3),
+          ],),
+        ),
+      ],
     );
   }
 }
@@ -210,7 +221,7 @@ class _FavoritesToggleRow extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
           decoration: BoxDecoration(
-            color: active ? GP.lime22 : gp.bg3,
+            color: active ? GP.lime22 : gp.bg2,
             borderRadius: BorderRadius.circular(GPRadius.lg),
             border: Border.all(
               color: active ? gp.accentInk.withValues(alpha: 0.55) : gp.line,
@@ -363,7 +374,7 @@ class _SheetChip extends StatelessWidget {
           curve: Curves.easeOut,
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
           decoration: BoxDecoration(
-            color: active ? tint.withValues(alpha: 0.18) : gp.bg3,
+            color: active ? tint.withValues(alpha: 0.18) : gp.bg2,
             borderRadius: BorderRadius.circular(GPRadius.pill),
             border: Border.all(
               color: active ? tint.withValues(alpha: 0.6) : gp.line,

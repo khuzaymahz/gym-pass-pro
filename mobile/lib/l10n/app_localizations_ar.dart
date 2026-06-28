@@ -224,6 +224,26 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get homeCategories => 'الأنواع';
   @override
+  String get homeBannerExploreTitle => 'استكشف الأندية';
+  @override
+  String homeBannerExploreSub(int n) => '$n نادٍ شريك';
+  @override
+  String get homeBannerCheckinTitle => 'جاهز للتمرين؟';
+  @override
+  String get homeBannerCheckinSub => 'امسح رمز QR عند مدخل النادي';
+  @override
+  String get homeBannerUpgradeTitle => 'ارتقِ بمستواك';
+  @override
+  String get homeBannerUpgradeSub => 'افتح المزيد من الأندية في الشبكة';
+  @override
+  String get homeBannerActivateTitle => 'ابدأ الآن';
+  @override
+  String get homeBannerEliteTitle => 'عضو متميز';
+  @override
+  String get homeBannerEliteSub => 'وصول كامل لجميع الأندية الشريكة';
+  @override
+  String get homeBannerActivateSub => 'اختر باقة وابدأ تمرينك اليوم';
+  @override
   String get categoryGym => 'جيم';
   @override
   String get categoryCross => 'كروس';
@@ -347,11 +367,11 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get gymOpen247 => 'مفتوح 24/7';
   @override
-  String get audienceFemaleOnly => 'للسيدات فقط';
+  String get audienceFemaleOnly => 'للإناث فقط';
   @override
-  String get audienceMaleOnly => 'للرجال فقط';
+  String get audienceMaleOnly => 'للذكور فقط';
   @override
-  String get audienceMixed => 'للجميع';
+  String get audienceMixed => 'مختلط';
   @override
   String get audienceMixedSub => 'مفتوح لكل الأعضاء';
   @override
@@ -368,6 +388,10 @@ class AppLocalizationsAr extends AppLocalizations {
   String gymStatusOpensTomorrow(String time) => 'يفتح غدًا $time';
   @override
   String gymStatusOpensDay(String day, String time) => 'يفتح $day $time';
+  @override
+  String get gymTimeAm => 'ص';
+  @override
+  String get gymTimePm => 'م';
   @override
   String get gymHoursTitle => 'ساعات العمل';
   @override
@@ -455,7 +479,11 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String gymUpgradeTo(String tier) => 'ترقية إلى $tier';
   @override
-  String gymDayPassCta(String price) => 'جرّب اليوم — $price دينار';
+  String gymDayPassCta(String price) => 'تصريح يومي — $price دينار';
+  @override
+  String get gymDayPassCtaLabel => 'تصريح يومي';
+  @override
+  String dayPassValidityChip(int hours) => '${hours}س';
   @override
   String gymDayPassActive(String when) => 'تذكرة اليوم مفعّلة · تنتهي $when';
   @override
@@ -479,15 +507,26 @@ class AppLocalizationsAr extends AppLocalizations {
   String get dayPassNeedPaymentMethod =>
       'أضف وسيلة دفع من تبويب الفوترة قبل شراء تذكرة يومية.';
   @override
+  String get dayPassDuplicateActive =>
+      'لديك تصريح يومي فعّال لهذا النادي بالفعل.';
+  @override
+  String get dayPassPayWith => 'ادفع باستخدام';
+  @override
+  String get dayPassDevPayment => 'دفع تجريبي (بيئة التطوير)';
+  @override
   String get currencyJod => 'دينار';
   @override
-  String get profileDayPassesTitle => 'التذاكر المفعّلة';
+  String get profileDayPassesTitle => 'تذاكر اليوم';
   @override
   String get profileDayPassesEmpty => 'لا توجد تذاكر يومية مفعّلة.';
   @override
   String profileDayPassExpiresIn(String duration) => 'تنتهي خلال $duration';
   @override
   String profileDayPassUsed(String when) => 'استُخدمت في $when';
+  @override
+  String get profileDayPassHistoryLabel => 'السجل';
+  @override
+  String get dayPassStatusExpired => 'منتهية';
   @override
   String durationHours(int count) {
     if (count == 1) return 'ساعة واحدة';
@@ -875,6 +914,15 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get checkinVisitsExhaustedBody =>
       'لقد استخدمت جميع زيارات هذه الفترة. جدِّد الآن لتصفير الرصيد.';
+  @override
+  String get checkinAlreadyScannedBody =>
+      'لقد سجّلت دخولك هنا مؤخراً. تُفتح نافذة المسح مجدداً بعد ٣٠ دقيقة.';
+  @override
+  String get checkinErrorTitleVisitsExhausted => 'نفدت الزيارات';
+  @override
+  String get checkinErrorTitleAlreadyScanned => 'تم المسح مسبقاً';
+  @override
+  String get checkinErrorTitleGeneric => 'خطأ في تسجيل الحضور';
 
   @override
   String get profileOverline => 'الملف';
@@ -1271,9 +1319,9 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get privacyRightsBody => "يمكنك: مراجعة بياناتك وتعديلها من تبويب الإعدادات؛ تنزيل بياناتك عبر الدعم؛ طلب حذف حسابك في أي وقت (مع تأكيد سريان استثناءات الاحتفاظ السبعية للسجلات المالية فقط)؛ سحب موافقتك على إشعارات التسويق (تجدها في الإعدادات ← الإشعارات)؛ تقديم شكوى لدى الهيئة الأردنية لحماية البيانات الشخصية.";
   @override
-  String get privacyChildrenHeadline => "الأطفال";
+  String get privacyChildrenHeadline => "مفتوح للجميع";
   @override
-  String get privacyChildrenBody => "GymPass غير موجّه للأطفال دون السادسة عشرة. إن علمت بأن قاصراً قد سجّل، تواصل مع الدعم وسنقوم بإزالة الحساب.";
+  String get privacyChildrenBody => "GymPass مفتوح لأي شخص يتدرب في صالة رياضية أو نادٍ، بصرف النظر عن العمر. يجب على الأعضاء القاصرين التأكد من حصولهم على موافقة أحد الوالدين أو الوصي قبل الاشتراك وقبل دخول أي صالة شريكة. إن كان لديك استفسار بشأن حساب معين، تواصل مع الدعم وسنتابع الأمر.";
   @override
   String get privacyChangesHeadline => "تغييرات هذه السياسة";
   @override
@@ -1571,6 +1619,8 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get billingHistoryEmpty => 'لا توجد فواتير بعد.';
   @override
+  String get billingDayPassesLabel => 'مشتريات التصاريح اليومية';
+  @override
   String billingInvoicePaid(String iso, int amount) => '$iso · $amount د.أ';
   @override
   String get billingInvoiceReceipt => 'الإيصال';
@@ -1818,4 +1868,192 @@ class AppLocalizationsAr extends AppLocalizations {
   String get routerNotFoundTitle => 'الصفحة غير موجودة';
   @override
   String get routerGoHome => 'العودة للرئيسية';
+  @override
+  String get helpSheetTitle => 'كيف يعمل التطبيق';
+  @override
+  String get helpDismiss => 'فهمت';
+  @override
+  String get helpHomeTitle => 'الرئيسية';
+  @override
+  String get helpHome1 => 'مرّر لليسار أو اليمين في أي مكان على الشاشة — ليس فقط شريط التبويبات — للانتقال بين الرئيسية والاستكشاف والمسح والملف الشخصي.';
+  @override
+  String get helpHome2 => 'اسحب للأسفل في هذه الصفحة لتحديث حالة اشتراكك وبيانات الأندية القريبة.';
+  @override
+  String get helpHome3 => 'كل بطاقة ترويجية في الأعلى هي اختصار — اضغط عليها للانتقال مباشرة إلى ذلك القسم.';
+  @override
+  String get helpExploreTitle => 'استكشاف';
+  @override
+  String get helpExplore1 => 'انقر مرتين على شريط السحب في الأسفل لعرض قائمة الأندية بالكامل. نقرة واحدة تبدّل بين العرض المصغر ونصف المفتوح.';
+  @override
+  String get helpExplore2 => 'انقر مرتين على دبوس خريطة لفتح ملف النادي مباشرة — نقرة واحدة فقط تعرض بطاقة معاينة سريعة.';
+  @override
+  String get helpExplore3 => 'مرّر لليسار أو اليمين على الخريطة للتنقل بين التبويبات — لا حاجة للوصول إلى شريط التبويبات في الأسفل.';
+  @override
+  String get helpScanTitle => 'تسجيل الدخول';
+  @override
+  String get helpScan1 => 'لا تحتاج إلى الضغط على أي شيء — يقرأ الماسح رمز QR ويسجّل زيارتك تلقائياً في اللحظة التي يكتشفه فيها.';
+  @override
+  String get helpScan2 => 'ابتعد مسافة متر تقريباً عن الرمز إذا كان الماسح يواجه صعوبة. الاقتراب الزائد يقلل الدقة فعلاً.';
+  @override
+  String get helpScan3 => 'مرّر لليسار أو اليمين على شاشة الكاميرا للانتقال إلى تبويب آخر دون مغادرة وضع الكاميرا.';
+  @override
+  String get helpProfileTitle => 'الملف الشخصي';
+  @override
+  String get helpProfile1 => 'اسحب للأسفل في هذه الصفحة لتحديث عداد زياراتك — مفيد بعد تسجيل حضور لم يُحدَّث بعد.';
+  @override
+  String get helpProfile2 => 'مرّر لليسار أو اليمين في أي مكان على هذه الصفحة للتنقل بين التبويبات — الشاشة بأكملها تستجيب.';
+  @override
+  String get helpProfile3 => 'اضغط على "إدارة" تحت خطتك النشطة لرؤية خيارات الترقية والتوقف والإلغاء — كل إجراءات الاشتراك خلف تلك النقرة الواحدة.';
+  @override
+  String get helpGymDetail1 => 'شريط الباقة في الأعلى يخبرك بالضبط أي مستوى خطة يفتح هذا النادي. إذا كان رمادياً، فخطتك الحالية لا تغطي هذا المكان.';
+  @override
+  String get helpGymDetail2 => 'اضغط على "تسجيل الحضور هنا" في هذه الصفحة — لا تحتاج للانتقال إلى تبويب المسح عند وقوفك في مدخل النادي.';
+  @override
+  String get helpGymDetail3 => 'ليس لديك خطة؟ اضغط على "شراء تذكرة يومية" لزيارة مدفوعة لمرة واحدة تُخصم من طريقة دفعك المحفوظة فوراً.';
+  @override
+  String get helpPlans1 => 'اضغط على بطاقة خطة لمقارنة أسعار 1 و3 و6 و12 شهرًا — تبقى الباقة كما هي لكن السعر الشهري ينخفض مع الفترات الأطول.';
+  @override
+  String get helpPlans2 => 'كل باقة تفتح مجموعة مختلفة من الأندية. تحقق من صفحة تفاصيل النادي لمعرفة الباقة المطلوبة بالضبط.';
+  @override
+  String get helpPlans3 => 'يمكنك ترقية باقتك في أي وقت خلال الاشتراك — تدفع فقط الفرق النسبي للأيام المتبقية، وليس السعر الكامل.';
+  @override
+  String get helpSubscription1 => 'عداد الزيارات يُعاد ضبطه مع بداية كل دورة فوترة. الزيارات غير المستخدمة لا تُرحَّل للشهر القادم.';
+  @override
+  String get helpSubscription2 => 'الضغط على "ترقية" هنا يبدّل باقتك خلال الدورة ويحسب فقط الفرق النسبي — وليس سعر الباقة الجديدة كاملاً.';
+  @override
+  String get helpSubscription3 => 'الإلغاء يوقف الرسوم المستقبلية لكن وصولك يبقى نشطاً حتى نهاية الفترة المدفوعة.';
+  @override
+  String get helpBilling1 => 'طرق الدفع المحفوظة تُخصم تلقائياً عند التجديد — لا تحتاج لإعادة إدخالها كل شهر.';
+  @override
+  String get helpBilling2 => 'اضغط على أي صف في الفواتير لتوسيعه ورؤية الإيصال الكامل، بما في ذلك أي خطة كانت مفعّلة في تلك الفترة.';
+  @override
+  String get helpBilling3 => 'إذا فشل الدفع، يظهر بانر أحمر في أعلى هذه الصفحة. اضغط عليه فوراً لإعادة المحاولة قبل إيقاف وصولك.';
+  @override
+  String get helpCheckinSuccess1 => 'تسجيل حضورك اكتمل بالفعل — لا تحتاج لإظهار هذه الشاشة لموظفي النادي. يمكنهم رؤية دخولك على شاشتهم الخاصة.';
+  @override
+  String get helpCheckinSuccess2 => 'هذا التسجيل استهلك إحدى زياراتك الشهرية. اسحب للأسفل في تبويب الملف الشخصي لرؤية العداد المحدَّث.';
+  @override
+  String get helpCheckinSuccess3 => 'هناك خطأ في هذا التسجيل؟ اضغط على رابط الدعم أدناه للإبلاغ الآن — سياق الموقع يساعدنا على حله بسرعة.';
+  @override
+  String get helpNotifications1 => 'إعلانات الأندية وتذكيرات الاشتراك تظهر هنا وتبقى حتى تمسحها بشكل فردي.';
+  @override
+  String get helpNotifications2 => 'النقطة الحمراء على تبويب الجرس تختفي فقط بعد فتح هذه القائمة — مجرد استلام الإشعار لا يمسحها.';
+  @override
+  String get helpNotifications3 => 'لإيقاف نوع معين من التنبيهات، اذهب إلى الملف الشخصي ← الإعدادات ← الإشعارات. يمكنك كتمها دون حذفها.';
+  @override
+  String get helpSettings1 => "زر تبديل اللغة يُظهر اللغة الهدف وليس الحالية — 'AR' يعني اضغط للتحويل للعربية، وليس أن العربية مفعّلة حالياً.";
+  @override
+  String get helpSettings2 => 'تغيير رقم هاتفك المرتبط يتطلب رمز OTP للرقم الجديد للتأكد من امتلاكك له.';
+  @override
+  String get helpSettings3 => 'حذف حسابك فوري ودائم — يلغي خطتك النشطة ويزيل كل سجل زياراتك دون إمكانية استرداد.';
+  @override
+  String get helpFilter1 => 'يمكنك اختيار أكثر من فئة وأكثر من باقة في نفس الوقت — قائمة الأندية تتحدث فورًا مع كل ضغطة.';
+  @override
+  String get helpFilter2 => 'اسحب شريط السحب في الأعلى لأعلى لتوسيع لوحة التصفية إلى ارتفاع كامل لرؤية جميع الخيارات دفعة واحدة.';
+  @override
+  String get helpFilter3 => "اضغط على 'إعادة تعيين' في أعلى الزاوية لمسح جميع الفلاتر النشطة دفعة واحدة والعودة إلى القائمة الكاملة.";
+  @override
+  String get helpSignIn1 => 'أدخل رقم هاتفك أولاً — ثم اضغط على متابعة. سيتحقق التطبيق إن كان لديك حساب أم تحتاج للتسجيل؛ كلا المسارين يبدآن بنفس الطريقة.';
+  @override
+  String get helpSignIn2 => 'رمز الدولة +962 مُعبَّأ مسبقاً. اكتب فقط 9 أرقام تبدأ بـ 7 (مثال: 7X XXX XXXX). لا تضع الصفر في البداية.';
+  @override
+  String get helpSignIn3 => "تُفضّل عدم استخدام رقم هاتفك؟ اضغط على 'متابعة بجوجل' في الأسفل لتسجيل الدخول أو إنشاء حساب باستخدام حساب Google — دون الحاجة لرمز تحقق.";
+  @override
+  String get helpSignIn4 => 'سبق وسجّلت حساباً بكلمة مرور؟ بعد إدخال رقمك والضغط على متابعة، سيظهر حقل كلمة المرور إن وُجد حسابك. لن يُرسَل رمز SMS في هذه الحالة.';
+  @override
+  String get helpSignIn5 => "إذا ظهر خطأ 'الرقم غير صالح'، تأكد أنك لم تكتب رمز المنطقة مرتين. الصيغة الصحيحة هي 9 أرقام بعد البادئة +962.";
+  @override
+  String get helpOtp1 => 'تحقق من صندوق رسائل SMS — يصل الرمز المؤلف من 4 أرقام خلال ثوانٍ من الضغط على متابعة. إن لم يصل، تأكد من وجود إشارة شبكة.';
+  @override
+  String get helpOtp2 => 'على معظم الهواتف يظهر الرمز كاقتراح فوق لوحة المفاتيح فور وصول الرسالة. اضغط عليه لملء الأرقام الأربعة فورًا دون حاجة للكتابة اليدوية.';
+  @override
+  String get helpOtp3 => "الرمز صالح لمدة 5 دقائق. إذا انتهت صلاحيته قبل إدخاله، اضغط 'إعادة إرسال الرمز' — الرمز الجديد يُلغي القديم، فاستخدم الأحدث فقط.";
+  @override
+  String get helpOtp4 => 'إن ضغطت على إعادة إرسال أكثر من مرة، تأكد من إدخال آخر رمز وصلك. كل إرسال يستبدل الرمز السابق.';
+  @override
+  String get helpOtp5 => 'في وضع التطوير يكون الرمز دائمًا 1234 — لا حاجة للتحقق من رسائل SMS عند اختبار التطبيق.';
+  @override
+  String get helpRegister1 => 'الاسم الأول والأخير فقط مطلوبان لإنشاء تصريحك. كل شيء آخر — البريد الإلكتروني، تاريخ الميلاد، الجنس — اختياري ويمكن إضافته لاحقًا من الملف الشخصي.';
+  @override
+  String get helpRegister2 => 'اشتراك GymPass لا يبدأ هنا. هذه الشاشة تحفظ بياناتك فقط. ستختار الخطة وتدفع في الشاشة التالية — لا يُحسب أي مبلغ حتى تؤكد الدفع.';
+  @override
+  String get helpRegister3 => 'كلمة مرورك يجب أن تحتوي على 8 أحرف على الأقل وتشمل حرفًا ورقمًا. تُستخدم لتسجيل الدخول إن قررت لاحقًا عدم استخدام رمز التحقق أو Google.';
+  @override
+  String get helpRegister4 => "إذا سجّلت الدخول بجوجل قد يكون اسمك مُعبَّأً تلقائياً. يمكنك تعديله هنا قبل الضغط على 'إنشاء تصريحي' — الاسم المعروض على حسابك سيكون ما تُدخله هنا.";
+  @override
+  String get helpRegister5 => 'اقرأ روابط الشروط وسياسة الخصوصية قبل تأشير مربع الموافقة. تشرح كيف تُستخدم بياناتك، ما الذي تراه الأندية عنك، وكيف تطلب حذف بياناتك.';
+  @override
+  String get helpForgotPw1 => 'أدخل رقم الهاتف الذي استخدمته عند التسجيل. نبحث عن حسابك بالرقم لا بالبريد الإلكتروني، لذا تأكد من صحته.';
+  @override
+  String get helpForgotPw2 => 'اختر طريقة استلام رمز إعادة التعيين: عبر SMS إلى هاتفك، أو عبر البريد الإلكتروني إن كنت أضفته إلى ملفك الشخصي. إن لم يكن هناك بريد إلكتروني مُسجَّل، SMS هو الخيار الوحيد.';
+  @override
+  String get helpForgotPw3 => 'رمز إعادة التعيين المؤلف من 4 أرقام يعمل تمامًا مثل رمز تسجيل الدخول — تحقق من رسائل SMS وأدخله خلال 5 دقائق قبل انتهاء صلاحيته.';
+  @override
+  String get helpForgotPw4 => 'كلمة مرورك الجديدة يجب أن تكون 8 أحرف على الأقل وتشمل حرفًا ورقمًا. تجنب إعادة استخدام كلمة المرور القديمة.';
+  @override
+  String get helpForgotPw5 => "بعد إعادة التعيين ستعود لشاشة تسجيل الدخول. أدخل رقم هاتفك واضغط متابعة — ثم اختر 'تسجيل الدخول بكلمة المرور' واستخدم كلمتك الجديدة.";
+  @override
+  String get helpHelpHub1 => 'اضغط على \'اتصل بالدعم\' للوصول إلى فريقنا عبر الهاتف أو البريد الإلكتروني أو واتساب.';
+  @override
+  String get helpHelpHub2 => 'الأسئلة الشائعة تجيب على أكثر الأسئلة شيوعاً دون الحاجة للتواصل مع أحد.';
+  @override
+  String get helpHelpHub3 => 'استخدم \'الإبلاغ عن مشكلة\' للإشارة إلى خطأ في التسجيل أو مشكلة في التطبيق مع إمكانية إرفاق صورة.';
+  @override
+  String get helpSupportContact1 => 'الضغط على الهاتف أو البريد أو واتساب يفتح التطبيق مباشرة — إذا لم يكن مثبتاً، يُنسخ الرقم إلى الحافظة تلقائياً.';
+  @override
+  String get helpSupportContact2 => 'أضف الموضوع والرسالة في الحقول أدناه لإرسال تذكرة مكتوبة. ستحصل على رقم مرجعي بالرد لمتابعة طلبك.';
+  @override
+  String get helpSupportContact3 => 'واتساب عادةً الأسرع — فريق الدعم يستجيب هناك أولاً.';
+  @override
+  String get helpSupportFaq1 => 'اضغط على أي سؤال لعرض الإجابة. اضغط مرة أخرى لطيه.';
+  @override
+  String get helpSupportFaq2 => 'شريط البحث يبحث في الأسئلة والإجابات معاً — مفيد حين تعرف كلمة مفتاحية دون معرفة التصنيف.';
+  @override
+  String get helpSupportFaq3 => 'اضغط على تصنيف (الفوترة، تسجيل الحضور...) لتصفية الأسئلة. يمكن دمج التصنيف مع البحث.';
+  @override
+  String get helpSupportReport1 => 'اختر التصنيف الأقرب لمشكلتك — يوجّه بلاغك تلقائياً للفريق المختص.';
+  @override
+  String get helpSupportReport2 => 'اضغط على \'إرفاق دليل\' لإضافة لقطة شاشة من معرضك أو التقاط صورة جديدة في المكان.';
+  @override
+  String get helpSupportReport3 => 'أضف اسم الصالة إذا كانت المشكلة تخص موقعاً معيناً — يُسرّع ذلك التحقيق.';
+  @override
+  String get helpGyms1 => 'استخدم شريط البحث في الأعلى للعثور على صالة بالاسم أو الحي — تتصفى النتائج فورًا أثناء الكتابة.';
+  @override
+  String get helpGyms2 => 'اضغط على تصنيفات التدريب (صالة، كروس فيت، فنون قتالية، يوجا) لتضييق القائمة إلى نوع التمرين الذي تريده.';
+  @override
+  String get helpGyms3 => 'اضغط على أيقونة القلب في أعلى اليمين لعرض مفضلاتك المحفوظة فقط. اضغط مرة أخرى للعودة للقائمة الكاملة.';
+  @override
+  String get helpGyms4 => 'اضغط على أيقونة الفلتر بجانب القلب للتصفية حسب الباقة — مفيد لرؤية الصالات التي تشملها خطتك الحالية فقط.';
+  @override
+  String get helpGyms5 => 'الخريطة المصغرة فوق القائمة تُظهر جميع الصالات كنقاط. اضغط على أي نقطة للانتقال مباشرة إلى صفحة تلك الصالة.';
+  @override
+  String get helpWelcome1 => 'اشتراكك الآن نشط وزياراتك محمّلة. توجّه إلى استكشاف للعثور على صالة قريبة منك وسجّل حضورك.';
+  @override
+  String get helpWelcome2 => 'عدد الزيارات يُعاد تعيينه كل 30 يومًا من تاريخ بدء اشتراكك — ليس في أول الشهر الميلادي.';
+  @override
+  String get helpWelcome3 => 'رمز QR موجود في تبويب المسح الضوئي. افتحه عند باب الصالة فقط — لا حاجة لأي إجراء من الموظفين، المسح تلقائي.';
+  @override
+  String get helpWelcome4 => 'يمكنك مراجعة زياراتك المتبقية وتاريخ التجديد في أي وقت من الملف الشخصي ← اشتراكي.';
+  @override
+  String get helpWelcome5 => 'تريد التدرب في صالة خارج باقتك؟ اضغط تصريح اليوم في صفحة أي صالة مقفلة للحصول على تصريح زيارة واحدة.';
+  @override
+  String get helpAddMethod1 => 'بيانات البطاقة (الرقم، انتهاء الصلاحية، CVV) تُعالَج عبر مزود الدفع — لا نحفظ رقم بطاقتك الكامل على خوادمنا أبداً.';
+  @override
+  String get helpAddMethod2 => 'CliQ يتيح ربط حسابك البنكي الأردني باستخدام اسم مستعار أو رقم هاتف. تُحسم المدفوعات مباشرة من بنكك.';
+  @override
+  String get helpAddMethod3 => 'Apple Pay وGoogle Pay متاحان على الأجهزة المدعومة. نستقبل رمز دفع فقط — لا تصلنا تفاصيل بطاقتك الفعلية.';
+  @override
+  String get helpAddMethod4 => 'يُستخدم وسيلة الدفع الافتراضية الواحدة لتجديد الاشتراكات. يمكنك تغييرها في أي وقت من صفحة الفوترة.';
+  @override
+  String get helpAddMethod5 => 'يمكنك إضافة أكثر من وسيلة دفع واختيار أيها عند الدفع مقابل تصاريح اليوم أو ترقية الخطة.';
+  @override
+  String get helpDayPass1 => 'تصريح اليوم يمنحك دخولاً واحداً لهذه الصالة تحديداً صالحاً لمدة 24 ساعة. لا يُحسب من حصة زياراتك الشهرية.';
+  @override
+  String get helpDayPass2 => 'تُحسم المدفوعات فوراً عبر وسيلة الدفع الافتراضية. تأكد من وجود وسيلة دفع محفوظة قبل الضغط على ادفع.';
+  @override
+  String get helpDayPass3 => 'بعد الشراء، اذهب إلى تبويب المسح وامسح رمز QR عند مدخل الصالة. يُستهلك التصريح عند أول مسح ناجح.';
+  @override
+  String get helpDayPass4 => 'تصاريح اليوم لا تُرحَّل — إذا لم تمسح خلال 24 ساعة، ينتهي التصريح ولا تُسترد الرسوم.';
+  @override
+  String get helpDayPass5 => 'يمكنك امتلاك تصريح يوم نشط واحد فقط لكل صالة في نفس الوقت. اشترِ آخر فقط بعد استخدام أو انتهاء صلاحية الحالي.';
 }

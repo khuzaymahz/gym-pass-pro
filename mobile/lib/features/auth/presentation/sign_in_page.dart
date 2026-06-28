@@ -15,6 +15,7 @@ import '../../../core/widgets/jordan_flag.dart';
 import '../../../core/widgets/overline.dart';
 import '../../../core/widgets/pill_button.dart';
 import '../../../core/widgets/wordmark.dart';
+import '../../../core/widgets/help_button.dart';
 import '../../../l10n/app_localizations.dart';
 import '../data/biometric_vault.dart';
 import 'auth_controller.dart';
@@ -268,6 +269,7 @@ class _SignInPageState extends ConsumerState<SignInPage> {
 
     return Scaffold(
       body: Stack(
+        fit: StackFit.expand,
         children: [
           const Positioned.fill(
             child: RadialGlow(
@@ -497,6 +499,17 @@ class _SignInPageState extends ConsumerState<SignInPage> {
                 ),
               ),
             ),
+          ),
+          Positioned(
+            bottom: 78 + MediaQuery.viewPaddingOf(context).bottom,
+            left: 20,
+            child: HelpButton(tips: [
+              HelpTip(icon: Icons.person_add_outlined, text: l.helpSignIn1),
+              HelpTip(icon: Icons.phone_android_outlined, text: l.helpSignIn2),
+              HelpTip(icon: Icons.g_mobiledata_rounded, text: l.helpSignIn3),
+              HelpTip(icon: Icons.lock_outlined, text: l.helpSignIn4),
+              HelpTip(icon: Icons.error_outline_rounded, text: l.helpSignIn5),
+            ],),
           ),
         ],
       ),

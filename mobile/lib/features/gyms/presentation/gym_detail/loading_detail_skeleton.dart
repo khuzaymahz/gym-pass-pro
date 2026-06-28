@@ -29,18 +29,23 @@ class LoadingDetailSkeleton extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Hero block — solid neutral panel, matches the 400-px
-                // photo slider height the real page renders.
-                Container(
-                  height: 400,
-                  decoration: BoxDecoration(
-                    color: gp.bg2,
-                    border: Border(
-                      bottom: BorderSide(color: gp.line),
+                // Hero block — fills available height so the skeleton
+                // never overflows on short screens (e.g. when the
+                // keyboard is open or the device is small).
+                Flexible(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 400),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: gp.bg2,
+                        border: Border(
+                          bottom: BorderSide(color: gp.line),
+                        ),
+                      ),
+                      child: const Center(
+                        child: GymLoader(size: GymLoaderSize.large),
+                      ),
                     ),
-                  ),
-                  child: const Center(
-                    child: GymLoader(size: GymLoaderSize.large),
                   ),
                 ),
                 const SizedBox(height: 28),

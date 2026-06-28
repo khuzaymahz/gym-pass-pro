@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
+import '../../../core/widgets/help_button.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
 import '../../../core/widgets/pill_button.dart';
@@ -260,6 +261,15 @@ class _ContactSupportPageState extends ConsumerState<ContactSupportPage> {
             top: topInset + 12,
             start: 20,
             child: const BackBtn(fallback: '/profile'),
+          ),
+          Positioned(
+            bottom: 78 + MediaQuery.viewPaddingOf(context).bottom,
+            left: 20,
+            child: HelpButton(tips: [
+              HelpTip(icon: Icons.phone_outlined, text: l.helpSupportContact1),
+              HelpTip(icon: Icons.email_outlined, text: l.helpSupportContact2),
+              HelpTip(icon: Icons.chat_bubble_outline, text: l.helpSupportContact3),
+            ],),
           ),
         ],
       ),

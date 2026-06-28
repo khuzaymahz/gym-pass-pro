@@ -229,6 +229,26 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get homeCategories => 'Categories';
   @override
+  String get homeBannerExploreTitle => 'Explore gyms';
+  @override
+  String homeBannerExploreSub(int n) => '$n partner clubs';
+  @override
+  String get homeBannerCheckinTitle => 'Ready to train?';
+  @override
+  String get homeBannerCheckinSub => 'Scan the QR at the gym entrance';
+  @override
+  String get homeBannerUpgradeTitle => 'Level up';
+  @override
+  String get homeBannerUpgradeSub => 'Unlock more clubs across the network';
+  @override
+  String get homeBannerActivateTitle => 'Get started';
+  @override
+  String get homeBannerEliteTitle => 'Elite member';
+  @override
+  String get homeBannerEliteSub => 'Full access to every partner gym';
+  @override
+  String get homeBannerActivateSub => 'Pick a tier to start training today';
+  @override
   String get categoryGym => 'GYM';
   @override
   String get categoryCross => 'CROSS';
@@ -349,11 +369,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get gymOpen247 => 'OPEN 24/7';
   @override
-  String get audienceFemaleOnly => 'Women only';
+  String get audienceFemaleOnly => 'Female only';
   @override
-  String get audienceMaleOnly => 'Men only';
+  String get audienceMaleOnly => 'Male only';
   @override
-  String get audienceMixed => 'Everyone welcome';
+  String get audienceMixed => 'Mixed';
   @override
   String get audienceMixedSub => 'Open to all members';
   @override
@@ -370,6 +390,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String gymStatusOpensTomorrow(String time) => 'Opens tomorrow $time';
   @override
   String gymStatusOpensDay(String day, String time) => 'Opens $day $time';
+  @override
+  String get gymTimeAm => 'AM';
+  @override
+  String get gymTimePm => 'PM';
   @override
   String get gymHoursTitle => 'Opening hours';
   @override
@@ -459,7 +483,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String gymUpgradeTo(String tier) => 'Upgrade to $tier';
   @override
-  String gymDayPassCta(String price) => 'Try today — $price JOD';
+  String gymDayPassCta(String price) => 'Day use — $price JOD';
+  @override
+  String get gymDayPassCtaLabel => 'DAY USE';
+  @override
+  String dayPassValidityChip(int hours) => '${hours}h';
   @override
   String gymDayPassActive(String when) => 'Day pass active · expires $when';
   @override
@@ -481,15 +509,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dayPassNeedPaymentMethod =>
       'Add a payment method in Billing before buying a day pass.';
   @override
+  String get dayPassDuplicateActive =>
+      'You already have an active day pass for this gym.';
+  @override
+  String get dayPassPayWith => 'Pay with';
+  @override
+  String get dayPassDevPayment => 'Test payment (development)';
+  @override
   String get currencyJod => 'JOD';
   @override
-  String get profileDayPassesTitle => 'Active passes';
+  String get profileDayPassesTitle => 'Day passes';
   @override
   String get profileDayPassesEmpty => 'No active day passes.';
   @override
   String profileDayPassExpiresIn(String duration) => 'Expires in $duration';
   @override
   String profileDayPassUsed(String when) => 'Used at $when';
+  @override
+  String get profileDayPassHistoryLabel => 'HISTORY';
+  @override
+  String get dayPassStatusExpired => 'Expired';
   @override
   String durationHours(int count) => count == 1 ? '1 hour' : '$count hours';
   @override
@@ -862,6 +901,15 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get checkinVisitsExhaustedBody =>
       "You've used every visit in this term. Renew now to reset your pool.";
+  @override
+  String get checkinAlreadyScannedBody =>
+      'You already scanned in here recently. The scan window resets after 30 minutes.';
+  @override
+  String get checkinErrorTitleVisitsExhausted => 'Visits Exhausted';
+  @override
+  String get checkinErrorTitleAlreadyScanned => 'Already Scanned';
+  @override
+  String get checkinErrorTitleGeneric => 'Check-in Error';
 
   @override
   String get profileOverline => 'Profile';
@@ -1261,9 +1309,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get privacyRightsBody => "You can: review and edit your profile in the Settings tab; download your data via Support; request deletion of your account at any time (we will confirm that the seven-year retention exceptions apply only to financial and audit records); withdraw consent for marketing notifications (the toggles are in Settings → Notifications); raise a complaint with the Jordanian Personal Data Protection Authority.";
   @override
-  String get privacyChildrenHeadline => "Children";
+  String get privacyChildrenHeadline => "All ages welcome";
   @override
-  String get privacyChildrenBody => "GymPass is not directed at children under 16. If you believe a minor has signed up, contact support and we will remove the account.";
+  String get privacyChildrenBody => "GymPass is open to anyone who trains at a gym or sports club, regardless of age. Members who are minors should ensure they have their parent or guardian's consent before subscribing and before entering any partner venue. If you have a concern about a specific account, contact support and we will look into it.";
   @override
   String get privacyChangesHeadline => "Changes to this Policy";
   @override
@@ -1565,6 +1613,8 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get billingHistoryEmpty => 'No invoices yet.';
   @override
+  String get billingDayPassesLabel => 'DAY PASS PURCHASES';
+  @override
   String billingInvoicePaid(String iso, int amount) => '$iso · $amount JOD';
   @override
   String get billingInvoiceReceipt => 'Receipt';
@@ -1812,4 +1862,192 @@ class AppLocalizationsEn extends AppLocalizations {
   String get routerNotFoundTitle => 'Page not found';
   @override
   String get routerGoHome => 'Go to Home';
+  @override
+  String get helpSheetTitle => 'How this works';
+  @override
+  String get helpDismiss => 'Got it';
+  @override
+  String get helpHomeTitle => 'Home';
+  @override
+  String get helpHome1 => 'Swipe left or right anywhere on the screen — not just the tab bar — to jump between Home, Explore, Scan, and Profile.';
+  @override
+  String get helpHome2 => 'Pull down on this page to force-refresh your subscription status and nearby gym data.';
+  @override
+  String get helpHome3 => 'Each promo card at the top is a shortcut — tap one to jump directly to that section of the app.';
+  @override
+  String get helpExploreTitle => 'Explore';
+  @override
+  String get helpExplore1 => 'Double-tap the handle bar at the bottom to jump the gym list to full screen. Single-tap steps it between the slim peek and half-open view.';
+  @override
+  String get helpExplore2 => "Double-tap a map pin to open that gym's full profile directly — a single tap just shows a quick preview card.";
+  @override
+  String get helpExplore3 => "Swipe left or right on the map to switch tabs. You don't need to reach the tab bar at the bottom.";
+  @override
+  String get helpScanTitle => 'Check In';
+  @override
+  String get helpScan1 => "You don't need to tap anything — the scanner reads the QR code and logs your visit the instant it detects it.";
+  @override
+  String get helpScan2 => 'Step back about a metre from the code if the scanner is struggling. Getting too close actually reduces accuracy.';
+  @override
+  String get helpScan3 => 'Swipe left or right on the camera view to switch to another tab without leaving camera mode.';
+  @override
+  String get helpProfileTitle => 'Profile';
+  @override
+  String get helpProfile1 => "Pull down on this page to force-refresh your visit count — handy right after a check-in when the number hasn't updated yet.";
+  @override
+  String get helpProfile2 => 'Swipe left or right anywhere on this page to switch tabs — the whole screen responds, not just the bottom bar.';
+  @override
+  String get helpProfile3 => "Tap 'Manage' under your active plan to see upgrade, pause, and cancel options — all subscription actions are behind that one tap.";
+  @override
+  String get helpGymDetail1 => 'The tier band at the top tells you exactly which plan level unlocks this gym. If it is greyed out, your current plan does not cover this venue.';
+  @override
+  String get helpGymDetail2 => "Tap 'Check in here' on this page — you don't need to switch to the Scan tab when you are standing at the gym entrance.";
+  @override
+  String get helpGymDetail3 => "No plan? Tap 'Buy a day pass' for a single-visit ticket charged to your saved payment method immediately.";
+  @override
+  String get helpPlans1 => 'Tap a plan card to compare 1, 3, 6, and 12-month prices — the tier stays the same but the per-month rate drops for longer terms.';
+  @override
+  String get helpPlans2 => "Each tier unlocks a different set of gyms. Check a gym's detail page to see exactly which tier it requires.";
+  @override
+  String get helpPlans3 => 'You can upgrade your tier at any time mid-subscription — you only pay the prorated difference for the remaining days.';
+  @override
+  String get helpSubscription1 => 'Visit count resets at the start of every billing cycle. Unused visits do not carry over to next month.';
+  @override
+  String get helpSubscription2 => "Tapping 'Upgrade' here switches your tier mid-cycle and charges only the prorated difference — not the full new-tier price.";
+  @override
+  String get helpSubscription3 => 'Cancelling stops future charges but your access stays active until the current paid period ends.';
+  @override
+  String get helpBilling1 => "Saved payment methods auto-charge on renewal — you don't need to re-enter them each month.";
+  @override
+  String get helpBilling2 => 'Tap any billing row to expand it and see the full receipt, including which plan was active that period.';
+  @override
+  String get helpBilling3 => 'If a payment fails, a red banner appears at the top of this page. Tap it immediately to retry before your access is paused.';
+  @override
+  String get helpCheckinSuccess1 => "Your check-in is already logged — you don't need to show this screen to the gym staff. They can see your entry on their own display.";
+  @override
+  String get helpCheckinSuccess2 => 'This check-in used one of your monthly visits. Pull down on the Profile tab to see your updated count.';
+  @override
+  String get helpCheckinSuccess3 => 'Something wrong with this check-in? Tap the support link below to flag it now — location context helps us fix it faster.';
+  @override
+  String get helpNotifications1 => 'Gym announcements and subscription reminders appear here and stay until you clear them individually.';
+  @override
+  String get helpNotifications2 => 'The red dot on the bell tab clears only after you open this list — just receiving the notification does not clear it.';
+  @override
+  String get helpNotifications3 => 'To turn off a specific type of alert, go to Profile → Settings → Notifications. You can mute them without deleting them.';
+  @override
+  String get helpSettings1 => "The language toggle shows the target language, not the current one — 'AR' means tap to switch to Arabic, not that Arabic is currently active.";
+  @override
+  String get helpSettings2 => 'Changing your linked phone number requires an OTP to the new number to confirm you own it.';
+  @override
+  String get helpSettings3 => 'Deleting your account is instant and permanent — it cancels your active plan and removes all visit history with no recovery option.';
+  @override
+  String get helpFilter1 => 'You can select multiple categories and multiple tiers at the same time — the gym list updates live as you tap each chip.';
+  @override
+  String get helpFilter2 => 'Drag the handle bar at the top upward to expand the filter sheet to full height and see all options at once.';
+  @override
+  String get helpFilter3 => "Tap 'Reset' at the top-right corner to clear every active filter at once and return to the full gym list.";
+  @override
+  String get helpSignIn1 => 'First, type your phone number — then tap Continue. The button checks whether you already have an account or need to register; both paths start exactly the same way.';
+  @override
+  String get helpSignIn2 => 'The +962 country code is already filled in. Just type the remaining 9 digits starting with 7 (for example: 7X XXX XXXX). Do not include the leading zero.';
+  @override
+  String get helpSignIn3 => "Prefer not to use a phone number? Tap 'Continue with Google' at the bottom to sign in or register with your Google account instead — no OTP needed.";
+  @override
+  String get helpSignIn4 => "Already registered with a password? After you enter your number and tap Continue, a password field appears if we find your account. No OTP is sent in that case.";
+  @override
+  String get helpSignIn5 => "If you get a 'number not valid' error, make sure you haven't accidentally included the area code twice. The format is exactly 9 digits after the +962 prefix.";
+  @override
+  String get helpOtp1 => "Check your SMS inbox — the 4-digit code arrives within seconds of tapping Continue. If it doesn't appear, check that your phone signal is active.";
+  @override
+  String get helpOtp2 => 'On most phones the code appears as a suggestion above the keyboard when the SMS arrives. Tap it to fill in all four digits instantly — no manual typing needed.';
+  @override
+  String get helpOtp3 => "The code is valid for 5 minutes. If it expires before you enter it, tap 'Resend code' — a new code cancels the old one, so only the latest one works.";
+  @override
+  String get helpOtp4 => 'Make sure you are entering the most recent code if you tapped Resend more than once. Each resend replaces the previous code.';
+  @override
+  String get helpOtp5 => 'In development mode the code is always 1234 — you don\'t need to check your SMS while testing the app.';
+  @override
+  String get helpRegister1 => 'Only your first and last name are required to create your pass. Everything else — email, birthdate, gender — is optional and can be filled in later from Profile → Settings.';
+  @override
+  String get helpRegister2 => 'Your GymPass subscription does not start here. This screen just saves your profile. You will choose a plan and pay on the next screen — nothing is charged until you confirm checkout.';
+  @override
+  String get helpRegister3 => 'Your password must be at least 8 characters and include both a letter and a number. It is used for sign-in if you ever switch away from OTP or Google.';
+  @override
+  String get helpRegister4 => "If you signed in with Google, your name may already be pre-filled. You can edit it here before tapping 'Create my pass' — the name on your account will match what you set here.";
+  @override
+  String get helpRegister5 => 'Read the Terms and Privacy Policy links before ticking the agreement box. They explain how your data is used, what the gyms can see about you, and how to request deletion.';
+  @override
+  String get helpForgotPw1 => 'Enter the phone number you used when you signed up. We look up your account by number — not by email — so make sure it is the right one.';
+  @override
+  String get helpForgotPw2 => 'Choose how to receive the reset code: by SMS to your phone, or by email if you added one to your profile. If no email is on file, SMS is the only option.';
+  @override
+  String get helpForgotPw3 => 'The 4-digit reset code works exactly like the sign-in OTP — check your SMS inbox and enter it within 5 minutes before it expires.';
+  @override
+  String get helpForgotPw4 => 'Your new password must be at least 8 characters long and include both a letter and a number. Avoid reusing your old password.';
+  @override
+  String get helpForgotPw5 => "After resetting, you will be taken back to the sign-in screen. Enter your phone number and tap Continue — then choose 'Sign in with password' and use your new password.";
+  @override
+  String get helpHelpHub1 => 'Tap \'Contact Support\' to reach our team by phone, email, or WhatsApp.';
+  @override
+  String get helpHelpHub2 => 'The FAQ answers the most common questions without needing to contact anyone.';
+  @override
+  String get helpHelpHub3 => 'Use \'Report Issue\' to flag a bad check-in or app bug — you can attach a screenshot as evidence.';
+  @override
+  String get helpSupportContact1 => 'Tapping phone, email, or WhatsApp opens the matching app directly — if the app isn\'t installed, the number is copied to your clipboard instead.';
+  @override
+  String get helpSupportContact2 => 'Fill in the Subject and Message fields below to send a written ticket. You\'ll receive a reference number by reply to track it.';
+  @override
+  String get helpSupportContact3 => 'WhatsApp is usually the fastest channel — our support team responds there first.';
+  @override
+  String get helpSupportFaq1 => 'Tap any question to expand the answer. Tap it again to collapse.';
+  @override
+  String get helpSupportFaq2 => 'The search bar looks through both questions and answers at once — useful when you know a keyword but not the category.';
+  @override
+  String get helpSupportFaq3 => 'Tap a category pill (Billing, Check-in, etc.) to filter questions to that topic. You can combine a category filter with a search keyword.';
+  @override
+  String get helpSupportReport1 => 'Pick the category closest to your issue — it routes your report to the right team automatically.';
+  @override
+  String get helpSupportReport2 => 'Tap \'Attach evidence\' to add a screenshot from your camera roll or take a new photo on the spot.';
+  @override
+  String get helpSupportReport3 => 'Add the gym name if your issue is location-specific — it speeds up the investigation.';
+  @override
+  String get helpGyms1 => 'Use the search bar at the top to find a gym by name or neighbourhood — results filter instantly as you type.';
+  @override
+  String get helpGyms2 => 'Tap the category pills (Gym, CrossFit, Martial, Yoga) to narrow the list to the type of training you want.';
+  @override
+  String get helpGyms3 => 'Tap the heart icon at the top-right to show only your saved favourites. Tap it again to return to the full list.';
+  @override
+  String get helpGyms4 => 'Tap the filter icon next to the heart to filter by tier — handy if you want to see only gyms your current plan covers.';
+  @override
+  String get helpGyms5 => 'The mini-map above the list shows all gyms as dots. Tap any dot to jump straight to that gym\'s detail page.';
+  @override
+  String get helpWelcome1 => 'Your subscription is now active and your visits are loaded. Head to Explore to find a gym near you and scan in.';
+  @override
+  String get helpWelcome2 => 'Visit count resets every 30 days from your subscription start date — not on the 1st of the calendar month.';
+  @override
+  String get helpWelcome3 => 'Your QR code is in the Scan tab. Just open it at the gym door — no staff action needed, the scan is automatic.';
+  @override
+  String get helpWelcome4 => 'You can check your remaining visits and renewal date at any time from Profile → My Subscription.';
+  @override
+  String get helpWelcome5 => 'Want to train at a gym outside your tier? Tap \'Day pass\' on any locked gym\'s detail page for a single-visit ticket.';
+  @override
+  String get helpAddMethod1 => 'Card details (number, expiry, CVV) are processed by our payment provider — we never store your full card number on our servers.';
+  @override
+  String get helpAddMethod2 => 'CliQ lets you link your Jordanian bank account using an alias or phone number. Charges go through your bank directly.';
+  @override
+  String get helpAddMethod3 => 'Apple Pay and Google Pay are available on supported devices. We receive only a payment token — not your actual card details.';
+  @override
+  String get helpAddMethod4 => 'Only one default payment method is used for subscription renewals. You can change the default anytime from the Billing page.';
+  @override
+  String get helpAddMethod5 => 'You can add multiple methods and pick which one to use at checkout for day passes or upgrades.';
+  @override
+  String get helpDayPass1 => 'A day pass gives you one entry to this specific gym valid for the next 24 hours. It does not count toward your monthly visit budget.';
+  @override
+  String get helpDayPass2 => 'Payment is charged immediately using your default payment method. Make sure you have one saved before tapping \'Pay\'.';
+  @override
+  String get helpDayPass3 => 'After purchase, go to the Scan tab and scan the QR at the gym entrance. Your day pass is consumed on the first successful scan.';
+  @override
+  String get helpDayPass4 => 'Day passes do not roll over — if you don\'t scan within 24 hours, the pass expires and the charge is not refunded.';
+  @override
+  String get helpDayPass5 => 'You can only have one active day pass per gym at a time. Buy another only after the current one is used or expired.';
 }

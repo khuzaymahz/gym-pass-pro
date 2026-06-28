@@ -142,6 +142,16 @@ abstract class AppLocalizations {
   String get homeOfflineNoCache;
   String get offlineBannerMessage;
   String get homeCategories;
+  String get homeBannerExploreTitle;
+  String homeBannerExploreSub(int n);
+  String get homeBannerCheckinTitle;
+  String get homeBannerCheckinSub;
+  String get homeBannerUpgradeTitle;
+  String get homeBannerUpgradeSub;
+  String get homeBannerActivateTitle;
+  String get homeBannerEliteTitle;
+  String get homeBannerEliteSub;
+  String get homeBannerActivateSub;
   String get categoryGym;
   String get categoryCross;
   String get categoryMartial;
@@ -206,6 +216,8 @@ abstract class AppLocalizations {
   String gymStatusOpensAt(String time);
   String gymStatusOpensTomorrow(String time);
   String gymStatusOpensDay(String day, String time);
+  String get gymTimeAm;
+  String get gymTimePm;
   String get gymHoursTitle;
   String get gymHoursToday;
   String get gymHoursClosedDay;
@@ -250,6 +262,8 @@ abstract class AppLocalizations {
   String get gymCheckedInRecently;
   String gymUpgradeTo(String tier);
   String gymDayPassCta(String price);
+  String get gymDayPassCtaLabel;
+  String dayPassValidityChip(int hours);
   String gymDayPassActive(String when);
   String get dayPassSheetTitle;
   String get dayPassSheetLineItem;
@@ -259,11 +273,16 @@ abstract class AppLocalizations {
   String get dayPassSheetTerms;
   String get dayPassPurchasedSnack;
   String get dayPassNeedPaymentMethod;
+  String get dayPassDuplicateActive;
+  String get dayPassPayWith;
+  String get dayPassDevPayment;
   String get currencyJod;
   String get profileDayPassesTitle;
   String get profileDayPassesEmpty;
   String profileDayPassExpiresIn(String duration);
   String profileDayPassUsed(String when);
+  String get profileDayPassHistoryLabel;
+  String get dayPassStatusExpired;
   String durationHours(int count);
   String durationMinutes(int count);
   String get durationLessThanAMinute;
@@ -424,6 +443,10 @@ abstract class AppLocalizations {
   String get checkinPausedDialogResume;
   String get checkinPausedDialogKeep;
   String get checkinVisitsExhaustedBody;
+  String get checkinAlreadyScannedBody;
+  String get checkinErrorTitleVisitsExhausted;
+  String get checkinErrorTitleAlreadyScanned;
+  String get checkinErrorTitleGeneric;
 
   String get profileOverline;
   String get profileMemberSince;
@@ -778,6 +801,7 @@ abstract class AppLocalizations {
   String billingNextChargeBody(String date, int amount);
   String get billingHistoryLabel;
   String get billingHistoryEmpty;
+  String get billingDayPassesLabel;
   String billingInvoicePaid(String iso, int amount);
   String get billingInvoiceReceipt;
   String get billingCardNetworkVisa;
@@ -901,6 +925,106 @@ abstract class AppLocalizations {
   // Router error-page (catch-all 404 for unknown deep links).
   String get routerNotFoundTitle;
   String get routerGoHome;
+
+  // Contextual help overlay.
+  String get helpSheetTitle;
+  String get helpDismiss;
+  String get helpHomeTitle;
+  String get helpHome1;
+  String get helpHome2;
+  String get helpHome3;
+  String get helpExploreTitle;
+  String get helpExplore1;
+  String get helpExplore2;
+  String get helpExplore3;
+  String get helpScanTitle;
+  String get helpScan1;
+  String get helpScan2;
+  String get helpScan3;
+  String get helpProfileTitle;
+  String get helpProfile1;
+  String get helpProfile2;
+  String get helpProfile3;
+  String get helpGymDetail1;
+  String get helpGymDetail2;
+  String get helpGymDetail3;
+  String get helpPlans1;
+  String get helpPlans2;
+  String get helpPlans3;
+  String get helpSubscription1;
+  String get helpSubscription2;
+  String get helpSubscription3;
+  String get helpBilling1;
+  String get helpBilling2;
+  String get helpBilling3;
+  String get helpCheckinSuccess1;
+  String get helpCheckinSuccess2;
+  String get helpCheckinSuccess3;
+  String get helpNotifications1;
+  String get helpNotifications2;
+  String get helpNotifications3;
+  String get helpSettings1;
+  String get helpSettings2;
+  String get helpSettings3;
+  String get helpFilter1;
+  String get helpFilter2;
+  String get helpFilter3;
+  String get helpSignIn1;
+  String get helpSignIn2;
+  String get helpSignIn3;
+  String get helpSignIn4;
+  String get helpSignIn5;
+  String get helpOtp1;
+  String get helpOtp2;
+  String get helpOtp3;
+  String get helpOtp4;
+  String get helpOtp5;
+  String get helpRegister1;
+  String get helpRegister2;
+  String get helpRegister3;
+  String get helpRegister4;
+  String get helpRegister5;
+  String get helpForgotPw1;
+  String get helpForgotPw2;
+  String get helpForgotPw3;
+  String get helpForgotPw4;
+  String get helpForgotPw5;
+  String get helpHelpHub1;
+  String get helpHelpHub2;
+  String get helpHelpHub3;
+  String get helpSupportContact1;
+  String get helpSupportContact2;
+  String get helpSupportContact3;
+  String get helpSupportFaq1;
+  String get helpSupportFaq2;
+  String get helpSupportFaq3;
+  String get helpSupportReport1;
+  String get helpSupportReport2;
+  String get helpSupportReport3;
+
+  String get helpGyms1;
+  String get helpGyms2;
+  String get helpGyms3;
+  String get helpGyms4;
+  String get helpGyms5;
+
+  String get helpWelcome1;
+  String get helpWelcome2;
+  String get helpWelcome3;
+  String get helpWelcome4;
+  String get helpWelcome5;
+
+  String get helpAddMethod1;
+  String get helpAddMethod2;
+  String get helpAddMethod3;
+  String get helpAddMethod4;
+  String get helpAddMethod5;
+
+  String get helpDayPass1;
+  String get helpDayPass2;
+  String get helpDayPass3;
+  String get helpDayPass4;
+  String get helpDayPass5;
 }
 
 class _AppLocalizationsDelegate

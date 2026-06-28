@@ -10,6 +10,7 @@ import '../../../core/prefs/app_preferences.dart';
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
 import '../../../core/widgets/gym_loader.dart';
+import '../../../core/widgets/help_button.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/top_bounce_physics.dart';
 import '../../../core/widgets/overline.dart';
@@ -113,6 +114,15 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 const SizedBox(width: 40),
               ],
             ),
+          ),
+          Positioned(
+            bottom: 78 + MediaQuery.viewPaddingOf(context).bottom,
+            left: 20,
+            child: HelpButton(tips: [
+              HelpTip(icon: Icons.language_rounded, text: l.helpSettings1),
+              HelpTip(icon: Icons.phone_outlined, text: l.helpSettings2),
+              HelpTip(icon: Icons.delete_outline, text: l.helpSettings3),
+            ],),
           ),
         ],
       ),
@@ -351,6 +361,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
   Future<void> _showSecuritySheet(
       BuildContext context, AppLocalizations l, GpColors gp,) async {
+    // Re-probe device capability + vault state each time the sheet opens.
+    // The provider is not autoDispose, so its _refresh() only ran once at
+    // construction time. A logout→re-login cycle changes passwordHash but
+    // won't trigger another _refresh() unless we ask explicitly.
+    await ref.read(biometricSettingsProvider.notifier).refresh();
+    if (!context.mounted) return;
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: gp.bg2,

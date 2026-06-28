@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -13,6 +12,7 @@ import '../../../core/router/app_router.dart' show checkinBranchKey;
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
 import '../../../core/widgets/gym_loader.dart';
+import '../../../core/widgets/help_button.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
 import '../../../core/widgets/pill_button.dart';
@@ -199,19 +199,32 @@ class _CheckinPageState extends ConsumerState<CheckinPage>
       // would just be rejected at scan time.
     });
 
+    final returnRoute = ref.watch(checkinReturnRouteProvider);
     return Scaffold(
       body: SafeArea(
-        child: Column(
+        child: Stack(
+          children: [
+            Column(
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-              // Locale-natural order: BackBtn anchors visual-left in
-              // EN and visual-right in AR; the centered "STEP 1 OF 2"
-              // overline stays balanced because of the symmetric
-              // Spacers + SizedBox padding.
+              // Back button only appears when the user arrived here from
+              // a specific screen (gym profile, day-pass checkout, etc.),
+              // not when they tapped the scan tab directly. The SizedBox
+              // preserves the header layout width in both cases.
               child: Row(
                 children: [
-                  const BackBtn(),
+                  if (returnRoute != null)
+                    BackBtn(
+                      onPressed: () {
+                        ref
+                            .read(checkinReturnRouteProvider.notifier)
+                            .state = null;
+                        context.go(returnRoute);
+                      },
+                    )
+                  else
+                    const SizedBox(width: 40),
                   const Spacer(),
                   Overline(l.checkinStepLabel),
                   const Spacer(),
@@ -370,6 +383,23 @@ class _CheckinPageState extends ConsumerState<CheckinPage>
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
               child: _bottomCta(l, state, hasSubscription),
+            ),
+          ],
+        ),
+            Positioned(
+              bottom: 24,
+              left: 20,
+              child: HelpButton(tips: [
+                HelpTip(icon: Icons.qr_code_2, text: l.helpScan1),
+                HelpTip(
+                  icon: Icons.center_focus_strong_outlined,
+                  text: l.helpScan2,
+                ),
+                HelpTip(
+                  icon: Icons.check_circle_outline,
+                  text: l.helpScan3,
+                ),
+              ],),
             ),
           ],
         ),
@@ -705,16 +735,6 @@ class _CheckinPageState extends ConsumerState<CheckinPage>
       );
     }
     if (hasSubscription) {
-      if (kDebugMode) {
-        return _devTestingPanel();
-      }
-      // Release builds: no button — the QR scanner overlay is the
-      // only way in. The previous fallback button hardcoded the
-      // 'iron-forge' slug into a release-mode tap callback, which
-      // (a) injected a demo seed into production behaviour and
-      // (b) let any member bypass the QR/dedupe flow with a single
-      // tap. Removed; the scanner viewport above this widget is the
-      // only check-in entry point in non-debug builds.
       return const SizedBox.shrink();
     }
     return PillButton(
@@ -724,124 +744,127 @@ class _CheckinPageState extends ConsumerState<CheckinPage>
     );
   }
 
-  // Debug-only affordances. Visible only in `kDebugMode` so release builds
-  // never ship these shortcuts. Lets testers:
-  //   1) Simulate a scan against a representative gym for each tier, without
-  //      printing a QR — exercises the tier-gate redirect (scanning above
-  //      your tier) and the happy-path confirmation flow.
-  //   2) Drain the term visit pool in one tap so the
-  //      `CHECKIN_VISITS_EXHAUSTED` banner + early-renewal dialog can be
-  //      reached without actually burning 30+ visits.
-  Widget _devTestingPanel() {
-    final gp = context.gp;
-    final tierSlugs = <({String tier, String slug, Color color})>[
-      (tier: 'Silver', slug: 'iron-forge', color: GPTier.silver.color),
-      (tier: 'Gold', slug: 'apex-crossfit', color: GPTier.gold.color),
-      (tier: 'platinum', slug: 'fortis-boxing', color: GPTier.platinum.color),
-      (tier: 'Diamond', slug: 'core-athletic', color: GPTier.diamond.color),
-    ];
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: gp.bg2,
-        border: Border.all(color: GP.lime.withValues(alpha: 0.35)),
-        borderRadius: BorderRadius.circular(GPRadius.md),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.bug_report_outlined, color: GP.lime, size: 14),
-              const SizedBox(width: 6),
-              Text(
-                'DEV · TESTING ONLY',
-                style: GPText.mono(
-                  size: 10,
-                  letterSpacing: 1.6,
-                  color: GP.lime,
-                  weight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final t in tierSlugs)
-                _DevChip(
-                  label: 'Scan ${t.tier}',
-                  color: t.color,
-                  onTap: () => ref
-                      .read(checkinControllerProvider.notifier)
-                      .onQrDetected(t.slug),
-                ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          _DevChip(
-            label: 'Complete all visits (max out term pool)',
-            color: GP.danger,
-            fullWidth: true,
-            onTap: () async {
-              await ref
-                  .read(subscriptionProvider.notifier)
-                  .devMaxOutVisits();
-              if (!mounted) return;
-              ScaffoldMessenger.of(context)
-                ..hideCurrentSnackBar()
-                ..showSnackBar(
-                  const SnackBar(
-                    content: Text('Term visits maxed out'),
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _errorBanner(AppLocalizations l, GpColors gp, CheckinUiState state) {
     final isExhausted = state.errorCode == 'CHECKIN_VISITS_EXHAUSTED';
+    final isRecentScan = state.errorCode == 'CHECKIN_ALREADY_SCANNED';
+
+    // Warn (amber) for soft limits, danger (red) for hard errors.
+    final accentColor = isRecentScan ? GP.warn : GP.danger;
+    final icon = isRecentScan
+        ? Icons.schedule_outlined
+        : isExhausted
+            ? Icons.bar_chart_outlined
+            : Icons.error_outline;
+    final title = isRecentScan
+        ? l.checkinErrorTitleAlreadyScanned
+        : isExhausted
+            ? l.checkinErrorTitleVisitsExhausted
+            : l.checkinErrorTitleGeneric;
     final message = isExhausted
         ? l.checkinVisitsExhaustedBody
-        : (state.errorMessage ?? l.checkinFailedGeneric);
-    return Container(
-      padding: const EdgeInsets.all(12),
+        : isRecentScan
+            ? l.checkinAlreadyScannedBody
+            : (state.errorMessage ?? l.checkinFailedGeneric);
+
+    void dismiss() =>
+        ref.read(checkinControllerProvider.notifier).reset();
+
+    // Shown behind the card while the user swipes in either direction.
+    final swipeBg = Container(
       decoration: BoxDecoration(
-        color: GP.danger.withValues(alpha: 0.12),
-        border: Border.all(color: GP.danger.withValues(alpha: 0.45)),
+        color: accentColor.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(GPRadius.md),
       ),
-      child: Row(
-        children: [
-          const Icon(Icons.error_outline, color: GP.danger, size: 18),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              message,
-              style: GPText.body(size: 13, color: gp.fg),
-            ),
-          ),
-          TextButton(
-            onPressed: isExhausted
-                ? () => _confirmRenewNow(l)
-                : () => ref.read(checkinControllerProvider.notifier).reset(),
-            child: Text(
-              (isExhausted ? l.subscriptionRenewNowCta : l.retry).toUpperCase(),
-              style: GPText.mono(
-                size: 10,
-                letterSpacing: 1.4,
-                color: gp.fg,
-                weight: FontWeight.w600,
+      alignment: Alignment.center,
+      child: Icon(Icons.close_rounded, color: accentColor, size: 22),
+    );
+
+    return Dismissible(
+      key: ValueKey(state.errorCode),
+      direction: DismissDirection.horizontal,
+      onDismissed: (_) => dismiss(),
+      background: swipeBg,
+      secondaryBackground: swipeBg,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(GPRadius.md),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Left accent bar — avoids the non-uniform Border +
+              // borderRadius conflict in BoxDecoration.
+              Container(width: 3, color: accentColor),
+              Expanded(
+                child: Container(
+                  color: accentColor.withValues(alpha: 0.08),
+                  padding: const EdgeInsets.fromLTRB(12, 11, 10, 11),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 1),
+                        child: Icon(icon, color: accentColor, size: 18),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              style: GPText.mono(
+                                size: 10,
+                                letterSpacing: 1.5,
+                                color: accentColor,
+                                weight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              message,
+                              style: GPText.body(
+                                size: 13,
+                                color: gp.fg,
+                                height: 1.4,
+                              ),
+                            ),
+                            if (isExhausted) ...[
+                              const SizedBox(height: 8),
+                              GestureDetector(
+                                onTap: () => _confirmRenewNow(l),
+                                child: Text(
+                                  l.subscriptionRenewNowCta.toUpperCase(),
+                                  style: GPText.mono(
+                                    size: 10,
+                                    letterSpacing: 1.4,
+                                    color: gp.fg,
+                                    weight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      // Tap-to-dismiss — explicit affordance alongside swipe.
+                      GestureDetector(
+                        onTap: dismiss,
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 6, top: 1),
+                          child: Icon(
+                            Icons.close_rounded,
+                            size: 16,
+                            color: gp.mutedSoft,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -876,50 +899,5 @@ class _CheckinPageState extends ConsumerState<CheckinPage>
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(l.subscriptionRenewedSnack)));
-  }
-}
-
-class _DevChip extends StatelessWidget {
-  const _DevChip({
-    required this.label,
-    required this.color,
-    required this.onTap,
-    this.fullWidth = false,
-  });
-
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-  final bool fullWidth;
-
-  @override
-  Widget build(BuildContext context) {
-    final gp = context.gp;
-    final chip = InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(GPRadius.sm),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.12),
-          border: Border.all(color: color.withValues(alpha: 0.45)),
-          borderRadius: BorderRadius.circular(GPRadius.sm),
-        ),
-        child: Text(
-          label.toUpperCase(),
-          textAlign: TextAlign.center,
-          style: GPText.mono(
-            size: 10,
-            letterSpacing: 1.4,
-            color: gp.fg,
-            weight: FontWeight.w600,
-          ),
-        ),
-      ),
-    );
-    if (fullWidth) {
-      return SizedBox(width: double.infinity, child: chip);
-    }
-    return chip;
   }
 }

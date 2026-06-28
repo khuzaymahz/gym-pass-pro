@@ -7,14 +7,16 @@ import '../../../core/di/providers.dart';
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
 import '../../../core/widgets/gym_logo.dart';
+import '../../../core/widgets/help_button.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
-import '../../../core/widgets/pill_button.dart';
 import '../../../core/widgets/tier_chip.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../checkin/presentation/checkin_controller.dart'
+    show checkinReturnRouteProvider;
 import '../../day_pass/data/day_pass.dart';
 import '../../day_pass/data/day_pass_repository.dart';
-import '../../day_pass/presentation/buy_day_pass_sheet.dart';
+import '../../day_pass/presentation/day_pass_checkout_page.dart';
 import '../../subscription/data/subscription_state.dart';
 import '../data/favorited_gyms.dart';
 import '../data/gym_photo.dart';
@@ -24,10 +26,8 @@ import '../data/gym_summary.dart';
 import '../data/home_region_store.dart';
 import '../data/opening_hours.dart';
 import 'gym_detail/audience_badge.dart';
-import 'gym_detail/day_pass_cta.dart';
 import 'gym_detail/gym_detail_helpers.dart';
 import 'gym_detail/hours_section.dart';
-import 'gym_detail/how_to_check_in.dart';
 import 'gym_detail/loading_detail_skeleton.dart';
 import 'gym_detail/location_section.dart';
 import 'gym_detail/not_found.dart';
@@ -164,9 +164,6 @@ class GymDetailPage extends ConsumerWidget {
     final address =
         (isAr ? (gymSummary?.addressAr ?? '') : (gymSummary?.addressEn ?? ''))
             .trim();
-    // Locked = neither the plan nor an active day-pass unlocks this gym.
-    final locked = !included && activePassForThisGym == null;
-
     return RealtimeBridge(
       slug: slug,
       gymId: gymSummary?.id,
@@ -395,43 +392,33 @@ class GymDetailPage extends ConsumerWidget {
                           ],
                           const SizedBox(height: 18),
                           _accessBanner(context, l, gp, gym, included),
-                          const SizedBox(height: 18),
-                          _amenityGrid(
-                            context,
-                            l,
-                            gp,
-                            gymSummary?.amenities ?? const <String>[],
-                          ),
-                          // Opening hours — the full per-day schedule,
-                          // expandable from the live status line. Hidden
-                          // entirely when the gym never set hours.
-                          if (hours.isKnown) ...[
-                            const SizedBox(height: 18),
-                            HoursSection(
-                              hours: hours,
-                              status: openStatus,
+                          if (included && !justCheckedIn) ...[
+                            const SizedBox(height: 10),
+                            _includedCheckinBanner(context, ref, l, gp),
+                          ],
+                          if (activePassForThisGym != null) ...[
+                            const SizedBox(height: 10),
+                            _activePassBanner(
+                              context,
+                              ref,
+                              l,
+                              gp,
+                              activePassForThisGym,
+                            ),
+                          ] else if (!included && offering.isEnabled) ...[
+                            const SizedBox(height: 10),
+                            _dayPassBanner(
+                              context,
+                              ref,
+                              l,
+                              gp,
+                              gym,
+                              offering,
+                              logoUrl,
                             ),
                           ],
-                          // Location — address + tappable static-map
-                          // preview + "Get directions" deep-linking to
-                          // Google Maps. Skipped when we have no coords
-                          // (can't point anywhere useful).
-                          if (gymLat != null && gymLng != null) ...[
-                            const SizedBox(height: 18),
-                            LocationSection(
-                              lat: gymLat,
-                              lng: gymLng,
-                              address: address,
-                              areaFallback: gym.area,
-                              label: gym.name,
-                              mapsKey: mapsKey,
-                              isAr: isAr,
-                            ),
-                          ],
-                          // How to check in — the 3-step QR flow. Adapts
-                          // its subtitle when the gym is still locked.
-                          const SizedBox(height: 18),
-                          HowToCheckIn(locked: locked),
+                          // About — right after the access / CTA banners,
+                          // before the feature chips, hours, and location.
                           const SizedBox(height: 18),
                           Text(
                             l.gymAbout.toUpperCase(),
@@ -450,67 +437,40 @@ class GymDetailPage extends ConsumerWidget {
                               height: 1.5,
                             ),
                           ),
-                          const SizedBox(height: 20),
-                          if (justCheckedIn)
-                            _checkedInBadge(l, gp)
-                          // Active day-pass for THIS gym — same "Check
-                          // in here" affordance as the subscription
-                          // path, because both unlock the QR scanner.
-                          else if (activePassForThisGym != null)
-                            PillButton(
-                              label: l.gymCheckInHere,
-                              trailingIcon: Icons.qr_code_scanner,
-                              onPressed: () => context.go('/checkin'),
-                            )
-                          else if (included)
-                            PillButton(
-                              label: l.gymCheckInHere,
-                              trailingIcon: Icons.qr_code_scanner,
-                              // /checkin lives inside the bottom-nav ShellRoute.
-                              // Pushing from this top-level route stacks
-                              // the shell on top and trips the navigator
-                              // duplicate-page-key assertion. `go` swaps
-                              // to the scan tab cleanly.
-                              onPressed: () => context.go('/checkin'),
-                            )
-                          // Locked-tier branch. When the gym sells day
-                          // passes, the day-pass CTA is the primary
-                          // call to action — a one-off pass is a much
-                          // lower friction than a plan upgrade, and
-                          // converts a "I'm just curious about this
-                          // place" into a real visit. The upgrade
-                          // path is preserved via the red "Requires
-                          // <tier>" banner above, which is now
-                          // tappable and routes to /plans.
-                          //
-                          // Day-pass works for both unsubscribed
-                          // members and subscribers locked out by
-                          // tier (e.g. Silver looking at a Platinum
-                          // gym). The backend refuses only when the
-                          // active subscription ALREADY covers the
-                          // gym — handled there, not gated here.
-                          else if (offering.isEnabled)
-                            DayPassCta(
-                              priceJod: offering.priceJod,
-                              validityHours: offering.validityHours,
-                              onPressed: () async {
-                                await showBuyDayPassSheet(
-                                  context: context,
-                                  gymSlug: slug,
-                                  gymName: gym.name,
-                                  offering: offering,
-                                  gym: gym,
-                                  gymLogoUrl: logoUrl,
-                                );
-                              },
+                          // Amenity chips — after the about blurb.
+                          const SizedBox(height: 18),
+                          _amenityGrid(
+                            context,
+                            l,
+                            gp,
+                            gymSummary?.amenities ?? const <String>[],
+                          ),
+                          // Opening hours — expandable schedule.
+                          if (hours.isKnown) ...[
+                            const SizedBox(height: 18),
+                            HoursSection(
+                              hours: hours,
+                              status: openStatus,
                             ),
-                          // No CTA when the gym is locked AND has
-                          // no day-pass offering: the red "Requires
-                          // <tier>" banner above is already the
-                          // upgrade affordance (tappable, routes to
-                          // /plans). A second "Upgrade to <tier>"
-                          // pill at the bottom was redundant.
-                          const SizedBox(height: 6),
+                          ],
+                          // Location + Get directions.
+                          if (gymLat != null && gymLng != null) ...[
+                            const SizedBox(height: 18),
+                            LocationSection(
+                              lat: gymLat,
+                              lng: gymLng,
+                              address: address,
+                              areaFallback: gym.area,
+                              label: gym.name,
+                              mapsKey: mapsKey,
+                              isAr: isAr,
+                            ),
+                          ],
+                          if (justCheckedIn) ...[
+                            const SizedBox(height: 20),
+                            _checkedInBadge(l, gp),
+                          ],
+                          const SizedBox(height: 20),
                         ],
                       ),
                     ),
@@ -537,6 +497,15 @@ class GymDetailPage extends ConsumerWidget {
                   ),
                 ),
               ),
+            ),
+            Positioned(
+              bottom: 78 + MediaQuery.viewPaddingOf(context).bottom,
+              left: 20,
+              child: HelpButton(tips: [
+                HelpTip(icon: Icons.workspace_premium_outlined, text: l.helpGymDetail1),
+                HelpTip(icon: Icons.qr_code_2, text: l.helpGymDetail2),
+                HelpTip(icon: Icons.local_activity_outlined, text: l.helpGymDetail3),
+              ],),
             ),
             // Floating action row (back / favourite / share),
             // pinned over the hero so the back button stays
@@ -781,6 +750,163 @@ class GymDetailPage extends ConsumerWidget {
       onTap: () => context.push('/plans'),
       borderRadius: BorderRadius.circular(GPRadius.md),
       child: banner,
+    );
+  }
+
+  Widget _includedCheckinBanner(
+    BuildContext context,
+    WidgetRef ref,
+    AppLocalizations l,
+    GpColors gp,
+  ) {
+    const color = GP.lime;
+    return InkWell(
+      onTap: () {
+        ref.read(checkinReturnRouteProvider.notifier).state = '/gyms/$slug';
+        context.go('/checkin');
+      },
+      borderRadius: BorderRadius.circular(GPRadius.md),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(GPRadius.md),
+          border: Border.all(color: color.withValues(alpha: 0.40)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.qr_code_scanner, color: color, size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                l.gymCheckInHere,
+                style: GPText.body(
+                  size: 13,
+                  color: gp.fg,
+                  weight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios, color: color, size: 14),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _activePassBanner(
+    BuildContext context,
+    WidgetRef ref,
+    AppLocalizations l,
+    GpColors gp,
+    DayPass activePass,
+  ) {
+    const color = GP.lime;
+    final remaining = activePass.expiresAt.difference(DateTime.now().toUtc());
+    final whenStr = remaining.inHours >= 1
+        ? l.durationHours(remaining.inHours)
+        : remaining.inMinutes > 0
+            ? l.durationMinutes(remaining.inMinutes)
+            : l.durationLessThanAMinute;
+    return InkWell(
+      onTap: () {
+        ref.read(checkinReturnRouteProvider.notifier).state = '/gyms/$slug';
+        context.go('/checkin');
+      },
+      borderRadius: BorderRadius.circular(GPRadius.md),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(GPRadius.md),
+          border: Border.all(color: color.withValues(alpha: 0.44)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.local_activity_outlined, color: color, size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l.gymDayPassActive(whenStr),
+                    style: GPText.body(
+                      size: 13,
+                      color: gp.fg,
+                      weight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    l.gymCheckInHere,
+                    style: GPText.body(size: 12, color: color),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.qr_code_scanner, color: color, size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _dayPassBanner(
+    BuildContext context,
+    WidgetRef ref,
+    AppLocalizations l,
+    GpColors gp,
+    GPGym gym,
+    DayPassOffering offering,
+    String? logoUrl,
+  ) {
+    const color = GP.lime;
+    final priceStr = offering.priceJod == offering.priceJod.truncateToDouble()
+        ? offering.priceJod.toInt().toString()
+        : offering.priceJod.toStringAsFixed(2);
+    return InkWell(
+      onTap: () {
+        ref.read(dayPassCheckoutArgsProvider.notifier).state =
+            DayPassCheckoutArgs(
+          gymSlug: slug,
+          gymName: gym.name,
+          offering: offering,
+          gym: gym,
+          gymLogoUrl: logoUrl,
+        );
+        context.push('/day-pass-checkout');
+      },
+      borderRadius: BorderRadius.circular(GPRadius.md),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(GPRadius.md),
+          border: Border.all(color: color.withValues(alpha: 0.44)),
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.confirmation_number_outlined,
+              color: color,
+              size: 18,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                l.gymDayPassCta(priceStr),
+                style: GPText.body(
+                  size: 13,
+                  color: gp.fg,
+                  weight: FontWeight.w500,
+                ),
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios, color: color, size: 14),
+          ],
+        ),
+      ),
     );
   }
 

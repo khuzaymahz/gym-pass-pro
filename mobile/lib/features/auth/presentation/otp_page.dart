@@ -10,6 +10,7 @@ import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
 import '../../../core/widgets/entry_toggles.dart';
 import '../../../core/widgets/glow.dart';
+import '../../../core/widgets/help_button.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
 import '../../../core/widgets/pill_button.dart';
@@ -104,6 +105,7 @@ class _OtpPageState extends ConsumerState<OtpPage> {
 
     return Scaffold(
       body: Stack(
+        fit: StackFit.expand,
         children: [
           const Positioned.fill(
             child: RadialGlow(opacity: 0.14, alignment: Alignment(0, -0.95)),
@@ -237,6 +239,17 @@ class _OtpPageState extends ConsumerState<OtpPage> {
                 ],
               ),
             ),
+          ),
+          Positioned(
+            bottom: 78 + MediaQuery.viewPaddingOf(context).bottom,
+            left: 20,
+            child: HelpButton(tips: [
+              HelpTip(icon: Icons.sms_outlined, text: l.helpOtp1),
+              HelpTip(icon: Icons.content_paste_rounded, text: l.helpOtp2),
+              HelpTip(icon: Icons.refresh_rounded, text: l.helpOtp3),
+              HelpTip(icon: Icons.priority_high_rounded, text: l.helpOtp4),
+              HelpTip(icon: Icons.developer_mode_rounded, text: l.helpOtp5),
+            ],),
           ),
         ],
       ),

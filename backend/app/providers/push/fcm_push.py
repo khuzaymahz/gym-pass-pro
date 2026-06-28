@@ -5,7 +5,8 @@ from typing import Any
 
 import httpx
 import structlog
-from google.auth.transport.requests import Request
+import urllib3
+from google.auth.transport.urllib3 import Request
 from google.oauth2 import service_account
 
 from app.providers.push import SendResult
@@ -48,7 +49,7 @@ class FcmPushProvider:
     def _access_token(self) -> str:
         """Return a valid OAuth2 bearer token, refreshing if expired."""
         if not self._credentials.valid:
-            self._credentials.refresh(Request())
+            self._credentials.refresh(Request(urllib3.PoolManager()))
         return self._credentials.token  # type: ignore[return-value]
 
     async def send(

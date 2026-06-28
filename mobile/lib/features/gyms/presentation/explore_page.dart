@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../core/widgets/gym_loader.dart';
+import '../../../core/widgets/help_button.dart';
 import '../../../l10n/app_localizations.dart';
 import '../data/favorited_gyms.dart';
 import '../data/geo_point.dart';
@@ -202,10 +203,9 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
       if (!mounted) return;
       ref.read(gymsSearchQueryProvider.notifier).state = text;
     });
-    // Any non-empty query is a clear intent to see filtered
-    // results — surface the list without making the member drag
-    // the sheet up themselves.
     if (text.isNotEmpty) {
+      // Clear any selected gym — user is looking for a different one.
+      if (_selectedGym != null) setState(() => _selectedGym = null);
       _autoOpenSheet();
     }
   }
@@ -1195,6 +1195,24 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
                   onGymSelect: _selectGymFromList,
                   distanceFor: _distanceToGym,
                 ),
+              Positioned(
+                bottom: 24,
+                left: 20,
+                child: HelpButton(tips: [
+                  HelpTip(
+                    icon: Icons.map_outlined,
+                    text: AppLocalizations.of(context).helpExplore1,
+                  ),
+                  HelpTip(
+                    icon: Icons.location_on_outlined,
+                    text: AppLocalizations.of(context).helpExplore2,
+                  ),
+                  HelpTip(
+                    icon: Icons.filter_list_rounded,
+                    text: AppLocalizations.of(context).helpExplore3,
+                  ),
+                ],),
+              ),
             ],
           );
         },

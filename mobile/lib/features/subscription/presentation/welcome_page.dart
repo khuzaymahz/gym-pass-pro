@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
 import '../../../core/widgets/glow.dart';
+import '../../../core/widgets/help_button.dart';
 import '../../../core/widgets/overline.dart';
 import '../../../core/widgets/pill_button.dart';
 import '../../../l10n/app_localizations.dart';
@@ -47,7 +48,7 @@ class WelcomePage extends ConsumerWidget {
       body: Stack(
         children: [
           Positioned.fill(
-            child: RadialGlow(color: tier.color, opacity: 0.18, size: 600),
+            child: RadialGlow(color: tier.color, opacity: 0.18, radius: 1.5),
           ),
           SafeArea(
             child: Padding(
@@ -131,6 +132,17 @@ class WelcomePage extends ConsumerWidget {
                 ],
               ),
             ),
+          ),
+          Positioned(
+            bottom: 40 + MediaQuery.viewPaddingOf(context).bottom,
+            left: 20,
+            child: HelpButton(tips: [
+              HelpTip(icon: Icons.check_circle_outline_rounded, text: l.helpWelcome1),
+              HelpTip(icon: Icons.calendar_today_outlined, text: l.helpWelcome2),
+              HelpTip(icon: Icons.qr_code_rounded, text: l.helpWelcome3),
+              HelpTip(icon: Icons.bar_chart_rounded, text: l.helpWelcome4),
+              HelpTip(icon: Icons.confirmation_number_outlined, text: l.helpWelcome5),
+            ]),
           ),
         ],
       ),

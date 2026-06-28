@@ -115,32 +115,11 @@ class CheckinService:
             )
             raise AppError(ErrorCode.CHECKIN_QR_INVALID, "Invalid QR.") from None
 
-        # Two-stage rate limit BEFORE touching the subscription. The
-        # per-(user, gym) bucket carries the friendly "scanned here
-        # recently" UX message; the per-user bucket blunts concurrent
-        # scans across gyms before they reach the DB. Neither is the
-        # primary race-correctness guarantee — `lock_active_for_user`
-        # below is — but they're cheap enough that letting an obvious
-        # spam pattern reach the row lock would just be wasteful.
-        rl_key = f"checkin:{user.id}:{gym.id}"
-        if not await self.rate_limiter.allow(
-            rl_key,
-            limit=CHECKIN_RATE_LIMIT,
-            window_seconds=CHECKIN_RATE_WINDOW_SECONDS,
-        ):
-            await self.checkins.create(
-                user_id=user.id,
-                gym_id=gym.id,
-                subscription_id=None,
-                status=CheckinStatus.RATE_LIMITED,
-                failure_reason="duplicate_scan_within_window",
-                ip_address=actor.ip_address,
-                user_agent=actor.user_agent,
-            )
-            raise AppError(
-                ErrorCode.CHECKIN_ALREADY_SCANNED,
-                "Already scanned recently at this gym.",
-            )
+        # User-wide concurrent scan gate (5-second window). Blunts the
+        # obvious case of one member's two devices scanning at two
+        # different gyms simultaneously. Applied before the day-pass
+        # check so a concurrent day-pass + subscription scan serializes
+        # on this bucket rather than racing to the DB.
         user_rl_key = f"checkin:{user.id}"
         if not await self.rate_limiter.allow(
             user_rl_key,
@@ -161,16 +140,13 @@ class CheckinService:
                 "Another scan is in progress. Try again in a moment.",
             )
 
-        # Day-pass branch: a non-subscriber (or even a subscriber
-        # holding a one-off pass for this gym) bypasses the
-        # subscription / tier / audience / visit-budget ladder and
-        # redeems the pass directly. The pass row already carries
-        # the audience check from purchase time and is gym-specific,
-        # so re-doing those gates here would be redundant and
-        # could deny a holder who, e.g., changed gender after
-        # purchase. The check-in is still recorded and the gym
-        # still gets paid via the payout ledger (using the pass's
-        # net amount, not the gym's per_visit_rate).
+        # Day-pass branch: checked BEFORE the per-(user, gym) rate
+        # limit so a member who just purchased a pass is not blocked
+        # by a prior scan within the 30-minute window. The pass itself
+        # is single-use — on redemption its status flips to 'used',
+        # preventing re-entry — so the per-gym rate limit adds no
+        # protection here and would only produce a confusing error
+        # for a member who legitimately paid to enter.
         now = utcnow()
         active_pass = await self.day_passes.active_for_user_gym(
             user_id=user.id, gym_id=gym.id, now=now
@@ -181,6 +157,30 @@ class CheckinService:
                 gym=gym,
                 day_pass=active_pass,
                 actor=actor,
+            )
+
+        # Per-(user, gym) rate limit for subscription holders. Protects
+        # against rapid re-scans (double-tap, network retry) and burns
+        # a friendly "already scanned here" error rather than a visit.
+        # Only reached when no active day pass exists for this gym.
+        rl_key = f"checkin:{user.id}:{gym.id}"
+        if not await self.rate_limiter.allow(
+            rl_key,
+            limit=CHECKIN_RATE_LIMIT,
+            window_seconds=CHECKIN_RATE_WINDOW_SECONDS,
+        ):
+            await self.checkins.create(
+                user_id=user.id,
+                gym_id=gym.id,
+                subscription_id=None,
+                status=CheckinStatus.RATE_LIMITED,
+                failure_reason="duplicate_scan_within_window",
+                ip_address=actor.ip_address,
+                user_agent=actor.user_agent,
+            )
+            raise AppError(
+                ErrorCode.CHECKIN_ALREADY_SCANNED,
+                "Already scanned recently at this gym.",
             )
 
         # Take `SELECT … FOR UPDATE` on the active subscription row.

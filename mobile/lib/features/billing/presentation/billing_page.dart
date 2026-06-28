@@ -4,12 +4,15 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
+import '../../../core/widgets/help_button.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
 import '../../../core/widgets/pill_button.dart';
 import '../../../core/widgets/top_bounce_physics.dart';
 import '../../../core/widgets/wordmark_refresh.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../day_pass/data/day_pass.dart';
+import '../../day_pass/data/day_pass_repository.dart';
 import '../../subscription/data/subscription_state.dart';
 import '../data/billing_state.dart';
 import '../../../core/widgets/skeleton.dart';
@@ -108,6 +111,7 @@ class BillingPage extends ConsumerWidget {
                 billing: billing,
                 onOpenInvoice: (inv) => _openReceipt(context, inv),
               ),
+              const _DayPassReceiptsSection(),
               ],
             ),
           ),
@@ -115,6 +119,15 @@ class BillingPage extends ConsumerWidget {
             top: topInset + 12,
             start: 20,
             child: const BackBtn(fallback: '/profile'),
+          ),
+          Positioned(
+            bottom: 78 + MediaQuery.viewPaddingOf(context).bottom,
+            left: 20,
+            child: HelpButton(tips: [
+              HelpTip(icon: Icons.credit_card_outlined, text: l.helpBilling1),
+              HelpTip(icon: Icons.receipt_long, text: l.helpBilling2),
+              HelpTip(icon: Icons.error_outline, text: l.helpBilling3),
+            ],),
           ),
         ],
       ),
@@ -349,5 +362,140 @@ class _HistoryList extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _DayPassReceiptsSection extends ConsumerWidget {
+  const _DayPassReceiptsSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
+    final gp = context.gp;
+    final passes = ref.watch(myDayPassesProvider).valueOrNull ?? const <DayPass>[];
+    if (passes.isEmpty) return const SizedBox.shrink();
+
+    final sorted = [...passes]
+      ..sort((a, b) => b.purchasedAt.compareTo(a.purchasedAt));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 22),
+        _SectionLabel(l.billingDayPassesLabel),
+        const SizedBox(height: 10),
+        Container(
+          decoration: BoxDecoration(
+            color: gp.bg2,
+            borderRadius: BorderRadius.circular(GPRadius.lg),
+            border: Border.all(color: gp.line),
+            boxShadow: gp.cardShadows,
+          ),
+          child: Column(
+            children: [
+              for (var i = 0; i < sorted.length; i++)
+                _DayPassReceiptTile(
+                  pass: sorted[i],
+                  showDivider: i < sorted.length - 1,
+                  isAr: Localizations.localeOf(context).languageCode == 'ar',
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DayPassReceiptTile extends StatelessWidget {
+  const _DayPassReceiptTile({
+    required this.pass,
+    required this.showDivider,
+    required this.isAr,
+  });
+
+  final DayPass pass;
+  final bool showDivider;
+  final bool isAr;
+
+  @override
+  Widget build(BuildContext context) {
+    final gp = context.gp;
+    final l = AppLocalizations.of(context);
+    final isActive = pass.isActive(DateTime.now().toUtc());
+    final isUsed = pass.status == 'used';
+    final statusColor = isActive ? GP.lime : isUsed ? GP.success : gp.muted;
+    final statusLabel = isActive
+        ? l.gymDayPassCtaLabel
+        : isUsed
+            ? l.profileDayPassUsed(_formatDate(pass.usedAt ?? pass.expiresAt))
+            : l.dayPassStatusExpired;
+    final dateStr = _formatDate(pass.purchasedAt);
+    final priceStr = pass.priceJod == pass.priceJod.truncateToDouble()
+        ? '${pass.priceJod.toInt()} ${l.currencyJod}'
+        : '${pass.priceJod.toStringAsFixed(2)} ${l.currencyJod}';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: showDivider
+              ? BorderSide(color: gp.line)
+              : BorderSide.none,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              color: GP.lime.withValues(alpha: 0.14),
+              border: Border.all(color: GP.lime.withValues(alpha: 0.4)),
+            ),
+            alignment: Alignment.center,
+            child: const Icon(Icons.local_activity_outlined, size: 18, color: GP.lime),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  pass.name(isAr: isAr),
+                  style: GPText.body(
+                    size: 13,
+                    color: gp.fg,
+                    weight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '$dateStr · $priceStr',
+                  style: GPText.body(size: 12, color: gp.mutedSoft),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            statusLabel.toUpperCase(),
+            style: GPText.mono(
+              size: 9,
+              letterSpacing: 1.3,
+              color: statusColor,
+              weight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _formatDate(DateTime dt) {
+    final local = dt.toLocal();
+    return '${local.year}-${local.month.toString().padLeft(2, '0')}-${local.day.toString().padLeft(2, '0')}';
   }
 }

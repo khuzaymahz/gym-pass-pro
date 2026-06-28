@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
+import '../../../core/widgets/help_button.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
 import '../../../core/widgets/pill_button.dart';
@@ -325,6 +326,15 @@ class _ReportIssuePageState extends ConsumerState<ReportIssuePage> {
             top: topInset + 12,
             start: 20,
             child: const BackBtn(fallback: '/profile'),
+          ),
+          Positioned(
+            bottom: 78 + MediaQuery.viewPaddingOf(context).bottom,
+            left: 20,
+            child: HelpButton(tips: [
+              HelpTip(icon: Icons.category_outlined, text: l.helpSupportReport1),
+              HelpTip(icon: Icons.attach_file_rounded, text: l.helpSupportReport2),
+              HelpTip(icon: Icons.location_on_outlined, text: l.helpSupportReport3),
+            ],),
           ),
         ],
       ),

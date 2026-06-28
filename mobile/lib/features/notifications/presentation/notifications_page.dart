@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/prefs/app_preferences.dart';
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
+import '../../../core/widgets/help_button.dart';
 import '../../../core/widgets/skeleton.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
@@ -228,6 +229,15 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
             top: topInset + 12,
             start: 20,
             child: const BackBtn(),
+          ),
+          Positioned(
+            bottom: 78 + MediaQuery.viewPaddingOf(context).bottom,
+            left: 20,
+            child: HelpButton(tips: [
+              HelpTip(icon: Icons.campaign_outlined, text: l.helpNotifications1),
+              HelpTip(icon: Icons.mark_email_read_outlined, text: l.helpNotifications2),
+              HelpTip(icon: Icons.tune_rounded, text: l.helpNotifications3),
+            ],),
           ),
         ],
       ),

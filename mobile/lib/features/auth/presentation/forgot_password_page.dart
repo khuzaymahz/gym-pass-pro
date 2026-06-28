@@ -7,6 +7,7 @@ import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
 import '../../../core/widgets/entry_toggles.dart';
 import '../../../core/widgets/glow.dart';
+import '../../../core/widgets/help_button.dart';
 import '../../../core/widgets/gym_loader.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
@@ -247,6 +248,7 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
 
     return Scaffold(
       body: Stack(
+        fit: StackFit.expand,
         children: [
           const Positioned.fill(
             child: RadialGlow(opacity: 0.14, alignment: Alignment(0, -0.95)),
@@ -293,6 +295,17 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
                 ],
               ),
             ),
+          ),
+          Positioned(
+            bottom: 78 + MediaQuery.viewPaddingOf(context).bottom,
+            left: 20,
+            child: HelpButton(tips: [
+              HelpTip(icon: Icons.phone_outlined, text: l.helpForgotPw1),
+              HelpTip(icon: Icons.alternate_email_rounded, text: l.helpForgotPw2),
+              HelpTip(icon: Icons.lock_reset_rounded, text: l.helpForgotPw3),
+              HelpTip(icon: Icons.key_rounded, text: l.helpForgotPw4),
+              HelpTip(icon: Icons.login_rounded, text: l.helpForgotPw5),
+            ],),
           ),
         ],
       ),

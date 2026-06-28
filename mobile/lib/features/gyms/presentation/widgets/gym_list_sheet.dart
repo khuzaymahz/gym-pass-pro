@@ -19,7 +19,7 @@ import 'explore_format.dart';
 /// height). Kept here so [GymListSheet] is self-contained — the
 /// caller passes in a controller and these constants drive the snap
 /// behaviour. See `ExplorePage` for the full design rationale.
-const double exploreSheetMin = 0.066;
+const double exploreSheetMin = 0.048;
 const double exploreSheetAutoOpen = 0.45;
 // Tuned through user feedback: 0.84 was too tall (almost no map
 // visible at full open), 0.74 was too short. 0.80 keeps a clear
@@ -135,8 +135,7 @@ class GymListSheet extends ConsumerWidget {
             filter: ui.ImageFilter.blur(sigmaX: 24, sigmaY: 24),
             child: Container(
               decoration: BoxDecoration(
-                color: gp.bg2.withValues(alpha: 0.92),
-                border: Border(top: BorderSide(color: gp.line, width: 0.5)),
+                color: gp.bg,
               ),
               child: CustomScrollView(
                 controller: scrollCtrl,
@@ -153,14 +152,14 @@ class GymListSheet extends ConsumerWidget {
                       onTap: onTapHandle,
                       onDoubleTap: onDoubleTapHandle,
                       child: SizedBox(
-                        height: 32,
+                        height: 22,
                         child: Center(
                           child: Container(
-                            width: 44,
-                            height: 5,
+                            width: 36,
+                            height: 4,
                             decoration: BoxDecoration(
-                              color: gp.line2,
-                              borderRadius: BorderRadius.circular(3),
+                              color: GP.lime,
+                              borderRadius: BorderRadius.circular(2),
                             ),
                           ),
                         ),

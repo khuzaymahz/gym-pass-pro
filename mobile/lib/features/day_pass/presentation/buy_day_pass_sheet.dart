@@ -6,10 +6,12 @@ import '../../../core/network/network_error.dart';
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
 import '../../../core/widgets/gym_logo.dart';
+import '../../../core/widgets/help_button.dart';
 import '../../../core/widgets/pill_button.dart';
 import '../../../core/widgets/tier_chip.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../billing/data/billing_state.dart';
+import '../../billing/presentation/widgets/method_icon.dart';
 import '../data/day_pass.dart';
 import '../data/day_pass_repository.dart';
 
@@ -132,11 +134,13 @@ class _BuyDayPassSheetBodyState extends ConsumerState<_BuyDayPassSheetBody> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
+      final classified = classifyNetworkError(e);
+      final msg = classified.apiException?.code == 'DAY_PASS_DUPLICATE_ACTIVE'
+          ? l.dayPassDuplicateActive
+          : resolveErrorMessage(e, l);
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(content: Text(resolveErrorMessage(e, l))),
-        );
+        ..showSnackBar(SnackBar(content: Text(msg)));
     }
   }
 
@@ -145,6 +149,9 @@ class _BuyDayPassSheetBodyState extends ConsumerState<_BuyDayPassSheetBody> {
     final l = AppLocalizations.of(context);
     final isAr = Localizations.localeOf(context).languageCode == 'ar';
     final gp = context.gp;
+    final billing = ref.watch(billingProvider);
+    final method = billing.defaultMethod;
+    final isProd = AppEnv.current.isProduction;
     final priceText = _formatJodPrice(widget.offering.priceJod);
     return SafeArea(
       top: false,
@@ -170,16 +177,25 @@ class _BuyDayPassSheetBodyState extends ConsumerState<_BuyDayPassSheetBody> {
               ),
             ),
             const SizedBox(height: 16),
-            // Header row: gym logo + name + tier chip. Mirrors the
-            // gym detail page's identity strip so the buyer keeps
-            // continuity ("yes, this is the same gym I tapped").
-            // Falls back to a clean text-only title when the call
-            // site didn't supply a `gym` model.
-            _Header(
-              gym: widget.gym,
-              gymName: widget.gymName,
-              gymLogoUrl: widget.gymLogoUrl,
-              isAr: isAr,
+            // Header row: gym logo + name + tier chip + help button.
+            Row(
+              children: [
+                Expanded(
+                  child: _Header(
+                    gym: widget.gym,
+                    gymName: widget.gymName,
+                    gymLogoUrl: widget.gymLogoUrl,
+                    isAr: isAr,
+                  ),
+                ),
+                HelpButton(tips: [
+                  HelpTip(icon: Icons.confirmation_number_outlined, text: l.helpDayPass1),
+                  HelpTip(icon: Icons.payment_outlined, text: l.helpDayPass2),
+                  HelpTip(icon: Icons.qr_code_scanner_rounded, text: l.helpDayPass3),
+                  HelpTip(icon: Icons.timer_off_outlined, text: l.helpDayPass4),
+                  HelpTip(icon: Icons.block_outlined, text: l.helpDayPass5),
+                ]),
+              ],
             ),
             const SizedBox(height: 16),
             // Receipt-style breakdown. Visually grouped so the
@@ -245,7 +261,40 @@ class _BuyDayPassSheetBodyState extends ConsumerState<_BuyDayPassSheetBody> {
                 ],
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 14),
+            // Payment method row — shows what will be charged.
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+              decoration: BoxDecoration(
+                color: gp.bg3,
+                borderRadius: BorderRadius.circular(GPRadius.md),
+                border: Border.all(color: gp.line),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    method != null
+                        ? MethodIcon.of(method.kind)
+                        : (isProd ? Icons.warning_amber_outlined : Icons.science_outlined),
+                    size: 16,
+                    color: method != null ? gp.accentInk : (isProd ? GP.warn : gp.mutedSoft),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      method != null
+                          ? '${l.dayPassPayWith}: ${method.label}'
+                          : (isProd ? l.dayPassNeedPaymentMethod : '${l.dayPassPayWith}: ${l.dayPassDevPayment}'),
+                      style: GPText.body(
+                        size: 13,
+                        color: method != null ? gp.fg : (isProd ? GP.warn : gp.mutedSoft),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
             PillButton(
               label:
                   _busy ? l.dayPassSheetPaying : l.dayPassSheetPay(priceText),

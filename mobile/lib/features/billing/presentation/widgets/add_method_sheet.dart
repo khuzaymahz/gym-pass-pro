@@ -16,6 +16,7 @@ import 'method_forms/apple_pay_form.dart';
 import 'method_forms/card_form.dart';
 import 'method_forms/cliq_form.dart';
 import 'method_forms/google_pay_form.dart';
+import '../../../../core/widgets/help_button.dart';
 
 /// Translates a thrown error from the billing layer into a localized,
 /// user-friendly snackbar. Delegates to the shared network-error
@@ -153,7 +154,20 @@ class _AddMethodSheetBodyState extends ConsumerState<_AddMethodSheetBody> {
                   ),
                 ),
                 const SizedBox(height: 18),
-                DisplayText(l.billingAddTitle, size: 22),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    DisplayText(l.billingAddTitle, size: 22),
+                    HelpButton(tips: [
+                      HelpTip(icon: Icons.credit_card_outlined, text: l.helpAddMethod1),
+                      HelpTip(icon: Icons.account_balance_outlined, text: l.helpAddMethod2),
+                      HelpTip(icon: Icons.contactless_outlined, text: l.helpAddMethod3),
+                      HelpTip(icon: Icons.star_outline_rounded, text: l.helpAddMethod4),
+                      HelpTip(icon: Icons.swap_horiz_rounded, text: l.helpAddMethod5),
+                    ]),
+                  ],
+                ),
                 const SizedBox(height: 18),
                 _tabRow(l, gp),
                 const SizedBox(height: 18),

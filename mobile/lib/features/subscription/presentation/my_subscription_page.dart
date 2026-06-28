@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
 import '../../../core/widgets/glow.dart';
+import '../../../core/widgets/help_button.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
 import '../../../core/widgets/pill_button.dart';
@@ -45,7 +46,7 @@ class MySubscriptionPage extends ConsumerWidget {
       body: Stack(
         children: [
           const Positioned.fill(
-            child: RadialGlow(opacity: 0.12, size: 520, alignment: Alignment(0, -0.95)),
+            child: RadialGlow(opacity: 0.12, alignment: Alignment(0, -0.95)),
           ),
           WordmarkRefresh(
             // Real refresh — re-fetches the live subscription so the
@@ -114,6 +115,15 @@ class MySubscriptionPage extends ConsumerWidget {
             top: topInset + 12,
             start: 20,
             child: const BackBtn(),
+          ),
+          Positioned(
+            bottom: 78 + MediaQuery.viewPaddingOf(context).bottom,
+            left: 20,
+            child: HelpButton(tips: [
+              HelpTip(icon: Icons.refresh_rounded, text: l.helpSubscription1),
+              HelpTip(icon: Icons.upgrade_rounded, text: l.helpSubscription2),
+              HelpTip(icon: Icons.cancel_outlined, text: l.helpSubscription3),
+            ],),
           ),
         ],
       ),

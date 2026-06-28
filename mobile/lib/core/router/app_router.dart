@@ -24,6 +24,7 @@ import '../../features/notifications/presentation/notifications_page.dart';
 import '../../features/profile/presentation/profile_page.dart';
 import '../../features/referral/presentation/invite_page.dart';
 import '../../features/settings/presentation/settings_page.dart';
+import '../../features/day_pass/presentation/day_pass_checkout_page.dart';
 import '../../features/subscription/presentation/checkout_page.dart';
 import '../../features/subscription/presentation/my_subscription_page.dart';
 import '../../features/subscription/presentation/plans_page.dart';
@@ -225,6 +226,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(path: '/plans', pageBuilder: (_, __) => _fastPage(const PlansPage())),
+      GoRoute(
+        path: '/day-pass-checkout',
+        pageBuilder: (_, __) => _fastPage(const DayPassCheckoutPage()),
+      ),
       GoRoute(
         path: '/checkout',
         pageBuilder: (_, s) => _fastPage(CheckoutPage(

@@ -1,16 +1,6 @@
-// GENERATED FILE — do not edit manually.
-//
-// Replace this stub with the real output of:
-//   dart pub global activate flutterfire_cli
-//   flutterfire configure --project=<your-firebase-project-id>
-//
-// Before running flutterfire configure:
-//   1. Place google-services.json at mobile/android/app/google-services.json
-//   2. Place GoogleService-Info.plist at mobile/ios/Runner/GoogleService-Info.plist
-//
-// Until the real file is generated, Firebase.initializeApp() will throw.
-// The app still builds — push notifications are silently disabled until
-// the credentials are in place.
+// Firebase options for the GYMPASS project (gympass-7199e).
+// Android values sourced from google-services.json (placed at mobile/android/app/).
+// iOS values are stubs — add GoogleService-Info.plist and fill them in when targeting iOS.
 
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart'
@@ -42,20 +32,21 @@ class DefaultFirebaseOptions {
   //   (or run `flutterfire configure` to regenerate this file automatically)
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'REPLACE_WITH_REAL_API_KEY',
-    appId: 'REPLACE_WITH_REAL_APP_ID',
-    messagingSenderId: 'REPLACE_WITH_REAL_SENDER_ID',
-    projectId: 'REPLACE_WITH_REAL_PROJECT_ID',
-    storageBucket: 'REPLACE_WITH_REAL_STORAGE_BUCKET',
+    apiKey: 'AIzaSyAjrooaPs1EqmWuRS6022b5v4UVaHuQarI',
+    appId: '1:379561915336:android:9d37c4d6f9a8c4536d46fd',
+    messagingSenderId: '379561915336',
+    projectId: 'gympass-7199e',
+    storageBucket: 'gympass-7199e.firebasestorage.app',
   );
 
+  // iOS not yet configured — add GoogleService-Info.plist when targeting iOS.
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'REPLACE_WITH_REAL_API_KEY',
-    appId: 'REPLACE_WITH_REAL_APP_ID',
-    messagingSenderId: 'REPLACE_WITH_REAL_SENDER_ID',
-    projectId: 'REPLACE_WITH_REAL_PROJECT_ID',
-    storageBucket: 'REPLACE_WITH_REAL_STORAGE_BUCKET',
-    iosClientId: 'REPLACE_WITH_REAL_IOS_CLIENT_ID',
-    iosBundleId: 'REPLACE_WITH_REAL_IOS_BUNDLE_ID',
+    apiKey: 'REPLACE_WITH_IOS_API_KEY',
+    appId: 'REPLACE_WITH_IOS_APP_ID',
+    messagingSenderId: '379561915336',
+    projectId: 'gympass-7199e',
+    storageBucket: 'gympass-7199e.firebasestorage.app',
+    iosClientId: 'REPLACE_WITH_IOS_CLIENT_ID',
+    iosBundleId: 'net.gympass.gympass',
   );
 }

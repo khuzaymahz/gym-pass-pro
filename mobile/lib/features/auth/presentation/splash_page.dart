@@ -80,7 +80,7 @@ class _SplashPageState extends ConsumerState<SplashPage>
             animation: _pulse,
             builder: (_, __) => RadialGlow(
               opacity: 0.14 + _pulse.value * 0.08,
-              size: 520 + _pulse.value * 30,
+              radius: 1.33 + _pulse.value * 0.08,
               alignment: Alignment.center,
             ),
           ),
