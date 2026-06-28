@@ -362,6 +362,7 @@
     "form": {
       "slug": "Slug",
       "slugTitle": "Lowercase letters, digits, and hyphens (2–64 chars)",
+      "slugLockedHint": "Permanent — shared links and the QR filename depend on it.",
       "area": "Area",
       "category": "Category",
       "nameEn": "Name (EN)",

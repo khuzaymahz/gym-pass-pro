@@ -26,6 +26,18 @@ const FIELD_LIMITS = {
 } as const;
 const SLUG_PATTERN = "[a-z0-9-]{2,64}";
 
+// Mirror of the backend `_slugify` (partner_application_service.py) so the
+// admin-create suggestion matches what partner auto-onboarding generates:
+// lowercase, non-alphanumeric runs → "-", trimmed, capped.
+function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48);
+}
+
 export default function GymForm({ initial, action, submitLabel }: Props) {
   const router = useRouter();
   const t = useTranslations("gyms.form");
@@ -46,6 +58,13 @@ export default function GymForm({ initial, action, submitLabel }: Props) {
   });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Slug is the gym's permanent public URL handle (gym-pass.net/gyms/<slug>)
+  // and the mobile by-slug lookup key, so it's immutable once a gym exists.
+  // On create we auto-fill it from the English name until the operator edits
+  // the slug by hand; on edit we lock the field entirely.
+  const isEdit = Boolean(initial?.id);
+  const [slugTouched, setSlugTouched] = useState(isEdit);
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -84,13 +103,21 @@ export default function GymForm({ initial, action, submitLabel }: Props) {
         <label className="field">
           <span className="field-label">{t("slug")}</span>
           <input
-            className="input input-sm num"
+            className="input input-sm num disabled:cursor-not-allowed disabled:opacity-60"
             required
             maxLength={FIELD_LIMITS.slug}
             pattern={SLUG_PATTERN}
             title={t("slugTitle")}
-            {...bind("slug")}
+            disabled={isEdit}
+            value={state.slug ?? ""}
+            onChange={(e) => {
+              setSlugTouched(true);
+              setState((s) => ({ ...s, slug: e.target.value }));
+            }}
           />
+          {isEdit ? (
+            <span className="text-[11px] text-muted">{t("slugLockedHint")}</span>
+          ) : null}
         </label>
         <label className="field">
           <span className="field-label">{t("area")}</span>
@@ -117,7 +144,17 @@ export default function GymForm({ initial, action, submitLabel }: Props) {
             className="input input-sm"
             required
             maxLength={FIELD_LIMITS.name}
-            {...bind("nameEn")}
+            value={state.nameEn ?? ""}
+            onChange={(e) => {
+              const nameEn = e.target.value;
+              // On create the slug tracks the name until the operator edits
+              // the slug by hand; on edit the slug is locked, so never derive.
+              setState((s) => ({
+                ...s,
+                nameEn,
+                ...(!isEdit && !slugTouched ? { slug: slugify(nameEn) } : {}),
+              }));
+            }}
           />
         </label>
         <label className="field">
