@@ -22,7 +22,11 @@ from app.api.deps import (
     db_session,
 )
 from app.db.models import User
-from app.schemas.partner import CreatePartnerRequest, PartnerOwnerRead
+from app.schemas.partner import (
+    CreatePartnerRequest,
+    PartnerOwnerRead,
+    ResetPartnerPasswordRequest,
+)
 from app.services.admin_partner_service import AdminPartnerService
 
 router = APIRouter(prefix="/admin/gyms", tags=["admin/gyms"])
@@ -65,6 +69,25 @@ async def create_owner(
     )
     await session.commit()
     return PartnerOwnerRead(**payload)
+
+
+@router.patch("/{gym_id}/owner/password", status_code=204)
+async def reset_owner_password(
+    gym_id: UUID,
+    body: ResetPartnerPasswordRequest,
+    request: Request,
+    admin: Annotated[User, Depends(current_admin)],
+    svc: Annotated[AdminPartnerService, Depends(admin_partner_service)],
+    session: Annotated[AsyncSession, Depends(db_session)],
+) -> None:
+    """Set a new password for the gym's partner login (admin-driven
+    reset; no email/SMS flow in v1). Service validates + audit-logs."""
+    await svc.reset_owner_password(
+        gym_id=gym_id,
+        password=body.password,
+        actor=authed_actor(request, admin),
+    )
+    await session.commit()
 
 
 @router.delete("/{gym_id}/owner", status_code=204)

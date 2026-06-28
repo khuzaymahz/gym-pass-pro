@@ -119,9 +119,33 @@ class AdminPartnerService:
             "gymId": str(gym.id),
         }
 
-    async def delete_owner(
-        self, *, gym_id: UUID, actor: Actor
-    ) -> None:
+    async def reset_owner_password(self, *, gym_id: UUID, password: str, actor: Actor) -> User:
+        """Set a new password for a gym's partner login.
+
+        v1 has no self-service reset (no email/SMS provider yet), so an
+        admin sets the password directly when a partner forgets theirs.
+        The hash is never recorded in the audit diff — only that a reset
+        happened. Existing access tokens stay valid until they expire;
+        a forgotten-password partner has no live session anyway, and a
+        compromised one should be revoked via delete_owner instead.
+        """
+        await self.gyms.get(gym_id)
+        owner = await self.users.get_gym_owner_for_gym(gym_id)
+        if owner is None:
+            raise AppError(ErrorCode.NOT_FOUND, "No partner attached to this gym.")
+        # `owner` is a session-tracked row; the route commits the dirty
+        # password_hash alongside the audit entry below.
+        owner.password_hash = await hash_password_async(password)
+        await self.audit.log(
+            actor=actor,
+            action="partner.password_reset",
+            entity_type="user",
+            entity_id=owner.id,
+            diff={"after": {"gym_id": str(gym_id), "password_reset": True}},
+        )
+        return owner
+
+    async def delete_owner(self, *, gym_id: UUID, actor: Actor) -> None:
         """Soft-delete a partner login. The `users` row stays for audit;
         the partial unique index drops it from the active-owner set as
         soon as `deleted_at` is non-null, freeing the gym to receive a
@@ -129,9 +153,7 @@ class AdminPartnerService:
         await self.gyms.get(gym_id)
         owner = await self.users.get_gym_owner_for_gym(gym_id)
         if owner is None:
-            raise AppError(
-                ErrorCode.NOT_FOUND, "No partner attached to this gym."
-            )
+            raise AppError(ErrorCode.NOT_FOUND, "No partner attached to this gym.")
         await self.users.soft_delete(owner, utcnow())
         await self.audit.log(
             actor=actor,
