@@ -6,6 +6,7 @@ import { useState } from "react";
 import PendingButton from "@/components/PendingButton";
 import { useToast } from "@/components/ui/Toast";
 import type { GymOwnerRead } from "@/lib/gyms";
+import { isValidJordanianPhone, normalizeJordanianPhone } from "@/lib/phone";
 
 type CreateInput = { phone: string; password: string; name: string };
 
@@ -49,12 +50,24 @@ export function GymOwnerPanel({
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
 
   async function onCreate(e: React.FormEvent) {
     e.preventDefault();
+    // Phone format can't be expressed with HTML validation; check it here
+    // (and normalise it) so a bad number doesn't 422 the create.
+    if (!isValidJordanianPhone(phone)) {
+      setPhoneError(t("phoneInvalid"));
+      return;
+    }
+    setPhoneError(null);
     setBusy(true);
     setError(null);
-    const result = await createAction({ phone, password, name });
+    const result = await createAction({
+      phone: normalizeJordanianPhone(phone),
+      password,
+      name,
+    });
     setBusy(false);
     if (!result.ok) {
       const msg = result.error || tCommon("errorGeneric");
@@ -138,14 +151,28 @@ export function GymOwnerPanel({
             <input
               type="tel"
               dir="ltr"
-              className="input input-sm num"
+              className={`input input-sm num${phoneError ? " border-red-500/60" : ""}`}
               required
               minLength={8}
               maxLength={32}
               placeholder="+962 7X XXX XXXX"
+              aria-invalid={phoneError ? true : undefined}
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => {
+                setPhone(e.target.value);
+                if (phoneError) setPhoneError(null);
+              }}
+              onBlur={() =>
+                setPhoneError(
+                  phone.trim() && !isValidJordanianPhone(phone)
+                    ? t("phoneInvalid")
+                    : null,
+                )
+              }
             />
+            {phoneError ? (
+              <span className="text-[11px] text-red-300">{phoneError}</span>
+            ) : null}
           </label>
           <label className="field">
             <span className="field-label">{t("passwordLabel")}</span>
