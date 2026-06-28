@@ -3,8 +3,8 @@ WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 
 FROM base AS deps
-COPY package.json ./
-RUN npm install --no-audit --no-fund --loglevel=error
+COPY package.json package-lock.json* ./
+RUN npm ci --no-audit --no-fund --loglevel=error
 
 FROM deps AS dev
 COPY . .
