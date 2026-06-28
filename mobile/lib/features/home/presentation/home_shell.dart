@@ -173,6 +173,11 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   void _onPointerUp(PointerUpEvent e) {
     final start = _dragStart;
     if (start == null) return;
+
+    // Explore tab owns horizontal gestures — flutter_map needs them for
+    // panning. Don't let the shell intercept them for tab switching.
+    if (widget.navigationShell.currentIndex == HomeShell._exploreIndex) return;
+
     final cumulativeDx = e.localPosition.dx - start.dx;
 
     // Require at least 70 px of net horizontal travel.

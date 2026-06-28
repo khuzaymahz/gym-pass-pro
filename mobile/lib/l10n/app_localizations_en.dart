@@ -1869,7 +1869,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get helpHomeTitle => 'Home';
   @override
-  String get helpHome1 => 'Swipe left or right anywhere on the screen — not just the tab bar — to jump between Home, Explore, Scan, and Profile.';
+  String get helpHome1 => 'Swipe left or right on Home, Scan, or Profile to jump between tabs. The Explore map is excluded — swipe there pans the map instead of switching tabs.';
   @override
   String get helpHome2 => 'Pull down on this page to force-refresh your subscription status and nearby gym data.';
   @override
@@ -1881,7 +1881,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get helpExplore2 => "Double-tap a map pin to open that gym's full profile directly — a single tap just shows a quick preview card.";
   @override
-  String get helpExplore3 => "Swipe left or right on the map to switch tabs. You don't need to reach the tab bar at the bottom.";
+  String get helpExplore3 => 'To switch tabs from the map, use the tab bar at the bottom — horizontal swipes on the map pan it instead of switching tabs.';
   @override
   String get helpScanTitle => 'Check In';
   @override

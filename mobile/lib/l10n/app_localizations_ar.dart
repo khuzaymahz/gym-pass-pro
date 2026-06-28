@@ -1875,7 +1875,7 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get helpHomeTitle => 'الرئيسية';
   @override
-  String get helpHome1 => 'مرّر لليسار أو اليمين في أي مكان على الشاشة — ليس فقط شريط التبويبات — للانتقال بين الرئيسية والاستكشاف والمسح والملف الشخصي.';
+  String get helpHome1 => 'مرّر لليسار أو اليمين في شاشات الرئيسية أو المسح أو الملف الشخصي للتنقل بين التبويبات. خريطة الاستكشاف مستثناة — التمرير فيها يحرّك الخريطة وليس التبويبات.';
   @override
   String get helpHome2 => 'اسحب للأسفل في هذه الصفحة لتحديث حالة اشتراكك وبيانات الأندية القريبة.';
   @override
@@ -1887,7 +1887,7 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get helpExplore2 => 'انقر مرتين على دبوس خريطة لفتح ملف النادي مباشرة — نقرة واحدة فقط تعرض بطاقة معاينة سريعة.';
   @override
-  String get helpExplore3 => 'مرّر لليسار أو اليمين على الخريطة للتنقل بين التبويبات — لا حاجة للوصول إلى شريط التبويبات في الأسفل.';
+  String get helpExplore3 => 'للتنقل بين التبويبات أثناء تصفح الخريطة، استخدم شريط التبويبات في الأسفل — التمرير الأفقي على الخريطة يحرّكها فقط ولا ينتقل للتبويبات.';
   @override
   String get helpScanTitle => 'تسجيل الدخول';
   @override
