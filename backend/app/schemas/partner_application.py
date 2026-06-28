@@ -36,7 +36,6 @@ class PartnerApplicationSubmit(BaseModel):
     password: str = Field(min_length=8, max_length=128)
 
     gym_name_en: str = Field(alias="gymNameEn", min_length=1, max_length=128)
-    gym_name_ar: str = Field(alias="gymNameAr", min_length=1, max_length=128)
     gym_area: str = Field(alias="gymArea", min_length=1, max_length=64)
     gym_address_en: str = Field(
         alias="gymAddressEn", min_length=1, max_length=512,
@@ -84,7 +83,6 @@ class PartnerApplicationRead(BaseModel):
     owner_phone: str = Field(alias="ownerPhone")
     owner_email: str | None = Field(alias="ownerEmail")
     gym_name_en: str = Field(alias="gymNameEn")
-    gym_name_ar: str = Field(alias="gymNameAr")
     gym_area: str = Field(alias="gymArea")
     gym_address_en: str = Field(alias="gymAddressEn")
     gym_address_ar: str = Field(alias="gymAddressAr")

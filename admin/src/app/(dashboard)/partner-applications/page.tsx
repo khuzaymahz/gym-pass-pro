@@ -92,9 +92,6 @@ export default async function PartnerApplicationsPage(props: {
                     >
                       {a.gymNameEn}
                     </Link>
-                    <div className="truncate text-[11.5px] text-muted">
-                      {a.gymNameAr}
-                    </div>
                   </td>
                   <td className="text-paper/80">
                     {a.ownerName}

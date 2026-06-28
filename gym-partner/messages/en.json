@@ -43,7 +43,6 @@
     "password": "Choose a password",
     "passwordHint": "At least 8 characters. You'll use this to log in after approval.",
     "gymNameEn": "Gym name (English)",
-    "gymNameAr": "Gym name (Arabic)",
     "gymArea": "Area / neighbourhood",
     "gymAreaPlaceholder": "Abdoun, Sweifieh, Khalda…",
     "gymAddressEn": "Address (English)",
@@ -173,7 +172,6 @@
       }
     },
     "nameEn": "Name (English)",
-    "nameAr": "Name (Arabic)",
     "addressEn": "Address (English)",
     "addressAr": "Address (Arabic)",
     "area": "Area",

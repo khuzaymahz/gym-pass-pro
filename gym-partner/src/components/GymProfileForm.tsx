@@ -64,7 +64,6 @@ export function GymProfileForm({ gym }: { gym: GymRead }) {
       String(data.get(key) ?? "").trim();
     const body: GymUpdateBody = {
       nameEn: trimmed("nameEn"),
-      nameAr: trimmed("nameAr"),
       addressEn: trimmed("addressEn"),
       addressAr: trimmed("addressAr"),
       area: trimmed("area"),
@@ -103,14 +102,6 @@ export function GymProfileForm({ gym }: { gym: GymRead }) {
             defaultValue={gym.nameEn}
             maxLength={FIELD_LIMITS.name}
             required
-          />
-          <Field
-            label={t("nameAr")}
-            name="nameAr"
-            defaultValue={gym.nameAr}
-            maxLength={FIELD_LIMITS.name}
-            required
-            dir="rtl"
           />
           <Field
             label={t("addressEn")}

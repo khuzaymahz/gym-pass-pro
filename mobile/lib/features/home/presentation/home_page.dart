@@ -331,9 +331,6 @@ class _HomePageState extends ConsumerState<HomePage> {
                   // raw backend order otherwise. See the `nearYou`
                   // assignment above for the rationale.
                   final firstThree = nearYou.take(3).toList();
-                  final isAr = Localizations.localeOf(context)
-                          .languageCode ==
-                      'ar';
                   // Backend stores `/media/...` as a relative path, so the
                   // app has to prefix the API base URL before handing the
                   // string to CachedNetworkImage. Without this the logo
@@ -346,7 +343,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                           (g) => Padding(
                             padding: const EdgeInsets.only(bottom: 10),
                             child: GymRow(
-                              gym: _gymSummaryToGPGym(g, isAr: isAr),
+                              gym: _gymSummaryToGPGym(g),
                               logoUrl: g.logoUrl == null
                                   ? null
                                   : resolveMediaUrl(apiBaseUrl, g.logoUrl!),
@@ -805,8 +802,8 @@ class _CategoryGrid extends ConsumerWidget {
 /// the only place that bridge lives — every backend-driven render
 /// goes through it so we can't accidentally show a hardcoded `seed`
 /// row in a list that's supposed to be live.
-GPGym _gymSummaryToGPGym(GymSummary s, {required bool isAr}) {
-  return gymSummaryToGPGym(s, isAr: isAr);
+GPGym _gymSummaryToGPGym(GymSummary s) {
+  return gymSummaryToGPGym(s);
 }
 
 /// Sort `gyms` ascending by great-circle distance from
@@ -844,10 +841,10 @@ double? _distance(GymSummary g, double userLat, double userLng) {
 /// widget can reuse the same field mapping. Kept in this file because
 /// home was the first consumer; importing from here is fine since the
 /// file is already on the hot path.
-GPGym gymSummaryToGPGym(GymSummary s, {required bool isAr}) {
+GPGym gymSummaryToGPGym(GymSummary s) {
   return GPGym(
     slug: s.slug,
-    name: isAr && s.nameAr.isNotEmpty ? s.nameAr : s.nameEn,
+    name: s.nameEn,
     area: s.area ?? '',
     category: s.category ?? 'gym',
     tier: s.tier ?? 'silver',

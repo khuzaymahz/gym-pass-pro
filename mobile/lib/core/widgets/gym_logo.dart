@@ -57,7 +57,7 @@ class GymLogo extends StatelessWidget {
     final tierKey = summary.tier ?? 'silver';
     final shim = GPGym(
       slug: summary.slug,
-      name: summary.nameEn.isNotEmpty ? summary.nameEn : summary.nameAr,
+      name: summary.nameEn,
       area: summary.area ?? '',
       category: summary.category ?? 'gym',
       tier: tierKey,

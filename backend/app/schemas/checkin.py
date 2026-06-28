@@ -19,7 +19,6 @@ class CheckinResult(BaseModel):
     checkin_id: UUID | None = Field(alias="checkinId", default=None)
     gym_id: UUID | None = Field(alias="gymId", default=None)
     gym_name_en: str | None = Field(alias="gymNameEn", default=None)
-    gym_name_ar: str | None = Field(alias="gymNameAr", default=None)
     scanned_at: datetime | None = Field(alias="scannedAt", default=None)
     remaining_visits: int | None = Field(alias="remainingVisits", default=None)
     reason: str | None = None
@@ -31,7 +30,6 @@ class CheckinHistoryItem(BaseModel):
     id: UUID
     gym_id: UUID = Field(alias="gymId")
     gym_name_en: str = Field(alias="gymNameEn")
-    gym_name_ar: str = Field(alias="gymNameAr")
     scanned_at: datetime = Field(alias="scannedAt")
     status: CheckinStatus
 

@@ -280,8 +280,7 @@ class _GymListRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context);
     final gp = context.gp;
-    final isAr = Localizations.localeOf(context).languageCode == 'ar';
-    final name = isAr && gym.nameAr.isNotEmpty ? gym.nameAr : gym.nameEn;
+    final name = gym.nameEn;
     // Strict tier lookup — see the matching pattern in
     // `GymPinMarker`. The list-row hero ring is the same
     // tier-colour cue the map pin uses, and the same rule applies:

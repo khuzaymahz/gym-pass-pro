@@ -170,7 +170,6 @@ class GymService:
 def _snapshot(gym: Gym) -> dict[str, object]:
     return {
         "name_en": gym.name_en,
-        "name_ar": gym.name_ar,
         "area": gym.area,
         "category": gym.category.value,
         "required_tier": gym.required_tier.value,

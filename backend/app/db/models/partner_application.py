@@ -49,7 +49,6 @@ class PartnerApplication(Base):
 
     # Gym identity — becomes the Gym row on approval.
     gym_name_en: Mapped[str] = mapped_column(nullable=False)
-    gym_name_ar: Mapped[str] = mapped_column(nullable=False)
     gym_area: Mapped[str] = mapped_column(nullable=False)
     gym_address_en: Mapped[str] = mapped_column(nullable=False)
     gym_address_ar: Mapped[str] = mapped_column(nullable=False)

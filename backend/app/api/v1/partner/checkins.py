@@ -64,7 +64,6 @@ async def list_checkins(
             userPhone=mask_phone_for_partner(u.phone),
             gymId=str(g.id),
             gymNameEn=g.name_en,
-            gymNameAr=g.name_ar,
             status=c.status,
             scannedAt=c.scanned_at,
             failureReason=c.failure_reason,

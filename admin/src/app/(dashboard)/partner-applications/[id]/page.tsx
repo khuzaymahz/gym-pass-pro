@@ -110,7 +110,6 @@ export default async function PartnerApplicationDetailPage(props: {
         <h2 className="label">{t("sectionGym")}</h2>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <FieldRow label={t("gymNameEn")} value={app.gymNameEn} dir="ltr" />
-          <FieldRow label={t("gymNameAr")} value={app.gymNameAr} />
           <FieldRow label={t("gymArea")} value={app.gymArea} />
           <FieldRow label={t("gymPhone")} value={app.gymPhone ?? "—"} dir="ltr" />
           <FieldRow

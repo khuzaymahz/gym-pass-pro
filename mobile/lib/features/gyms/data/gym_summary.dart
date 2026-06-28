@@ -2,7 +2,6 @@ class GymSummary {
   final String id;
   final String slug;
   final String nameEn;
-  final String nameAr;
   final String? logoUrl;
   final String? category;
   final String? tier;
@@ -54,7 +53,6 @@ class GymSummary {
     required this.id,
     required this.slug,
     required this.nameEn,
-    required this.nameAr,
     this.logoUrl,
     this.category,
     this.tier,
@@ -73,7 +71,6 @@ class GymSummary {
       id: json['id'] as String,
       slug: json['slug'] as String,
       nameEn: (json['nameEn'] ?? json['name_en'] ?? '') as String,
-      nameAr: (json['nameAr'] ?? json['name_ar'] ?? '') as String,
       logoUrl: (json['logoUrl'] ?? json['logo_url']) as String?,
       category: json['category'] as String?,
       tier: (json['requiredTier'] ?? json['required_tier']) as String?,

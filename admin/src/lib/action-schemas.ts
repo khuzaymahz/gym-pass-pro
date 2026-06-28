@@ -83,7 +83,6 @@ export const GymUpsertBodySchema = z
   .object({
     slug: z.string().regex(/^[a-z0-9-]{2,64}$/),
     nameEn: z.string().min(1).max(128),
-    nameAr: z.string().min(1).max(128),
     addressEn: z.string().min(1).max(512),
     addressAr: z.string().min(1).max(512),
     area: z.string().min(1).max(64),

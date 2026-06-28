@@ -8,7 +8,6 @@ export type GymRead = {
   id: string;
   slug: string;
   nameEn: string;
-  nameAr: string;
   addressEn: string;
   addressAr: string;
   area: string;

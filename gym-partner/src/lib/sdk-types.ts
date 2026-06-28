@@ -46,7 +46,6 @@ export type GymRead = {
   id: string;
   slug: string;
   nameEn: string;
-  nameAr: string;
   addressEn: string;
   addressAr: string;
   area: string;
@@ -70,7 +69,6 @@ export type GymRead = {
 
 export type GymUpdateBody = Partial<{
   nameEn: string;
-  nameAr: string;
   addressEn: string;
   addressAr: string;
   area: string;
@@ -101,7 +99,6 @@ export type PartnerCheckin = {
   userPhone: string | null;
   gymId: string;
   gymNameEn: string;
-  gymNameAr: string;
   status: CheckinStatus;
   scannedAt: string;
   failureReason: string | null;

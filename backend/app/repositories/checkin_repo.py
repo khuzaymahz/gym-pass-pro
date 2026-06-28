@@ -175,7 +175,6 @@ class CheckinRepository:
                 "userId": str(u.id),
                 "userName": u.name,
                 "gymNameEn": g.name_en,
-                "gymNameAr": g.name_ar,
                 "status": c.status.value,
                 "scannedAt": c.scanned_at.isoformat(),
             }

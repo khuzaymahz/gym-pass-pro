@@ -135,7 +135,6 @@ export type AdminUserDetailCheckin = {
   id: string;
   gymId: string;
   gymNameEn: string;
-  gymNameAr: string;
   status: CheckinStatus;
   scannedAt: string;
   failureReason: string | null;
@@ -254,7 +253,6 @@ export type AdminDayPassOffering = {
   id: string;
   gymId: string;
   gymNameEn: string;
-  gymNameAr: string;
   gymSlug: string;
   isEnabled: boolean;
   priceJod: string;
@@ -297,7 +295,6 @@ export type AdminCheckin = {
   userPhone: string | null;
   gymId: string;
   gymNameEn: string;
-  gymNameAr: string;
   status: CheckinStatus;
   scannedAt: string;
   failureReason: string | null;
@@ -376,7 +373,6 @@ export type DashboardMetrics = {
   topGymsByCheckins: {
     gymId: string;
     nameEn: string;
-    nameAr: string;
     count: number;
   }[];
   recentSignups: {
@@ -391,7 +387,6 @@ export type DashboardMetrics = {
     userId: string;
     userName: string | null;
     gymNameEn: string;
-    gymNameAr: string;
     status: CheckinStatus;
     scannedAt: string;
   }[];
@@ -854,7 +849,6 @@ export type PartnerApplicationRead = {
   ownerPhone: string;
   ownerEmail: string | null;
   gymNameEn: string;
-  gymNameAr: string;
   gymArea: string;
   gymAddressEn: string;
   gymAddressAr: string;
