@@ -865,7 +865,7 @@ class _PastDayPassRow extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      pass.name(isAr: isAr),
+                      pass.name,
                       style: GPText.body(
                         size: 13,
                         color: gp.mutedSoft,

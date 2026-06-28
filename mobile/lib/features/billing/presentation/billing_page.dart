@@ -463,7 +463,7 @@ class _DayPassReceiptTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  pass.name(isAr: isAr),
+                  pass.name,
                   style: GPText.body(
                     size: 13,
                     color: gp.fg,
