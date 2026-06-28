@@ -7,6 +7,7 @@ import { useState } from "react";
 import GymForm from "@/components/GymForm";
 import CollapsibleSection from "@/components/ui/CollapsibleSection";
 import type { GymRead } from "@/lib/gyms";
+import { isValidJordanianPhone, normalizeJordanianPhone } from "@/lib/phone";
 
 type CreateGymAction = (
   data: Partial<GymRead>,
@@ -47,18 +48,36 @@ export default function NewGymForm({
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [photos, setPhotos] = useState<File[]>([]);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+
+  // Validate the optional partner login, setting per-field errors. The
+  // backend needs phone (a real Jordanian mobile) + name + an 8+ char
+  // password together — catching it here (before the gym is created)
+  // avoids creating an orphaned gym then 422-ing on the owner POST.
+  // "All or nothing": any touched field makes all three required.
+  function validateOwner(): boolean {
+    const wantsOwner = Boolean(phone.trim() || name.trim() || password);
+    if (!wantsOwner) {
+      setPhoneError(null);
+      setNameError(null);
+      setPasswordError(null);
+      return true;
+    }
+    const pErr = isValidJordanianPhone(phone) ? null : tOwner("phoneInvalid");
+    const nErr = name.trim() ? null : tOwner("nameRequired");
+    const pwErr = password.length >= 8 ? null : tOwner("passwordShort");
+    setPhoneError(pErr);
+    setNameError(nErr);
+    setPasswordError(pwErr);
+    return !pErr && !nErr && !pwErr;
+  }
 
   async function action(data: Partial<GymRead>) {
-    // Validate the optional partner login BEFORE creating the gym. The
-    // backend requires phone + name + password together; a half-filled
-    // login would otherwise 422 *after* the gym row exists, orphaning it.
-    // "All or nothing": any touched field means all three are required.
     const wantsOwner = Boolean(phone.trim() || name.trim() || password);
-    if (
-      wantsOwner &&
-      (!phone.trim() || !name.trim() || password.length < 8)
-    ) {
-      return { ok: false, error: tCreate("ownerIncomplete") };
+    if (!validateOwner()) {
+      return { ok: false, error: tCreate("fixPartnerFields") };
     }
 
     const created = await createGymAction(data);
@@ -72,7 +91,7 @@ export default function NewGymForm({
     // finish — re-submitting here would re-POST the slug and hard-collide.
     if (wantsOwner) {
       const owner = await createOwnerAction(gymId, {
-        phone: phone.trim(),
+        phone: normalizeJordanianPhone(phone),
         name: name.trim(),
         password,
       });
@@ -107,33 +126,68 @@ export default function NewGymForm({
             <input
               type="tel"
               dir="ltr"
-              className="input input-sm"
+              className={`input input-sm${phoneError ? " border-red-500/60" : ""}`}
               maxLength={32}
               placeholder="+962 7X XXX XXXX"
+              aria-invalid={phoneError ? true : undefined}
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => {
+                setPhone(e.target.value);
+                if (phoneError) setPhoneError(null);
+              }}
+              onBlur={() =>
+                setPhoneError(
+                  phone.trim() && !isValidJordanianPhone(phone)
+                    ? tOwner("phoneInvalid")
+                    : null,
+                )
+              }
             />
+            {phoneError ? (
+              <span className="text-[11px] text-red-300">{phoneError}</span>
+            ) : null}
           </label>
           <label className="field">
             <span className="field-label">{tOwner("namedLabel")}</span>
             <input
-              className="input input-sm"
+              className={`input input-sm${nameError ? " border-red-500/60" : ""}`}
               maxLength={128}
+              aria-invalid={nameError ? true : undefined}
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value);
+                if (nameError) setNameError(null);
+              }}
             />
+            {nameError ? (
+              <span className="text-[11px] text-red-300">{nameError}</span>
+            ) : null}
           </label>
           <label className="field">
             <span className="field-label">{tOwner("passwordLabel")}</span>
             <input
               type="text"
-              className="input input-sm"
+              className={`input input-sm${passwordError ? " border-red-500/60" : ""}`}
               minLength={8}
               maxLength={128}
               autoComplete="off"
+              aria-invalid={passwordError ? true : undefined}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (passwordError) setPasswordError(null);
+              }}
+              onBlur={() =>
+                setPasswordError(
+                  password && password.length < 8
+                    ? tOwner("passwordShort")
+                    : null,
+                )
+              }
             />
+            {passwordError ? (
+              <span className="text-[11px] text-red-300">{passwordError}</span>
+            ) : null}
           </label>
         </div>
         <p className="text-[11px] text-muted">{tOwner("createHint")}</p>

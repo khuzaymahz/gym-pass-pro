@@ -392,6 +392,7 @@
       "photosOptional": "Optional — add gym photos now, or later.",
       "photosSelected": "{count} selected",
       "ownerIncomplete": "To create a partner login, fill phone, name, and an 8+ character password — or leave all three blank.",
+      "fixPartnerFields": "Fix the highlighted partner-login fields, or clear them to skip the login.",
       "ownerFailed": "Gym created, but the partner login failed: {error}. Finish it on the gym's page.",
       "photoFailed": "Gym created, but a photo upload failed: {error}. Finish it on the gym's page."
     },
@@ -429,6 +430,9 @@
       "namedLabel": "Display name",
       "phoneLabel": "Phone",
       "passwordLabel": "Initial password",
+      "phoneInvalid": "Enter a valid Jordanian mobile (+962 7X XXX XXXX).",
+      "nameRequired": "Display name is required.",
+      "passwordShort": "Password must be at least 8 characters.",
       "idLabel": "User ID",
       "create": "Create login",
       "createHint": "Phone becomes the username. Share the password with the partner out of band — there is no email-invite flow yet.",
