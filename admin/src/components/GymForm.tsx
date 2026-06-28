@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { AmenitiesPicker } from "@/components/AmenitiesPicker";
+import { LocationPicker } from "@/components/LocationPicker";
 import { useToast } from "@/components/ui/Toast";
 import type { GymRead } from "@/lib/gyms";
 import { suggestTier } from "@/lib/tierSuggestion";
@@ -166,6 +167,26 @@ export default function GymForm({ initial, action, submitLabel }: Props) {
             {...bind("addressAr")}
           />
         </label>
+
+        {/* Map picker: search or drop a pin to capture lat/lng and
+            auto-fill the area via reverse geocoding. The lat/lng/area
+            inputs below stay editable as a manual fallback. */}
+        <div className="field md:col-span-2 lg:col-span-3">
+          <span className="field-label">{t("mapLabel")}</span>
+          <LocationPicker
+            lat={state.lat ? Number(state.lat) : null}
+            lng={state.lng ? Number(state.lng) : null}
+            onPick={({ lat, lng, area }) =>
+              setState((s) => ({
+                ...s,
+                lat: lat.toFixed(6),
+                lng: lng.toFixed(6),
+                ...(area ? { area } : {}),
+              }))
+            }
+          />
+        </div>
+
         <label className="field">
           <span className="field-label">{t("lat")}</span>
           <input
