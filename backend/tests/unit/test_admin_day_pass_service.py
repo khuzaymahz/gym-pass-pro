@@ -310,3 +310,34 @@ async def test_refund_unknown_pass_rejected(db):
     with pytest.raises(AppError) as ei:
         await svc.refund_pass(uuid7(), actor=_actor())
     assert ei.value.code is ErrorCode.DAY_PASS_NOT_FOUND
+
+
+@pytest.mark.asyncio
+async def test_get_offering_none_when_unset(db):
+    gym = _gym("dp-get-none")
+    db.add(gym)
+    await db.flush()
+    svc = _build(db)
+    assert await svc.get_offering(gym.id) is None
+
+
+@pytest.mark.asyncio
+async def test_get_offering_returns_configured(db):
+    gym = _gym("dp-get-1")
+    db.add(gym)
+    await db.flush()
+    svc = _build(db)
+    await svc.configure_offering(
+        gym.id,
+        is_enabled=True,
+        price_jod=Decimal("6.00"),
+        platform_fee_pct=Decimal("10.00"),
+        validity_hours=24,
+        daily_cap=None,
+        audience_gender_override=None,
+        actor=_actor(),
+    )
+    offering = await svc.get_offering(gym.id)
+    assert offering is not None
+    assert offering.is_enabled is True
+    assert offering.price_jod == Decimal("6.00")

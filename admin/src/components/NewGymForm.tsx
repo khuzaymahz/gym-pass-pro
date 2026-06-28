@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import GymForm from "@/components/GymForm";
@@ -37,6 +38,7 @@ export default function NewGymForm({
   createOwnerAction: CreateOwnerAction;
   uploadPhotoAction: UploadPhotoAction;
 }) {
+  const router = useRouter();
   const tOwner = useTranslations("gyms.owner");
   const tSec = useTranslations("gyms.sections");
   const tCreate = useTranslations("gyms.create");
@@ -47,31 +49,45 @@ export default function NewGymForm({
   const [photos, setPhotos] = useState<File[]>([]);
 
   async function action(data: Partial<GymRead>) {
+    // Validate the optional partner login BEFORE creating the gym. The
+    // backend requires phone + name + password together; a half-filled
+    // login would otherwise 422 *after* the gym row exists, orphaning it.
+    // "All or nothing": any touched field means all three are required.
+    const wantsOwner = Boolean(phone.trim() || name.trim() || password);
+    if (
+      wantsOwner &&
+      (!phone.trim() || !name.trim() || password.length < 8)
+    ) {
+      return { ok: false, error: tCreate("ownerIncomplete") };
+    }
+
     const created = await createGymAction(data);
     if (!created.ok || !created.gymId) {
       return { ok: false, error: created.error };
     }
     const gymId = created.gymId;
 
-    // Partner login is optional; only when both phone + password are given.
-    if (phone.trim() && password) {
+    // The gym now EXISTS. If a follow-up step fails, send the operator to
+    // the gym's edit page (which has the partner + photos sections) to
+    // finish — re-submitting here would re-POST the slug and hard-collide.
+    if (wantsOwner) {
       const owner = await createOwnerAction(gymId, {
         phone: phone.trim(),
         name: name.trim(),
         password,
       });
       if (!owner.ok) {
+        router.push(`/gyms/${gymId}`);
         return { ok: false, error: tCreate("ownerFailed", { error: owner.error ?? "" }) };
       }
     }
 
-    // Photos are optional + best-effort — the gym already exists, so a
-    // failed upload surfaces an error but doesn't roll anything back.
     for (const file of photos) {
       const fd = new FormData();
       fd.append("file", file);
       const uploaded = await uploadPhotoAction(gymId, fd);
       if (!uploaded.ok) {
+        router.push(`/gyms/${gymId}`);
         return { ok: false, error: tCreate("photoFailed", { error: uploaded.error ?? "" }) };
       }
     }

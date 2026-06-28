@@ -391,8 +391,9 @@
       "partnerOptional": "Optional — set up the partner's login now, or add it later from this gym's page.",
       "photosOptional": "Optional — add gym photos now, or later.",
       "photosSelected": "{count} selected",
-      "ownerFailed": "Gym created, but the partner login failed: {error}",
-      "photoFailed": "Gym created, but a photo upload failed: {error}"
+      "ownerIncomplete": "To create a partner login, fill phone, name, and an 8+ character password — or leave all three blank.",
+      "ownerFailed": "Gym created, but the partner login failed: {error}. Finish it on the gym's page.",
+      "photoFailed": "Gym created, but a photo upload failed: {error}. Finish it on the gym's page."
     },
     "sections": {
       "details": "Details",
