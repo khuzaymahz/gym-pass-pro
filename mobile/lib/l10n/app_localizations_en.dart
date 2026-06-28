@@ -1885,7 +1885,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get helpScanTitle => 'Check In';
   @override
-  String get helpScan1 => "You don't need to tap anything — the scanner reads the QR code and logs your visit the instant it detects it.";
+  String get helpScan1 => "Point your camera at the gym's QR code — it detects automatically. A confirmation card appears; tap 'Check in' to log your visit.";
   @override
   String get helpScan2 => 'Step back about a metre from the code if the scanner is struggling. Getting too close actually reduces accuracy.';
   @override
@@ -1947,13 +1947,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get helpFilter3 => "Tap 'Reset' at the top-right corner to clear every active filter at once and return to the full gym list.";
   @override
-  String get helpSignIn1 => 'First, type your phone number — then tap Continue. The button checks whether you already have an account or need to register; both paths start exactly the same way.';
+  String get helpSignIn1 => 'Type your phone number — the app checks automatically as you finish typing. If you have an account with a password, the password field slides in on its own. If you\'re new, tap Continue to receive your OTP.';
   @override
-  String get helpSignIn2 => 'The +962 country code is already filled in. Just type the remaining 9 digits starting with 7 (for example: 7X XXX XXXX). Do not include the leading zero.';
+  String get helpSignIn2 => "The +962 country code is pre-filled. Type your digits starting with 7 — you can include the leading zero or leave it out, the app normalises it automatically. Both '780195112' and '0780195112' work fine.";
   @override
-  String get helpSignIn3 => "Prefer not to use a phone number? Tap 'Continue with Google' at the bottom to sign in or register with your Google account instead — no OTP needed.";
+  String get helpSignIn3 => "Prefer Google? Tap 'Continue with Google' to sign in via your Google account. Google handles its own login screen — there is no OTP from GymPass. Once Google confirms you, you're signed in instantly.";
   @override
-  String get helpSignIn4 => "Already registered with a password? After you enter your number and tap Continue, a password field appears if we find your account. No OTP is sent in that case.";
+  String get helpSignIn4 => "Already have a GymPass password? Just finish typing your number — the password field appears automatically the moment the app recognises your account. You don't need to tap Continue first.";
   @override
   String get helpSignIn5 => "If you get a 'number not valid' error, make sure you haven't accidentally included the area code twice. The format is exactly 9 digits after the +962 prefix.";
   @override

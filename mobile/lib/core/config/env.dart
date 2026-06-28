@@ -60,9 +60,13 @@ class AppEnv {
   @Deprecated('Prefer useMockAuth / isProduction / isStaging')
   bool get isDev => appEnv == 'development';
 
+  // 10.0.2.2 is the Android emulator alias for the host machine.
+  // On a real device with ADB reverse (tcp:8000) active, localhost:8000
+  // is the correct address. Pass --dart-define=API_BASE_URL=... to
+  // override for any other environment.
   static const _apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8000',
+    defaultValue: 'http://localhost:8000',
   );
   static const _webBaseUrl = String.fromEnvironment(
     'WEB_BASE_URL',
