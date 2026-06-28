@@ -3,13 +3,16 @@ import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 import GymForm from "@/components/GymForm";
+import { GymDayPassPanel } from "@/components/GymDayPassPanel";
 import GymLogoPanel from "@/components/GymLogoPanel";
 import { GymOwnerPanel } from "@/components/GymOwnerPanel";
 import GymPhotosPanel from "@/components/GymPhotosPanel";
 import { GymSecurityPanel } from "@/components/GymSecurityPanel";
 import Toolbar from "@/components/Toolbar";
 import CollapsibleSection from "@/components/ui/CollapsibleSection";
+import { runAction } from "@/lib/action-result";
 import { GymUpsertBodySchema, parseAction } from "@/lib/action-schemas";
+import { AdminSDK, type AdminDayPassOfferingConfigure } from "@/lib/sdk";
 import {
   createGymOwner,
   deleteGym,
@@ -163,6 +166,14 @@ async function deleteOwnerAction(gymId: string) {
   }
 }
 
+async function configureOfferingAction(
+  gymId: string,
+  body: AdminDayPassOfferingConfigure,
+) {
+  "use server";
+  return runAction(() => AdminSDK.configureDayPassOffering(gymId, body));
+}
+
 async function resetOwnerPasswordAction(gymId: string, password: string) {
   "use server";
   try {
@@ -187,10 +198,11 @@ export default async function EditGymPage({ params }: Props) {
   // three round-trips to the slowest one. Semantics preserved: gym and
   // photos are required (404 if either fails); owner is optional (a
   // fresh gym isn't bound to a partner login yet) and soft-fails.
-  const [gymR, photosR, ownerR] = await Promise.allSettled([
+  const [gymR, photosR, ownerR, offeringR] = await Promise.allSettled([
     getGym(id),
     listGymPhotos(id),
     getGymOwner(id),
+    AdminSDK.getDayPassOffering(id),
   ]);
   if (gymR.status !== "fulfilled" || photosR.status !== "fulfilled") {
     notFound();
@@ -199,6 +211,8 @@ export default async function EditGymPage({ params }: Props) {
   const photos: GymPhotoRead[] = photosR.value;
   const owner: GymOwnerRead | null =
     ownerR.status === "fulfilled" ? ownerR.value : null;
+  const offering =
+    offeringR.status === "fulfilled" ? offeringR.value : null;
 
   const bound = updateAction.bind(null, id);
   const boundDelete = deleteAction.bind(null, id);
@@ -210,6 +224,7 @@ export default async function EditGymPage({ params }: Props) {
   const boundCreateOwner = createOwnerAction.bind(null, id);
   const boundDeleteOwner = deleteOwnerAction.bind(null, id);
   const boundResetPassword = resetOwnerPasswordAction.bind(null, id);
+  const boundConfigureOffering = configureOfferingAction.bind(null, id);
 
   const photosForPanel = photos.map((p) => ({
     ...p,
@@ -250,6 +265,17 @@ export default async function EditGymPage({ params }: Props) {
         <GymSecurityPanel
           hasOwner={owner !== null}
           resetAction={boundResetPassword}
+        />
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        title={tSec("dayPass")}
+        subtitle={tSec("dayPassSubtitle")}
+      >
+        <GymDayPassPanel
+          offering={offering}
+          gymId={id}
+          action={boundConfigureOffering}
         />
       </CollapsibleSection>
 

@@ -394,7 +394,17 @@
       "security": "Security",
       "securitySubtitle": "Reset the partner's password.",
       "logo": "Logo",
-      "photos": "Photos"
+      "photos": "Photos",
+      "dayPass": "Day pass",
+      "dayPassSubtitle": "Enable and price day passes for this gym."
+    },
+    "dayPass": {
+      "on": "On",
+      "off": "Off",
+      "price": "{price} JOD",
+      "validity": "valid {hours}h",
+      "cap": "cap {cap}/day",
+      "notSetUp": "No day pass configured yet — set a price and enable it below."
     },
     "security": {
       "noOwner": "Create a partner login first to manage its password.",

@@ -668,6 +668,13 @@ export const AdminSDK = {
       token: await serviceToken(),
     });
   },
+  async getDayPassOffering(
+    gymId: string,
+  ): Promise<AdminDayPassOffering | null> {
+    return api(`/api/v1/admin/day-pass/offerings/${gymId}`, {
+      token: await serviceToken(),
+    });
+  },
   async listDayPasses(params: {
     status?: DayPassStatus;
     gymId?: string;
