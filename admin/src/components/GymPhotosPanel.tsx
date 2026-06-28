@@ -112,16 +112,13 @@ export default function GymPhotosPanel({
   const busy = pending || uploading;
 
   return (
-    <section className="panel flex flex-col gap-3 p-4">
-      <header className="flex items-center justify-between">
-        <div>
-          <h2 className="text-sm font-semibold">{t("title")}</h2>
-          <p className="text-[11px] text-muted">{t("description")}</p>
-        </div>
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] text-muted">{t("description")}</p>
         <span className="text-[11px] text-muted">
           {t("uploaded", { count: sorted.length })}
         </span>
-      </header>
+      </div>
 
       <form
         onSubmit={onUpload}
@@ -195,7 +192,7 @@ export default function GymPhotosPanel({
           ))}
         </ul>
       )}
-    </section>
+    </div>
   );
 }
 

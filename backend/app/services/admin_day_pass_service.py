@@ -44,6 +44,11 @@ class AdminDayPassService:
 
     # ----- Offerings -----
 
+    async def get_offering(self, gym_id: UUID) -> DayPassOffering | None:
+        """A gym's day-pass offering, or None if it has none yet.
+        Read-only; the gym detail page uses it to pre-fill the control."""
+        return await self.offerings.for_gym(gym_id)
+
     async def list_offerings(
         self, *, enabled: bool | None, page: int, page_size: int
     ) -> tuple[list[tuple[DayPassOffering, Gym]], int]:

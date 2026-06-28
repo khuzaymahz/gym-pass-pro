@@ -92,15 +92,7 @@ export function GymOwnerPanel({
   }
 
   return (
-    <section className="panel flex flex-col gap-4 p-4">
-      <header className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className="text-[14px] font-semibold text-paper">
-            {t("title")}
-          </h2>
-          <p className="text-[12px] text-muted">{t("subtitle")}</p>
-        </div>
-      </header>
+    <div className="flex flex-col gap-4">
 
       {owner ? (
         <div className="flex flex-col gap-3">
@@ -195,7 +187,7 @@ export function GymOwnerPanel({
           </div>
         </form>
       )}
-    </section>
+    </div>
   );
 }
 

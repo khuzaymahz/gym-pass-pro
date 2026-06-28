@@ -53,6 +53,32 @@ async def list_offerings(
     return Page[AdminDayPassOfferingRead](items=items, total=total, page=page, pageSize=page_size)
 
 
+@router.get("/offerings/{gym_id}", response_model=AdminDayPassOfferingRead | None)
+async def get_offering(
+    gym_id: UUID,
+    svc: Annotated[AdminDayPassService, Depends(admin_day_pass_service)],
+    _: Annotated[User, Depends(current_admin)],
+) -> AdminDayPassOfferingRead | None:
+    """Read a single gym's offering so the gym detail page can pre-fill
+    its day-pass control. gymNameEn/gymSlug are left blank — the caller
+    already has the gym in hand."""
+    offering = await svc.get_offering(gym_id)
+    if offering is None:
+        return None
+    return AdminDayPassOfferingRead(
+        id=offering.id,
+        gymId=gym_id,
+        gymNameEn="",
+        gymSlug="",
+        isEnabled=offering.is_enabled,
+        priceJod=offering.price_jod,
+        platformFeePct=offering.platform_fee_pct,
+        validityHours=offering.validity_hours,
+        dailyCap=offering.daily_cap,
+        audienceGenderOverride=offering.audience_gender_override,
+    )
+
+
 @router.put("/offerings/{gym_id}", response_model=AdminDayPassOfferingRead)
 async def configure_offering(
     gym_id: UUID,
