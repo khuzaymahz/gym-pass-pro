@@ -519,7 +519,9 @@ async def main() -> None:
                 "review_count": reviews,
             }
 
-        for slug, name_en, name_ar, area, city, category, tier, lat, lng, audience in GYMS:
+        # `_name_ar` is retained in the GYMS tuples (legacy seed data) but
+        # no longer persisted — gyms are English-name-only. See migration 0025.
+        for slug, name_en, _name_ar, area, city, category, tier, lat, lng, audience in GYMS:
             if slug in existing_slugs:
                 continue
             enrich = enrichment_for(slug, category, tier)
@@ -527,7 +529,6 @@ async def main() -> None:
                 id=uuid7(),
                 slug=slug,
                 name_en=name_en,
-                name_ar=name_ar,
                 address_en=f"{area}, {city}",
                 address_ar=f"{area}, {ar_city.get(city, city)}",
                 area=area,

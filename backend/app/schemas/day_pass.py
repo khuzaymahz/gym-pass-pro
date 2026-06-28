@@ -113,7 +113,6 @@ class DayPassRead(BaseModel):
     gym_id: UUID = Field(alias="gymId")
     gym_slug: str = Field(alias="gymSlug")
     gym_name_en: str = Field(alias="gymNameEn")
-    gym_name_ar: str = Field(alias="gymNameAr")
     status: DayPassStatus
     price_jod: Decimal = Field(alias="priceJod")
     purchased_at: datetime = Field(alias="purchasedAt")

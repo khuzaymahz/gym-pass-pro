@@ -141,7 +141,6 @@ class AdminUserDetailCheckin(BaseModel):
     id: UUID
     gym_id: UUID = Field(alias="gymId")
     gym_name_en: str = Field(alias="gymNameEn")
-    gym_name_ar: str = Field(alias="gymNameAr")
     status: CheckinStatus
     scanned_at: datetime = Field(alias="scannedAt")
     failure_reason: str | None = Field(alias="failureReason", default=None)
@@ -360,7 +359,6 @@ class AdminDayPassOfferingRead(BaseModel):
     id: UUID
     gym_id: UUID = Field(alias="gymId")
     gym_name_en: str = Field(alias="gymNameEn")
-    gym_name_ar: str = Field(alias="gymNameAr")
     gym_slug: str = Field(alias="gymSlug")
     is_enabled: bool = Field(alias="isEnabled")
     price_jod: Decimal = Field(alias="priceJod")
@@ -425,7 +423,6 @@ class AdminCheckinListItem(BaseModel):
     user_phone: str | None = Field(alias="userPhone", default=None)
     gym_id: UUID = Field(alias="gymId")
     gym_name_en: str = Field(alias="gymNameEn")
-    gym_name_ar: str = Field(alias="gymNameAr")
     status: CheckinStatus
     scanned_at: datetime = Field(alias="scannedAt")
     failure_reason: str | None = Field(alias="failureReason", default=None)

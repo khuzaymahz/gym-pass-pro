@@ -94,7 +94,6 @@ async def scan(
         checkinId=checkin.id,
         gymId=gym.id if gym else None,
         gymNameEn=gym.name_en if gym else None,
-        gymNameAr=gym.name_ar if gym else None,
         scannedAt=checkin.scanned_at,
         remainingVisits=result.remaining,
     )
@@ -111,7 +110,6 @@ async def my_checkins(
             id=c.id,
             gymId=g.id,
             gymNameEn=g.name_en,
-            gymNameAr=g.name_ar,
             scannedAt=c.scanned_at,
             status=c.status,
         )

@@ -15,7 +15,6 @@ def _gym(slug: str, name: str) -> Gym:
         id=uuid7(),
         slug=slug,
         name_en=name,
-        name_ar=name,
         address_en="addr",
         address_ar="addr",
         area="Amman",

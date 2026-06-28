@@ -9,7 +9,6 @@ class CheckinResult {
     required this.status,
     this.gymSlug,
     this.gymNameEn,
-    this.gymNameAr,
     this.gymArea,
     this.remainingVisits,
     this.reason,
@@ -18,7 +17,6 @@ class CheckinResult {
   final String status;
   final String? gymSlug;
   final String? gymNameEn;
-  final String? gymNameAr;
 
   /// Neighborhood / district label as stored in [GPGym.area]. Rendered on
   /// the success screen next to the timestamp. Not localized — Jordan
@@ -32,7 +30,6 @@ class CheckinResult {
       status: json['status'] as String,
       gymSlug: json['gymSlug'] as String?,
       gymNameEn: json['gymNameEn'] as String?,
-      gymNameAr: json['gymNameAr'] as String?,
       gymArea: json['gymArea'] as String?,
       remainingVisits: json['remainingVisits'] as int?,
       reason: json['reason'] as String?,

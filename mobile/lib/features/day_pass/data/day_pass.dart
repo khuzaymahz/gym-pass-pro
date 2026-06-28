@@ -56,7 +56,6 @@ class DayPass {
     required this.gymId,
     required this.gymSlug,
     required this.gymNameEn,
-    required this.gymNameAr,
     required this.status,
     required this.priceJod,
     required this.purchasedAt,
@@ -68,7 +67,6 @@ class DayPass {
   final String gymId;
   final String gymSlug;
   final String gymNameEn;
-  final String gymNameAr;
   final String status;
   final double priceJod;
   final DateTime purchasedAt;
@@ -82,10 +80,9 @@ class DayPass {
   bool isActive(DateTime now) =>
       status == 'active' && expiresAt.isAfter(now);
 
-  /// Localized gym name selector — matches the rest of the app's
-  /// AR-default rendering.
-  String name({required bool isAr}) =>
-      isAr ? (gymNameAr.isNotEmpty ? gymNameAr : gymNameEn) : gymNameEn;
+  /// Gym name. English-only across the app — gyms no longer carry a
+  /// separate Arabic name.
+  String get name => gymNameEn;
 
   factory DayPass.fromJson(Map<String, dynamic> json) {
     return DayPass(
@@ -93,7 +90,6 @@ class DayPass {
       gymId: json['gymId']?.toString() ?? '',
       gymSlug: json['gymSlug']?.toString() ?? '',
       gymNameEn: json['gymNameEn']?.toString() ?? '',
-      gymNameAr: json['gymNameAr']?.toString() ?? '',
       status: json['status']?.toString() ?? 'active',
       priceJod: double.tryParse((json['priceJod'] ?? '0').toString()) ?? 0,
       purchasedAt:

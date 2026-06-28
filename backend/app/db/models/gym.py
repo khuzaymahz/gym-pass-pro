@@ -25,7 +25,6 @@ class Gym(Base):
     id: Mapped[UUIDCol]
     slug: Mapped[str] = mapped_column(nullable=False, unique=True)
     name_en: Mapped[str] = mapped_column(nullable=False)
-    name_ar: Mapped[str] = mapped_column(nullable=False)
     address_en: Mapped[str] = mapped_column(nullable=False)
     address_ar: Mapped[str] = mapped_column(nullable=False)
     area: Mapped[str] = mapped_column(nullable=False)

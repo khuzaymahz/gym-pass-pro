@@ -43,7 +43,6 @@
     "password": "Choose a password",
     "passwordHint": "At least 8 characters. You'll use this to log in after approval.",
     "gymNameEn": "Gym name (English)",
-    "gymNameAr": "Gym name (Arabic)",
     "gymArea": "Area / neighbourhood",
     "gymAreaPlaceholder": "Abdoun, Sweifieh, Khalda…",
     "gymAddressEn": "Address (English)",
@@ -51,7 +50,13 @@
     "gymPhone": "Gym phone (optional)",
     "gymLat": "Latitude",
     "gymLng": "Longitude",
-    "latLngHint": "Find your gym on Google Maps, right-click the pin, the first numbers are lat/lng.",
+    "mapLabel": "Location",
+    "map": {
+      "searchPlaceholder": "Search address or place…",
+      "searching": "Searching…",
+      "hint": "Search, or click / drag the pin to set the location. Area fills automatically."
+    },
+    "latLngHint": "Picked from the map above — you can also type the coordinates by hand.",
     "category": "Category",
     "audience": "Who can attend",
     "categories": {
@@ -167,7 +172,6 @@
       }
     },
     "nameEn": "Name (English)",
-    "nameAr": "Name (Arabic)",
     "addressEn": "Address (English)",
     "addressAr": "Address (Arabic)",
     "area": "Area",

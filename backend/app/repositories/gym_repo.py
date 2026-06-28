@@ -36,7 +36,6 @@ class GymRepository:
             select(
                 Gym.id,
                 Gym.name_en,
-                Gym.name_ar,
                 func.count(Checkin.id).label("count"),
             )
             .join(Checkin, Checkin.gym_id == Gym.id)
@@ -45,7 +44,7 @@ class GymRepository:
                 Checkin.scanned_at >= since,
                 Gym.deleted_at.is_(None),
             )
-            .group_by(Gym.id, Gym.name_en, Gym.name_ar)
+            .group_by(Gym.id, Gym.name_en)
             .order_by(func.count(Checkin.id).desc())
             .limit(limit)
         )
@@ -54,8 +53,7 @@ class GymRepository:
             {
                 "gymId": str(r[0]),
                 "nameEn": r[1],
-                "nameAr": r[2],
-                "count": int(r[3]),
+                "count": int(r[2]),
             }
             for r in rows
         ]
@@ -109,7 +107,6 @@ class GymRepository:
             conditions.append(
                 or_(
                     func.lower(Gym.name_en).like(like, escape="\\"),
-                    func.lower(Gym.name_ar).like(like, escape="\\"),
                     func.lower(Gym.area).like(like, escape="\\"),
                 )
             )

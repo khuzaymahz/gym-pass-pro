@@ -688,7 +688,6 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
     if (query.isEmpty) return true;
     final q = query.toLowerCase();
     return gym.nameEn.toLowerCase().contains(q) ||
-        gym.nameAr.contains(q) ||
         (gym.area?.toLowerCase().contains(q) ?? false);
   }
 

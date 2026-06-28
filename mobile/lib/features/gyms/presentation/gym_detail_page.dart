@@ -544,10 +544,8 @@ class GymDetailPage extends ConsumerWidget {
                           onPressed: () => _shareGym(
                             context: btnCtx,
                             webBase: ref.read(envProvider).webBaseUrl,
-                            nameAr: gymSummary?.nameAr ?? gym.name,
                             nameEn: gymSummary?.nameEn ?? gym.name,
                             slug: slug,
-                            isAr: isAr,
                           ),
                         );
                       },
@@ -1117,21 +1115,18 @@ void _openPhotoViewer(
 Future<void> _shareGym({
   required BuildContext context,
   required String webBase,
-  required String nameAr,
   required String nameEn,
   required String slug,
-  required bool isAr,
 }) async {
-  final displayName = isAr && nameAr.isNotEmpty ? nameAr : nameEn;
   final url = '$webBase/gyms/$slug';
-  final body = '$displayName\n$url';
+  final body = '$nameEn\n$url';
   final box = context.findRenderObject() as RenderBox?;
   final origin = box != null && box.hasSize
       ? box.localToGlobal(Offset.zero) & box.size
       : null;
   await Share.share(
     body,
-    subject: displayName,
+    subject: nameEn,
     sharePositionOrigin: origin,
   );
 }

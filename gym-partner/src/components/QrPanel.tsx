@@ -50,7 +50,6 @@ type GymHeader = {
   id: string;
   slug: string;
   nameEn: string;
-  nameAr: string;
 };
 
 export function QrPanel({ gym }: { gym: GymHeader }) {

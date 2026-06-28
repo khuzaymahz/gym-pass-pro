@@ -362,10 +362,10 @@
     "form": {
       "slug": "Slug",
       "slugTitle": "Lowercase letters, digits, and hyphens (2–64 chars)",
+      "slugLockedHint": "Permanent — shared links and the QR filename depend on it.",
       "area": "Area",
       "category": "Category",
       "nameEn": "Name (EN)",
-      "nameAr": "Name (AR)",
       "requiredTier": "Required tier",
       "matches": "Matches",
       "suggest": "Suggest {tier}",
@@ -373,6 +373,12 @@
       "addressAr": "Address (AR)",
       "lat": "Latitude",
       "lng": "Longitude",
+      "mapLabel": "Location",
+      "map": {
+        "searchPlaceholder": "Search address or place…",
+        "searching": "Searching…",
+        "hint": "Search, or click / drag the pin to set the location. Area fills automatically."
+      },
       "rate": "Rate (JOD / visit)",
       "save": "Save changes",
       "create": "Create gym",
@@ -844,7 +850,6 @@
     "ownerPhone": "Phone (login)",
     "ownerEmail": "Email",
     "gymNameEn": "Name (English)",
-    "gymNameAr": "Name (Arabic)",
     "gymArea": "Area",
     "gymAddressEn": "Address (English)",
     "gymAddressAr": "Address (Arabic)",

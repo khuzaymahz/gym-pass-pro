@@ -250,7 +250,6 @@ def _to_detail_schema(detail: UserDetail) -> AdminUserDetail:
                 id=c.id,
                 gymId=g.id,
                 gymNameEn=g.name_en,
-                gymNameAr=g.name_ar,
                 status=c.status,
                 scannedAt=c.scanned_at,
                 failureReason=c.failure_reason,

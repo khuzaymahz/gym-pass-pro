@@ -179,9 +179,15 @@ export default async function UsersPage({
                   <td className="text-right">
                     <Link
                       href={`/users/${u.id}`}
-                      className="btn-ghost btn-sm"
+                      className="group btn-secondary btn-sm whitespace-nowrap"
                     >
-                      {tCommon("open")} →
+                      {tCommon("open")}
+                      <span
+                        aria-hidden
+                        className="transition-transform duration-150 ease-out group-hover:translate-x-0.5"
+                      >
+                        →
+                      </span>
                     </Link>
                   </td>
                 </tr>

@@ -24,13 +24,10 @@ class CheckinSuccessPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(checkinControllerProvider);
     final sub = ref.watch(subscriptionProvider);
-    final isAr = Localizations.localeOf(context).languageCode == 'ar';
     // Defensive fallbacks. A successful result always carries name/area/slug
     // from the repository; these stubs only surface if the widget is hit
     // mid-flight (e.g. hot-reload) or a partial payload reaches us.
-    final gymName = isAr
-        ? (state.result?.gymNameAr ?? state.result?.gymNameEn ?? '—')
-        : (state.result?.gymNameEn ?? '—');
+    final gymName = state.result?.gymNameEn ?? '—';
     final gymArea = state.result?.gymArea ?? '';
     final gymSlug = state.result?.gymSlug;
     final tier = sub.tier!;

@@ -233,7 +233,7 @@ function GymRow({
           <span className="flex min-w-0 flex-col">
             <span className="truncate font-medium text-paper">{g.nameEn}</span>
             <span className="truncate text-[11.5px] text-muted">
-              {g.nameAr} · {g.slug}
+              {g.slug}
             </span>
           </span>
         </Link>
@@ -261,8 +261,17 @@ function GymRow({
         </StatusPill>
       </td>
       <td className="num text-right">
-        <Link href={`/gyms/${g.id}`} className="btn-ghost btn-sm">
-          {editLabel} →
+        <Link
+          href={`/gyms/${g.id}`}
+          className="group btn-secondary btn-sm whitespace-nowrap"
+        >
+          {editLabel}
+          <span
+            aria-hidden
+            className="transition-transform duration-150 ease-out group-hover:translate-x-0.5"
+          >
+            →
+          </span>
         </Link>
       </td>
     </tr>

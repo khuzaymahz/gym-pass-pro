@@ -55,7 +55,6 @@ def _gym(slug: str) -> Gym:
         id=uuid7(),
         slug=slug,
         name_en=slug.replace("-", " ").title(),
-        name_ar=slug.replace("-", " ").title(),
         address_en="123 Test St",
         address_ar="123 شارع الاختبار",
         area="Amman",
