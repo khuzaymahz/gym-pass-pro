@@ -77,6 +77,17 @@ export default function GymForm({
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
+    // Range-check the numeric fields first; surface per-field errors and
+    // bail before hitting the backend if any is out of bounds.
+    const nErrs: Partial<Record<NumKey, string>> = {};
+    for (const k of ["lat", "lng", "perVisitRateJod"] as NumKey[]) {
+      const err = rangeError(k);
+      if (err) nErrs[k] = err;
+    }
+    if (Object.keys(nErrs).length > 0) {
+      setNumErrors(nErrs);
+      return;
+    }
     setLoading(true);
     setError(null);
     const result = await action(state);
@@ -97,6 +108,48 @@ export default function GymForm({
       value: (state[key] as string) ?? "",
       onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
         setState((s) => ({ ...s, [key]: e.target.value })),
+    };
+  }
+
+  // Numeric fields (lat/lng/rate) are text inputs with a strict filter so
+  // letters can never be typed (type="number" still lets through `e`/`+`/`-`),
+  // plus a range check on blur. `signed` allows a leading minus (coordinates).
+  type NumKey = "lat" | "lng" | "perVisitRateJod";
+  const NUM_BOUNDS: Record<NumKey, { signed: boolean; min: number; max: number }> = {
+    lat: { signed: true, min: -90, max: 90 },
+    lng: { signed: true, min: -180, max: 180 },
+    perVisitRateJod: { signed: false, min: 0, max: 100 },
+  };
+  const [numErrors, setNumErrors] = useState<Partial<Record<NumKey, string>>>(
+    {},
+  );
+
+  function rangeError(key: NumKey): string | undefined {
+    const raw = (state[key] as string) ?? "";
+    if (raw === "" || raw === "-" || raw === ".") return undefined;
+    const n = Number(raw);
+    const { min, max } = NUM_BOUNDS[key];
+    if (Number.isFinite(n) && n >= min && n <= max) return undefined;
+    return t("hints.range", { min, max });
+  }
+
+  function bindNum(key: NumKey) {
+    const { signed } = NUM_BOUNDS[key];
+    const re = signed ? /^-?\d*\.?\d*$/ : /^\d*\.?\d*$/;
+    return {
+      value: (state[key] as string) ?? "",
+      inputMode: "decimal" as const,
+      "aria-invalid": numErrors[key] ? (true as const) : undefined,
+      onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+        const v = e.target.value;
+        // Reject the keystroke entirely if it isn't a valid in-progress
+        // number — the controlled value simply doesn't update.
+        if (v === "" || re.test(v)) {
+          setState((s) => ({ ...s, [key]: v }));
+          if (numErrors[key]) setNumErrors((p) => ({ ...p, [key]: undefined }));
+        }
+      },
+      onBlur: () => setNumErrors((p) => ({ ...p, [key]: rangeError(key) })),
     };
   }
 
@@ -124,9 +177,9 @@ export default function GymForm({
               setState((s) => ({ ...s, slug: e.target.value }));
             }}
           />
-          {isEdit ? (
-            <span className="text-[11px] text-muted">{t("slugLockedHint")}</span>
-          ) : null}
+          <span className="text-[11px] text-muted">
+            {isEdit ? t("slugLockedHint") : t("hints.slug")}
+          </span>
         </label>
         <label className="field">
           <span className="field-label">{t("area")}</span>
@@ -136,6 +189,7 @@ export default function GymForm({
             maxLength={FIELD_LIMITS.area}
             {...bind("area")}
           />
+          <span className="text-[11px] text-muted">{t("hints.area")}</span>
         </label>
         <label className="field">
           <span className="field-label">{t("category")}</span>
@@ -146,6 +200,7 @@ export default function GymForm({
               </option>
             ))}
           </select>
+          <span className="text-[11px] text-muted">{t("hints.category")}</span>
         </label>
         <label className="field">
           <span className="field-label">{t("nameEn")}</span>
@@ -165,6 +220,7 @@ export default function GymForm({
               }));
             }}
           />
+          <span className="text-[11px] text-muted">{t("hints.nameEn")}</span>
         </label>
         <label className="field">
           <span className="field-label">{t("requiredTier")}</span>
@@ -193,6 +249,9 @@ export default function GymForm({
                 : t("suggest", { tier: suggestion.tier })}
             </button>
           </div>
+          <span className="text-[11px] text-muted">
+            {t("hints.requiredTier")}
+          </span>
         </label>
         <label className="field md:col-span-2 lg:col-span-3">
           <span className="field-label">{t("addressEn")}</span>
@@ -202,6 +261,7 @@ export default function GymForm({
             maxLength={FIELD_LIMITS.address}
             {...bind("addressEn")}
           />
+          <span className="text-[11px] text-muted">{t("hints.addressEn")}</span>
         </label>
         <label className="field md:col-span-2 lg:col-span-3">
           <span className="field-label">{t("addressAr")}</span>
@@ -212,6 +272,7 @@ export default function GymForm({
             maxLength={FIELD_LIMITS.address}
             {...bind("addressAr")}
           />
+          <span className="text-[11px] text-muted">{t("hints.addressAr")}</span>
         </label>
 
         {/* Map picker: search or drop a pin to capture lat/lng and
@@ -236,30 +297,43 @@ export default function GymForm({
         <label className="field">
           <span className="field-label">{t("lat")}</span>
           <input
-            className="input input-sm num"
+            className={`input input-sm num${numErrors.lat ? " border-red-500/60" : ""}`}
             required
-            type="number"
-            step="0.000001"
-            {...bind("lat")}
+            {...bindNum("lat")}
           />
+          {numErrors.lat ? (
+            <span className="text-[11px] text-red-300">{numErrors.lat}</span>
+          ) : (
+            <span className="text-[11px] text-muted">{t("hints.lat")}</span>
+          )}
         </label>
         <label className="field">
           <span className="field-label">{t("lng")}</span>
           <input
-            className="input input-sm num"
+            className={`input input-sm num${numErrors.lng ? " border-red-500/60" : ""}`}
             required
-            type="number"
-            step="0.000001"
-            {...bind("lng")}
+            {...bindNum("lng")}
           />
+          {numErrors.lng ? (
+            <span className="text-[11px] text-red-300">{numErrors.lng}</span>
+          ) : (
+            <span className="text-[11px] text-muted">{t("hints.lng")}</span>
+          )}
         </label>
         <label className="field">
           <span className="field-label">{t("rate")}</span>
           <input
-            className="input input-sm num"
+            className={`input input-sm num${numErrors.perVisitRateJod ? " border-red-500/60" : ""}`}
             required
-            {...bind("perVisitRateJod")}
+            {...bindNum("perVisitRateJod")}
           />
+          {numErrors.perVisitRateJod ? (
+            <span className="text-[11px] text-red-300">
+              {numErrors.perVisitRateJod}
+            </span>
+          ) : (
+            <span className="text-[11px] text-muted">{t("hints.rate")}</span>
+          )}
         </label>
       </div>
 
