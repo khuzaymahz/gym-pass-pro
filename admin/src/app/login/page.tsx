@@ -28,7 +28,14 @@ function LoginForm() {
       const callback = search.get("callbackUrl") ?? "/";
       router.push(callback);
     } else {
-      setError(t("invalid"));
+      // `authorize` throws "TOO_MANY_ATTEMPTS" on a 429 (login limiter or
+      // service-token exchange); everything else is a real credential
+      // failure. Don't blame the password when the user is just throttled.
+      setError(
+        result?.error === "TOO_MANY_ATTEMPTS"
+          ? t("tooManyAttempts")
+          : t("invalid"),
+      );
     }
   }
 

@@ -55,6 +55,14 @@ export const authOptions: NextAuthOptions = {
               // password was wrong.
               throw error;
             }
+            // 429 = rate limited — either the login limiter or the
+            // service-token exchange pre-flight above. Surface a distinct
+            // sentinel (read back via `result.error` with redirect:false)
+            // so /login can say "too many attempts" instead of the
+            // misleading "invalid credentials".
+            if (error.status === 429) {
+              throw new Error("TOO_MANY_ATTEMPTS");
+            }
             return null;
           }
           // Unknown error class (network reset, JSON parse, etc.) —

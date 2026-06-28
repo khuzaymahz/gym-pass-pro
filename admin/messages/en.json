@@ -146,6 +146,7 @@
     "submitting": "Signing in…",
     "withGoogle": "Continue with Google",
     "invalid": "Invalid credentials.",
+    "tooManyAttempts": "Too many attempts. Please wait a few minutes and try again.",
     "footer": "Internal console for the GymPass team."
   },
   "error": {
