@@ -86,6 +86,10 @@ def user_repo(session: SessionDep) -> UserRepository:
     return UserRepository(session)
 
 
+def partner_access_repo(session: SessionDep) -> PartnerAccessRepository:
+    return PartnerAccessRepository(session)
+
+
 def otp_repo(session: SessionDep) -> OtpRepository:
     return OtpRepository(session)
 
@@ -418,8 +422,9 @@ def admin_partner_service(
     users: Annotated[UserRepository, Depends(user_repo)],
     gyms: Annotated[GymService, Depends(gym_service)],
     audit: Annotated[AuditService, Depends(audit_service)],
+    access: Annotated[PartnerAccessRepository, Depends(partner_access_repo)],
 ) -> AdminPartnerService:
-    return AdminPartnerService(users, gyms, audit)
+    return AdminPartnerService(users, gyms, audit, access)
 
 
 def admin_checkin_read_service(
@@ -660,10 +665,6 @@ async def current_gym_owner(
     if user.gym_id is None:
         raise AppError(ErrorCode.AUTH_FORBIDDEN, "Gym owner is not linked to a gym.")
     return user
-
-
-def partner_access_repo(session: SessionDep) -> PartnerAccessRepository:
-    return PartnerAccessRepository(session)
 
 
 async def current_partner(

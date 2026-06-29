@@ -17,6 +17,7 @@ from fastapi import (
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import (
+    admin_partner_service,
     audit_service,
     authed_actor,
     current_admin,
@@ -32,8 +33,16 @@ from app.db.models import User
 from app.realtime import publish as realtime_publish
 from app.repositories.gym_photo_repo import GymPhotoRepository
 from app.schemas.common import Page
-from app.schemas.gym import GymCreate, GymRead, GymUpdate
+from app.schemas.gym import (
+    GymCreate,
+    GymRead,
+    GymUpdate,
+    GymWithOwnerCreate,
+    GymWithOwnerResult,
+)
 from app.schemas.gym_photo import GymPhotoRead, GymPhotoUpdate
+from app.schemas.partner import PartnerOwnerRead
+from app.services.admin_partner_service import AdminPartnerService
 from app.services.audit_service import AuditService
 from app.services.gym_service import GymService
 from app.utils.image_sniff import sniff_image
@@ -95,6 +104,56 @@ async def create(
     return GymRead.model_validate(gym)
 
 
+@router.post("/with-owner", response_model=GymWithOwnerResult, status_code=201)
+async def create_with_owner(
+    body: GymWithOwnerCreate,
+    request: Request,
+    svc: Annotated[GymService, Depends(gym_service)],
+    partners: Annotated[AdminPartnerService, Depends(admin_partner_service)],
+    admin: Annotated[User, Depends(current_admin)],
+    session: Annotated[AsyncSession, Depends(db_session)],
+) -> GymWithOwnerResult:
+    """Create a gym and (optionally) its owner in ONE transaction.
+
+    Atomic: if the owner step fails, the gym rolls back with it — the admin
+    never ends up with an orphan gym that has no login (the partial-failure
+    bug that motivated this endpoint). `owner.mode`:
+      - `new`  → mint a fresh partner login (needs name + password),
+      - `link` → attach an existing partner by phone (multi-branch).
+    With no `owner`, this behaves like plain create.
+    """
+    actor = authed_actor(request, admin)
+    gym = await svc.create(body.gym, actor=actor)
+
+    owner_payload: dict | None = None
+    if body.owner is not None:
+        if body.owner.mode == "new":
+            if not body.owner.name or not body.owner.password:
+                raise AppError(
+                    ErrorCode.VALIDATION_ERROR,
+                    "A new owner login needs a name and password.",
+                    details={"field": "owner"},
+                )
+            _, owner_payload = await partners.create_owner(
+                gym_id=gym.id,
+                phone=body.owner.phone,
+                password=body.owner.password,
+                name=body.owner.name,
+                actor=actor,
+            )
+        else:  # link an existing partner to this branch
+            owner_payload = await partners.link_owner(
+                gym_id=gym.id, phone=body.owner.phone, actor=actor
+            )
+
+    # Single commit — gym + owner land together or not at all.
+    await session.commit()
+    return GymWithOwnerResult(
+        gym=GymRead.model_validate(gym),
+        owner=PartnerOwnerRead(**owner_payload) if owner_payload else None,
+    )
+
+
 @router.get("/{gym_id}", response_model=GymRead)
 async def get(
     gym_id: UUID,
@@ -133,9 +192,7 @@ async def delete(
     svc: Annotated[GymService, Depends(gym_service)],
     admin: Annotated[User, Depends(current_admin_super)],
     session: Annotated[AsyncSession, Depends(db_session)],
-    confirm_slug: Annotated[
-        str | None, Header(alias="X-Confirm-Gym-Slug")
-    ] = None,
+    confirm_slug: Annotated[str | None, Header(alias="X-Confirm-Gym-Slug")] = None,
 ) -> None:
     """Soft-delete a gym. Super-admin only.
 
@@ -223,7 +280,7 @@ async def upload_logo(
     # Clean up the previous locally-stored logo only after the new one is
     # committed — if the write fails, the old file is still referenced.
     if previous_url and previous_url.startswith(prefix):
-        old = Path(settings.media_root) / previous_url[len(prefix):]
+        old = Path(settings.media_root) / previous_url[len(prefix) :]
         try:
             old.unlink(missing_ok=True)
         except OSError:
@@ -261,7 +318,7 @@ async def delete_logo(
 
     prefix = settings.media_url_prefix.rstrip("/") + "/"
     if previous_url.startswith(prefix):
-        old = Path(settings.media_root) / previous_url[len(prefix):]
+        old = Path(settings.media_root) / previous_url[len(prefix) :]
         try:
             old.unlink(missing_ok=True)
         except OSError:
@@ -427,7 +484,7 @@ async def delete_photo(
     settings = get_settings()
     prefix = settings.media_url_prefix.rstrip("/") + "/"
     if stored_url.startswith(prefix):
-        rel = stored_url[len(prefix):]
+        rel = stored_url[len(prefix) :]
         disk_path = Path(settings.media_root) / rel
         try:
             disk_path.unlink(missing_ok=True)

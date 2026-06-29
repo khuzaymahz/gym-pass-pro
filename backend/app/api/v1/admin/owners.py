@@ -24,6 +24,7 @@ from app.api.deps import (
 from app.db.models import User
 from app.schemas.partner import (
     CreatePartnerRequest,
+    LinkPartnerRequest,
     PartnerOwnerRead,
     ResetPartnerPasswordRequest,
 )
@@ -65,6 +66,27 @@ async def create_owner(
         phone=body.phone,
         password=body.password,
         name=body.name,
+        actor=authed_actor(request, admin),
+    )
+    await session.commit()
+    return PartnerOwnerRead(**payload)
+
+
+@router.post("/{gym_id}/owner/link", response_model=PartnerOwnerRead, status_code=201)
+async def link_owner(
+    gym_id: UUID,
+    body: LinkPartnerRequest,
+    request: Request,
+    admin: Annotated[User, Depends(current_admin)],
+    svc: Annotated[AdminPartnerService, Depends(admin_partner_service)],
+    session: Annotated[AsyncSession, Depends(db_session)],
+) -> PartnerOwnerRead:
+    """Attach an existing partner to this gym as an additional branch
+    (multi-branch). Service validates the phone belongs to a partner who
+    isn't already linked here, then writes the membership row + audit."""
+    payload = await svc.link_owner(
+        gym_id=gym_id,
+        phone=body.phone,
         actor=authed_actor(request, admin),
     )
     await session.commit()

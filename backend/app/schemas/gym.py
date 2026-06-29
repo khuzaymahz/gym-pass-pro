@@ -7,6 +7,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.db.enums import AudienceGender, Category, Tier
+from app.schemas.partner import PartnerOwnerRead
 
 
 class LogoAlignment(BaseModel):
@@ -45,7 +46,8 @@ class GymBase(BaseModel):
     category: Category
     required_tier: Tier = Field(alias="requiredTier", default=Tier.SILVER)
     audience_gender: AudienceGender = Field(
-        alias="audienceGender", default=AudienceGender.MIXED,
+        alias="audienceGender",
+        default=AudienceGender.MIXED,
     )
     # Per-visit payout to the gym in JOD. Negative makes no sense
     # (we'd be charging the gym), and a stray very-large number
@@ -62,7 +64,8 @@ class GymBase(BaseModel):
     cover_image_url: str | None = Field(alias="coverImageUrl", default=None)
     logo_url: str | None = Field(alias="logoUrl", default=None)
     logo_alignment: LogoAlignment | None = Field(
-        alias="logoAlignment", default=None,
+        alias="logoAlignment",
+        default=None,
     )
 
     model_config = ConfigDict(populate_by_name=True, from_attributes=True)
@@ -78,7 +81,10 @@ class GymUpdate(BaseModel):
     # partner profile form accepts arbitrary-length input and the only
     # backstop is whatever the DB column happens to be.
     name_en: str | None = Field(
-        alias="nameEn", default=None, min_length=1, max_length=128,
+        alias="nameEn",
+        default=None,
+        min_length=1,
+        max_length=128,
     )
     address_en: str | None = Field(alias="addressEn", default=None, max_length=512)
     address_ar: str | None = Field(alias="addressAr", default=None, max_length=512)
@@ -89,7 +95,8 @@ class GymUpdate(BaseModel):
     category: Category | None = None
     required_tier: Tier | None = Field(alias="requiredTier", default=None)
     audience_gender: AudienceGender | None = Field(
-        alias="audienceGender", default=None,
+        alias="audienceGender",
+        default=None,
     )
     per_visit_rate_jod: Decimal | None = Field(
         alias="perVisitRateJod",
@@ -104,7 +111,8 @@ class GymUpdate(BaseModel):
     cover_image_url: str | None = Field(alias="coverImageUrl", default=None)
     logo_url: str | None = Field(alias="logoUrl", default=None)
     logo_alignment: LogoAlignment | None = Field(
-        alias="logoAlignment", default=None,
+        alias="logoAlignment",
+        default=None,
     )
     is_active: bool | None = Field(alias="isActive", default=None)
 
@@ -126,5 +134,40 @@ class GymListFilters(BaseModel):
     q: str | None = None
     page: int = Field(default=1, ge=1)
     page_size: int = Field(default=20, alias="pageSize", ge=1, le=100)
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class OwnerProvision(BaseModel):
+    """Owner to attach while creating a gym.
+
+    `new` mints a fresh partner login (needs `name` + `password`);
+    `link` attaches an existing partner by `phone` — the multi-branch
+    path that dissolves the "phone already registered" collision.
+    """
+
+    mode: Literal["new", "link"]
+    phone: str = Field(min_length=8, max_length=32)
+    name: str | None = Field(default=None, max_length=128)
+    password: str | None = Field(default=None, min_length=8, max_length=128)
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class GymWithOwnerCreate(BaseModel):
+    """Atomic create — the gym and (optionally) its owner in one request.
+    If the owner step fails (bad phone, collision in `new` mode, unknown
+    partner in `link` mode), the whole transaction rolls back and the gym
+    is never created."""
+
+    gym: GymCreate
+    owner: OwnerProvision | None = None
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class GymWithOwnerResult(BaseModel):
+    gym: GymRead
+    owner: PartnerOwnerRead | None = None
 
     model_config = ConfigDict(populate_by_name=True)
