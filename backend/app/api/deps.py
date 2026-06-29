@@ -23,11 +23,12 @@ from app.repositories.day_pass_repo import (
     DayPassOfferingRepository,
     DayPassRepository,
 )
+from app.repositories.device_token_repo import DeviceTokenRepository
 from app.repositories.gym_photo_repo import GymPhotoRepository
 from app.repositories.gym_repo import GymRepository
-from app.repositories.device_token_repo import DeviceTokenRepository
 from app.repositories.notification_repo import NotificationRepository
 from app.repositories.otp_repo import OtpRepository
+from app.repositories.partner_access_repo import PartnerAccessRepository
 from app.repositories.partner_application_repo import PartnerApplicationRepository
 from app.repositories.payment_method_repo import PaymentMethodRepository
 from app.repositories.payment_repo import PaymentRepository
@@ -60,8 +61,8 @@ from app.services.partner_checkin_read_service import PartnerCheckinReadService
 from app.services.partner_metrics_service import PartnerMetricsService
 from app.services.pause_service import PauseService
 from app.services.payment_method_service import PaymentMethodService
-from app.services.rate_limit import RateLimiter
 from app.services.push_service import PushService
+from app.services.rate_limit import RateLimiter
 from app.services.referral_service import ReferralService
 from app.services.subscription_service import SubscriptionService
 from app.services.support_ticket_service import SupportTicketService
@@ -659,6 +660,55 @@ async def current_gym_owner(
     if user.gym_id is None:
         raise AppError(ErrorCode.AUTH_FORBIDDEN, "Gym owner is not linked to a gym.")
     return user
+
+
+def partner_access_repo(session: SessionDep) -> PartnerAccessRepository:
+    return PartnerAccessRepository(session)
+
+
+async def current_partner(
+    request: Request,
+    users: Annotated[UserRepository, Depends(user_repo)],
+    authorization: Annotated[str | None, Header()] = None,
+) -> User:
+    """Resolve the calling partner. Like `current_gym_owner` but WITHOUT the
+    `gym_id IS NOT NULL` gate — a partner's reachable gyms now come from
+    `partner_access` (a branch manager has access rows but no `gym_id`)."""
+    user = await _authed(request, users, authorization, ("service", "access"))
+    if user.role != Role.GYM_OWNER:
+        raise AppError(ErrorCode.AUTH_FORBIDDEN, "Gym owner role required.")
+    return user
+
+
+async def selected_gym(
+    request: Request,
+    user: Annotated[User, Depends(current_partner)],
+    access: Annotated[PartnerAccessRepository, Depends(partner_access_repo)],
+) -> UUID:
+    """The gym a partner request is scoped to.
+
+    Reads the `X-Gym-Id` header (or `?gymId`) and verifies it's a branch the
+    caller can operate. With none specified it falls back to the caller's
+    single/primary gym, so existing single-gym partners keep working without
+    sending anything; a multi-branch owner must name the branch.
+    """
+    requested = request.headers.get("X-Gym-Id") or request.query_params.get("gymId")
+    if requested:
+        try:
+            gym_id = UUID(requested)
+        except ValueError as exc:
+            raise AppError(ErrorCode.VALIDATION_ERROR, "Invalid gym id.") from exc
+        if not await access.has_access(user.id, gym_id):
+            raise AppError(ErrorCode.AUTH_FORBIDDEN, "No access to this branch.")
+        return gym_id
+    if user.gym_id is not None:
+        return user.gym_id
+    ids = await access.gym_ids_for_user(user.id)
+    if len(ids) == 1:
+        return ids[0]
+    if not ids:
+        raise AppError(ErrorCode.AUTH_FORBIDDEN, "Partner account not linked to a gym.")
+    raise AppError(ErrorCode.VALIDATION_ERROR, "Specify a branch (gymId).")
 
 
 def authed_actor(request: Request, user: User) -> Actor:

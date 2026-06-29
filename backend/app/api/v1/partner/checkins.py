@@ -2,13 +2,12 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 
-from app.api.deps import current_gym_owner, partner_checkin_read_service
-from app.core.exceptions import AppError, ErrorCode
+from app.api.deps import partner_checkin_read_service, selected_gym
 from app.db.enums import CheckinStatus
-from app.db.models import User
 from app.schemas.admin import AdminCheckinListItem
 from app.schemas.common import Page
 from app.services.partner_checkin_read_service import PartnerCheckinReadService
@@ -19,10 +18,8 @@ router = APIRouter(prefix="/partner/gym/checkins", tags=["partner/gym/checkins"]
 
 @router.get("", response_model=Page[AdminCheckinListItem])
 async def list_checkins(
-    user: Annotated[User, Depends(current_gym_owner)],
-    svc: Annotated[
-        PartnerCheckinReadService, Depends(partner_checkin_read_service)
-    ],
+    gym_id: Annotated[UUID, Depends(selected_gym)],
+    svc: Annotated[PartnerCheckinReadService, Depends(partner_checkin_read_service)],
     status: CheckinStatus | None = Query(default=None),
     since: datetime | None = Query(default=None),
     until: datetime | None = Query(default=None),
@@ -35,13 +32,8 @@ async def list_checkins(
     SDK exactly for the same row — useful when we eventually add
     cross-app support tooling.
     """
-    if user.gym_id is None:
-        raise AppError(
-            ErrorCode.AUTH_FORBIDDEN,
-            "Partner account not linked to a gym.",
-        )
     rows, total = await svc.list_for_gym(
-        gym_id=user.gym_id,
+        gym_id=gym_id,
         status=status,
         since=since,
         until=until,
@@ -58,9 +50,7 @@ async def list_checkins(
         AdminCheckinListItem(
             id=str(c.id),
             userId=str(u.id),
-            userName=mask_name_for_partner(
-                u.name, first_name=u.first_name, last_name=u.last_name
-            ),
+            userName=mask_name_for_partner(u.name, first_name=u.first_name, last_name=u.last_name),
             userPhone=mask_phone_for_partner(u.phone),
             gymId=str(g.id),
             gymNameEn=g.name_en,

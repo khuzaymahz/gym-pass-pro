@@ -51,6 +51,18 @@ class ResetPartnerPasswordRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
+class PartnerGymRef(BaseModel):
+    """A branch the calling partner can operate — drives the portal's branch
+    switcher. `role` is their relationship to it (owner | manager)."""
+
+    id: str
+    slug: str
+    name_en: str = Field(alias="nameEn")
+    role: str
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
 class PartnerOwnerRead(BaseModel):
     id: str
     phone: str
