@@ -177,3 +177,12 @@ export type DayPassOfferingUpsertBody = {
   dailyCap?: number | null;
   audienceGenderOverride?: AudienceGender | null;
 };
+
+/** A branch the signed-in partner can operate — drives the sidebar branch
+ *  switcher. One entry = a single-gym partner; many = a chain owner. */
+export type PartnerGymRef = {
+  id: string;
+  slug: string;
+  nameEn: string;
+  role: string;
+};

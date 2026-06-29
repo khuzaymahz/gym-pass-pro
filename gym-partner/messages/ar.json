@@ -88,6 +88,10 @@
     "errorImageType": "يُقبل فقط ملفات JPEG أو PNG أو WebP.",
     "errorImageSize": "الصورة كبيرة جداً (الحد الأقصى {max} ميغابايت)."
   },
+  "branch": {
+    "switchAria": "تبديل الفرع",
+    "label": "الفرع"
+  },
   "nav": {
     "dashboard": "اللوحة",
     "qr": "رمز QR",
