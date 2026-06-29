@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from app.db.models.audit import AuditLog
 from app.db.models.checkin import Checkin
-from app.db.models.device_token import DeviceToken
 from app.db.models.day_pass import DayPass, DayPassOffering
+from app.db.models.device_token import DeviceToken
 from app.db.models.gym import Gym
 from app.db.models.gym_photo import GymPhoto
 from app.db.models.notification import Notification
 from app.db.models.otp import OtpCode
+from app.db.models.partner_access import PartnerAccess
 from app.db.models.partner_application import PartnerApplication
 from app.db.models.payment import Payment
 from app.db.models.payment_method import StoredPaymentMethod
@@ -23,13 +24,14 @@ from app.db.models.user import User
 __all__ = [
     "AuditLog",
     "Checkin",
-    "DeviceToken",
     "DayPass",
     "DayPassOffering",
+    "DeviceToken",
     "Gym",
     "GymPhoto",
     "Notification",
     "OtpCode",
+    "PartnerAccess",
     "PartnerApplication",
     "Payment",
     "Payout",

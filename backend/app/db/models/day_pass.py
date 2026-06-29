@@ -142,6 +142,17 @@ class DayPass(Base):
         Index("ix_day_passes_user_status", "user_id", "status"),
         Index("ix_day_passes_payment_id", "payment_id"),
         Index("ix_day_passes_checkin_id", "checkin_id"),
+        # At most one ACTIVE pass per (user, gym) — declared here so the
+        # model matches the DB (created as raw DDL in migration
+        # 0025_day_pass_unique_active_per_user_gym) and `alembic check`
+        # stays a clean CI gate.
+        Index(
+            "uq_day_passes_one_active_per_user_gym",
+            "user_id",
+            "gym_id",
+            unique=True,
+            postgresql_where=text("status = 'active'"),
+        ),
         Index(
             "ix_day_passes_active_lookup",
             "user_id",
