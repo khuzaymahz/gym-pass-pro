@@ -191,7 +191,11 @@ const _transportPatterns = <String>[
   'HttpException',
   'HandshakeException',
   'TimeoutException',
-  'DioException',
+  // NOTE: do NOT add the bare 'DioException' prefix here — it is the prefix
+  // of EVERY Dio error, including `badResponse` (4xx/5xx). Matching it would
+  // misclassify server/business errors as "offline" in resolveErrorMessageString
+  // (sign_in/otp/settings stringified-error paths). Match the specific
+  // transport TYPE TAGS instead, which only appear on real transport failures.
   'connectionError',
   'connectionTimeout',
   'receiveTimeout',

@@ -21,6 +21,7 @@ class BiometricSettingsState {
   final bool enabled;
   final bool hasPassword;
   final bool loading;
+
   /// True when the device's primary enrolled biometric is face/iris.
   /// Used to select the correct icon in settings and the sign-in screen.
   final bool usesFaceId;
@@ -83,11 +84,14 @@ class BiometricSettingsController
   /// password since the last open).
   Future<void> refresh() => _refresh();
 
-  /// Verifies the user's password against the backend, prompts biometric,
-  /// and saves the credential pair on success. We re-check the password
-  /// here (rather than trusting that the user is signed in) so an attacker
-  /// who picks up an unlocked phone can't silently arm biometric with a
-  /// password they don't know — the prompt is a real proof-of-knowledge.
+  /// Verifies the typed password locally against the hash stamped at the
+  /// last successful login ([ProfileController.markPasswordKnown]), then
+  /// saves the credential pair. The local check is a real proof-of-knowledge
+  /// — an attacker who picks up an unlocked phone can't silently arm
+  /// biometric with a password they don't know — without a network
+  /// round-trip at enrollment (credentials are re-validated for real on the
+  /// next `/auth/login`). The OS biometric prompt is fired by the caller
+  /// (settings sheet) before this runs.
   Future<BiometricToggleResult> enable({
     required String password,
   }) async {
@@ -95,6 +99,13 @@ class BiometricSettingsController
     try {
       final phone = _profile.state.phone ?? '';
       if (phone.isEmpty) return BiometricToggleResult.network;
+      // Proof-of-knowledge: a typo here would otherwise be stored and
+      // silently break the next biometric sign-in (which replays the saved
+      // password) with no enrollment-time feedback.
+      final knownHash = _profile.state.passwordHash ?? '';
+      if (knownHash.isEmpty || hashPassword(password) != knownHash) {
+        return BiometricToggleResult.passwordWrong;
+      }
       try {
         await _vault.save(phone: phone, password: password);
         state = state.copyWith(enabled: true);
@@ -122,8 +133,9 @@ class BiometricSettingsController
   }
 }
 
-final biometricSettingsProvider = StateNotifierProvider<
-    BiometricSettingsController, BiometricSettingsState>((ref) {
+final biometricSettingsProvider =
+    StateNotifierProvider<BiometricSettingsController, BiometricSettingsState>(
+        (ref) {
   return BiometricSettingsController(
     ref.read(biometricVaultProvider),
     ref.read(profileProvider.notifier),

@@ -82,7 +82,8 @@ class PatternVault {
   /// Updates the stored phone+password without touching the pattern hash.
   /// Called after a successful password sign-in so the vault stays in sync
   /// if the user changed their password since the last time they set up pattern.
-  Future<void> refreshCredentials({required String phone, required String password}) async {
+  Future<void> refreshCredentials(
+      {required String phone, required String password}) async {
     final enabled = await _storage.read(key: _kEnabled);
     if (enabled != 'true') return;
     await _storage.write(key: _kPhone, value: phone);
@@ -135,8 +136,7 @@ class PatternSettingsState {
 
 enum PatternEnableResult { ok, passwordWrong, network }
 
-class PatternSettingsController
-    extends StateNotifier<PatternSettingsState> {
+class PatternSettingsController extends StateNotifier<PatternSettingsState> {
   PatternSettingsController(this._vault, this._profile)
       : super(const PatternSettingsState()) {
     _refresh();
@@ -161,6 +161,14 @@ class PatternSettingsController
     try {
       final phone = _profile.state.phone ?? '';
       if (phone.isEmpty) return PatternEnableResult.network;
+      // Local proof-of-knowledge against the hash stamped at last login
+      // (no network at enrollment). A typo'd password would otherwise be
+      // stored and silently break the next pattern sign-in, which replays
+      // the saved credential.
+      final knownHash = _profile.state.passwordHash ?? '';
+      if (knownHash.isEmpty || hashPassword(password) != knownHash) {
+        return PatternEnableResult.passwordWrong;
+      }
       try {
         await _vault.save(pattern: pattern, phone: phone, password: password);
         state = state.copyWith(enabled: true);
@@ -184,8 +192,9 @@ class PatternSettingsController
   }
 }
 
-final patternSettingsProvider = StateNotifierProvider<
-    PatternSettingsController, PatternSettingsState>((ref) {
+final patternSettingsProvider =
+    StateNotifierProvider<PatternSettingsController, PatternSettingsState>(
+        (ref) {
   return PatternSettingsController(
     ref.read(patternVaultProvider),
     ref.read(profileProvider.notifier),
