@@ -209,9 +209,11 @@ class AppLocalizationsAr extends AppLocalizations {
   String get homeNoPlanTitle => 'اختر اشتراكك';
   @override
   String get homeNoPlanBlurb =>
-      'اختار باقة وافتح أبواب صالات المدينة. الاشتراك يبدأ لحظة الدفع.';
+      'اختار باقة وافتح أبواب صالات المدينة.';
   @override
   String get homeNoPlanCta => 'شوف الباقات';
+  @override
+  String get homeNoPlanDayPassLink => 'تريد يوماً واحداً فقط؟ تصفح الأندية للحصول على تذكرة يومية ←';
   @override
   String get homeNearYou => 'قريبة منك';
   @override
@@ -1056,6 +1058,12 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get settingsThemeDark => 'داكن';
   @override
+  String get settingsDisplay => 'العرض';
+  @override
+  String get settingsTextScale => 'حجم النص';
+  @override
+  String get settingsLayoutScale => 'كثافة التصميم';
+  @override
   String get settingsNotifPlanReminders => 'تذكيرات الباقة';
   @override
   String get settingsNotifNewClubs => 'أندية جديدة قريبة';
@@ -1849,6 +1857,31 @@ class AppLocalizationsAr extends AppLocalizations {
   String get biometricGenericLabel => 'البصمة';
 
   @override
+  String get securityPatternTitle => 'تسجيل الدخول بالنمط';
+  @override
+  String get securityPatternDesc => 'ارسم نمطك المحفوظ للدخول بسرعة.';
+  @override
+  String get securityPatternNoPassword => 'حدّد كلمة مرور أولاً لتفعيل الدخول بالنمط.';
+  @override
+  String get patternSetupTitle => 'إعداد نمط';
+  @override
+  String get patternSetupStep1 => 'صل 4 نقاط على الأقل';
+  @override
+  String get patternSetupStep2 => 'ارسم نمطك مجدداً للتأكيد';
+  @override
+  String get patternSetupMismatch => 'النمطان لا يتطابقان. حاول مجدداً.';
+  @override
+  String get patternSignInBtn => 'الدخول بالنمط';
+  @override
+  String get patternEnabled => 'تم تفعيل الدخول بالنمط.';
+  @override
+  String get patternDisabled => 'تم إيقاف الدخول بالنمط.';
+  @override
+  String get patternUnlockTitle => 'ارسم نمطك';
+  @override
+  String get patternUnlockWrong => 'النمط غير صحيح. حاول مجدداً.';
+
+  @override
   String get billingNoSubscriptionTitle => 'لا يوجد اشتراك فعّال';
   @override
   String get billingNoSubscriptionBlurb =>
@@ -1879,7 +1912,7 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get helpHome2 => 'اسحب للأسفل في هذه الصفحة لتحديث حالة اشتراكك وبيانات الأندية القريبة.';
   @override
-  String get helpHome3 => 'كل بطاقة ترويجية في الأعلى هي اختصار — اضغط عليها للانتقال مباشرة إلى ذلك القسم.';
+  String get helpHome3 => 'بطاقة الخطة تعرض خطتك النشطة وزياراتك المستخدمة هذا الشهر وعدد الأيام حتى تجديد الدورة. اضغط إدارة ← لترقية اشتراكك أو إيقافه أو إلغائه.';
   @override
   String get helpExploreTitle => 'استكشاف';
   @override
@@ -1903,7 +1936,7 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get helpProfile2 => 'مرّر لليسار أو اليمين في أي مكان على هذه الصفحة للتنقل بين التبويبات — الشاشة بأكملها تستجيب.';
   @override
-  String get helpProfile3 => 'اضغط على "إدارة" تحت خطتك النشطة لرؤية خيارات الترقية والتوقف والإلغاء — كل إجراءات الاشتراك خلف تلك النقرة الواحدة.';
+  String get helpProfile3 => 'الحلقة تعرض الزيارات المستخدمة هذا الشهر مقارنةً بحد خطتك. السلسلة تحسب الأشهر المتتالية التي زرت فيها مرة واحدة على الأقل، والمستوى التالي يُظهر ما ستحصل عليه بالترقية.';
   @override
   String get helpGymDetail1 => 'شريط الباقة في الأعلى يخبرك بالضبط أي مستوى خطة يفتح هذا النادي. إذا كان رمادياً، فخطتك الحالية لا تغطي هذا المكان.';
   @override

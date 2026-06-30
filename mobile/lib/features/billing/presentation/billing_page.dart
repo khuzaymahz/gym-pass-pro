@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
+import '../../../core/widgets/gp_scaffold.dart';
 import '../../../core/widgets/help_button.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
@@ -27,17 +28,38 @@ import 'widgets/remove_method_dialog.dart';
 /// list, add sheet, invoice history, receipt sheet) lives in its own
 /// widget. This file only wires state → widgets and routes user
 /// intents back into the `billingProvider` notifier.
-class BillingPage extends ConsumerWidget {
+class BillingPage extends ConsumerStatefulWidget {
   const BillingPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<BillingPage> createState() => _BillingPageState();
+}
+
+class _BillingPageState extends ConsumerState<BillingPage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (!ref.read(billingProvider).loaded) {
+        ref.read(billingProvider.notifier).refreshFromBackend();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final gp = context.gp;
     final billing = ref.watch(billingProvider);
     final sub = ref.watch(subscriptionProvider);
     final topInset = MediaQuery.viewPaddingOf(context).top;
-    return Scaffold(
+    return GpScaffold(
+      tips: [
+        HelpTip(icon: Icons.credit_card_outlined, text: l.helpBilling1),
+        HelpTip(icon: Icons.receipt_long, text: l.helpBilling2),
+        HelpTip(icon: Icons.error_outline, text: l.helpBilling3),
+      ],
       body: Stack(
         children: [
           WordmarkRefresh(
@@ -94,15 +116,15 @@ class BillingPage extends ConsumerWidget {
               const SizedBox(height: 10),
               _MethodsList(
                 billing: billing,
-                onSetDefault: (id) => _setDefault(context, ref, l, id),
-                onRemove: (m) => _remove(context, ref, l, m),
+                onSetDefault: (id) => _setDefault(context, l, id),
+                onRemove: (m) => _remove(context, l, m),
               ),
               const SizedBox(height: 14),
               PillButton(
                 label: l.billingAddMethod,
                 leadingIcon: Icons.add,
                 variant: PillVariant.secondary,
-                onPressed: () => _openAddSheet(context, ref),
+                onPressed: () => _openAddSheet(context),
               ),
               const SizedBox(height: 22),
               _SectionLabel(l.billingHistoryLabel),
@@ -120,15 +142,6 @@ class BillingPage extends ConsumerWidget {
             start: 20,
             child: const BackBtn(fallback: '/profile'),
           ),
-          Positioned(
-            bottom: 78 + MediaQuery.viewPaddingOf(context).bottom,
-            left: 20,
-            child: HelpButton(tips: [
-              HelpTip(icon: Icons.credit_card_outlined, text: l.helpBilling1),
-              HelpTip(icon: Icons.receipt_long, text: l.helpBilling2),
-              HelpTip(icon: Icons.error_outline, text: l.helpBilling3),
-            ],),
-          ),
         ],
       ),
     );
@@ -136,7 +149,6 @@ class BillingPage extends ConsumerWidget {
 
   Future<void> _setDefault(
     BuildContext context,
-    WidgetRef ref,
     AppLocalizations l,
     String id,
   ) async {
@@ -147,7 +159,6 @@ class BillingPage extends ConsumerWidget {
 
   Future<void> _remove(
     BuildContext context,
-    WidgetRef ref,
     AppLocalizations l,
     PaymentMethod m,
   ) async {
@@ -158,7 +169,7 @@ class BillingPage extends ConsumerWidget {
     _snack(context, l.billingMethodRemoved);
   }
 
-  Future<void> _openAddSheet(BuildContext context, WidgetRef ref) async {
+  Future<void> _openAddSheet(BuildContext context) async {
     await showAddMethodSheet(
       context: context,
       ref: ref,
@@ -176,7 +187,7 @@ class BillingPage extends ConsumerWidget {
   void _snack(BuildContext context, String message) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+      ..showSnackBar(SnackBar(duration: const Duration(seconds: 4), content: Text(message)));
   }
 }
 

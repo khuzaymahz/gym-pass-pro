@@ -7,6 +7,7 @@ import '../../../core/network/network_error.dart';
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
 import '../../../core/widgets/gym_loader.dart';
+import '../../../core/widgets/gp_scaffold.dart';
 import '../../../core/widgets/help_button.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
@@ -110,7 +111,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     // signal.
     return PopScope(
       canPop: !_isPaying,
-      child: Scaffold(
+      child: GpScaffold(
+        tips: [
+          HelpTip(icon: Icons.bar_chart_outlined, text: l.helpPlans1),
+          HelpTip(icon: Icons.compare_arrows_rounded, text: l.helpPlans2),
+          HelpTip(icon: Icons.search_rounded, text: l.helpPlans3),
+        ],
         body: SafeArea(
           minimum: const EdgeInsets.only(bottom: 8),
           child: Stack(
@@ -217,15 +223,6 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             ),
           ],
         ),
-              Positioned(
-                bottom: 78 + MediaQuery.viewPaddingOf(context).bottom,
-                left: 20,
-                child: HelpButton(tips: [
-                  HelpTip(icon: Icons.bar_chart_outlined, text: l.helpPlans1),
-                  HelpTip(icon: Icons.compare_arrows_rounded, text: l.helpPlans2),
-                  HelpTip(icon: Icons.search_rounded, text: l.helpPlans3),
-                ],),
-              ),
               if (_isPaying) _PayingOverlay(label: l.checkoutPayingOverlay),
             ],
           ),
@@ -294,7 +291,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       final l = AppLocalizations.of(context);
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(_resolveCheckoutError(e, l))));
+        ..showSnackBar(SnackBar(duration: const Duration(seconds: 4), content: Text(_resolveCheckoutError(e, l))));
       return;
     }
     final now = DateTime.now();
@@ -633,7 +630,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         if (!context.mounted) return;
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(content: Text(msg)));
+          ..showSnackBar(SnackBar(duration: const Duration(seconds: 4), content: Text(msg)));
       },
     );
     // Auto-select the newly added method so the pay button activates without

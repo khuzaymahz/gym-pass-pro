@@ -12,6 +12,7 @@ import '../../../core/router/app_router.dart' show checkinBranchKey;
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
 import '../../../core/widgets/gym_loader.dart';
+import '../../../core/widgets/gp_scaffold.dart';
 import '../../../core/widgets/help_button.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
@@ -200,7 +201,12 @@ class _CheckinPageState extends ConsumerState<CheckinPage>
     });
 
     final returnRoute = ref.watch(checkinReturnRouteProvider);
-    return Scaffold(
+    return GpScaffold(
+      tips: [
+        HelpTip(icon: Icons.qr_code_2, text: l.helpScan1),
+        HelpTip(icon: Icons.center_focus_strong_outlined, text: l.helpScan2),
+        HelpTip(icon: Icons.check_circle_outline, text: l.helpScan3),
+      ],
       body: SafeArea(
         child: Stack(
           children: [
@@ -386,21 +392,6 @@ class _CheckinPageState extends ConsumerState<CheckinPage>
             ),
           ],
         ),
-            Positioned(
-              bottom: 24,
-              left: 20,
-              child: HelpButton(tips: [
-                HelpTip(icon: Icons.qr_code_2, text: l.helpScan1),
-                HelpTip(
-                  icon: Icons.center_focus_strong_outlined,
-                  text: l.helpScan2,
-                ),
-                HelpTip(
-                  icon: Icons.check_circle_outline,
-                  text: l.helpScan3,
-                ),
-              ],),
-            ),
           ],
         ),
       ),
@@ -898,6 +889,6 @@ class _CheckinPageState extends ConsumerState<CheckinPage>
     ref.read(checkinControllerProvider.notifier).reset();
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(l.subscriptionRenewedSnack)));
+      ..showSnackBar(SnackBar(duration: const Duration(seconds: 4), content: Text(l.subscriptionRenewedSnack)));
   }
 }

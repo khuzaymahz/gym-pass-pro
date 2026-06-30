@@ -2,7 +2,11 @@ import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/network/network_error.dart';
+
+import '../../../core/prefs/app_preferences.dart';
 import '../../../core/push/push_notification_service.dart';
 import '../../billing/data/billing_state.dart';
 import '../../notifications/data/notifications_repository.dart';
@@ -10,9 +14,23 @@ import '../../referral/data/referral_state.dart';
 import '../../subscription/data/subscription_state.dart';
 import '../data/auth_repository.dart';
 import '../data/biometric_vault.dart';
+import '../data/pattern_vault.dart';
 import '../data/user_profile.dart';
 
 enum AuthPhase { anonymous, awaitingCode, authed }
+
+/// Result of a pattern sign-in attempt, used by [_PatternEntrySheet] to
+/// distinguish three outcomes without inspecting raw error strings in the UI.
+enum PatternSignInResult {
+  /// Hash matched and backend accepted the credentials — navigate to /home.
+  success,
+  /// Hash did not match the vault — flash error, reset grid, retry.
+  wrongPattern,
+  /// Hash matched but the backend rejected the login (e.g. password changed,
+  /// user not in the local dev DB). Pop the sheet so the error message from
+  /// [AuthState.error] becomes visible on the sign-in page.
+  backendError,
+}
 
 class AuthState {
   const AuthState({
@@ -21,7 +39,7 @@ class AuthState {
     this.loading = false,
     this.error,
     this.requiresPassword = false,
-    this.rememberMe = true,
+    this.rememberMe = false,
   });
 
   final AuthPhase phase;
@@ -59,6 +77,8 @@ class AuthState {
 }
 
 class AuthController extends StateNotifier<AuthState> {
+  static const _kRememberMe = 'auth.remember_me';
+
   AuthController(
     this._repo,
     this._profile,
@@ -67,18 +87,22 @@ class AuthController extends StateNotifier<AuthState> {
     this._billing,
     this._referral,
     this._vault,
+    this._patternVault,
     this._notifications,
-  ) : super(const AuthState()) {
+    this._prefs,
+  ) : super(AuthState(rememberMe: _prefs.getBool(_kRememberMe) ?? false)) {
     _bootstrapFuture = _bootstrap();
   }
 
   final AuthRepository _repo;
   final ProfileController _profile;
   final ProfileStore _profileStore;
+  final SharedPreferences _prefs;
   final SubscriptionNotifier _subscription;
   final BillingNotifier _billing;
   final ReferralController _referral;
   final BiometricVault _vault;
+  final PatternVault _patternVault;
   final NotificationsRepository _notifications;
 
   late final Future<void> _bootstrapFuture;
@@ -164,12 +188,21 @@ class AuthController extends StateNotifier<AuthState> {
       );
     } catch (err, st) {
       developer.log(
-        'phone-check failed (treating as new user; tap Continue to surface)',
+        'phone-check failed — retrying once after 500ms',
         name: 'auth.checkPhone',
         error: err,
         stackTrace: st,
       );
-      state = state.copyWith(loading: false, requiresPassword: false);
+      // One automatic retry: the first HTTP request on a freshly-installed
+      // app can fail while the TCP connection to the backend is warming up.
+      try {
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (state.phone != phone) return; // user changed number while we waited
+        final retry = await _repo.checkPhone(phone);
+        state = state.copyWith(loading: false, requiresPassword: retry.exists && retry.hasPassword);
+      } catch (_) {
+        state = state.copyWith(loading: false, requiresPassword: false);
+      }
     }
   }
 
@@ -218,6 +251,9 @@ class AuthController extends StateNotifier<AuthState> {
       if (await _vault.isEnabled()) {
         await _vault.save(phone: state.phone, password: password);
       }
+      // Keep pattern vault credentials in sync in case the user changed
+      // their password — avoids a stale-credential failure on next pattern login.
+      await _patternVault.refreshCredentials(phone: state.phone, password: password);
       await _hydrateMemberStores();
       unawaited(_registerPushToken());
       state = state.copyWith(loading: false, phase: AuthPhase.authed);
@@ -253,12 +289,43 @@ class AuthController extends StateNotifier<AuthState> {
       state = state.copyWith(loading: false, phase: AuthPhase.authed);
       return true;
     } catch (e) {
-      // Most likely cause: server-side password change invalidated the
-      // saved credential. Wipe the vault so the user is prompted for the
-      // new password instead of being stuck on a failing biometric.
-      await _vault.clear();
       state = state.copyWith(loading: false, error: e.toString());
+      // Only wipe the vault when the server explicitly rejected the credential
+      // (4xx auth error). Network failures and 5xx errors are transient —
+      // clearing on those would force the user to re-enroll every time the
+      // backend is briefly unreachable.
+      final classified = classifyNetworkError(e);
+      if (classified.kind == NetworkErrorKind.clientError) {
+        await _vault.clear();
+      }
       return false;
+    }
+  }
+
+  /// Pattern sign-in. Verifies [pattern] against the hash in [PatternVault]
+  /// and, on a match, replays the same loginWithPassword path as biometric
+  /// sign-in. Returns a [PatternSignInResult] so the sheet can distinguish
+  /// "wrong pattern" (retry) from "backend error" (pop + show error).
+  Future<PatternSignInResult> signInWithPattern(List<int> pattern) async {
+    final creds = await _patternVault.readCredentials(pattern: pattern);
+    if (creds == null) return PatternSignInResult.wrongPattern;
+    state = state.copyWith(loading: true, error: null, phone: creds.phone);
+    try {
+      await _repo.loginWithPassword(
+        phone: creds.phone,
+        password: creds.password,
+        persistent: true,
+      );
+      final me = await _repo.fetchMe();
+      await _profile.restore(me.toProfile());
+      await _profile.markPasswordKnown(creds.password);
+      await _hydrateMemberStores();
+      unawaited(_registerPushToken());
+      state = state.copyWith(loading: false, phase: AuthPhase.authed);
+      return PatternSignInResult.success;
+    } catch (e) {
+      state = state.copyWith(loading: false, error: e.toString());
+      return PatternSignInResult.backendError;
     }
   }
 
@@ -298,6 +365,7 @@ class AuthController extends StateNotifier<AuthState> {
   void setRememberMe(bool value) {
     if (state.rememberMe == value) return;
     state = state.copyWith(rememberMe: value);
+    _prefs.setBool(_kRememberMe, value);
   }
 
   Future<void> verifyOtp(String code) async {
@@ -369,8 +437,14 @@ class AuthController extends StateNotifier<AuthState> {
   /// auth phase is still `authed`, the "authed but no profile" branch of the
   /// redirect briefly matches and sends the user to /register instead of
   /// /sign-in.
+  ///
+  /// Pattern and biometric vaults are intentionally NOT cleared here — they
+  /// survive logout so the user can sign back in by drawing their pattern or
+  /// scanning their face/fingerprint without re-arming the vault every session.
+  /// Vaults are only cleared when the user explicitly disables them in Settings
+  /// or when the backend rejects the stored credentials.
   Future<void> logout() async {
-    state = const AuthState();
+    state = AuthState(rememberMe: _prefs.getBool(_kRememberMe) ?? false);
     // Unregister push token before clearing the session — the DELETE call
     // needs the auth token still in store.
     unawaited(_unregisterPushToken());
@@ -379,7 +453,6 @@ class AuthController extends StateNotifier<AuthState> {
     await _subscription.clear();
     await _billing.clear();
     await _referral.clear();
-    await _vault.clear();
   }
 
   /// Stub for Google sign-in. The backend `/auth/google/exchange` is a dev-only
@@ -419,6 +492,8 @@ final authControllerProvider =
     ref.read(billingProvider.notifier),
     ref.read(referralProvider.notifier),
     ref.read(biometricVaultProvider),
+    ref.read(patternVaultProvider),
     ref.read(notificationsRepositoryProvider),
+    ref.read(sharedPreferencesProvider),
   );
 });

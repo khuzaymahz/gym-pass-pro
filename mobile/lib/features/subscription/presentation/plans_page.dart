@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/di/providers.dart';
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
+import '../../../core/widgets/gp_scaffold.dart';
 import '../../../core/widgets/help_button.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
@@ -163,11 +164,14 @@ class _PlansPageState extends ConsumerState<PlansPage> {
       selectedDuration,
     );
 
-    return Scaffold(
+    return GpScaffold(
+      tips: [
+        HelpTip(icon: Icons.bar_chart_outlined, text: l.helpPlans1),
+        HelpTip(icon: Icons.compare_arrows_rounded, text: l.helpPlans2),
+        HelpTip(icon: Icons.search_rounded, text: l.helpPlans3),
+      ],
       body: SafeArea(
-        child: Stack(
-          children: [
-            Column(
+        child: Column(
           children: [
             // Back button is conditional on member state:
             //   - First-time arrival (post-registration): no back
@@ -266,17 +270,6 @@ class _PlansPageState extends ConsumerState<PlansPage> {
                 ],
               ),
             ),
-          ],
-          ),
-          Positioned(
-            bottom: 78 + MediaQuery.viewPaddingOf(context).bottom,
-            left: 20,
-            child: HelpButton(tips: [
-              HelpTip(icon: Icons.bar_chart_outlined, text: l.helpPlans1),
-              HelpTip(icon: Icons.compare_arrows_rounded, text: l.helpPlans2),
-              HelpTip(icon: Icons.search_rounded, text: l.helpPlans3),
-            ],),
-          ),
           ],
         ),
       ),

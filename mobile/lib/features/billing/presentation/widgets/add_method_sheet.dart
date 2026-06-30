@@ -96,7 +96,7 @@ class _AddMethodSheetBodyState extends ConsumerState<_AddMethodSheetBody> {
     if (error != null) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(error)));
+        ..showSnackBar(SnackBar(duration: const Duration(seconds: 4), content: Text(error)));
       return;
     }
     final payload = PaymentMethodPayloadBuilder.build(draft, l);
@@ -120,7 +120,7 @@ class _AddMethodSheetBodyState extends ConsumerState<_AddMethodSheetBody> {
       // raw "DioException [unknown]: null" at the user.
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(_resolveError(e, l))));
+        ..showSnackBar(SnackBar(duration: const Duration(seconds: 4), content: Text(_resolveError(e, l))));
       return;
     }
     if (!mounted) return;

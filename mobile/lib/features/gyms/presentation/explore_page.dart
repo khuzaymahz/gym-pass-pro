@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../core/widgets/gym_loader.dart';
+import '../../../core/widgets/gp_scaffold.dart';
 import '../../../core/widgets/help_button.dart';
 import '../../../l10n/app_localizations.dart';
 import '../data/favorited_gyms.dart';
@@ -804,11 +805,16 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
     final isLoadingGyms = asyncGyms.isLoading && gyms.isEmpty;
     final hasError = asyncGyms.hasError && gyms.isEmpty;
 
-    return Scaffold(
+    return GpScaffold(
       // The map is the body; bottom sheet floats over it. Edge-to-
       // edge so the map runs under the system status bar — chrome
       // is glass-blurred, so legibility is preserved.
       extendBodyBehindAppBar: true,
+      tips: [
+        HelpTip(icon: Icons.map_outlined, text: AppLocalizations.of(context).helpExplore1),
+        HelpTip(icon: Icons.location_on_outlined, text: AppLocalizations.of(context).helpExplore2),
+        HelpTip(icon: Icons.filter_list_rounded, text: AppLocalizations.of(context).helpExplore3),
+      ],
       body: Builder(
         builder: (context) {
           final visible = gyms
@@ -1194,24 +1200,6 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
                   onGymSelect: _selectGymFromList,
                   distanceFor: _distanceToGym,
                 ),
-              Positioned(
-                bottom: 24,
-                left: 20,
-                child: HelpButton(tips: [
-                  HelpTip(
-                    icon: Icons.map_outlined,
-                    text: AppLocalizations.of(context).helpExplore1,
-                  ),
-                  HelpTip(
-                    icon: Icons.location_on_outlined,
-                    text: AppLocalizations.of(context).helpExplore2,
-                  ),
-                  HelpTip(
-                    icon: Icons.filter_list_rounded,
-                    text: AppLocalizations.of(context).helpExplore3,
-                  ),
-                ],),
-              ),
             ],
           );
         },

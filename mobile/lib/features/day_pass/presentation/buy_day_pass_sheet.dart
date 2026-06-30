@@ -106,7 +106,7 @@ class _BuyDayPassSheetBodyState extends ConsumerState<_BuyDayPassSheetBody> {
     if (isProd && method == null) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(l.dayPassNeedPaymentMethod)));
+        ..showSnackBar(SnackBar(duration: const Duration(seconds: 4), content: Text(l.dayPassNeedPaymentMethod)));
       return;
     }
     setState(() => _busy = true);
@@ -130,7 +130,7 @@ class _BuyDayPassSheetBodyState extends ConsumerState<_BuyDayPassSheetBody> {
       Navigator.of(context).pop(pass);
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(l.dayPassPurchasedSnack)));
+        ..showSnackBar(SnackBar(duration: const Duration(seconds: 4), content: Text(l.dayPassPurchasedSnack)));
     } catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
@@ -140,7 +140,7 @@ class _BuyDayPassSheetBodyState extends ConsumerState<_BuyDayPassSheetBody> {
           : resolveErrorMessage(e, l);
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(msg)));
+        ..showSnackBar(SnackBar(duration: const Duration(seconds: 4), content: Text(msg)));
     }
   }
 

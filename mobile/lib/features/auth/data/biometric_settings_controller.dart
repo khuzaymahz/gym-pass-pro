@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'auth_repository.dart';
 import 'biometric_vault.dart';
 import 'user_profile.dart';
 
@@ -15,24 +14,30 @@ class BiometricSettingsState {
     this.enabled = false,
     this.hasPassword = false,
     this.loading = false,
+    this.usesFaceId = false,
   });
 
   final bool available;
   final bool enabled;
   final bool hasPassword;
   final bool loading;
+  /// True when the device's primary enrolled biometric is face/iris.
+  /// Used to select the correct icon in settings and the sign-in screen.
+  final bool usesFaceId;
 
   BiometricSettingsState copyWith({
     bool? available,
     bool? enabled,
     bool? hasPassword,
     bool? loading,
+    bool? usesFaceId,
   }) =>
       BiometricSettingsState(
         available: available ?? this.available,
         enabled: enabled ?? this.enabled,
         hasPassword: hasPassword ?? this.hasPassword,
         loading: loading ?? this.loading,
+        usesFaceId: usesFaceId ?? this.usesFaceId,
       );
 }
 
@@ -51,23 +56,24 @@ enum BiometricToggleResult {
 /// this controller owns the orchestration: prompt → verify → save / clear.
 class BiometricSettingsController
     extends StateNotifier<BiometricSettingsState> {
-  BiometricSettingsController(this._vault, this._repo, this._profile)
+  BiometricSettingsController(this._vault, this._profile)
       : super(const BiometricSettingsState()) {
     _refresh();
   }
 
   final BiometricVault _vault;
-  final AuthRepository _repo;
   final ProfileController _profile;
 
   Future<void> _refresh() async {
     final available = await _vault.canUseBiometrics();
     final enabled = await _vault.isEnabled();
     final hasPassword = (_profile.state.passwordHash ?? '').isNotEmpty;
+    final usesFaceId = available ? await _vault.prefersFaceId() : false;
     state = state.copyWith(
       available: available,
       enabled: enabled,
       hasPassword: hasPassword,
+      usesFaceId: usesFaceId,
     );
   }
 
@@ -84,37 +90,18 @@ class BiometricSettingsController
   /// password they don't know — the prompt is a real proof-of-knowledge.
   Future<BiometricToggleResult> enable({
     required String password,
-    required String localizedReason,
   }) async {
     state = state.copyWith(loading: true);
     try {
       final phone = _profile.state.phone ?? '';
-      if (phone.isEmpty) {
-        return BiometricToggleResult.network;
-      }
+      if (phone.isEmpty) return BiometricToggleResult.network;
       try {
-        await _repo.loginWithPassword(
-          phone: phone,
-          password: password,
-          persistent: true,
-        );
-      } catch (e) {
-        final msg = e.toString();
-        if (msg.contains('AUTH_PASSWORD_INVALID')) {
-          return BiometricToggleResult.passwordWrong;
-        }
+        await _vault.save(phone: phone, password: password);
+        state = state.copyWith(enabled: true);
+        return BiometricToggleResult.ok;
+      } catch (_) {
         return BiometricToggleResult.network;
       }
-      final result = await _vault.authenticate(localizedReason: localizedReason);
-      if (result == BiometricResult.unavailable) {
-        return BiometricToggleResult.biometricUnavailable;
-      }
-      if (result == BiometricResult.cancelled) {
-        return BiometricToggleResult.biometricCancelled;
-      }
-      await _vault.save(phone: phone, password: password);
-      state = state.copyWith(enabled: true);
-      return BiometricToggleResult.ok;
     } finally {
       state = state.copyWith(loading: false);
     }
@@ -139,7 +126,6 @@ final biometricSettingsProvider = StateNotifierProvider<
     BiometricSettingsController, BiometricSettingsState>((ref) {
   return BiometricSettingsController(
     ref.read(biometricVaultProvider),
-    ref.read(authRepositoryProvider),
     ref.read(profileProvider.notifier),
   );
 });

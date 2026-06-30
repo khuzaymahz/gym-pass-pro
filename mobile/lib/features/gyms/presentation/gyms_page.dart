@@ -6,6 +6,7 @@ import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
 import '../../../core/widgets/glow.dart';
 import '../../../core/widgets/gym_tile.dart';
+import '../../../core/widgets/gp_scaffold.dart';
 import '../../../core/widgets/help_button.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
@@ -88,8 +89,15 @@ class _GymsPageState extends ConsumerState<GymsPage> {
     // The page is now pushed as a top-level route (no shell wrapper),
     // so it owns its own Scaffold. Without this, the inner TextField
     // can't find a Material ancestor and asserts at first paint.
-    return Scaffold(
+    return GpScaffold(
       backgroundColor: gp.bg,
+      tips: [
+        HelpTip(icon: Icons.search_rounded, text: l.helpGyms1),
+        HelpTip(icon: Icons.category_outlined, text: l.helpGyms2),
+        HelpTip(icon: Icons.favorite_border_rounded, text: l.helpGyms3),
+        HelpTip(icon: Icons.tune_rounded, text: l.helpGyms4),
+        HelpTip(icon: Icons.map_outlined, text: l.helpGyms5),
+      ],
       body: Stack(
         children: [
           const Positioned.fill(
@@ -174,17 +182,6 @@ class _GymsPageState extends ConsumerState<GymsPage> {
                 ),
               ],
             ),
-          ),
-          Positioned(
-            bottom: 78 + MediaQuery.viewPaddingOf(context).bottom,
-            left: 20,
-            child: HelpButton(tips: [
-              HelpTip(icon: Icons.search_rounded, text: l.helpGyms1),
-              HelpTip(icon: Icons.category_outlined, text: l.helpGyms2),
-              HelpTip(icon: Icons.favorite_border_rounded, text: l.helpGyms3),
-              HelpTip(icon: Icons.tune_rounded, text: l.helpGyms4),
-              HelpTip(icon: Icons.map_outlined, text: l.helpGyms5),
-            ]),
           ),
         ],
       ),

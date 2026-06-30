@@ -7,6 +7,7 @@ import '../../../core/di/providers.dart';
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
 import '../../../core/widgets/gym_logo.dart';
+import '../../../core/widgets/gp_scaffold.dart';
 import '../../../core/widgets/help_button.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
@@ -167,8 +168,13 @@ class GymDetailPage extends ConsumerWidget {
     return RealtimeBridge(
       slug: slug,
       gymId: gymSummary?.id,
-      child: Scaffold(
+      child: GpScaffold(
         backgroundColor: gp.bg,
+        tips: [
+          HelpTip(icon: Icons.workspace_premium_outlined, text: l.helpGymDetail1),
+          HelpTip(icon: Icons.qr_code_2, text: l.helpGymDetail2),
+          HelpTip(icon: Icons.local_activity_outlined, text: l.helpGymDetail3),
+        ],
         body: Stack(
           children: [
             // Photo header — pinned at 20% of screen so it stays visible
@@ -497,15 +503,6 @@ class GymDetailPage extends ConsumerWidget {
                   ),
                 ),
               ),
-            ),
-            Positioned(
-              bottom: 78 + MediaQuery.viewPaddingOf(context).bottom,
-              left: 20,
-              child: HelpButton(tips: [
-                HelpTip(icon: Icons.workspace_premium_outlined, text: l.helpGymDetail1),
-                HelpTip(icon: Icons.qr_code_2, text: l.helpGymDetail2),
-                HelpTip(icon: Icons.local_activity_outlined, text: l.helpGymDetail3),
-              ],),
             ),
             // Floating action row (back / favourite / share),
             // pinned over the hero so the back button stays

@@ -7,6 +7,7 @@ import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
 import '../../../core/widgets/gym_loader.dart';
 import '../../../core/widgets/gym_logo.dart';
+import '../../../core/widgets/gp_scaffold.dart';
 import '../../../core/widgets/help_button.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
@@ -83,7 +84,12 @@ class _DayPassCheckoutPageState extends ConsumerState<DayPassCheckoutPage> {
 
     return PopScope(
       canPop: !_isPaying,
-      child: Scaffold(
+      child: GpScaffold(
+        tips: [
+          HelpTip(icon: Icons.credit_card_outlined, text: l.helpBilling1),
+          HelpTip(icon: Icons.receipt_long, text: l.helpBilling2),
+          HelpTip(icon: Icons.error_outline, text: l.helpBilling3),
+        ],
         body: SafeArea(
           minimum: const EdgeInsets.only(bottom: 8),
           child: Stack(
@@ -167,15 +173,6 @@ class _DayPassCheckoutPageState extends ConsumerState<DayPassCheckoutPage> {
                   ),
                 ],
               ),
-              Positioned(
-                bottom: 78 + MediaQuery.viewPaddingOf(context).bottom,
-                left: 20,
-                child: HelpButton(tips: [
-                  HelpTip(icon: Icons.credit_card_outlined, text: l.helpBilling1),
-                  HelpTip(icon: Icons.receipt_long, text: l.helpBilling2),
-                  HelpTip(icon: Icons.error_outline, text: l.helpBilling3),
-                ],),
-              ),
               if (_isPaying)
                 _PayingOverlay(label: l.checkoutPayingOverlay),
             ],
@@ -218,7 +215,7 @@ class _DayPassCheckoutPageState extends ConsumerState<DayPassCheckoutPage> {
       nav.pop();
       messenger
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(l.dayPassPurchasedSnack)));
+        ..showSnackBar(SnackBar(duration: const Duration(seconds: 4), content: Text(l.dayPassPurchasedSnack)));
     } catch (e) {
       if (!mounted) return;
       setState(() => _isPaying = false);
@@ -228,7 +225,7 @@ class _DayPassCheckoutPageState extends ConsumerState<DayPassCheckoutPage> {
           : resolveErrorMessage(e, l);
       messenger
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(msg)));
+        ..showSnackBar(SnackBar(duration: const Duration(seconds: 4), content: Text(msg)));
     }
   }
 
@@ -537,7 +534,7 @@ class _DayPassCheckoutPageState extends ConsumerState<DayPassCheckoutPage> {
         if (!context.mounted) return;
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(content: Text(msg)));
+          ..showSnackBar(SnackBar(duration: const Duration(seconds: 4), content: Text(msg)));
       },
     );
     final after = ref.read(billingProvider).methods;

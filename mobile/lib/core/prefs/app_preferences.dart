@@ -25,6 +25,8 @@ class AppPreferences {
   final bool notifPlanReminders;
   final bool notifClubsNearby;
   final bool notifPromos;
+  final double textScale;
+  final double layoutScale;
 
   const AppPreferences({
     // EN is the constructor default — the "I have no information"
@@ -39,6 +41,8 @@ class AppPreferences {
     this.notifPlanReminders = true,
     this.notifClubsNearby = true,
     this.notifPromos = false,
+    this.textScale = 1.0,
+    this.layoutScale = 1.0,
   });
 
   AppPreferences copyWith({
@@ -47,6 +51,8 @@ class AppPreferences {
     bool? notifPlanReminders,
     bool? notifClubsNearby,
     bool? notifPromos,
+    double? textScale,
+    double? layoutScale,
   }) {
     return AppPreferences(
       locale: locale ?? this.locale,
@@ -54,6 +60,8 @@ class AppPreferences {
       notifPlanReminders: notifPlanReminders ?? this.notifPlanReminders,
       notifClubsNearby: notifClubsNearby ?? this.notifClubsNearby,
       notifPromos: notifPromos ?? this.notifPromos,
+      textScale: textScale ?? this.textScale,
+      layoutScale: layoutScale ?? this.layoutScale,
     );
   }
 }
@@ -66,6 +74,8 @@ const _kTheme = 'pref.theme';
 const _kNotifPlan = 'pref.notif.plan';
 const _kNotifClubs = 'pref.notif.clubs';
 const _kNotifPromos = 'pref.notif.promos';
+const _kTextScale = 'pref.textScale';
+const _kLayoutScale = 'pref.layoutScale';
 
 /// Resolve the initial locale.
 ///
@@ -165,6 +175,10 @@ Future<({SharedPreferences shared, AppPreferences initial})>
         _parseBool(shared.getString(_kNotifClubs), defaultValue: true),
     notifPromos:
         _parseBool(shared.getString(_kNotifPromos), defaultValue: false),
+    textScale:
+        double.tryParse(shared.getString(_kTextScale) ?? '') ?? 1.0,
+    layoutScale:
+        double.tryParse(shared.getString(_kLayoutScale) ?? '') ?? 1.0,
   );
   return (shared: shared, initial: initial);
 }
@@ -197,6 +211,16 @@ class AppPreferencesNotifier extends StateNotifier<AppPreferences> {
   Future<void> setNotifPromos(bool value) async {
     state = state.copyWith(notifPromos: value);
     await _shared.setString(_kNotifPromos, value ? '1' : '0');
+  }
+
+  Future<void> setTextScale(double value) async {
+    state = state.copyWith(textScale: value);
+    await _shared.setString(_kTextScale, value.toString());
+  }
+
+  Future<void> setLayoutScale(double value) async {
+    state = state.copyWith(layoutScale: value);
+    await _shared.setString(_kLayoutScale, value.toString());
   }
 }
 

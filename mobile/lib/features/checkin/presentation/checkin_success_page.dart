@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
 import '../../../core/widgets/glow.dart';
+import '../../../core/widgets/gp_scaffold.dart';
 import '../../../core/widgets/help_button.dart';
 import '../../../core/widgets/overline.dart';
 import '../../../core/widgets/pill_button.dart';
@@ -46,21 +47,17 @@ class CheckinSuccessPage extends ConsumerWidget {
     final timeLabel = _formatTime12h(now);
     final dateLabel = _formatShortDate(now);
 
-    return Scaffold(
+    return GpScaffold(
       backgroundColor: gp.bg,
+      tips: [
+        HelpTip(icon: Icons.check_circle_outline, text: l.helpCheckinSuccess1),
+        HelpTip(icon: Icons.bar_chart_outlined, text: l.helpCheckinSuccess2),
+        HelpTip(icon: Icons.support_agent_outlined, text: l.helpCheckinSuccess3),
+      ],
       body: Stack(
         children: [
           const Positioned.fill(
             child: RadialGlow(opacity: 0.22, alignment: Alignment(0, -0.3), radius: 1.6),
-          ),
-          Positioned(
-            bottom: 78 + MediaQuery.viewPaddingOf(context).bottom,
-            left: 20,
-            child: HelpButton(tips: [
-              HelpTip(icon: Icons.check_circle_outline, text: l.helpCheckinSuccess1),
-              HelpTip(icon: Icons.bar_chart_outlined, text: l.helpCheckinSuccess2),
-              HelpTip(icon: Icons.support_agent_outlined, text: l.helpCheckinSuccess3),
-            ],),
           ),
           SafeArea(
             child: Padding(

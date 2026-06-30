@@ -8,58 +8,32 @@ import '../../../core/widgets/gp_tab_bar.dart';
 import '../../checkin/presentation/checkin_controller.dart'
     show checkinReturnRouteProvider;
 
-/// Bottom-nav scaffold for the four tab branches. Receives a
-/// [StatefulNavigationShell] from `StatefulShellRoute.indexedStack` —
-/// the shell IS the body widget (it renders an `IndexedStack` of all
-/// branch navigators internally), so each tab keeps its State alive
-/// when the member switches tabs. That preserves:
-///
-///   - the QR scanner's Camera2 + MLKit barcode + TFLite XNNPACK
-///     state (re-init takes ~200 ms + ~3 MB GC churn each time);
-///   - the explore-map's camera position, tile cache, and selected
-///     pin;
-///   - per-tab scroll offsets.
-///
-/// Pages that are inside the shell but visibility-sensitive (camera
-/// preview, GPS) should still pause work when their branch isn't
-/// active — the State is alive but the user isn't looking at it. See
-/// `CheckinPage` for the visibility-driven start/stop hookup.
+/// Bottom-nav scaffold for the four tab branches.
 ///
 /// ## Swipe-to-navigate
 ///
-/// Tab switching on horizontal swipe is handled by a [Listener] in
-/// [_HomeShellState], not a GestureDetector. A Listener receives raw
-/// pointer events outside the gesture arena, so it fires regardless of
-/// whether an inner widget (flutter_map, horizontal ListView, etc.) has
-/// claimed the gesture. The trade-off: the Listener is not aware of
-/// gesture cancellations, so it applies displacement + angle thresholds
-/// instead of velocity:
+/// Tab switching uses a [GestureDetector] with [onHorizontalDragEnd], NOT
+/// a raw [Listener]. This is intentional: by participating in the gesture
+/// arena the detector naturally loses to any child widget that claims a
+/// horizontal drag (Sliders, flutter_map, horizontal ListViews, etc.) so
+/// those widgets always work correctly. Only free-area swipes with no
+/// competing child reach the tab-switch handler.
 ///
-///   • horizontal displacement ≥ 70 px
-///   • total vertical drift < total horizontal drift × 0.7
-///     (catches diagonal map pans and rejects them)
+/// The camera preview on CheckinPage is a native AndroidView and is handled
+/// separately via [handleHorizontalDragEndVelocity].
 ///
-/// The camera preview on CheckinPage is a native AndroidView that
-/// consumes touches before Flutter's pointer routing sees them, so the
-/// Listener never fires there. [CheckinPage] keeps its own
-/// [Positioned.fill] overlay to claim horizontal drags above the native
-/// surface and routes them via [handleHorizontalDragEndVelocity].
-/// A 500 ms debounce on [swipeToAdjacentTab] prevents double-fire on
-/// the (unlikely) case where both paths fire for the same gesture.
+/// The bottom nav bar has its own [GestureDetector] so swipes that START on
+/// the tab bar also switch tabs.
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key, required this.navigationShell});
 
   final StatefulNavigationShell navigationShell;
 
-  /// Branch indexes in tab order. Mirrors the order in
-  /// `appRouterProvider`'s `StatefulShellRoute.branches` list.
   static const int _homeIndex = 0;
   static const int _exploreIndex = 1;
   static const int _scanIndex = 2;
   static const int _profileIndex = 3;
 
-  /// Tab-key to branch-index mapping. Kept in one place so the bottom
-  /// bar callbacks and the swipe handler agree.
   static int _branchIndexFor(String key) {
     switch (key) {
       case 'explore':
@@ -88,8 +62,7 @@ class HomeShell extends ConsumerStatefulWidget {
     }
   }
 
-  // Debounce timestamp — shared across all call sites (Listener +
-  // CheckinPage) so a double-fire within the same gesture is dropped.
+  // Debounce shared across all call sites (body drag + nav bar drag + CheckinPage).
   static DateTime? _lastSwitchAt;
 
   /// Moves one tab forward (+1) or backward (-1). Exposed so
@@ -110,17 +83,11 @@ class HomeShell extends ConsumerStatefulWidget {
     shell.goBranch(target);
   }
 
-  /// True when a modal popup (e.g. filters sheet, dialog) is sitting
-  /// on top of any branch — used to suppress tab-swipe so the
-  /// gesture is the user's to dismiss the sheet, not the shell's
-  /// to swap tabs.
   static bool _hasPopupOnTop() {
     for (final key in branchNavigatorKeys) {
       final navState = key.currentState;
       if (navState == null) continue;
       var found = false;
-      // popUntil walks top-down. Returning `true` short-circuits
-      // without popping anything; we use it as a read-only inspect.
       navState.popUntil((route) {
         if (route is PopupRoute) found = true;
         return true;
@@ -148,49 +115,23 @@ class HomeShell extends ConsumerStatefulWidget {
 }
 
 class _HomeShellState extends ConsumerState<HomeShell> {
-  // Raw pointer tracking for Listener-based swipe detection.
-  Offset? _dragStart;
-  Offset? _prevPos;
-  double _totalDxAbs = 0;
-  double _totalDyAbs = 0;
+  /// Velocity threshold (logical px/s) for a swipe to trigger a tab switch.
+  /// High enough to ignore accidental micro-swipes on content areas.
+  static const double _velocityThreshold = 350;
 
-  void _onPointerDown(PointerDownEvent e) {
-    _dragStart = e.localPosition;
-    _prevPos = e.localPosition;
-    _totalDxAbs = 0;
-    _totalDyAbs = 0;
-  }
-
-  void _onPointerMove(PointerMoveEvent e) {
-    final prev = _prevPos;
-    if (prev == null) return;
-    final delta = e.localPosition - prev;
-    _totalDxAbs += delta.dx.abs();
-    _totalDyAbs += delta.dy.abs();
-    _prevPos = e.localPosition;
-  }
-
-  void _onPointerUp(PointerUpEvent e) {
-    final start = _dragStart;
-    if (start == null) return;
-
-    // Explore tab owns horizontal gestures — flutter_map needs them for
-    // panning. Don't let the shell intercept them for tab switching.
-    if (widget.navigationShell.currentIndex == HomeShell._exploreIndex) return;
-
-    final cumulativeDx = e.localPosition.dx - start.dx;
-
-    // Require at least 70 px of net horizontal travel.
-    if (cumulativeDx.abs() < 70) return;
-
-    // Reject diagonal gestures (e.g. map panning).
-    // Total vertical drift must be less than 70 % of total horizontal.
-    if (_totalDyAbs > _totalDxAbs * 0.7) return;
-
+  void _onHorizontalDragEnd(DragEndDetails details) {
+    final v = details.primaryVelocity;
+    if (v == null || v.abs() < _velocityThreshold) return;
     if (HomeShell._hasPopupOnTop()) return;
 
-    // Debounce: skip if a tab switch just happened (e.g. CheckinPage
-    // overlay also fired for the same gesture).
+    // right-swipe (v > 0) → go to previous tab (–1) in LTR;
+    // flipped in RTL because "right" means previous logical item.
+    final isRtl = Directionality.of(context) == TextDirection.rtl;
+    final direction = isRtl ? (v > 0 ? 1 : -1) : (v > 0 ? -1 : 1);
+
+    final target = widget.navigationShell.currentIndex + direction;
+    if (target < 0 || target >= 4) return;
+
     final now = DateTime.now();
     if (HomeShell._lastSwitchAt != null &&
         now.difference(HomeShell._lastSwitchAt!) <
@@ -198,36 +139,17 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       return;
     }
 
-    // right-drag (dx > 0) → go to previous tab (–1).
-    // left-drag  (dx < 0) → go to next tab     (+1).
-    final isRtl = Directionality.of(context) == TextDirection.rtl;
-    final direction = isRtl
-        ? (cumulativeDx > 0 ? 1 : -1)
-        : (cumulativeDx > 0 ? -1 : 1);
-
-    // NOTE: Do NOT use StatefulNavigationShell.maybeOf(context) here.
-    // maybeOf() searches ancestors; the shell is a *descendant* of this
-    // state's build context, so it returns null. Use widget.navigationShell
-    // directly (the field is the actual shell instance).
-    final target = widget.navigationShell.currentIndex + direction;
-    if (target < 0 || target >= 4) return;
-
     _dismissOpenPopups();
     HomeShell._lastSwitchAt = now;
 
-    // Swiping directly to the scan tab clears any pending return route
-    // so the scanner doesn't show a stale "go back" affordance.
     if (target == HomeShell._scanIndex) {
       ref.read(checkinReturnRouteProvider.notifier).state = null;
     }
-
     widget.navigationShell.goBranch(target);
   }
 
   void _switchTo(int branchIndex) {
     _dismissOpenPopups();
-    // When the user taps the scan tab from the bottom bar, clear any pending
-    // return route so the scanner doesn't show a stale "go back" button.
     if (branchIndex == HomeShell._scanIndex) {
       ref.read(checkinReturnRouteProvider.notifier).state = null;
     }
@@ -243,14 +165,12 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     return Scaffold(
       body: Stack(
         children: [
-          // Listener receives raw pointer events outside the gesture
-          // arena — fires even when an inner widget (map, PageView)
-          // claims the gesture. See class doc for threshold rationale.
-          Listener(
+          // GestureDetector participates in the arena → child widgets
+          // (Slider, flutter_map, horizontal ListView) claim horizontal
+          // drags before this fires, so they always work correctly.
+          GestureDetector(
             behavior: HitTestBehavior.translucent,
-            onPointerDown: _onPointerDown,
-            onPointerMove: _onPointerMove,
-            onPointerUp: _onPointerUp,
+            onHorizontalDragEnd: _onHorizontalDragEnd,
             child: navigationShell,
           ),
           const Positioned(
@@ -261,25 +181,25 @@ class _HomeShellState extends ConsumerState<HomeShell> {
           ),
         ],
       ),
-      // Bottom nav is locked to LTR in every locale — the tab order
-      // (home · gyms · scan · profile) is a fixed product shape,
-      // not directional content.
-      bottomNavigationBar: Directionality(
-        textDirection: TextDirection.ltr,
-        child: GpTabBar(
-          active: HomeShell._keyForBranch(navigationShell.currentIndex),
-          onTab: (k) => _switchTo(HomeShell._branchIndexFor(k)),
-          onScan: () => _switchTo(HomeShell._scanIndex),
+      // Bottom nav is locked to LTR — tab order is a fixed product shape.
+      // Wrapped in its own GestureDetector so swipes that start on the tab
+      // bar also trigger tab switching.
+      bottomNavigationBar: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onHorizontalDragEnd: _onHorizontalDragEnd,
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: GpTabBar(
+            active: HomeShell._keyForBranch(navigationShell.currentIndex),
+            onTab: (k) => _switchTo(HomeShell._branchIndexFor(k)),
+            onScan: () => _switchTo(HomeShell._scanIndex),
+          ),
         ),
       ),
     );
   }
 }
 
-/// Pop every `PopupRoute` (modal bottom sheets, dialogs, route-level
-/// menus) on every branch navigator. PageRoutes (e.g. /gyms/<slug>
-/// pushed on top of explore) are left alone — those are owned by
-/// go_router and survive tab swaps as expected.
 void _dismissOpenPopups() {
   for (final key in branchNavigatorKeys) {
     final nav = key.currentState;

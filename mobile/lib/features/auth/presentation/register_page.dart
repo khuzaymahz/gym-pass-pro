@@ -9,6 +9,7 @@ import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
 import '../../../core/widgets/entry_toggles.dart';
 import '../../../core/widgets/glow.dart';
+import '../../../core/widgets/gp_scaffold.dart';
 import '../../../core/widgets/help_button.dart';
 import '../../../core/widgets/overline.dart';
 import '../../../core/widgets/pill_button.dart';
@@ -189,7 +190,14 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final gp = context.gp;
-    return Scaffold(
+    return GpScaffold(
+      tips: [
+        HelpTip(icon: Icons.badge_outlined, text: l.helpRegister1),
+        HelpTip(icon: Icons.credit_card_off_outlined, text: l.helpRegister2),
+        HelpTip(icon: Icons.lock_outlined, text: l.helpRegister3),
+        HelpTip(icon: Icons.account_circle_outlined, text: l.helpRegister4),
+        HelpTip(icon: Icons.gavel_rounded, text: l.helpRegister5),
+      ],
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -363,17 +371,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                 ),
               ),
             ),
-          ),
-          Positioned(
-            bottom: 78 + MediaQuery.viewPaddingOf(context).bottom,
-            left: 20,
-            child: HelpButton(tips: [
-              HelpTip(icon: Icons.badge_outlined, text: l.helpRegister1),
-              HelpTip(icon: Icons.credit_card_off_outlined, text: l.helpRegister2),
-              HelpTip(icon: Icons.lock_outlined, text: l.helpRegister3),
-              HelpTip(icon: Icons.account_circle_outlined, text: l.helpRegister4),
-              HelpTip(icon: Icons.gavel_rounded, text: l.helpRegister5),
-            ],),
           ),
         ],
       ),

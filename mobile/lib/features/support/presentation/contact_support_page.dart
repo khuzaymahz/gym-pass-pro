@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
+import '../../../core/widgets/gp_scaffold.dart';
 import '../../../core/widgets/help_button.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
@@ -38,7 +39,7 @@ class _ContactSupportPageState extends ConsumerState<ContactSupportPage> {
     if (subject.isEmpty || body.isEmpty) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(l.supportMissingFields)));
+        ..showSnackBar(SnackBar(duration: const Duration(seconds: 4), content: Text(l.supportMissingFields)));
       return;
     }
     setState(() => _submitting = true);
@@ -133,7 +134,7 @@ class _ContactSupportPageState extends ConsumerState<ContactSupportPage> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        SnackBar(content: Text(l.supportChannelCopied(fallbackValue))),
+        SnackBar(duration: const Duration(seconds: 4), content: Text(l.supportChannelCopied(fallbackValue))),
       );
   }
 
@@ -178,7 +179,12 @@ class _ContactSupportPageState extends ConsumerState<ContactSupportPage> {
     final l = AppLocalizations.of(context);
     final gp = context.gp;
     final topInset = MediaQuery.viewPaddingOf(context).top;
-    return Scaffold(
+    return GpScaffold(
+      tips: [
+        HelpTip(icon: Icons.phone_outlined, text: l.helpSupportContact1),
+        HelpTip(icon: Icons.email_outlined, text: l.helpSupportContact2),
+        HelpTip(icon: Icons.chat_bubble_outline, text: l.helpSupportContact3),
+      ],
       body: Stack(
         children: [
           ListView(
@@ -261,15 +267,6 @@ class _ContactSupportPageState extends ConsumerState<ContactSupportPage> {
             top: topInset + 12,
             start: 20,
             child: const BackBtn(fallback: '/profile'),
-          ),
-          Positioned(
-            bottom: 78 + MediaQuery.viewPaddingOf(context).bottom,
-            left: 20,
-            child: HelpButton(tips: [
-              HelpTip(icon: Icons.phone_outlined, text: l.helpSupportContact1),
-              HelpTip(icon: Icons.email_outlined, text: l.helpSupportContact2),
-              HelpTip(icon: Icons.chat_bubble_outline, text: l.helpSupportContact3),
-            ],),
           ),
         ],
       ),

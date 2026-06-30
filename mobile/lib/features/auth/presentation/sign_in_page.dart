@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -15,9 +17,12 @@ import '../../../core/widgets/jordan_flag.dart';
 import '../../../core/widgets/overline.dart';
 import '../../../core/widgets/pill_button.dart';
 import '../../../core/widgets/wordmark.dart';
+import '../../../core/widgets/gp_scaffold.dart';
 import '../../../core/widgets/help_button.dart';
+import '../../../core/widgets/pattern_lock.dart';
 import '../../../l10n/app_localizations.dart';
 import '../data/biometric_vault.dart';
+import '../data/pattern_vault.dart';
 import 'auth_controller.dart';
 
 class SignInPage extends ConsumerStatefulWidget {
@@ -38,28 +43,48 @@ class _SignInPageState extends ConsumerState<SignInPage> {
   // own `loading` flag — prevents a duplicate OTP request fanning out.
   bool _submitting = false;
 
-  /// Resolved on first frame: true when the device can biometric AND the
-  /// user has saved creds in the vault. Drives the biometric pill's
-  /// visibility — we don't show a button that would only ever fail.
+  /// True when device biometrics are available AND the vault has saved creds.
   bool _biometricReady = false;
+
+  /// Icon to show on the biometric quick-login button.
+  /// Set to face icon when the device's primary enrolled biometric is face/iris.
+  IconData _biometricIcon = Icons.fingerprint;
+
+  /// True when a pattern has been set up. Drives the pattern pill's visibility.
+  bool _patternReady = false;
+
+  Timer? _phoneCheckDebounce;
 
   @override
   void initState() {
     super.initState();
     _phoneCtrl.addListener(_onPhoneChanged);
     _checkBiometricReady();
+    _checkPatternReady();
   }
 
   Future<void> _checkBiometricReady() async {
     final vault = ref.read(biometricVaultProvider);
     final available = await vault.canUseBiometrics();
     final enabled = await vault.isEnabled();
+    final usesFaceId = available ? await vault.prefersFaceId() : false;
     if (!mounted) return;
-    setState(() => _biometricReady = available && enabled);
+    setState(() {
+      _biometricReady = available && enabled;
+      _biometricIcon =
+          usesFaceId ? Icons.face_retouching_natural : Icons.fingerprint;
+    });
+  }
+
+  Future<void> _checkPatternReady() async {
+    final enabled = await ref.read(patternVaultProvider).isEnabled();
+    if (!mounted) return;
+    setState(() => _patternReady = enabled);
   }
 
   @override
   void dispose() {
+    _phoneCheckDebounce?.cancel();
     _phoneCtrl.removeListener(_onPhoneChanged);
     _phoneCtrl.dispose();
     _passwordCtrl.dispose();
@@ -100,11 +125,17 @@ class _SignInPageState extends ConsumerState<SignInPage> {
     }
 
     if (nextPhone == state.phone || state.loading) return;
-    // Phone differs from the last check — clear prior gate, then re-check.
     if (state.requiresPassword || state.error != null) {
       controller.resetPhoneCheck();
     }
-    controller.checkPhone(nextPhone);
+    // 400ms debounce — avoids firing on every digit and lets the first HTTP
+    // connection warm up before the check lands (cold connections on a fresh
+    // install can take 300-500ms, causing a silent failure without the delay).
+    _phoneCheckDebounce?.cancel();
+    _phoneCheckDebounce = Timer(const Duration(milliseconds: 400), () {
+      if (!mounted) return;
+      ref.read(authControllerProvider.notifier).checkPhone(nextPhone);
+    });
   }
 
   String? _validatePhone(String? v, AppLocalizations l) {
@@ -183,13 +214,40 @@ class _SignInPageState extends ConsumerState<SignInPage> {
         await ref.read(authControllerProvider.notifier).signInWithBiometric();
     if (!mounted) return;
     if (!ok) {
-      // Saved credential rejected (likely a server-side password change).
-      // Vault was already cleared by the controller; refresh local visibility.
-      setState(() => _biometricReady = false);
+      // Re-check vault: if it was cleared by the controller the credential was
+      // rejected (auth error) and the button should disappear. If the vault is
+      // still there it was a transient network failure — keep the button so the
+      // user can retry without re-enrolling.
+      final vaultStillEnabled =
+          await ref.read(biometricVaultProvider).isEnabled();
+      if (!mounted) return;
+      setState(() => _biometricReady = vaultStillEnabled);
+      final currentState = ref.read(authControllerProvider);
+      final msg = _resolveError(currentState, l) ?? l.snackErrorGeneric;
       messenger
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(l.errorPasswordInvalid)));
+        ..showSnackBar(
+            SnackBar(duration: const Duration(seconds: 4), content: Text(msg)));
     }
+  }
+
+  Future<void> _onPattern() async {
+    FocusScope.of(context).unfocus();
+    // The sheet handles retries internally via onVerify callback.
+    // On success it pops with true; the auth-state listener navigates to /home.
+    // On backendError it pops with false so the error in AuthState becomes visible.
+    await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: context.gp.bg2,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(GPRadius.xl2)),
+      ),
+      builder: (_) => _PatternEntrySheet(
+        onVerify: (p) =>
+            ref.read(authControllerProvider.notifier).signInWithPattern(p),
+      ),
+    );
   }
 
   void _onForgotPassword() {
@@ -267,7 +325,14 @@ class _SignInPageState extends ConsumerState<SignInPage> {
 
     final gatePassword = state.requiresPassword;
 
-    return Scaffold(
+    return GpScaffold(
+      tips: [
+        HelpTip(icon: Icons.person_add_outlined, text: l.helpSignIn1),
+        HelpTip(icon: Icons.phone_android_outlined, text: l.helpSignIn2),
+        HelpTip(icon: Icons.g_mobiledata_rounded, text: l.helpSignIn3),
+        HelpTip(icon: Icons.lock_outlined, text: l.helpSignIn4),
+        HelpTip(icon: Icons.error_outline_rounded, text: l.helpSignIn5),
+      ],
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -412,26 +477,55 @@ class _SignInPageState extends ConsumerState<SignInPage> {
                         ),
                         const SizedBox(height: 12),
                       ],
-                      if (_biometricReady) ...[
-                        PillButton(
-                          label: l.biometricSignInBtn,
-                          leadingIcon: Icons.fingerprint,
-                          onPressed: submitting ? null : _onBiometric,
-                        ),
-                        const SizedBox(height: 10),
-                      ],
                       PillButton(
                         label: gatePassword
                             ? l.signInWithPasswordCta
                             : l.continueLabel,
                         trailingIcon: Icons.arrow_forward,
-                        variant: _biometricReady
-                            ? PillVariant.secondary
-                            : PillVariant.primary,
+                        variant: PillVariant.primary,
                         onPressed: (submitting || !canSubmit)
                             ? null
                             : () => _submit(state),
                       ),
+                      if (_patternReady || _biometricReady) ...[
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(child: Divider(color: context.gp.line)),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              child: Text(
+                                l.orDivider,
+                                style: GPText.mono(
+                                  size: 9,
+                                  letterSpacing: 2,
+                                  color: context.gp.muted,
+                                ),
+                              ),
+                            ),
+                            Expanded(child: Divider(color: context.gp.line)),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (_patternReady)
+                              _QuickLoginButton(
+                                icon: Icons.apps,
+                                onTap: submitting ? null : _onPattern,
+                              ),
+                            if (_patternReady && _biometricReady)
+                              const SizedBox(width: 20),
+                            if (_biometricReady)
+                              _QuickLoginButton(
+                                icon: _biometricIcon,
+                                onTap: submitting ? null : _onBiometric,
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                      ],
                       // Registration-adjacent controls (OR divider +
                       // Google sign-in) disappear once the password
                       // gate is showing, since they belong to the
@@ -476,6 +570,7 @@ class _SignInPageState extends ConsumerState<SignInPage> {
                               : () async {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
+                                      duration: const Duration(seconds: 4),
                                       content: Text(l.googleSignInMock),
                                     ),
                                   );
@@ -500,18 +595,39 @@ class _SignInPageState extends ConsumerState<SignInPage> {
               ),
             ),
           ),
-          Positioned(
-            bottom: 78 + MediaQuery.viewPaddingOf(context).bottom,
-            left: 20,
-            child: HelpButton(tips: [
-              HelpTip(icon: Icons.person_add_outlined, text: l.helpSignIn1),
-              HelpTip(icon: Icons.phone_android_outlined, text: l.helpSignIn2),
-              HelpTip(icon: Icons.g_mobiledata_rounded, text: l.helpSignIn3),
-              HelpTip(icon: Icons.lock_outlined, text: l.helpSignIn4),
-              HelpTip(icon: Icons.error_outline_rounded, text: l.helpSignIn5),
-            ],),
-          ),
         ],
+      ),
+    );
+  }
+}
+
+/// Small circular button used for biometric and pattern quick-login on the
+/// sign-in page. Shows only an icon — no label — so it stays unobtrusive
+/// alongside the primary Continue pill.
+class _QuickLoginButton extends StatelessWidget {
+  const _QuickLoginButton({required this.icon, this.onTap});
+  final IconData icon;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final gp = context.gp;
+    final enabled = onTap != null;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 52,
+        height: 52,
+        decoration: BoxDecoration(
+          color: gp.bg2,
+          shape: BoxShape.circle,
+          border: Border.all(color: gp.line2, width: 1.2),
+        ),
+        child: Icon(
+          icon,
+          size: 22,
+          color: enabled ? gp.fg : gp.muted,
+        ),
       ),
     );
   }
@@ -923,6 +1039,90 @@ class _PasswordField extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+/// Bottom sheet shown when the user taps the pattern sign-in button.
+///
+/// Keeps the sheet open between attempts so the user can retry without
+/// having to re-open the modal. [onVerify] returns a [PatternSignInResult]:
+///   - success → pop sheet, auth listener navigates to /home
+///   - wrongPattern → flash red 800ms, reset grid, stay open for retry
+///   - backendError → pop sheet so the error in AuthState is visible on the sign-in page
+class _PatternEntrySheet extends StatefulWidget {
+  const _PatternEntrySheet({required this.onVerify});
+  final Future<PatternSignInResult> Function(List<int>) onVerify;
+
+  @override
+  State<_PatternEntrySheet> createState() => _PatternEntrySheetState();
+}
+
+class _PatternEntrySheetState extends State<_PatternEntrySheet> {
+  bool _locked = false;
+  bool _error = false;
+  final _lockKey = GlobalKey<PatternLockState>();
+
+  Future<void> _onDraw(List<int> pattern) async {
+    setState(() { _locked = true; _error = false; });
+    final result = await widget.onVerify(pattern);
+    if (!mounted) return;
+    if (result == PatternSignInResult.success) {
+      Navigator.of(context).pop(true);
+      return;
+    }
+    if (result == PatternSignInResult.backendError) {
+      // Credentials matched but backend rejected — dismiss so the error
+      // message surfaced in AuthState is visible on the sign-in page.
+      Navigator.of(context).pop(false);
+      return;
+    }
+    // wrongPattern — flash and reset grid for another attempt.
+    setState(() { _locked = false; _error = true; });
+    await Future.delayed(const Duration(milliseconds: 800));
+    if (mounted) {
+      _lockKey.currentState?.reset();
+      setState(() => _error = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final gp = context.gp;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(22, 18, 22, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: gp.line2,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            DisplayText(l.patternUnlockTitle, size: 22),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: 220,
+              height: 220,
+              child: PatternLock(
+                key: _lockKey,
+                error: _error,
+                locked: _locked,
+                onPatternComplete: _onDraw,
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
     );
   }
 }

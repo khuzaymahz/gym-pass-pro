@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
 import '../../../core/widgets/glow.dart';
+import '../../../core/widgets/gp_scaffold.dart';
 import '../../../core/widgets/help_button.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
@@ -37,7 +38,12 @@ class ProfilePage extends ConsumerWidget {
     final composed = profile.displayName;
     final displayName = composed.isNotEmpty ? composed : l.demoUserName;
     final initials = _initials(displayName);
-    return Stack(
+    return GpScaffold(
+      tips: [
+        HelpTip(icon: Icons.donut_large_rounded, text: l.helpProfile3),
+        HelpTip(icon: Icons.refresh_rounded, text: l.helpProfile1),
+      ],
+      body: Stack(
       fit: StackFit.expand,
       children: [
         const RadialGlow(
@@ -192,16 +198,8 @@ class ProfilePage extends ConsumerWidget {
             onPressed: () => context.push('/settings'),
           ),
         ),
-        Positioned(
-          bottom: 24,
-          left: 20,
-          child: HelpButton(tips: [
-            HelpTip(icon: Icons.credit_card_outlined, text: l.helpProfile1),
-            HelpTip(icon: Icons.upgrade_rounded, text: l.helpProfile2),
-            HelpTip(icon: Icons.history_rounded, text: l.helpProfile3),
-          ],),
-        ),
       ],
+    ),
     );
   }
 

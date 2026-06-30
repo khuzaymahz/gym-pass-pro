@@ -3,7 +3,7 @@ import 'package:flutter/services.dart' show HapticFeedback;
 
 import '../theme/gp_tokens.dart';
 
-class GpTabBar extends StatelessWidget {
+class GpTabBar extends StatefulWidget {
   final String active;
   final ValueChanged<String> onTab;
   final VoidCallback onScan;
@@ -22,35 +22,115 @@ class GpTabBar extends StatelessWidget {
     ('profile', Icons.person,          Icons.person_outline),
   ];
 
+  static const _tabKeys = ['home', 'explore', 'scan', 'profile'];
+
+  static int _indexForKey(String key) {
+    final i = _tabKeys.indexOf(key);
+    return i < 0 ? 0 : i;
+  }
+
+  @override
+  State<GpTabBar> createState() => _GpTabBarState();
+}
+
+class _GpTabBarState extends State<GpTabBar> with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late Tween<double> _tween;
+  late Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    final startIdx = GpTabBar._indexForKey(widget.active).toDouble();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 360),
+    );
+    _tween = Tween<double>(begin: startIdx, end: startIdx);
+    _anim = _tween.animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant GpTabBar old) {
+    super.didUpdateWidget(old);
+    if (widget.active != old.active) {
+      final newIdx = GpTabBar._indexForKey(widget.active).toDouble();
+      _tween = Tween<double>(begin: _anim.value, end: newIdx);
+      _anim = _tween.animate(
+        CurvedAnimation(parent: _ctrl..reset()..forward(), curve: Curves.easeOutBack),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final gp = context.gp;
-
     return Container(
       padding: const EdgeInsets.fromLTRB(0, 8, 0, 0),
-      decoration: BoxDecoration(
-        color: gp.bg,
-      ),
+      decoration: BoxDecoration(color: gp.bg),
       child: SafeArea(
         top: false,
-        child: Row(
-          children: _tabs.map((t) {
-            final isActive = active == t.$1;
-            final isScan = t.$1 == 'scan';
-            return Expanded(
-              child: _TabItem(
-                tabKey: t.$1,
-                filledIcon: t.$2,
-                outlinedIcon: t.$3,
-                isActive: isActive,
-                gp: gp,
-                onTap: () {
-                  HapticFeedback.selectionClick();
-                  isScan ? onScan() : onTab(t.$1);
-                },
-              ),
+        child: LayoutBuilder(
+          builder: (_, constraints) {
+            final tabW = constraints.maxWidth / GpTabBar._tabs.length;
+            return Stack(
+              children: [
+                Row(
+                  children: GpTabBar._tabs.map((t) {
+                    final isActive = widget.active == t.$1;
+                    final isScan = t.$1 == 'scan';
+                    return Expanded(
+                      child: _TabItem(
+                        tabKey: t.$1,
+                        filledIcon: t.$2,
+                        outlinedIcon: t.$3,
+                        isActive: isActive,
+                        gp: gp,
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          isScan ? widget.onScan() : widget.onTab(t.$1);
+                        },
+                      ),
+                    );
+                  }).toList(),
+                ),
+                // Single indicator slides between tabs with a spring-like
+                // overshoot (easeOutBack), giving a sticky/travel feel.
+                AnimatedBuilder(
+                  animation: _anim,
+                  builder: (_, __) {
+                    final x = tabW * _anim.value + (tabW - 20) / 2;
+                    return Positioned(
+                      bottom: 7,
+                      left: x,
+                      child: Container(
+                        width: 20,
+                        height: 2.5,
+                        decoration: BoxDecoration(
+                          color: gp.accentInk,
+                          borderRadius: BorderRadius.circular(2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: gp.accentInk.withValues(alpha: 0.65),
+                              blurRadius: 6,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
             );
-          }).toList(),
+          },
         ),
       ),
     );
@@ -115,25 +195,8 @@ class _TabItemState extends State<_TabItem> {
                   size: 24,
                 ),
               ),
-              const SizedBox(height: 5),
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 280),
-                curve: Curves.easeOutCubic,
-                width: isActive ? 20 : 0,
-                height: 2.5,
-                decoration: BoxDecoration(
-                  color: widget.gp.accentInk,
-                  borderRadius: BorderRadius.circular(2),
-                  boxShadow: isActive
-                      ? [
-                          BoxShadow(
-                            color: widget.gp.accentInk.withValues(alpha: 0.65),
-                            blurRadius: 6,
-                          ),
-                        ]
-                      : null,
-                ),
-              ),
+              // Spacing to keep icon centred at the same Y as before.
+              const SizedBox(height: 7),
             ],
           ),
         ),

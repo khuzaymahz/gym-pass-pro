@@ -212,9 +212,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeNoPlanTitle => 'Choose your pass';
   @override
   String get homeNoPlanBlurb =>
-      'Pick a tier to unlock gyms across the city. Your pass activates the moment checkout succeeds.';
+      'Pick a tier to unlock gyms across the city.';
   @override
   String get homeNoPlanCta => 'See plans';
+  @override
+  String get homeNoPlanDayPassLink => 'Just want one day? Browse gyms for day passes →';
   @override
   String get homeNearYou => 'Near you';
   @override
@@ -1046,6 +1048,12 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsThemeDark => 'Dark';
   @override
+  String get settingsDisplay => 'DISPLAY';
+  @override
+  String get settingsTextScale => 'Text size';
+  @override
+  String get settingsLayoutScale => 'Layout density';
+  @override
   String get settingsNotifPlanReminders => 'Plan reminders';
   @override
   String get settingsNotifNewClubs => 'New clubs near me';
@@ -1843,6 +1851,31 @@ class AppLocalizationsEn extends AppLocalizations {
   String get biometricGenericLabel => 'biometrics';
 
   @override
+  String get securityPatternTitle => 'Sign in with pattern';
+  @override
+  String get securityPatternDesc => 'Draw your saved pattern to sign in instantly.';
+  @override
+  String get securityPatternNoPassword => 'Set a password first to enable pattern sign-in.';
+  @override
+  String get patternSetupTitle => 'Set up a pattern';
+  @override
+  String get patternSetupStep1 => 'Connect at least 4 dots';
+  @override
+  String get patternSetupStep2 => 'Draw your pattern again to confirm';
+  @override
+  String get patternSetupMismatch => "Patterns don't match. Try again.";
+  @override
+  String get patternSignInBtn => 'Sign in with pattern';
+  @override
+  String get patternEnabled => 'Pattern sign-in is on.';
+  @override
+  String get patternDisabled => 'Pattern sign-in is off.';
+  @override
+  String get patternUnlockTitle => 'Draw your pattern';
+  @override
+  String get patternUnlockWrong => 'Incorrect pattern. Try again.';
+
+  @override
   String get billingNoSubscriptionTitle => 'No active subscription';
   @override
   String get billingNoSubscriptionBlurb =>
@@ -1873,7 +1906,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get helpHome2 => 'Pull down on this page to force-refresh your subscription status and nearby gym data.';
   @override
-  String get helpHome3 => 'Each promo card at the top is a shortcut — tap one to jump directly to that section of the app.';
+  String get helpHome3 => 'The plan card shows your active tier, visits used this month, and days until your cycle resets. Tap MANAGE → to upgrade, pause, or cancel your subscription.';
   @override
   String get helpExploreTitle => 'Explore';
   @override
@@ -1897,7 +1930,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get helpProfile2 => 'Swipe left or right anywhere on this page to switch tabs — the whole screen responds, not just the bottom bar.';
   @override
-  String get helpProfile3 => "Tap 'Manage' under your active plan to see upgrade, pause, and cancel options — all subscription actions are behind that one tap.";
+  String get helpProfile3 => "The ring shows visits used this month against your plan's limit. STREAK counts consecutive months with at least one visit, and NEXT TIER shows what you unlock by upgrading.";
   @override
   String get helpGymDetail1 => 'The tier band at the top tells you exactly which plan level unlocks this gym. If it is greyed out, your current plan does not cover this venue.';
   @override

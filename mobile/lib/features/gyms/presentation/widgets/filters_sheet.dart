@@ -155,15 +155,11 @@ class FiltersSheet extends ConsumerWidget {
         ),
       ),
         ),
-        Positioned(
-          bottom: 24 + MediaQuery.viewPaddingOf(context).bottom,
-          left: 20,
-          child: HelpButton(tips: [
+        DraggableHelpButton(tips: [
             HelpTip(icon: Icons.tune_rounded, text: l.helpFilter1),
             HelpTip(icon: Icons.open_in_full_rounded, text: l.helpFilter2),
             HelpTip(icon: Icons.restart_alt_rounded, text: l.helpFilter3),
-          ],),
-        ),
+          ]),
       ],
     );
   }

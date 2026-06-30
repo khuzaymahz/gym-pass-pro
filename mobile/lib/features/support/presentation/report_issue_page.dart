@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
+import '../../../core/widgets/gp_scaffold.dart';
 import '../../../core/widgets/help_button.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
@@ -50,7 +51,7 @@ class _ReportIssuePageState extends ConsumerState<ReportIssuePage> {
     if (_category == null || _descCtrl.text.trim().isEmpty) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(l.reportMissingFields)));
+        ..showSnackBar(SnackBar(duration: const Duration(seconds: 4), content: Text(l.reportMissingFields)));
       return;
     }
     setState(() => _submitting = true);
@@ -183,12 +184,12 @@ class _ReportIssuePageState extends ConsumerState<ReportIssuePage> {
           : l.reportAttachPickFailed;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(message)));
+        ..showSnackBar(SnackBar(duration: const Duration(seconds: 4), content: Text(message)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(l.reportAttachPickFailed)));
+        ..showSnackBar(SnackBar(duration: const Duration(seconds: 4), content: Text(l.reportAttachPickFailed)));
     }
   }
 
@@ -259,7 +260,12 @@ class _ReportIssuePageState extends ConsumerState<ReportIssuePage> {
       ('account', l.reportCategoryAccount, Icons.person_outline),
       ('other', l.reportCategoryOther, Icons.more_horiz),
     ];
-    return Scaffold(
+    return GpScaffold(
+      tips: [
+        HelpTip(icon: Icons.category_outlined, text: l.helpSupportReport1),
+        HelpTip(icon: Icons.attach_file_rounded, text: l.helpSupportReport2),
+        HelpTip(icon: Icons.location_on_outlined, text: l.helpSupportReport3),
+      ],
       body: Stack(
         children: [
           ListView(
@@ -326,15 +332,6 @@ class _ReportIssuePageState extends ConsumerState<ReportIssuePage> {
             top: topInset + 12,
             start: 20,
             child: const BackBtn(fallback: '/profile'),
-          ),
-          Positioned(
-            bottom: 78 + MediaQuery.viewPaddingOf(context).bottom,
-            left: 20,
-            child: HelpButton(tips: [
-              HelpTip(icon: Icons.category_outlined, text: l.helpSupportReport1),
-              HelpTip(icon: Icons.attach_file_rounded, text: l.helpSupportReport2),
-              HelpTip(icon: Icons.location_on_outlined, text: l.helpSupportReport3),
-            ],),
           ),
         ],
       ),

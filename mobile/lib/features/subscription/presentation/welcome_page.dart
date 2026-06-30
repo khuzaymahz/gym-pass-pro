@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
 import '../../../core/widgets/glow.dart';
+import '../../../core/widgets/gp_scaffold.dart';
 import '../../../core/widgets/help_button.dart';
 import '../../../core/widgets/overline.dart';
 import '../../../core/widgets/pill_button.dart';
@@ -44,7 +45,14 @@ class WelcomePage extends ConsumerWidget {
     final total =
         sub.termTotalVisits > 0 ? sub.termTotalVisits : tier.visits;
     final visits = '$total';
-    return Scaffold(
+    return GpScaffold(
+      tips: [
+        HelpTip(icon: Icons.check_circle_outline_rounded, text: l.helpWelcome1),
+        HelpTip(icon: Icons.calendar_today_outlined, text: l.helpWelcome2),
+        HelpTip(icon: Icons.qr_code_rounded, text: l.helpWelcome3),
+        HelpTip(icon: Icons.bar_chart_rounded, text: l.helpWelcome4),
+        HelpTip(icon: Icons.confirmation_number_outlined, text: l.helpWelcome5),
+      ],
       body: Stack(
         children: [
           Positioned.fill(
@@ -132,17 +140,6 @@ class WelcomePage extends ConsumerWidget {
                 ],
               ),
             ),
-          ),
-          Positioned(
-            bottom: 40 + MediaQuery.viewPaddingOf(context).bottom,
-            left: 20,
-            child: HelpButton(tips: [
-              HelpTip(icon: Icons.check_circle_outline_rounded, text: l.helpWelcome1),
-              HelpTip(icon: Icons.calendar_today_outlined, text: l.helpWelcome2),
-              HelpTip(icon: Icons.qr_code_rounded, text: l.helpWelcome3),
-              HelpTip(icon: Icons.bar_chart_rounded, text: l.helpWelcome4),
-              HelpTip(icon: Icons.confirmation_number_outlined, text: l.helpWelcome5),
-            ]),
           ),
         ],
       ),

@@ -78,6 +78,7 @@ export function SearchInput({
         placeholder={placeholder ?? "Search"}
         autoComplete="off"
         className="input input-sm h-8 w-64 pl-8"
+        suppressHydrationWarning
       />
       {hidden
         ? Object.entries(hidden).map(([k, v]) =>

@@ -9,7 +9,19 @@
       "Bash(uv run alembic:*)",
       "Bash(docker compose run --rm migrator:*)",
       "Bash(git diff:*)",
-      "Bash(git status:*)"
+      "Bash(git status:*)",
+      "PowerShell(& \"$env:LOCALAPPDATA\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" devices)",
+      "Bash(flutter clean *)",
+      "Bash(flutter build *)",
+      "PowerShell(ipconfig | Select-String -Pattern \"IPv4|Adapter\" | Where-Object { $_ -notmatch \"Loopback|Bluetooth|vEthernet\" })",
+      "Bash(curl -s http://localhost:8000/health)",
+      "Bash(curl -s http://localhost:8000/api/v1/health)",
+      "Bash(curl -s http://localhost:8000/api/v1/auth/check-phone -X POST -H \"Content-Type: application/json\" -d '{\"phone\":\"+9627XXXXXXXX\"}')",
+      "Bash(curl -s http://localhost:8000/openapi.json)",
+      "Bash(python3 -c \"import sys,json; doc=json.load\\(sys.stdin\\); paths=[p for p in doc['paths'] if 'auth' in p or 'phone' in p or 'check' in p]; print\\('\\\\n'.join\\(sorted\\(paths\\)\\)\\)\")",
+      "PowerShell(Invoke-RestMethod -Uri \"http://localhost:8000/api/v1/auth/phone/check\" -Method POST -ContentType \"application/json\" -Body '{\"phone\":\"+96279000000\"}')",
+      "PowerShell(Invoke-RestMethod -Uri \"http://localhost:8000/api/v1/auth/phone/check\" -Method POST -ContentType \"application/json\" -Body '{\"phone\":\"+962784512312\"}')",
+      "Bash(git add *)"
     ]
   },
   "hooks": {

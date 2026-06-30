@@ -8,7 +8,7 @@ import '../../../core/di/providers.dart';
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
 import '../../../core/widgets/glow.dart';
-import '../../../core/widgets/help_button.dart';
+import '../../../core/widgets/gp_scaffold.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
 import '../../../core/widgets/pill_button.dart';
@@ -66,7 +66,7 @@ class _InvitePageState extends ConsumerState<InvitePage> {
     final shareUrl = referral.shareUrlFor(webBase);
     final topInset = MediaQuery.viewPaddingOf(context).top;
 
-    return Scaffold(
+    return GpScaffold(
       body: Stack(
         children: [
           const Positioned.fill(
@@ -141,15 +141,6 @@ class _InvitePageState extends ConsumerState<InvitePage> {
             top: topInset + 12,
             start: 20,
             child: const BackBtn(fallback: '/profile'),
-          ),
-          Positioned(
-            bottom: 78 + MediaQuery.viewPaddingOf(context).bottom,
-            left: 20,
-            child: HelpButton(tips: [
-              HelpTip(icon: Icons.person_add_outlined, text: l.helpHome1),
-              HelpTip(icon: Icons.share_outlined, text: l.helpHome2),
-              HelpTip(icon: Icons.card_giftcard_outlined, text: l.helpHome3),
-            ],),
           ),
         ],
       ),
@@ -584,23 +575,23 @@ class _InvitePageState extends ConsumerState<InvitePage> {
         final name = ref.read(referralProvider).invitedByName ?? '';
         _claimController.clear();
         messenger.showSnackBar(
-          SnackBar(content: Text(l.inviteClaimSuccess(name))),
+          SnackBar(duration: const Duration(seconds: 4), content: Text(l.inviteClaimSuccess(name))),
         );
       case ClaimCodeResult.invalidShape:
         messenger.showSnackBar(
-          SnackBar(content: Text(l.inviteClaimErrorInvalid)),
+          SnackBar(duration: const Duration(seconds: 4), content: Text(l.inviteClaimErrorInvalid)),
         );
       case ClaimCodeResult.notFound:
         messenger.showSnackBar(
-          SnackBar(content: Text(l.inviteClaimErrorNotFound)),
+          SnackBar(duration: const Duration(seconds: 4), content: Text(l.inviteClaimErrorNotFound)),
         );
       case ClaimCodeResult.ownCode:
         messenger.showSnackBar(
-          SnackBar(content: Text(l.inviteClaimErrorOwnCode)),
+          SnackBar(duration: const Duration(seconds: 4), content: Text(l.inviteClaimErrorOwnCode)),
         );
       case ClaimCodeResult.alreadyClaimed:
         messenger.showSnackBar(
-          SnackBar(content: Text(l.inviteClaimErrorAlready)),
+          SnackBar(duration: const Duration(seconds: 4), content: Text(l.inviteClaimErrorAlready)),
         );
     }
   }
@@ -614,7 +605,7 @@ class _InvitePageState extends ConsumerState<InvitePage> {
     if (!context.mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(confirmation)));
+      ..showSnackBar(SnackBar(duration: const Duration(seconds: 4), content: Text(confirmation)));
   }
 
   /// Pop the OS share sheet pre-filled with the member's referral URL

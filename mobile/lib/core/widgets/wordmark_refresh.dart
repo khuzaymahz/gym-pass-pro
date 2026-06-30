@@ -247,7 +247,7 @@ class _WordmarkRefreshState extends State<WordmarkRefresh>
           messenger
             ..hideCurrentSnackBar()
             ..showSnackBar(
-              SnackBar(content: Text(resolveErrorMessage(err, l))),
+              SnackBar(duration: const Duration(seconds: 4), content: Text(resolveErrorMessage(err, l))),
             );
         }
       }

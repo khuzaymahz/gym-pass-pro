@@ -137,6 +137,7 @@ abstract class AppLocalizations {
   String get homeNoPlanTitle;
   String get homeNoPlanBlurb;
   String get homeNoPlanCta;
+  String get homeNoPlanDayPassLink;
   String get homeNearYou;
   String get homeNoGymsYet;
   String get homeOfflineNoCache;
@@ -513,6 +514,9 @@ abstract class AppLocalizations {
   String get settingsAppearance;
   String get settingsThemeLight;
   String get settingsThemeDark;
+  String get settingsDisplay;
+  String get settingsTextScale;
+  String get settingsLayoutScale;
   String get settingsNotifPlanReminders;
   String get settingsNotifNewClubs;
   String get settingsNotifPromos;
@@ -915,6 +919,20 @@ abstract class AppLocalizations {
   String get biometricDisabled;
   String get biometricCancelled;
   String get biometricGenericLabel;
+
+  String get securityPatternTitle;
+  String get securityPatternDesc;
+  String get securityPatternNoPassword;
+  String get patternSetupTitle;
+  String get patternSetupStep1;
+  String get patternSetupStep2;
+  String get patternSetupMismatch;
+  String get patternSignInBtn;
+  String get patternEnabled;
+  String get patternDisabled;
+  String get patternUnlockTitle;
+  String get patternUnlockWrong;
+
   String get billingNoSubscriptionTitle;
   String get billingNoSubscriptionBlurb;
   String get billingNoSubscriptionCta;

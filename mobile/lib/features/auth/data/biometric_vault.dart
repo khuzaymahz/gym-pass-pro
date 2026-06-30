@@ -46,30 +46,40 @@ class BiometricVault {
   static const _kPhone = 'biometric.phone';
   static const _kPassword = 'biometric.password';
 
-  /// True when the device has hardware + at least one enrolled biometric or
-  /// has device credentials (PIN/passcode) configured. We accept the latter
-  /// because [LocalAuthentication.authenticate] is configured with
-  /// `biometricOnly: false`, so it falls back to the device PIN when no
-  /// fingerprint/face is enrolled — that's still a hardware-bound secret,
-  /// not a plaintext.
+  /// True when the device has hardware AND at least one enrolled biometric.
+  /// Requires both `isDeviceSupported` (hardware present) and
+  /// `canCheckBiometrics` (at least one fingerprint/face enrolled) so we
+  /// don't advertise the button on PIN-only devices — on those, the OS
+  /// prompt fires and immediately cancels because there is nothing to match.
+  /// The `authenticate` call still uses `biometricOnly: false` so enrolled
+  /// users get a PIN fallback at the OS level; we just gate *showing* the
+  /// button on actual biometric enrollment.
   Future<bool> canUseBiometrics() async {
     try {
       final supported = await _auth.isDeviceSupported();
       if (!supported) return false;
-      // canCheckBiometrics is true when the user has enrolled at least one
-      // biometric. If they haven't, isDeviceSupported still gates the OS
-      // PIN fallback, so we accept either path.
-      return true;
+      return await _auth.canCheckBiometrics;
     } catch (err, st) {
-      // Older Android skus without a fingerprint reader can throw on the
-      // platform channel call — treat as unavailable. Log so a member
-      // reporting "biometric never appears" can be diagnosed.
       developer.log(
         'biometric capability probe failed — treating as unavailable',
         name: 'auth.biometric',
         error: err,
         stackTrace: st,
       );
+      return false;
+    }
+  }
+
+  /// True when the device's primary enrolled biometric is face/iris rather than
+  /// fingerprint. Drives the icon shown on the sign-in quick-login button and
+  /// the security settings tile. Falls back to false (fingerprint icon) on any
+  /// platform error — purely cosmetic, so best-effort is correct here.
+  Future<bool> prefersFaceId() async {
+    try {
+      final types = await _auth.getAvailableBiometrics();
+      return types.contains(BiometricType.face) ||
+          types.contains(BiometricType.iris);
+    } catch (_) {
       return false;
     }
   }
@@ -97,6 +107,12 @@ class BiometricVault {
   /// this data class.
   Future<BiometricResult> authenticate({required String localizedReason}) async {
     if (!await canUseBiometrics()) return BiometricResult.unavailable;
+    // Use biometricOnly:false so the OS allows both the enrolled biometric
+    // (fingerprint / face) and the device credential (PIN/pattern) as a
+    // fallback. biometricOnly:true requires a Class 3 (strong) sensor and
+    // silently returns false on Class 2 (weak) sensors common on mid-range
+    // Android devices — the prompt never fires, so the user sees an
+    // immediate "cancelled" with no explanation.
     try {
       final ok = await _auth.authenticate(
         localizedReason: localizedReason,
@@ -107,11 +123,6 @@ class BiometricVault {
       );
       return ok ? BiometricResult.ok : BiometricResult.cancelled;
     } catch (err, st) {
-      // The platform-channel `authenticate` can throw on user-
-      // cancel, hardware error, or transient OS issue. Treat any
-      // throw as a cancel from the user's POV (we don't want to
-      // surface a stack trace at sign-in), but log so a stuck
-      // "biometric prompt does nothing" report can be triaged.
       developer.log(
         'biometric authenticate threw — treating as cancelled',
         name: 'auth.biometric',

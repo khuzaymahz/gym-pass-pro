@@ -15,6 +15,7 @@ import '../../../core/widgets/pill_button.dart';
 import '../../../core/widgets/tier_chip.dart';
 import '../../../core/widgets/skeleton.dart';
 import '../../../core/widgets/wordmark.dart';
+import '../../../core/widgets/gp_scaffold.dart';
 import '../../../core/widgets/help_button.dart';
 import '../../../core/widgets/top_bounce_physics.dart';
 import '../../../core/widgets/wordmark_refresh.dart';
@@ -95,12 +96,23 @@ class _HomePageState extends ConsumerState<HomePage> {
     final nearYou = userPos == null
         ? allGyms
         : _sortByDistance(allGyms, userPos.lat, userPos.lng);
-    final topInset = MediaQuery.viewPaddingOf(context).top;
+    final mq = MediaQuery.of(context);
+    final topInset = mq.viewPadding.top;
     final firstName = profile.firstName?.trim();
     final greeting = (firstName != null && firstName.isNotEmpty)
         ? l.homeGreetingName(firstName)
         : l.homeGreetingFallback;
-    return Stack(
+
+    // Proportional scale so the full home layout fits without scrolling on
+    // any device. Content is designed for 780 dp; on shorter screens we
+    // compress everything proportionally via Transform.scale so nothing
+    // has to be individually resized.
+    const kDesignH = 780.0;
+    final screenH = mq.size.height;
+    final s = (screenH / kDesignH).clamp(0.72, 1.0);
+    final logicalH = screenH / s;
+
+    Widget scrollSection = Stack(
       fit: StackFit.expand,
       children: [
         const RadialGlow(
@@ -123,9 +135,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   children: [Wordmark(size: 22)],
                 ),
               ),
-              const SizedBox(height: 22),
               const SizedBox(height: 16),
-              const SizedBox(height: 14),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.baseline,
                 textBaseline: TextBaseline.alphabetic,
@@ -141,7 +151,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   SerifAccent(l.homeHeadlineAccent, size: 36),
                 ],
               ),
-              const SizedBox(height: 26),
+              const SizedBox(height: 22),
               Builder(
                 builder: (innerCtx) {
                   if (RefreshScope.of(innerCtx)) {
@@ -150,7 +160,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   return _PlanCard(sub: sub);
                 },
               ),
-              const SizedBox(height: 26),
+              const SizedBox(height: 22),
               _sectionHeader(
                 context,
                 l.homeNearYou,
@@ -201,11 +211,6 @@ class _HomePageState extends ConsumerState<HomePage> {
                     );
                   }
                   final firstThree = nearYou.take(3).toList();
-                  // Backend stores `/media/...` as a relative path, so the
-                  // app has to prefix the API base URL before handing the
-                  // string to CachedNetworkImage. Without this the logo
-                  // requests resolve against the device's filesystem and
-                  // silently fail.
                   final apiBaseUrl = ref.watch(envProvider).apiBaseUrl;
                   return Column(
                     children: firstThree
@@ -225,41 +230,69 @@ class _HomePageState extends ConsumerState<HomePage> {
                   );
                 },
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
               const _PromoSlider(),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
             ],
           ),
         ),
-        Positioned(
-          top: topInset + 12,
-          right: 20,
-          child: Consumer(
-            builder: (context, ref, _) {
-              final hasUnread = ref
-                      .watch(unreadNotificationsCountProvider)
-                      .valueOrNull !=
-                  null
-                  ? ref.watch(unreadNotificationsCountProvider).valueOrNull! > 0
-                  : false;
-              return IconBtn(
-                icon: Icons.notifications_none,
-                badge: hasUnread,
-                onPressed: () => context.push('/notifications'),
-              );
-            },
+      ],
+    );
+
+    // Apply proportional scale when the screen is shorter than the design
+    // baseline. The OverflowBox lets the inner content be logically taller
+    // than the screen, and Transform.scale compresses it to fit exactly.
+    if (s < 0.999) {
+      scrollSection = ClipRect(
+        child: OverflowBox(
+          maxWidth: mq.size.width,
+          maxHeight: logicalH,
+          alignment: Alignment.topLeft,
+          child: Transform.scale(
+            scale: s,
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: mq.size.width,
+              height: logicalH,
+              child: scrollSection,
+            ),
           ),
         ),
-        Positioned(
-          bottom: 24,
-          left: 20,
-          child: HelpButton(tips: [
-            HelpTip(icon: Icons.swipe_rounded, text: l.helpHome1),
-            HelpTip(icon: Icons.refresh_rounded, text: l.helpHome2),
-            HelpTip(icon: Icons.touch_app_outlined, text: l.helpHome3),
-          ],),
-        ),
+      );
+    }
+
+    return GpScaffold(
+      tips: [
+        HelpTip(icon: Icons.credit_card_outlined, text: l.helpHome3),
+        HelpTip(icon: Icons.refresh_rounded, text: l.helpHome2),
+        HelpTip(icon: Icons.swap_horiz_rounded, text: l.helpHome1),
       ],
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          scrollSection,
+          Positioned(
+            top: topInset + 12,
+            right: 20,
+            child: Consumer(
+              builder: (context, ref, _) {
+                final hasUnread = ref
+                        .watch(unreadNotificationsCountProvider)
+                        .valueOrNull !=
+                    null
+                    ? ref.watch(unreadNotificationsCountProvider).valueOrNull! >
+                        0
+                    : false;
+                return IconBtn(
+                  icon: Icons.notifications_none,
+                  badge: hasUnread,
+                  onPressed: () => context.push('/notifications'),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -413,15 +446,15 @@ class _PlanCard extends StatelessWidget {
               const SizedBox(height: 14),
               Row(
                 children: [
-                  Text(
-                    l.homeLeftThisCycle(remaining),
-                    style: GPText.mono(
-                      size: 10,
-                      letterSpacing: 1.5,
-                      color: gp.mutedSoft,
+                  if (sub.renewIso != null) ...[
+                    Expanded(
+                      child: _CycleProgressText(
+                        renewIso: sub.renewIso!,
+                        durationMonths: sub.durationMonths ?? 1,
+                      ),
                     ),
-                  ),
-                  const Spacer(),
+                  ] else
+                    const Spacer(),
                   Text(
                     l.homeManage,
                     style: GPText.mono(
@@ -435,10 +468,6 @@ class _PlanCard extends StatelessWidget {
                   Icon(Icons.arrow_forward, size: 12, color: gp.accentInk),
                 ],
               ),
-              if ((sub.durationMonths ?? 1) > 1) ...[
-                const SizedBox(height: 6),
-                _TermProgressLine(sub: sub),
-              ],
             ],
           ),
         ),
@@ -460,35 +489,48 @@ class _PlanCard extends StatelessWidget {
   }
 }
 
-class _TermProgressLine extends StatelessWidget {
-  const _TermProgressLine({required this.sub});
-  final SubscriptionState sub;
+
+/// Renders "MONTH X OF X · CYCLE RESETS IN XD" (multi-month plans) or
+/// "TERM RENEWS IN XD" (1-month plans) from live renewal data.
+class _CycleProgressText extends StatelessWidget {
+  const _CycleProgressText({
+    required this.renewIso,
+    required this.durationMonths,
+  });
+
+  final String renewIso;
+  final int durationMonths;
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final gp = context.gp;
-    final cycle = sub.currentCycleNumber();
-    final months = sub.durationMonths;
-    final cycleDaysLeft = sub.daysLeftInCycle();
-    final termDaysLeft = sub.daysLeftInTerm();
-    if (cycle == null || months == null) {
-      return const SizedBox.shrink();
+    final renewDate = DateTime.parse(renewIso).toLocal();
+    final now = DateTime.now();
+    final daysLeft = renewDate.difference(now).inDays.clamp(0, 9999);
+
+    String label;
+    if (durationMonths > 1) {
+      // Compute cycle start by stepping back durationMonths months.
+      int startMonth = renewDate.month - durationMonths;
+      int startYear = renewDate.year;
+      while (startMonth <= 0) {
+        startMonth += 12;
+        startYear -= 1;
+      }
+      final cycleStart = DateTime(startYear, startMonth, renewDate.day);
+      final monthsElapsed =
+          (now.year - cycleStart.year) * 12 + (now.month - cycleStart.month);
+      final currentMonth = (monthsElapsed + 1).clamp(1, durationMonths);
+      label = l.homeCycleProgress(currentMonth, durationMonths, daysLeft);
+    } else {
+      label = l.homeTermEndsIn(daysLeft);
     }
-    final inFinalCycle = cycle >= months;
-    final text = inFinalCycle
-        ? (termDaysLeft == null ? null : l.homeTermEndsIn(termDaysLeft))
-        : (cycleDaysLeft == null
-            ? null
-            : l.homeCycleProgress(cycle, months, cycleDaysLeft));
-    if (text == null) return const SizedBox.shrink();
+
     return Text(
-      text,
-      style: GPText.mono(
-        size: 9,
-        letterSpacing: 1.4,
-        color: gp.muted,
-      ),
+      label,
+      style: GPText.mono(size: 9, letterSpacing: 1.4, color: gp.muted),
+      overflow: TextOverflow.ellipsis,
     );
   }
 }
@@ -525,7 +567,7 @@ class _EmptyPlanCard extends StatelessWidget {
             l.homeNoPlanTitle,
             style: GPText.display(28, color: gp.fg, height: 1.0),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Text(
             l.homeNoPlanBlurb,
             style: GPText.body(size: 13, color: gp.mutedSoft, height: 1.45),
@@ -536,6 +578,23 @@ class _EmptyPlanCard extends StatelessWidget {
               label: l.homeNoPlanCta,
               trailingIcon: Icons.arrow_forward,
               onPressed: () => ctx.push('/plans'),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Center(
+            child: GestureDetector(
+              onTap: () => context.go('/explore'),
+              child: Text(
+                l.homeNoPlanDayPassLink,
+                style: GPText.mono(
+                  size: 10,
+                  letterSpacing: 1.2,
+                  color: gp.muted,
+                ).copyWith(
+                  decoration: TextDecoration.underline,
+                  decorationColor: gp.muted,
+                ),
+              ),
             ),
           ),
         ],
@@ -602,10 +661,6 @@ class _PromoSliderState extends ConsumerState<_PromoSlider> {
           height: 118,
           child: PageView.builder(
             controller: _ctrl,
-            // Non-scrollable: auto-advance only. Manual horizontal drag
-            // here would conflict with the shell Listener that handles
-            // Instagram-style tab switching.
-            physics: const NeverScrollableScrollPhysics(),
             itemCount: slides.length,
             onPageChanged: (i) => setState(() => _page = i),
             itemBuilder: (_, i) => slides[i],

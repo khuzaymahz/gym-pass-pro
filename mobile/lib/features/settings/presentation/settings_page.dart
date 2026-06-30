@@ -10,12 +10,16 @@ import '../../../core/prefs/app_preferences.dart';
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
 import '../../../core/widgets/gym_loader.dart';
+import '../../../core/widgets/gp_scaffold.dart';
+import '../../../core/widgets/pattern_lock.dart';
 import '../../../core/widgets/help_button.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/top_bounce_physics.dart';
 import '../../../core/widgets/overline.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../auth/data/biometric_settings_controller.dart';
+import '../../auth/data/biometric_vault.dart';
+import '../../auth/data/pattern_vault.dart';
 import '../../auth/data/user_profile.dart';
 import '../../auth/presentation/auth_controller.dart';
 
@@ -34,7 +38,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final prefsCtrl = ref.read(appPreferencesProvider.notifier);
     final gp = context.gp;
     final topInset = MediaQuery.viewPaddingOf(context).top;
-    return Scaffold(
+    return GpScaffold(
+      tips: [
+        HelpTip(icon: Icons.language_rounded, text: l.helpSettings1),
+        HelpTip(icon: Icons.phone_outlined, text: l.helpSettings2),
+        HelpTip(icon: Icons.delete_outline, text: l.helpSettings3),
+      ],
       body: Stack(
         children: [
           // No pull-to-refresh on Settings — every value here is
@@ -114,15 +123,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 const SizedBox(width: 40),
               ],
             ),
-          ),
-          Positioned(
-            bottom: 78 + MediaQuery.viewPaddingOf(context).bottom,
-            left: 20,
-            child: HelpButton(tips: [
-              HelpTip(icon: Icons.language_rounded, text: l.helpSettings1),
-              HelpTip(icon: Icons.phone_outlined, text: l.helpSettings2),
-              HelpTip(icon: Icons.delete_outline, text: l.helpSettings3),
-            ],),
           ),
         ],
       ),
@@ -365,7 +365,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     // The provider is not autoDispose, so its _refresh() only ran once at
     // construction time. A logout→re-login cycle changes passwordHash but
     // won't trigger another _refresh() unless we ask explicitly.
-    await ref.read(biometricSettingsProvider.notifier).refresh();
+    await Future.wait([
+      ref.read(biometricSettingsProvider.notifier).refresh(),
+      ref.read(patternSettingsProvider.notifier).refresh(),
+    ]);
     if (!context.mounted) return;
     await showModalBottomSheet<void>(
       context: context,
@@ -377,6 +380,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       builder: (ctx) => Consumer(
         builder: (ctx, sheetRef, _) {
           final biometric = sheetRef.watch(biometricSettingsProvider);
+          final pattern = sheetRef.watch(patternSettingsProvider);
           return SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(22, 18, 22, 22),
@@ -414,43 +418,91 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     },
                   ),
                   const SizedBox(height: 10),
+                  // Biometric tile — hidden when device has no biometric hardware
+                  if (biometric.available) ...[
+                    _securityTile(
+                      context,
+                      gp,
+                      icon: biometric.usesFaceId
+                          ? Icons.face_retouching_natural
+                          : Icons.fingerprint,
+                      title: l.securityBiometricTitle,
+                      subtitle: !biometric.hasPassword
+                          ? l.securityBiometricNoPassword
+                          : l.securityBiometricDesc,
+                      trailing: Switch(
+                        value: biometric.enabled,
+                        onChanged: biometric.hasPassword
+                            ? (v) async {
+                                if (v) {
+                                  final ok = await _enableBiometric(
+                                    context, sheetRef, l,);
+                                  if (!context.mounted) return;
+                                  if (ok) {
+                                    ScaffoldMessenger.of(context)
+                                      ..hideCurrentSnackBar()
+                                      ..showSnackBar(SnackBar(
+                                        duration: const Duration(seconds: 4),
+                                        content: Text(l.biometricEnabled),
+                                      ),);
+                                  }
+                                } else {
+                                  await sheetRef
+                                      .read(biometricSettingsProvider.notifier)
+                                      .disable();
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context)
+                                    ..hideCurrentSnackBar()
+                                    ..showSnackBar(SnackBar(
+                                      duration: const Duration(seconds: 4),
+                                      content: Text(l.biometricDisabled),
+                                    ),);
+                                }
+                              }
+                            : null,
+                        activeThumbColor: GP.ink,
+                        activeTrackColor: GP.lime,
+                        inactiveThumbColor: gp.muted,
+                        inactiveTrackColor: gp.bg3,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                  // Pattern tile — always available (no hardware required)
                   _securityTile(
                     context,
                     gp,
-                    icon: Icons.fingerprint,
-                    title: l.securityBiometricTitle,
-                    subtitle: !biometric.available
-                        ? l.securityBiometricUnavailable
-                        : !biometric.hasPassword
-                            ? l.securityBiometricNoPassword
-                            : l.securityBiometricDesc,
+                    icon: Icons.grid_view_rounded,
+                    title: l.securityPatternTitle,
+                    subtitle: !pattern.hasPassword
+                        ? l.securityPatternNoPassword
+                        : l.securityPatternDesc,
                     trailing: Switch(
-                      value: biometric.enabled,
-                      // Disabled when the device can't biometric or when
-                      // the member never set a password (Google-only or
-                      // OTP-only path) — there'd be nothing to vault.
-                      onChanged: (biometric.available && biometric.hasPassword)
+                      value: pattern.enabled,
+                      onChanged: pattern.hasPassword
                           ? (v) async {
                               if (v) {
-                                final ok = await _enableBiometric(
-                                    context, sheetRef, l,);
+                                final ok = await _enablePattern(
+                                  context, sheetRef, l,);
                                 if (!context.mounted) return;
                                 if (ok) {
                                   ScaffoldMessenger.of(context)
                                     ..hideCurrentSnackBar()
                                     ..showSnackBar(SnackBar(
-                                      content: Text(l.biometricEnabled),
+                                      duration: const Duration(seconds: 4),
+                                      content: Text(l.patternEnabled),
                                     ),);
                                 }
                               } else {
                                 await sheetRef
-                                    .read(biometricSettingsProvider.notifier)
+                                    .read(patternSettingsProvider.notifier)
                                     .disable();
                                 if (!context.mounted) return;
                                 ScaffoldMessenger.of(context)
                                   ..hideCurrentSnackBar()
                                   ..showSnackBar(SnackBar(
-                                    content: Text(l.biometricDisabled),
+                                    duration: const Duration(seconds: 4),
+                                    content: Text(l.patternDisabled),
                                   ),);
                               }
                             }
@@ -568,12 +620,50 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       builder: (_) => const _BiometricEnrollSheet(),
     );
     if (password == null || password.isEmpty) return false;
-    final result = await sheetRef
-        .read(biometricSettingsProvider.notifier)
-        .enable(
-          password: password,
-          localizedReason: l.biometricEnrollReason,
-        );
+    if (!context.mounted) return false;
+    // Wait for the password sheet's dismiss animation to finish before firing
+    // the OS biometric prompt — on Samsung, prompting while a bottom sheet is
+    // still animating out causes an immediate silent "cancelled".
+    await Future.delayed(const Duration(milliseconds: 400));
+    if (!context.mounted) return false;
+    // OS fingerprint / face prompt.
+    final bioResult = await sheetRef
+        .read(biometricVaultProvider)
+        .authenticate(localizedReason: l.biometricUnlockReason);
+    if (!context.mounted) return false;
+    switch (bioResult) {
+      case BiometricResult.cancelled:
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(
+              duration: const Duration(seconds: 4),
+              content: Text(l.biometricCancelled)));
+        return false;
+      case BiometricResult.unavailable:
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(
+              duration: const Duration(seconds: 4),
+              content: Text(l.securityBiometricUnavailable)));
+        return false;
+      case BiometricResult.ok:
+        break;
+    }
+    BiometricToggleResult result;
+    try {
+      result = await sheetRef
+          .read(biometricSettingsProvider.notifier)
+          .enable(password: password);
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(
+              duration: const Duration(seconds: 4),
+              content: Text(l.errorNetwork)));
+      }
+      return false;
+    }
     if (!context.mounted) return false;
     switch (result) {
       case BiometricToggleResult.ok:
@@ -581,22 +671,76 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       case BiometricToggleResult.passwordWrong:
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(content: Text(l.errorPasswordInvalid)));
+          ..showSnackBar(SnackBar(
+              duration: const Duration(seconds: 4),
+              content: Text(l.errorPasswordInvalid)));
       case BiometricToggleResult.biometricCancelled:
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(content: Text(l.biometricCancelled)));
       case BiometricToggleResult.biometricUnavailable:
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-              SnackBar(content: Text(l.securityBiometricUnavailable)),);
+        break; // handled above before enable() is called
       case BiometricToggleResult.network:
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(content: Text(l.errorNetwork)));
+          ..showSnackBar(SnackBar(
+              duration: const Duration(seconds: 4),
+              content: Text(l.errorNetwork)));
     }
     return false;
+  }
+
+  /// Walks the user through arming pattern sign-in. Returns true on success.
+  Future<bool> _enablePattern(
+    BuildContext context,
+    WidgetRef sheetRef,
+    AppLocalizations l,
+  ) async {
+    // Step 1: Confirm password (reuse the same enroll sheet)
+    final password = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: context.gp.bg2,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(GPRadius.xl2)),
+      ),
+      builder: (_) => const _BiometricEnrollSheet(),
+    );
+    if (password == null || password.isEmpty) return false;
+    // Step 2: Draw and confirm pattern
+    if (!context.mounted) return false;
+    final ok = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: context.gp.bg2,
+      isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(GPRadius.xl2)),
+      ),
+      builder: (sheetCtx) => _PatternSetupSheet(
+        password: password,
+        sheetRef: sheetRef,
+      ),
+    );
+    if (!context.mounted) return false;
+    if (ok != true) {
+      if (ok == false) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(
+            duration: const Duration(seconds: 4),
+            content: Text(l.errorPasswordInvalid),
+          ));
+      } else {
+        // null = network / Keystore save error
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(
+            duration: const Duration(seconds: 4),
+            content: Text(l.errorNetwork),
+          ));
+      }
+      return false;
+    }
+    return true;
   }
 
   Future<void> _showChangePhoneSheet(
@@ -762,7 +906,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
     navigator.pop();
     messenger
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(l.editProfileSaved)));
+      ..showSnackBar(SnackBar(duration: const Duration(seconds: 4), content: Text(l.editProfileSaved)));
   }
 
   @override
@@ -995,7 +1139,7 @@ class _ChangePhoneSheetState extends ConsumerState<_ChangePhoneSheet> {
     if (!valid) {
       messenger
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(l.securityChangePhoneInvalid)));
+        ..showSnackBar(SnackBar(duration: const Duration(seconds: 4), content: Text(l.securityChangePhoneInvalid)));
       return;
     }
     final fullPhone = '+962$digits';
@@ -1009,7 +1153,7 @@ class _ChangePhoneSheetState extends ConsumerState<_ChangePhoneSheet> {
       setState(() => _busy = false);
       messenger
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(_friendlyError(l, e))));
+        ..showSnackBar(SnackBar(duration: const Duration(seconds: 4), content: Text(_friendlyError(l, e))));
       return;
     }
     if (!mounted) return;
@@ -1036,6 +1180,7 @@ class _ChangePhoneSheetState extends ConsumerState<_ChangePhoneSheet> {
         ..hideCurrentSnackBar()
         ..showSnackBar(
           SnackBar(
+            duration: const Duration(seconds: 4),
             content: Text(_friendlyError(AppLocalizations.of(context), e)),
           ),
         );
@@ -1069,7 +1214,7 @@ class _ChangePhoneSheetState extends ConsumerState<_ChangePhoneSheet> {
       _otpNodes.first.requestFocus();
       messenger
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(_friendlyError(l, e))));
+        ..showSnackBar(SnackBar(duration: const Duration(seconds: 4), content: Text(_friendlyError(l, e))));
       return;
     }
     if (!mounted) return;
@@ -1077,7 +1222,7 @@ class _ChangePhoneSheetState extends ConsumerState<_ChangePhoneSheet> {
     messenger
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        SnackBar(content: Text(l.securityChangePhoneUpdated(_pendingPhone))),
+        SnackBar(duration: const Duration(seconds: 4), content: Text(l.securityChangePhoneUpdated(_pendingPhone))),
       );
   }
 
@@ -1419,6 +1564,132 @@ class _GenderToggle extends StatelessWidget {
               weight: FontWeight.w600,
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Pattern setup sheet: draw → confirm → save.
+///
+/// Pops with `true` on success, `false` when the password was wrong,
+/// and `null` when the user cancels.
+class _PatternSetupSheet extends ConsumerStatefulWidget {
+  const _PatternSetupSheet({required this.password, required this.sheetRef});
+  final String password;
+  final WidgetRef sheetRef;
+
+  @override
+  ConsumerState<_PatternSetupSheet> createState() => _PatternSetupSheetState();
+}
+
+enum _PatternSetupStep { draw1, draw2, saving }
+
+class _PatternSetupSheetState extends ConsumerState<_PatternSetupSheet> {
+  _PatternSetupStep _step = _PatternSetupStep.draw1;
+  List<int>? _firstPattern;
+  String? _error;
+
+  bool _listEquals(List<int> a, List<int> b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  Future<void> _onPatternDraw(List<int> pattern) async {
+    if (_step == _PatternSetupStep.draw1) {
+      setState(() {
+        _firstPattern = pattern;
+        _step = _PatternSetupStep.draw2;
+        _error = null;
+      });
+      return;
+    }
+    if (_step == _PatternSetupStep.draw2) {
+      if (!_listEquals(pattern, _firstPattern!)) {
+        setState(() {
+          _step = _PatternSetupStep.draw1;
+          _firstPattern = null;
+          _error = AppLocalizations.of(context).patternSetupMismatch;
+        });
+        return;
+      }
+      setState(() { _step = _PatternSetupStep.saving; _error = null; });
+      PatternEnableResult result;
+      try {
+        result = await widget.sheetRef
+            .read(patternSettingsProvider.notifier)
+            .enable(password: widget.password, pattern: pattern);
+      } catch (_) {
+        if (mounted) Navigator.of(context).pop(null);
+        return;
+      }
+      if (!mounted) return;
+      switch (result) {
+        case PatternEnableResult.ok:
+          Navigator.of(context).pop(true);
+        case PatternEnableResult.passwordWrong:
+          Navigator.of(context).pop(false);
+        case PatternEnableResult.network:
+          Navigator.of(context).pop(null);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final gp = context.gp;
+    final isSaving = _step == _PatternSetupStep.saving;
+    final stepText = _step == _PatternSetupStep.draw1
+        ? l.patternSetupStep1
+        : l.patternSetupStep2;
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(22, 18, 22, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: gp.line2,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            DisplayText(l.patternSetupTitle, size: 22),
+            const SizedBox(height: 8),
+            Text(
+              stepText,
+              style: GPText.body(size: 13, color: gp.mutedSoft),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                _error!,
+                style: GPText.body(size: 12, color: GP.danger),
+              ),
+            ],
+            const SizedBox(height: 24),
+            SizedBox(
+              width: 220,
+              height: 220,
+              child: isSaving
+                  ? const Center(child: GymLoader())
+                  : PatternLock(
+                      locked: isSaving,
+                      onPatternComplete: _onPatternDraw,
+                    ),
+            ),
+            const SizedBox(height: 16),
+          ],
         ),
       ),
     );

@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
+import '../../../core/widgets/gp_scaffold.dart';
 import '../../../core/widgets/help_button.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
@@ -67,7 +68,12 @@ class _FaqPageState extends State<FaqPage> {
     // it's doing. If a CMS-driven FAQ ever ships, wrap the ListView
     // in a `WordmarkRefresh` and re-add the skeleton-on-refresh
     // gating then.
-    return Scaffold(
+    return GpScaffold(
+      tips: [
+        HelpTip(icon: Icons.touch_app_outlined, text: l.helpSupportFaq1),
+        HelpTip(icon: Icons.search, text: l.helpSupportFaq2),
+        HelpTip(icon: Icons.filter_list_rounded, text: l.helpSupportFaq3),
+      ],
       body: Stack(
         children: [
           ListView(
@@ -125,15 +131,6 @@ class _FaqPageState extends State<FaqPage> {
             top: topInset + 12,
             start: 20,
             child: const BackBtn(fallback: '/profile'),
-          ),
-          Positioned(
-            bottom: 78 + MediaQuery.viewPaddingOf(context).bottom,
-            left: 20,
-            child: HelpButton(tips: [
-              HelpTip(icon: Icons.touch_app_outlined, text: l.helpSupportFaq1),
-              HelpTip(icon: Icons.search, text: l.helpSupportFaq2),
-              HelpTip(icon: Icons.filter_list_rounded, text: l.helpSupportFaq3),
-            ],),
           ),
         ],
       ),

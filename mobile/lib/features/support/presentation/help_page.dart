@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
+import '../../../core/widgets/gp_scaffold.dart';
 import '../../../core/widgets/help_button.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
@@ -56,7 +57,12 @@ class _HelpPageState extends State<HelpPage> {
         GP.danger,
       ),
     ];
-    return Scaffold(
+    return GpScaffold(
+      tips: [
+        HelpTip(icon: Icons.support_agent, text: l.helpHelpHub1),
+        HelpTip(icon: Icons.help_outline, text: l.helpHelpHub2),
+        HelpTip(icon: Icons.bug_report_outlined, text: l.helpHelpHub3),
+      ],
       body: Stack(
         children: [
           WordmarkRefresh(
@@ -133,15 +139,6 @@ class _HelpPageState extends State<HelpPage> {
             top: topInset + 12,
             start: 20,
             child: const BackBtn(fallback: '/profile'),
-          ),
-          Positioned(
-            bottom: 78 + MediaQuery.viewPaddingOf(context).bottom,
-            left: 20,
-            child: HelpButton(tips: [
-              HelpTip(icon: Icons.support_agent, text: l.helpHelpHub1),
-              HelpTip(icon: Icons.help_outline, text: l.helpHelpHub2),
-              HelpTip(icon: Icons.bug_report_outlined, text: l.helpHelpHub3),
-            ],),
           ),
         ],
       ),

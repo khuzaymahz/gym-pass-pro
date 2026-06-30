@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
 import '../../../core/widgets/gym_tile.dart';
+import '../../../core/widgets/gp_scaffold.dart';
 import '../../../core/widgets/help_button.dart';
 import '../../../core/widgets/icon_btn.dart';
 import '../../../core/widgets/overline.dart';
@@ -59,8 +60,13 @@ class FavoritesPage extends ConsumerWidget {
       ..sort((a, b) => a.gpgym.name.compareTo(b.gpgym.name));
     final topInset = MediaQuery.viewPaddingOf(context).top;
     final isLoading = gymsAsync.isLoading && allGyms.isEmpty;
-    return Scaffold(
+    return GpScaffold(
       backgroundColor: gp.bg,
+      tips: [
+        HelpTip(icon: Icons.favorite_border, text: l.helpExplore1),
+        HelpTip(icon: Icons.map_outlined, text: l.helpExplore2),
+        HelpTip(icon: Icons.filter_list_rounded, text: l.helpExplore3),
+      ],
       body: Stack(
         children: [
           Padding(
@@ -117,15 +123,6 @@ class FavoritesPage extends ConsumerWidget {
             top: topInset + 12,
             start: 20,
             child: const BackBtn(fallback: '/profile'),
-          ),
-          Positioned(
-            bottom: 78 + MediaQuery.viewPaddingOf(context).bottom,
-            left: 20,
-            child: HelpButton(tips: [
-              HelpTip(icon: Icons.favorite_border, text: l.helpExplore1),
-              HelpTip(icon: Icons.map_outlined, text: l.helpExplore2),
-              HelpTip(icon: Icons.filter_list_rounded, text: l.helpExplore3),
-            ],),
           ),
         ],
       ),

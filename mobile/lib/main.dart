@@ -15,6 +15,7 @@ Future<void> main() async {
   // just calls body() directly (zero overhead on dev builds).
   await runWithSentry(() async {
     WidgetsFlutterBinding.ensureInitialized();
+    await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
     await PushNotificationService.instance.init();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
