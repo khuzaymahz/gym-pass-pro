@@ -364,6 +364,19 @@
       "slug": "Slug",
       "slugTitle": "Lowercase letters, digits, and hyphens (2–64 chars)",
       "slugLockedHint": "Permanent — shared links and the QR filename depend on it.",
+      "hints": {
+        "slug": "Lowercase letters, digits, hyphens. Permanent once saved.",
+        "area": "Neighbourhood or district, e.g. Abdoun.",
+        "category": "How members find this gym in the Explore tab.",
+        "nameEn": "Shown to members across the app.",
+        "requiredTier": "Minimum tier allowed to check in here.",
+        "addressEn": "Full street address (English).",
+        "addressAr": "Full street address (Arabic).",
+        "lat": "−90 to 90. The map above fills this in.",
+        "lng": "−180 to 180. The map above fills this in.",
+        "rate": "0–100 JOD paid to the gym per check-in.",
+        "range": "Must be a number between {min} and {max}."
+      },
       "area": "Area",
       "category": "Category",
       "nameEn": "Name (EN)",
@@ -387,12 +400,52 @@
       "activeLabel": "Active",
       "activeHint": "Uncheck to hide this gym from the mobile Explore tab without soft-deleting. The partner login and history stay intact; flip it back on to restore."
     },
+    "create": {
+      "partnerOptional": "Optional — set up the partner's login now, or add it later from this gym's page.",
+      "photosOptional": "Optional — add gym photos now, or later.",
+      "photosSelected": "{count} selected",
+      "ownerIncomplete": "To create a partner login, fill phone, name, and an 8+ character password — or leave all three blank.",
+      "fixPartnerFields": "Fix the highlighted partner-login fields, or clear them to skip the login.",
+      "ownerFailed": "Gym created, but the partner login failed: {error}. Finish it on the gym's page.",
+      "photoFailed": "Gym created, but a photo upload failed: {error}. Finish it on the gym's page."
+    },
+    "sections": {
+      "details": "Details",
+      "partner": "Partner login",
+      "partnerSubtitle": "The gym owner's login to the partner portal.",
+      "security": "Security",
+      "securitySubtitle": "Reset the partner's password.",
+      "logo": "Logo",
+      "photos": "Photos",
+      "dayPass": "Day pass",
+      "dayPassSubtitle": "Enable and price day passes for this gym."
+    },
+    "dayPass": {
+      "on": "On",
+      "off": "Off",
+      "price": "{price} JOD",
+      "validity": "valid {hours}h",
+      "cap": "cap {cap}/day",
+      "notSetUp": "No day pass configured yet — set a price and enable it below."
+    },
+    "security": {
+      "noOwner": "Create a partner login first to manage its password.",
+      "resetHint": "Set a new password and hand it to the partner — there's no self-service reset. Existing sessions keep working until they expire.",
+      "newPassword": "New password",
+      "newPasswordPlaceholder": "At least 8 characters",
+      "generate": "Generate",
+      "reset": "Reset password",
+      "resetToast": "Password reset."
+    },
     "owner": {
       "title": "Partner login",
       "subtitle": "One partner login per gym. The login lets the gym owner sign into the partner portal to view check-ins, edit profile, and manage photos.",
       "namedLabel": "Display name",
       "phoneLabel": "Phone",
       "passwordLabel": "Initial password",
+      "phoneInvalid": "Enter a valid Jordanian mobile (+962 7X XXX XXXX).",
+      "nameRequired": "Display name is required.",
+      "passwordShort": "Password must be at least 8 characters.",
       "idLabel": "User ID",
       "create": "Create login",
       "createHint": "Phone becomes the username. Share the password with the partner out of band — there is no email-invite flow yet.",

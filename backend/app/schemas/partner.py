@@ -37,6 +37,20 @@ class CreatePartnerRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
+class ResetPartnerPasswordRequest(BaseModel):
+    """Admin → reset an existing gym-owner's password.
+
+    v1/dev has no self-service reset (no email/SMS provider yet, see
+    CLAUDE.md §15), so an admin sets a new password directly and the
+    partner receives it out of band — same channel as the initial
+    credentials.
+    """
+
+    password: str = Field(min_length=8, max_length=128)
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
 class PartnerOwnerRead(BaseModel):
     id: str
     phone: str

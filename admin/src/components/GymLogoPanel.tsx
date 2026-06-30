@@ -62,13 +62,8 @@ export default function GymLogoPanel({ logoUrl, uploadAction, deleteAction }: Pr
   const blocking = busy || pending;
 
   return (
-    <section className="panel flex flex-col gap-3 p-4">
-      <header className="flex items-center justify-between">
-        <div>
-          <h2 className="text-sm font-semibold">{t("title")}</h2>
-          <p className="text-[11px] text-muted">{t("description")}</p>
-        </div>
-      </header>
+    <div className="flex flex-col gap-3">
+      <p className="text-[11px] text-muted">{t("description")}</p>
 
       <div className="flex items-center gap-4">
         <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-line bg-surface-2">
@@ -130,6 +125,6 @@ export default function GymLogoPanel({ logoUrl, uploadAction, deleteAction }: Pr
       </div>
 
       {error ? <p className="text-[12px] text-red-300">{error}</p> : null}
-    </section>
+    </div>
   );
 }

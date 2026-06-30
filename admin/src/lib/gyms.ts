@@ -223,3 +223,14 @@ export async function deleteGymOwner(gymId: string): Promise<void> {
     token: await serviceToken(),
   });
 }
+
+export async function resetGymOwnerPassword(
+  gymId: string,
+  password: string,
+): Promise<void> {
+  return api(`/api/v1/admin/gyms/${gymId}/owner/password`, {
+    method: "PATCH",
+    body: JSON.stringify({ password }),
+    token: await serviceToken(),
+  });
+}

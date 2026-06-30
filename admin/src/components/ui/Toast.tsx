@@ -9,13 +9,18 @@ import {
 } from "react";
 
 type Tone = "success" | "error" | "info";
-type Toast = { id: number; tone: Tone; message: string };
+type Toast = { id: number; tone: Tone; message: string; leaving?: boolean };
 type ToastCtx = { toast: (message: string, tone?: Tone) => void };
 
 const ToastContext = createContext<ToastCtx | null>(null);
 
 // Module-scoped counter avoids Date.now()/Math.random() for ids.
 let seq = 0;
+
+// Exit-animation duration: a dismissed toast lingers this long so the
+// `toast-out` fade can play before the node unmounts. Keep in sync with
+// the animation in ToastCard.
+const TOAST_EXIT_MS = 280;
 
 /**
  * App-wide notification surface. Every modification (edit, create,
@@ -26,9 +31,22 @@ let seq = 0;
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const dismiss = useCallback((id: number) => {
+  const remove = useCallback((id: number) => {
     setToasts((list) => list.filter((t) => t.id !== id));
   }, []);
+
+  const dismiss = useCallback(
+    (id: number) => {
+      // Two-phase: flag the toast as leaving so it plays `toast-out`,
+      // then unmount once the fade finishes. Without this the node is
+      // pulled from the DOM instantly and just blinks out.
+      setToasts((list) =>
+        list.map((t) => (t.id === id ? { ...t, leaving: true } : t)),
+      );
+      window.setTimeout(() => remove(id), TOAST_EXIT_MS);
+    },
+    [remove],
+  );
 
   const toast = useCallback(
     (message: string, tone: Tone = "success") => {
@@ -73,7 +91,11 @@ function ToastCard({
     <div
       role="status"
       className="pop pointer-events-auto flex items-start gap-2.5 p-3"
-      style={{ animation: "toast-in 220ms cubic-bezier(0.2,0.7,0.2,1) both" }}
+      style={{
+        animation: toast.leaving
+          ? `toast-out ${TOAST_EXIT_MS}ms cubic-bezier(0.4,0,1,1) forwards`
+          : "toast-in 220ms cubic-bezier(0.2,0.7,0.2,1) both",
+      }}
     >
       <span className={`mt-px shrink-0 ${TONE_ACCENT[toast.tone]}`}>
         {toast.tone === "error" ? (
