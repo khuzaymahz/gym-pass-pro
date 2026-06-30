@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { api } from "@/lib/api";
 import { authOptions } from "@/lib/auth";
+import { branchHeaders } from "@/lib/branch";
 
 // Re-export every type + constant from `sdk-types.ts` so existing
 // `import { ... } from "@/lib/sdk"` call sites in **server**
@@ -30,6 +31,7 @@ export type {
   PartnerMe,
   DayPassOffering,
   DayPassOfferingUpsertBody,
+  PartnerGymRef,
 } from "@/lib/sdk-types";
 export { DEFAULT_LOGO_ALIGNMENT } from "@/lib/sdk-types";
 
@@ -46,6 +48,7 @@ import type {
   PartnerMe,
   DayPassOffering,
   DayPassOfferingUpsertBody,
+  PartnerGymRef,
 } from "@/lib/sdk-types";
 
 async function serviceToken(): Promise<string> {
@@ -65,6 +68,16 @@ async function serviceToken(): Promise<string> {
   return token;
 }
 
+/// Init for a gym-scoped partner call: the service token plus the
+/// `X-Gym-Id` header for the active branch. `me` / `myGyms` are
+/// account-level (span all branches) and use `serviceToken()` directly.
+async function scoped(): Promise<{
+  token: string;
+  headers: Record<string, string>;
+}> {
+  return { token: await serviceToken(), headers: await branchHeaders() };
+}
+
 function qs(
   params: Record<string, string | number | boolean | null | undefined>,
 ): string {
@@ -81,6 +94,12 @@ export const PartnerSDK = {
     return api("/api/v1/partner/me", { token: await serviceToken() });
   },
 
+  /// Every branch the partner can operate (account-level, spans all
+  /// branches — NOT scoped to the active one). Drives the sidebar switcher.
+  async myGyms(): Promise<PartnerGymRef[]> {
+    return api("/api/v1/partner/gyms", { token: await serviceToken() });
+  },
+
   async metrics(
     range?: { since?: string; until?: string },
   ): Promise<PartnerDashboardMetrics> {
@@ -89,30 +108,30 @@ export const PartnerSDK = {
     if (range?.until) qs.set("until", range.until);
     const suffix = qs.toString() ? `?${qs.toString()}` : "";
     return api(`/api/v1/partner/gym/metrics/overview${suffix}`, {
-      token: await serviceToken(),
+      ...(await scoped()),
     });
   },
 
   async getGym(): Promise<GymRead> {
-    return api("/api/v1/partner/gym", { token: await serviceToken() });
+    return api("/api/v1/partner/gym", { ...(await scoped()) });
   },
 
   async updateGym(body: GymUpdateBody): Promise<GymRead> {
     return api("/api/v1/partner/gym", {
       method: "PATCH",
       body: JSON.stringify(body),
-      token: await serviceToken(),
+      ...(await scoped()),
     });
   },
 
   async listPhotos(): Promise<GymPhoto[]> {
-    return api("/api/v1/partner/gym/photos", { token: await serviceToken() });
+    return api("/api/v1/partner/gym/photos", { ...(await scoped()) });
   },
 
   async deletePhoto(id: string): Promise<void> {
     return api(`/api/v1/partner/gym/photos/${id}`, {
       method: "DELETE",
-      token: await serviceToken(),
+      ...(await scoped()),
     });
   },
 
@@ -121,7 +140,7 @@ export const PartnerSDK = {
   async deleteLogo(): Promise<GymRead> {
     return api(`/api/v1/partner/gym/logo`, {
       method: "DELETE",
-      token: await serviceToken(),
+      ...(await scoped()),
     });
   },
 
@@ -133,7 +152,7 @@ export const PartnerSDK = {
     pageSize?: number;
   }): Promise<Page<PartnerCheckin>> {
     return api(`/api/v1/partner/gym/checkins${qs(params)}`, {
-      token: await serviceToken(),
+      ...(await scoped()),
     });
   },
 
@@ -143,7 +162,7 @@ export const PartnerSDK = {
     pageSize?: number;
   }): Promise<Page<PartnerPayout>> {
     return api(`/api/v1/partner/gym/payouts${qs(params)}`, {
-      token: await serviceToken(),
+      ...(await scoped()),
     });
   },
 
@@ -157,7 +176,7 @@ export const PartnerSDK = {
    *  surfacing a 404. */
   async getDayPassOffering(): Promise<DayPassOffering | null> {
     return api("/api/v1/partner/gym/day-pass-offering", {
-      token: await serviceToken(),
+      ...(await scoped()),
     });
   },
 
@@ -169,7 +188,7 @@ export const PartnerSDK = {
     return api("/api/v1/partner/gym/day-pass-offering", {
       method: "PUT",
       body: JSON.stringify(body),
-      token: await serviceToken(),
+      ...(await scoped()),
     });
   },
 };

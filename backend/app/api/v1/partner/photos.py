@@ -10,10 +10,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import (
     audit_service,
     authed_actor,
-    current_gym_owner,
+    current_partner,
     db_session,
     gym_photo_repo,
     gym_service,
+    selected_gym,
 )
 from app.config import get_settings
 from app.core.exceptions import AppError, ErrorCode
@@ -30,22 +31,18 @@ router = APIRouter(prefix="/partner/gym/photos", tags=["partner/gym/photos"])
 
 @router.get("", response_model=list[GymPhotoRead])
 async def list_photos(
-    user: Annotated[User, Depends(current_gym_owner)],
+    gym_id: Annotated[UUID, Depends(selected_gym)],
     photos: Annotated[GymPhotoRepository, Depends(gym_photo_repo)],
 ) -> list[GymPhotoRead]:
-    if user.gym_id is None:
-        raise AppError(
-            ErrorCode.AUTH_FORBIDDEN,
-            "Partner account not linked to a gym.",
-        )
-    rows = await photos.list_by_gym_id(user.gym_id)
+    rows = await photos.list_by_gym_id(gym_id)
     return [GymPhotoRead.model_validate(p) for p in rows]
 
 
 @router.post("", response_model=GymPhotoRead, status_code=201)
 async def upload_photo(
     request: Request,
-    user: Annotated[User, Depends(current_gym_owner)],
+    gym_id: Annotated[UUID, Depends(selected_gym)],
+    user: Annotated[User, Depends(current_partner)],
     svc: Annotated[GymService, Depends(gym_service)],
     photos: Annotated[GymPhotoRepository, Depends(gym_photo_repo)],
     audit: Annotated[AuditService, Depends(audit_service)],
@@ -55,12 +52,7 @@ async def upload_photo(
     alt_text_ar: Annotated[str | None, Form(alias="altTextAr")] = None,
     sort_order: Annotated[int | None, Form(alias="sortOrder")] = None,
 ) -> GymPhotoRead:
-    if user.gym_id is None:
-        raise AppError(
-            ErrorCode.AUTH_FORBIDDEN,
-            "Partner account not linked to a gym.",
-        )
-    gym = await svc.get(user.gym_id)
+    gym = await svc.get(gym_id)
     settings = get_settings()
 
     max_bytes = settings.max_upload_mb * 1024 * 1024
@@ -72,9 +64,7 @@ async def upload_photo(
             details={"field": "file"},
         )
     if len(payload) == 0:
-        raise AppError(
-            ErrorCode.VALIDATION_ERROR, "Empty file.", details={"field": "file"}
-        )
+        raise AppError(ErrorCode.VALIDATION_ERROR, "Empty file.", details={"field": "file"})
     sniffed = sniff_image(payload)
     if sniffed is None:
         raise AppError(
@@ -147,21 +137,17 @@ async def update_photo(
     photo_id: UUID,
     body: GymPhotoUpdate,
     request: Request,
-    user: Annotated[User, Depends(current_gym_owner)],
+    gym_id: Annotated[UUID, Depends(selected_gym)],
+    user: Annotated[User, Depends(current_partner)],
     photos: Annotated[GymPhotoRepository, Depends(gym_photo_repo)],
     audit: Annotated[AuditService, Depends(audit_service)],
     session: Annotated[AsyncSession, Depends(db_session)],
 ) -> GymPhotoRead:
-    if user.gym_id is None:
-        raise AppError(
-            ErrorCode.AUTH_FORBIDDEN,
-            "Partner account not linked to a gym.",
-        )
     photo = await photos.get(photo_id)
     # Tenant guard: a partner can only edit photos that belong to
     # their gym. NOT_FOUND (not FORBIDDEN) so we don't leak whether
     # an unrelated photo id exists.
-    if photo is None or photo.gym_id != user.gym_id:
+    if photo is None or photo.gym_id != gym_id:
         raise AppError(ErrorCode.NOT_FOUND, "Photo not found.")
     before = {
         "sort_order": photo.sort_order,
@@ -185,18 +171,14 @@ async def update_photo(
 async def delete_photo(
     photo_id: UUID,
     request: Request,
-    user: Annotated[User, Depends(current_gym_owner)],
+    gym_id: Annotated[UUID, Depends(selected_gym)],
+    user: Annotated[User, Depends(current_partner)],
     photos: Annotated[GymPhotoRepository, Depends(gym_photo_repo)],
     audit: Annotated[AuditService, Depends(audit_service)],
     session: Annotated[AsyncSession, Depends(db_session)],
 ) -> None:
-    if user.gym_id is None:
-        raise AppError(
-            ErrorCode.AUTH_FORBIDDEN,
-            "Partner account not linked to a gym.",
-        )
     photo = await photos.get(photo_id)
-    if photo is None or photo.gym_id != user.gym_id:
+    if photo is None or photo.gym_id != gym_id:
         raise AppError(ErrorCode.NOT_FOUND, "Photo not found.")
     stored_url = photo.url
     await photos.delete(photo)
@@ -209,10 +191,10 @@ async def delete_photo(
     await session.commit()
 
     await realtime_publish(
-        f"gym/{user.gym_id}/photos",
+        f"gym/{gym_id}/photos",
         {
             "type": "gym.photo.removed",
-            "gymId": str(user.gym_id),
+            "gymId": str(gym_id),
             "photoId": str(photo_id),
         },
     )
@@ -220,7 +202,7 @@ async def delete_photo(
     settings = get_settings()
     prefix = settings.media_url_prefix.rstrip("/") + "/"
     if stored_url.startswith(prefix):
-        rel = stored_url[len(prefix):]
+        rel = stored_url[len(prefix) :]
         disk_path = Path(settings.media_root) / rel
         try:
             disk_path.unlink(missing_ok=True)

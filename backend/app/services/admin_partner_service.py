@@ -8,8 +8,9 @@ from sqlalchemy.exc import IntegrityError
 
 from app.core.exceptions import AppError, ErrorCode
 from app.core.security import hash_password_async
-from app.db.enums import Role
+from app.db.enums import PartnerAccessRole, Role
 from app.db.models import User
+from app.repositories.partner_access_repo import PartnerAccessRepository
 from app.repositories.user_repo import UserRepository
 from app.services.audit_service import Actor, AuditService
 from app.services.gym_service import GymService
@@ -34,10 +35,12 @@ class AdminPartnerService:
         users: UserRepository,
         gyms: GymService,
         audit: AuditService,
+        access: PartnerAccessRepository,
     ) -> None:
         self.users = users
         self.gyms = gyms
         self.audit = audit
+        self.access = access
 
     async def get_owner(self, gym_id: UUID) -> User | None:
         """Return the active partner row for a gym, or None if unset.
@@ -98,6 +101,12 @@ class AdminPartnerService:
                 details={"field": "gymId"},
             ) from exc
 
+        # Membership row so the new login shows up in multi-branch scoping
+        # (/partner/gyms, selected_gym). The legacy users.gym_id set above
+        # stays their primary branch; this is the same gym as an `owner`
+        # access row — the two stay consistent for a freshly minted owner.
+        await self.access.grant(user_id=owner.id, gym_id=gym.id, role=PartnerAccessRole.OWNER)
+
         await self.audit.log(
             actor=actor,
             action="partner.create",
@@ -116,6 +125,67 @@ class AdminPartnerService:
             "id": str(owner.id),
             "phone": normalized_phone,
             "name": owner.name,
+            "gymId": str(gym.id),
+        }
+
+    async def link_owner(self, *, gym_id: UUID, phone: str, actor: Actor) -> dict[str, Any]:
+        """Grant an EXISTING partner access to another branch.
+
+        The multi-branch answer to a phone collision: rather than refuse a
+        duplicate login, attach this gym to the partner who already owns
+        that phone. Writes only a `partner_access` row — the partner's
+        legacy `users.gym_id` (their first branch) is untouched, so
+        `selected_gym` still defaults them there and they reach this branch
+        by selecting it. Returns the route's response dict.
+        """
+        normalized_phone = phone.strip().replace(" ", "").replace("-", "")
+        if not PHONE_RE.match(normalized_phone):
+            raise AppError(
+                ErrorCode.VALIDATION_ERROR,
+                "Invalid Jordanian phone (expected +9627XXXXXXXX).",
+                details={"field": "phone"},
+            )
+
+        gym = await self.gyms.get(gym_id)
+
+        user = await self.users.get_by_phone(normalized_phone)
+        if user is None:
+            raise AppError(
+                ErrorCode.VALIDATION_ERROR,
+                "No partner found with this phone. Create a new login instead.",
+                details={"field": "phone"},
+            )
+        if user.role != Role.GYM_OWNER:
+            raise AppError(
+                ErrorCode.VALIDATION_ERROR,
+                "This phone belongs to a non-partner account.",
+                details={"field": "phone"},
+            )
+        if await self.access.has_access(user.id, gym.id):
+            raise AppError(
+                ErrorCode.VALIDATION_ERROR,
+                "This partner is already linked to this gym.",
+                details={"field": "phone"},
+            )
+
+        await self.access.grant(user_id=user.id, gym_id=gym.id, role=PartnerAccessRole.OWNER)
+        await self.audit.log(
+            actor=actor,
+            action="partner.link",
+            entity_type="user",
+            entity_id=user.id,
+            diff={
+                "after": {
+                    "gym_id": str(gym.id),
+                    "role": PartnerAccessRole.OWNER.value,
+                    "linked_phone": normalized_phone,
+                }
+            },
+        )
+        return {
+            "id": str(user.id),
+            "phone": normalized_phone,
+            "name": user.name,
             "gymId": str(gym.id),
         }
 

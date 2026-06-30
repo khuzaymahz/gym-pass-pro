@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Annotated, Literal
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,9 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import (
     audit_service,
     authed_actor,
-    current_gym_owner,
+    current_partner,
     db_session,
     gym_service,
+    selected_gym,
 )
 from app.config import get_settings
 from app.core.exceptions import AppError, ErrorCode
@@ -31,15 +32,10 @@ router = APIRouter(prefix="/partner/gym", tags=["partner/gym"])
 
 @router.get("", response_model=GymRead)
 async def get_my_gym(
-    user: Annotated[User, Depends(current_gym_owner)],
+    gym_id: Annotated[UUID, Depends(selected_gym)],
     svc: Annotated[GymService, Depends(gym_service)],
 ) -> GymRead:
-    if user.gym_id is None:
-        raise AppError(
-            ErrorCode.AUTH_FORBIDDEN,
-            "Partner account not linked to a gym.",
-        )
-    gym = await svc.get(user.gym_id)
+    gym = await svc.get(gym_id)
     return GymRead.model_validate(gym)
 
 
@@ -47,7 +43,8 @@ async def get_my_gym(
 async def update_my_gym(
     body: GymUpdate,
     request: Request,
-    user: Annotated[User, Depends(current_gym_owner)],
+    gym_id: Annotated[UUID, Depends(selected_gym)],
+    user: Annotated[User, Depends(current_partner)],
     svc: Annotated[GymService, Depends(gym_service)],
     session: Annotated[AsyncSession, Depends(db_session)],
 ) -> GymRead:
@@ -61,18 +58,15 @@ async def update_my_gym(
     current value if the partner sends them — we don't 400 because
     NextAuth-authored forms commonly re-post the full record.
     """
-    if user.gym_id is None:
-        raise AppError(
-            ErrorCode.AUTH_FORBIDDEN,
-            "Partner account not linked to a gym.",
-        )
-    gym = await svc.get(user.gym_id)
+    gym = await svc.get(gym_id)
     safe = body.model_dump(by_alias=False, exclude_unset=True)
     safe.pop("required_tier", None)
     safe.pop("per_visit_rate_jod", None)
     safe.pop("is_active", None)
     gym = await svc.update(
-        gym.id, GymUpdate.model_validate(safe), actor=authed_actor(request, user),
+        gym.id,
+        GymUpdate.model_validate(safe),
+        actor=authed_actor(request, user),
     )
     await session.commit()
     # Live fan-out so any member currently on this gym's detail
@@ -87,7 +81,8 @@ async def update_my_gym(
 @router.post("/logo", response_model=GymRead)
 async def upload_logo(
     request: Request,
-    user: Annotated[User, Depends(current_gym_owner)],
+    gym_id: Annotated[UUID, Depends(selected_gym)],
+    user: Annotated[User, Depends(current_partner)],
     svc: Annotated[GymService, Depends(gym_service)],
     audit: Annotated[AuditService, Depends(audit_service)],
     session: Annotated[AsyncSession, Depends(db_session)],
@@ -95,12 +90,7 @@ async def upload_logo(
     fit: Annotated[LogoFit | None, Form()] = None,
     position: Annotated[LogoPosition | None, Form()] = None,
 ) -> GymRead:
-    if user.gym_id is None:
-        raise AppError(
-            ErrorCode.AUTH_FORBIDDEN,
-            "Partner account not linked to a gym.",
-        )
-    gym = await svc.get(user.gym_id)
+    gym = await svc.get(gym_id)
     settings = get_settings()
 
     max_bytes = settings.max_upload_mb * 1024 * 1024
@@ -112,9 +102,7 @@ async def upload_logo(
             details={"field": "file"},
         )
     if len(payload) == 0:
-        raise AppError(
-            ErrorCode.VALIDATION_ERROR, "Empty file.", details={"field": "file"}
-        )
+        raise AppError(ErrorCode.VALIDATION_ERROR, "Empty file.", details={"field": "file"})
     sniffed = sniff_image(payload)
     if sniffed is None:
         raise AppError(
@@ -162,7 +150,7 @@ async def upload_logo(
     await session.commit()
 
     if previous_url and previous_url.startswith(prefix):
-        old = Path(settings.media_root) / previous_url[len(prefix):]
+        old = Path(settings.media_root) / previous_url[len(prefix) :]
         try:
             old.unlink(missing_ok=True)
         except OSError:
@@ -183,17 +171,13 @@ async def upload_logo(
 @router.delete("/logo", response_model=GymRead)
 async def delete_logo(
     request: Request,
-    user: Annotated[User, Depends(current_gym_owner)],
+    gym_id: Annotated[UUID, Depends(selected_gym)],
+    user: Annotated[User, Depends(current_partner)],
     svc: Annotated[GymService, Depends(gym_service)],
     audit: Annotated[AuditService, Depends(audit_service)],
     session: Annotated[AsyncSession, Depends(db_session)],
 ) -> GymRead:
-    if user.gym_id is None:
-        raise AppError(
-            ErrorCode.AUTH_FORBIDDEN,
-            "Partner account not linked to a gym.",
-        )
-    gym = await svc.get(user.gym_id)
+    gym = await svc.get(gym_id)
     settings = get_settings()
     previous_url = gym.logo_url
     if previous_url is None:
@@ -220,7 +204,7 @@ async def delete_logo(
 
     prefix = settings.media_url_prefix.rstrip("/") + "/"
     if previous_url.startswith(prefix):
-        old = Path(settings.media_root) / previous_url[len(prefix):]
+        old = Path(settings.media_root) / previous_url[len(prefix) :]
         try:
             old.unlink(missing_ok=True)
         except OSError:

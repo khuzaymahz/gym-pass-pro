@@ -8,7 +8,12 @@ import { RealtimeBridge } from "@/components/RealtimeBridge";
 import { Sidebar } from "@/components/Sidebar";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { authOptions } from "@/lib/auth";
-import { PartnerSDK, type LogoAlignment } from "@/lib/sdk";
+import { selectedBranchId } from "@/lib/branch";
+import {
+  PartnerSDK,
+  type LogoAlignment,
+  type PartnerGymRef,
+} from "@/lib/sdk";
 
 export const dynamic = "force-dynamic";
 
@@ -46,11 +51,13 @@ export default async function DashboardLayout({
   // the catch swallows it and the dashboard keeps trying to render
   // with a stale token.
   let gymName = "—";
+  let gymId: string | undefined;
   let logoUrl: string | null = null;
   let logoAlignment: LogoAlignment | null = null;
   let openingHours: Record<string, unknown> | null = null;
   try {
     const gym = await PartnerSDK.getGym();
+    gymId = gym.id;
     gymName = gym.nameEn;
     logoUrl = gym.logoUrl;
     logoAlignment = gym.logoAlignment;
@@ -59,6 +66,18 @@ export default async function DashboardLayout({
     if (isRedirectSignal(e)) throw e;
     // tolerate transient backend hiccup; sidebar shows placeholder
   }
+
+  // Branch list for the switcher (chain owners). Tolerant of a transient
+  // hiccup — a single-gym partner just gets a one-entry list the switcher
+  // hides anyway. Active branch = the cookie, falling back to the gym the
+  // backend resolved above (their primary).
+  let branches: PartnerGymRef[] = [];
+  try {
+    branches = await PartnerSDK.myGyms();
+  } catch (e) {
+    if (isRedirectSignal(e)) throw e;
+  }
+  const currentBranchId = (await selectedBranchId()) ?? gymId;
 
   return (
     <div className="flex min-h-screen flex-col bg-ink text-paper">
@@ -76,6 +95,8 @@ export default async function DashboardLayout({
           logoAlignment={logoAlignment}
           phone={session.phone ?? ""}
           openingHours={openingHours}
+          branches={branches}
+          currentBranchId={currentBranchId}
         />
         <main className="relative flex-1 overflow-x-hidden">
           {/* Locale + theme toggles. The OUTER div carries `end-6` and

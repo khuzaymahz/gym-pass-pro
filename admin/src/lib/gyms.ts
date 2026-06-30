@@ -101,6 +101,26 @@ export async function createGym(body: Partial<GymRead>): Promise<GymRead> {
   });
 }
 
+/// Owner to attach while creating a gym. `new` mints a fresh login;
+/// `link` attaches an existing partner by phone (multi-branch).
+export type OwnerProvision =
+  | { mode: "new"; phone: string; name: string; password: string }
+  | { mode: "link"; phone: string };
+
+/// Atomic gym + owner create. If the owner step fails server-side, the gym
+/// is rolled back too — so a failed partner login never leaves an orphan
+/// gym behind (the bug this replaces the createGym→createOwner pair for).
+export async function createGymWithOwner(body: {
+  gym: Partial<GymRead>;
+  owner?: OwnerProvision | null;
+}): Promise<{ gym: GymRead; owner: GymOwnerRead | null }> {
+  return api(`/api/v1/admin/gyms/with-owner`, {
+    method: "POST",
+    body: JSON.stringify(body),
+    token: await serviceToken(),
+  });
+}
+
 export async function updateGym(
   id: string,
   body: Partial<GymRead>,
