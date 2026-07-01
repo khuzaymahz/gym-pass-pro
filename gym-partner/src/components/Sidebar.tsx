@@ -9,8 +9,13 @@ import { Component, type ReactNode, useEffect, useState } from "react";
 
 import { makeInitials } from "@/lib/initials";
 import { resolveMediaUrl } from "@/lib/media";
-import { DEFAULT_LOGO_ALIGNMENT, type LogoAlignment } from "@/lib/sdk-types";
+import {
+  DEFAULT_LOGO_ALIGNMENT,
+  type LogoAlignment,
+  type PartnerGymRef,
+} from "@/lib/sdk-types";
 
+import { BranchSwitcher } from "./BranchSwitcher";
 import { Wordmark } from "./Wordmark";
 
 /// Defensive boundary around the GymStatusCard. The card consumes a
@@ -94,6 +99,8 @@ export function Sidebar({
   logoAlignment,
   phone,
   openingHours,
+  branches,
+  currentBranchId,
 }: {
   gymName: string;
   logoUrl?: string | null;
@@ -103,6 +110,10 @@ export function Sidebar({
   // above for the shapes we accept. Falsy = treat as "unknown",
   // which the dot renders as Closed (the safer default).
   openingHours?: Record<string, unknown> | null;
+  // Branches this partner can operate + the active one. >1 → the
+  // switcher renders above the gym card; otherwise it's a no-op.
+  branches?: PartnerGymRef[];
+  currentBranchId?: string;
 }) {
   const t = useTranslations("nav");
   const tApp = useTranslations("app");
@@ -125,6 +136,10 @@ export function Sidebar({
         <div className="flex justify-center">
           <Wordmark size={22} />
         </div>
+        <BranchSwitcher
+          branches={branches ?? []}
+          currentId={currentBranchId}
+        />
         <GymStatusBoundary
           fallback={
             <div

@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth";
 
 import { ApiError } from "@/lib/api";
 import { authOptions } from "@/lib/auth";
+import { branchHeaders } from "@/lib/branch";
 import { serverEnv } from "@/lib/env.server";
 import {
   PartnerSDK,
@@ -54,6 +55,7 @@ export async function uploadLogoAction(
       method: "POST",
       headers: {
         authorization: `Bearer ${session.serviceToken}`,
+        ...(await branchHeaders()),
       },
       body: data,
       cache: "no-store",

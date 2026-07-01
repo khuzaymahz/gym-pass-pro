@@ -37,6 +37,19 @@ class CreatePartnerRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
+class LinkPartnerRequest(BaseModel):
+    """Admin → attach an EXISTING partner (by phone) to another gym/branch.
+
+    The multi-branch counterpart to CreatePartnerRequest: no new login is
+    minted, the gym is added to a partner who already has one — so a chain
+    owner ends up with one login spanning all their branches.
+    """
+
+    phone: str = Field(min_length=8, max_length=32)
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
 class ResetPartnerPasswordRequest(BaseModel):
     """Admin → reset an existing gym-owner's password.
 
@@ -47,6 +60,18 @@ class ResetPartnerPasswordRequest(BaseModel):
     """
 
     password: str = Field(min_length=8, max_length=128)
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class PartnerGymRef(BaseModel):
+    """A branch the calling partner can operate — drives the portal's branch
+    switcher. `role` is their relationship to it (owner | manager)."""
+
+    id: str
+    slug: str
+    name_en: str = Field(alias="nameEn")
+    role: str
 
     model_config = ConfigDict(populate_by_name=True)
 

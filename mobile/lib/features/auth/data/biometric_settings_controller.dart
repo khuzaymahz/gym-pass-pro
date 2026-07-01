@@ -21,6 +21,7 @@ class BiometricSettingsState {
   final bool enabled;
   final bool hasPassword;
   final bool loading;
+
   /// True when the device's primary enrolled biometric is face/iris.
   /// Used to select the correct icon in settings and the sign-in screen.
   final bool usesFaceId;
@@ -84,9 +85,9 @@ class BiometricSettingsController
   Future<void> refresh() => _refresh();
 
   /// Reads the plaintext password stored at sign-in and saves the credential
-  /// pair to the vault. The caller (settings page) is responsible for having
-  /// already confirmed the user's identity via OS biometric prompt before
-  /// calling this.
+  /// pair to the vault. The caller (settings page) fires the OS biometric
+  /// prompt before calling this; if no stored credential exists it passes
+  /// the user-typed password via [passwordOverride] as a one-time fallback.
   Future<BiometricToggleResult> enable({String? passwordOverride}) async {
     state = state.copyWith(loading: true);
     try {
@@ -126,8 +127,9 @@ class BiometricSettingsController
   }
 }
 
-final biometricSettingsProvider = StateNotifierProvider<
-    BiometricSettingsController, BiometricSettingsState>((ref) {
+final biometricSettingsProvider =
+    StateNotifierProvider<BiometricSettingsController, BiometricSettingsState>(
+        (ref) {
   return BiometricSettingsController(
     ref.read(biometricVaultProvider),
     ref.read(profileProvider.notifier),

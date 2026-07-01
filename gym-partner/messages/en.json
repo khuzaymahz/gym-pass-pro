@@ -88,6 +88,10 @@
     "errorImageType": "Only JPEG, PNG, or WebP images are accepted.",
     "errorImageSize": "Image is too large (max {max} MB)."
   },
+  "branch": {
+    "switchAria": "Switch branch",
+    "label": "Branch"
+  },
   "nav": {
     "dashboard": "Dashboard",
     "qr": "QR",

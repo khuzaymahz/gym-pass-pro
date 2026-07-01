@@ -30,6 +30,18 @@ class Role(StrEnum):
     GYM_OWNER = "gym_owner"
 
 
+class PartnerAccessRole(StrEnum):
+    """How a partner user relates to a gym in `partner_access`.
+
+    owner   — full control of the branch; a chain owner holds an
+              `owner` row on every branch (one login, all branches).
+    manager — branch-level staff: operates one branch only.
+    """
+
+    OWNER = "owner"
+    MANAGER = "manager"
+
+
 class AdminScope(StrEnum):
     """Sub-role for `Role.ADMIN` users.
 
