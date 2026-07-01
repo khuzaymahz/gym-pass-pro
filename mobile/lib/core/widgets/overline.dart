@@ -108,6 +108,19 @@ class SerifAccent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isAr = Localizations.localeOf(context).languageCode == 'ar';
+    if (isAr) {
+      return Text(
+        text,
+        style: TextStyle(
+          fontFamily: 'Cairo',
+          fontSize: size * 0.82,
+          fontWeight: FontWeight.w500,
+          height: 1.0,
+          color: color ?? context.gp.accentInk,
+        ),
+      );
+    }
     return Text(
       text,
       style: GPText.serifAccent(size, color: color ?? context.gp.accentInk),

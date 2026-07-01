@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:flutter_svg/flutter_svg.dart';
+
 import '../../../core/bootstrap/app_bootstrap.dart';
 import '../../../core/theme/gp_text.dart';
 import '../../../core/theme/gp_tokens.dart';
@@ -113,10 +115,9 @@ class _SplashPageState extends ConsumerState<SplashPage>
   }
 }
 
-/// Creative two-word reveal for the GYM PASS wordmark. A lime continuity dot
-/// sits at the center of the frame on first paint (matching the native launch
-/// window) and dissolves as GYM slides in from the left and PASS slides in
-/// from the right; an underline sweep seals the mark once both words meet.
+/// Logo reveal for the splash screen. A lime dot dissolves while the
+/// SVG logo fades in and scales up from 0.88 → 1.0; an underline sweep
+/// seals the mark once the logo is fully visible.
 class _AnimatedWordmark extends StatelessWidget {
   final AnimationController controller;
   final double size;
@@ -126,101 +127,64 @@ class _AnimatedWordmark extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final gp = context.gp;
+    // Logo width derived from SVG aspect ratio (3670 : 539 ≈ 6.81).
+    final logoWidth = size * (3670 / 539);
+
     final dotFade = CurvedAnimation(
       parent: controller,
-      curve: const Interval(0.00, 0.30, curve: Curves.easeOut),
+      curve: const Interval(0.00, 0.35, curve: Curves.easeOut),
     );
-    final gymSlide = CurvedAnimation(
+    final logoReveal = CurvedAnimation(
       parent: controller,
-      curve: const Interval(0.15, 0.65, curve: Curves.easeOutCubic),
-    );
-    final passSlide = CurvedAnimation(
-      parent: controller,
-      curve: const Interval(0.30, 0.85, curve: Curves.easeOutCubic),
+      curve: const Interval(0.15, 0.75, curve: Curves.easeOutCubic),
     );
     final underline = CurvedAnimation(
       parent: controller,
-      curve: const Interval(0.60, 1.00, curve: Curves.easeOutCubic),
-    );
-    final breathe = CurvedAnimation(
-      parent: controller,
-      curve: Curves.easeOutCubic,
+      curve: const Interval(0.65, 1.00, curve: Curves.easeOutCubic),
     );
 
-    final baseStyle = TextStyle(
-      fontFamily: 'Cairo',
-      fontWeight: FontWeight.w900,
-      fontVariations: const [FontVariation('wght', 900), FontVariation('slnt', -10)],
-      fontSize: size,
-      height: 1.0,
-      letterSpacing: -size * 0.03,
-    );
-
-    // Wordmark is a logo — lock LTR so it doesn't flip to "PASS GYM" in RTL.
-    return Directionality(
-      textDirection: TextDirection.ltr,
-      child: AnimatedBuilder(
-        animation: controller,
-        builder: (_, __) {
-          return Transform.scale(
-            scale: 0.94 + breathe.value * 0.06,
-            child: Stack(
-              alignment: Alignment.center,
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (_, __) {
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            Opacity(
+              opacity: 1 - dotFade.value,
+              child: Container(
+                width: 20,
+                height: 20,
+                decoration: const BoxDecoration(
+                  color: GP.lime,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+            Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Opacity(
-                  opacity: 1 - dotFade.value,
-                  child: Container(
-                    width: 20,
-                    height: 20,
-                    decoration: const BoxDecoration(
-                      color: GP.lime,
-                      shape: BoxShape.circle,
+                  opacity: logoReveal.value,
+                  child: Transform.scale(
+                    scale: 0.88 + logoReveal.value * 0.12,
+                    child: SvgPicture.asset(
+                      'assets/branding/gympass.svg',
+                      height: size,
+                      theme: SvgTheme(currentColor: gp.fg),
                     ),
                   ),
                 ),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.baseline,
-                      textBaseline: TextBaseline.alphabetic,
-                      children: [
-                        Opacity(
-                          opacity: gymSlide.value,
-                          child: Transform.translate(
-                            offset: Offset(-40 * (1 - gymSlide.value), 0),
-                            child: Text(
-                              'GYM',
-                              style: baseStyle.copyWith(color: gp.fg),
-                            ),
-                          ),
-                        ),
-                        Opacity(
-                          opacity: passSlide.value,
-                          child: Transform.translate(
-                            offset: Offset(40 * (1 - passSlide.value), 0),
-                            child: Text(
-                              'PASS',
-                              style: baseStyle.copyWith(color: gp.accentInk),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    _UnderlineSweep(
-                      progress: underline.value,
-                      color: gp.accentInk,
-                      maxWidth: size * 4.2,
-                    ),
-                  ],
+                const SizedBox(height: 10),
+                _UnderlineSweep(
+                  progress: underline.value,
+                  color: gp.accentInk,
+                  maxWidth: logoWidth,
                 ),
               ],
             ),
-          );
-        },
-      ),
+          ],
+        );
+      },
     );
   }
 }

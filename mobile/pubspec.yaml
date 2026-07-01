@@ -40,6 +40,9 @@ dependencies:
   # never carries the plaintext secret used at login time.
   crypto: ^3.0.3
 
+  # SVG rendering — used for the GYMPASS brand logo in Wordmark + splash.
+  flutter_svg: ^2.0.10+1
+
   # Router
   go_router: ^14.6.0
 

@@ -49,8 +49,8 @@ class AppTheme {
       scaffoldBackgroundColor: c.bg,
       colorScheme: scheme,
       textTheme: textTheme,
-      fontFamily: 'Cairo',
-      fontFamilyFallback: const ['Roboto', 'sans-serif'],
+      fontFamily: 'Inter',
+      fontFamilyFallback: const ['Cairo', 'Roboto', 'sans-serif'],
       extensions: [c],
       appBarTheme: AppBarTheme(
         backgroundColor: c.bg,

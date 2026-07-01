@@ -3,34 +3,38 @@ import 'package:flutter/material.dart';
 import 'gp_tokens.dart';
 
 class GPText {
-  static const List<String> _fallback = ['Roboto', 'sans-serif'];
+  // EN display/headings: Archivo (variable wght + wdth, italic for condensed punch).
+  // EN body/labels/mono: Inter (clean neutral, wide glyph coverage).
+  // AR: Cairo everywhere — upright, no negative letter-spacing so ligatures stay intact.
+  // Roboto / sans-serif tail fallback for any missing glyph.
+  static const List<String> _fallback = ['Cairo', 'Roboto', 'sans-serif'];
+  static const List<String> _arabicFallback = ['Roboto', 'sans-serif'];
 
-  // Cairo variable font axes: wght 200–1000, slnt −20–0 (0 = upright).
-  // Slant replaces Archivo italic for display heads; Arabic text always
-  // renders upright (slnt 0) so ligatures stay intact.
+  // Archivo variable axes: wght (100–900) + wdth (62–125).
+  // Pushing wght to 900 and wdth to 88 produces a condensed editorial display
+  // head without shipping a separate display face.
   static const List<FontVariation> _displayAxes = [
     FontVariation('wght', 900),
-    FontVariation('slnt', -10),
-  ];
-
-  static const List<FontVariation> _displayAxesAr = [
-    FontVariation('wght', 800),
-    FontVariation('slnt', 0),
+    FontVariation('wdth', 88),
   ];
 
   static TextStyle display(double size, {Color color = GP.paper, double height = 0.92}) {
     return TextStyle(
-      fontFamily: 'Cairo',
+      fontFamily: 'Archivo',
       fontFamilyFallback: _fallback,
       fontWeight: FontWeight.w900,
       fontVariations: _displayAxes,
+      fontStyle: FontStyle.italic,
       fontSize: size,
       height: height,
-      letterSpacing: -size * 0.02,
+      letterSpacing: -size * 0.045,
       color: color,
     );
   }
 
+  // AR display: Cairo upright — letterSpacing 0 so ligatures stay intact.
+  // Italic + negative tracking (the EN display treatment) breaks Arabic
+  // letter joining and produces disconnected glyphs (بلاتيني / ذهبي issue).
   static TextStyle displayArabic(
     double size, {
     Color color = GP.paper,
@@ -38,9 +42,8 @@ class GPText {
   }) {
     return TextStyle(
       fontFamily: 'Cairo',
-      fontFamilyFallback: _fallback,
+      fontFamilyFallback: _arabicFallback,
       fontWeight: FontWeight.w800,
-      fontVariations: _displayAxesAr,
       fontSize: size,
       height: height,
       letterSpacing: 0,
@@ -67,19 +70,18 @@ class GPText {
 
   static TextStyle serifAccent(double size, {Color color = GP.lime}) {
     return TextStyle(
-      fontFamily: 'Cairo',
+      fontFamily: 'InstrumentSerif',
       fontFamilyFallback: _fallback,
-      fontWeight: FontWeight.w700,
-      fontVariations: const [FontVariation('wght', 700)],
+      fontStyle: FontStyle.italic,
       fontSize: size * 0.82,
       height: 0.92,
-      letterSpacing: -size * 0.008,
+      letterSpacing: -size * 0.012,
       color: color,
     );
   }
 
   static const TextStyle overline = TextStyle(
-    fontFamily: 'Cairo',
+    fontFamily: 'Inter',
     fontFamilyFallback: _fallback,
     fontSize: 10,
     fontWeight: FontWeight.w600,
@@ -95,7 +97,7 @@ class GPText {
     Color color = GP.muted,
   }) {
     return TextStyle(
-      fontFamily: 'Cairo',
+      fontFamily: 'Inter',
       fontFamilyFallback: _fallback,
       fontSize: size,
       fontWeight: weight,
@@ -112,7 +114,7 @@ class GPText {
     double height = 1.45,
   }) {
     return TextStyle(
-      fontFamily: 'Cairo',
+      fontFamily: 'Inter',
       fontFamilyFallback: _fallback,
       fontSize: size,
       fontWeight: weight,
@@ -125,10 +127,11 @@ class GPText {
   static TextStyle bodySm({Color color = GP.muted}) => body(size: 12, color: color, height: 1.4);
 
   static const TextStyle ctaLabel = TextStyle(
-    fontFamily: 'Cairo',
+    fontFamily: 'Archivo',
     fontFamilyFallback: _fallback,
     fontWeight: FontWeight.w900,
     fontVariations: _displayAxes,
+    fontStyle: FontStyle.italic,
     fontSize: 15,
     letterSpacing: 0.6,
     height: 1.0,
