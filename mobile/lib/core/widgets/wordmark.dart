@@ -22,12 +22,12 @@ class Wordmark extends StatelessWidget {
     final inkToken = paperColor ?? gp.fg;
     final accent = limeColor ?? gp.accentInk;
     final style = TextStyle(
-      fontFamily: 'Archivo',
+      fontFamily: 'Cairo',
       fontWeight: FontWeight.w900,
-      fontStyle: FontStyle.italic,
+      fontVariations: const [FontVariation('wght', 900), FontVariation('slnt', -10)],
       fontSize: size,
       height: 1.0,
-      letterSpacing: -size * 0.045,
+      letterSpacing: -size * 0.03,
     );
     // The brand wordmark is a logo, not translatable text — always reads
     // left-to-right so it doesn't visually flip to "PASSGYM" in RTL locales.
@@ -92,12 +92,12 @@ class _WordmarkLoaderState extends State<WordmarkLoader>
       gp.accentInk, gp.accentInk, gp.accentInk, gp.accentInk, // PASS
     ];
     final style = TextStyle(
-      fontFamily: 'Archivo',
+      fontFamily: 'Cairo',
       fontWeight: FontWeight.w900,
-      fontStyle: FontStyle.italic,
+      fontVariations: const [FontVariation('wght', 900), FontVariation('slnt', -10)],
       fontSize: size,
       height: 1.0,
-      letterSpacing: -size * 0.045,
+      letterSpacing: -size * 0.03,
     );
     return Directionality(
       textDirection: TextDirection.ltr,

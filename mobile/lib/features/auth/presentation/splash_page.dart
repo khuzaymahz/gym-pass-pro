@@ -148,12 +148,12 @@ class _AnimatedWordmark extends StatelessWidget {
     );
 
     final baseStyle = TextStyle(
-      fontFamily: 'Archivo',
+      fontFamily: 'Cairo',
       fontWeight: FontWeight.w900,
-      fontStyle: FontStyle.italic,
+      fontVariations: const [FontVariation('wght', 900), FontVariation('slnt', -10)],
       fontSize: size,
       height: 1.0,
-      letterSpacing: -size * 0.045,
+      letterSpacing: -size * 0.03,
     );
 
     // Wordmark is a logo — lock LTR so it doesn't flip to "PASS GYM" in RTL.

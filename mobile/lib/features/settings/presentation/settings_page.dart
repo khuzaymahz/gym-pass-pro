@@ -427,39 +427,35 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           ? Icons.face_retouching_natural
                           : Icons.fingerprint,
                       title: l.securityBiometricTitle,
-                      subtitle: !biometric.hasPassword
-                          ? l.securityBiometricNoPassword
-                          : l.securityBiometricDesc,
+                      subtitle: l.securityBiometricDesc,
                       trailing: Switch(
                         value: biometric.enabled,
-                        onChanged: biometric.hasPassword
-                            ? (v) async {
-                                if (v) {
-                                  final ok = await _enableBiometric(
-                                    context, sheetRef, l,);
-                                  if (!context.mounted) return;
-                                  if (ok) {
-                                    ScaffoldMessenger.of(context)
-                                      ..hideCurrentSnackBar()
-                                      ..showSnackBar(SnackBar(
-                                        duration: const Duration(seconds: 4),
-                                        content: Text(l.biometricEnabled),
-                                      ),);
-                                  }
-                                } else {
-                                  await sheetRef
-                                      .read(biometricSettingsProvider.notifier)
-                                      .disable();
-                                  if (!context.mounted) return;
-                                  ScaffoldMessenger.of(context)
-                                    ..hideCurrentSnackBar()
-                                    ..showSnackBar(SnackBar(
-                                      duration: const Duration(seconds: 4),
-                                      content: Text(l.biometricDisabled),
-                                    ),);
-                                }
-                              }
-                            : null,
+                        onChanged: (v) async {
+                          if (v) {
+                            final ok = await _enableBiometric(
+                              context, sheetRef, l,);
+                            if (!context.mounted) return;
+                            if (ok) {
+                              ScaffoldMessenger.of(context)
+                                ..hideCurrentSnackBar()
+                                ..showSnackBar(SnackBar(
+                                  duration: const Duration(seconds: 4),
+                                  content: Text(l.biometricEnabled),
+                                ),);
+                            }
+                          } else {
+                            await sheetRef
+                                .read(biometricSettingsProvider.notifier)
+                                .disable();
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context)
+                              ..hideCurrentSnackBar()
+                              ..showSnackBar(SnackBar(
+                                duration: const Duration(seconds: 4),
+                                content: Text(l.biometricDisabled),
+                              ),);
+                          }
+                        },
                         activeThumbColor: GP.ink,
                         activeTrackColor: GP.lime,
                         inactiveThumbColor: gp.muted,
@@ -474,39 +470,35 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     gp,
                     icon: Icons.grid_view_rounded,
                     title: l.securityPatternTitle,
-                    subtitle: !pattern.hasPassword
-                        ? l.securityPatternNoPassword
-                        : l.securityPatternDesc,
+                    subtitle: l.securityPatternDesc,
                     trailing: Switch(
                       value: pattern.enabled,
-                      onChanged: pattern.hasPassword
-                          ? (v) async {
-                              if (v) {
-                                final ok = await _enablePattern(
-                                  context, sheetRef, l,);
-                                if (!context.mounted) return;
-                                if (ok) {
-                                  ScaffoldMessenger.of(context)
-                                    ..hideCurrentSnackBar()
-                                    ..showSnackBar(SnackBar(
-                                      duration: const Duration(seconds: 4),
-                                      content: Text(l.patternEnabled),
-                                    ),);
-                                }
-                              } else {
-                                await sheetRef
-                                    .read(patternSettingsProvider.notifier)
-                                    .disable();
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context)
-                                  ..hideCurrentSnackBar()
-                                  ..showSnackBar(SnackBar(
-                                    duration: const Duration(seconds: 4),
-                                    content: Text(l.patternDisabled),
-                                  ),);
-                              }
-                            }
-                          : null,
+                      onChanged: (v) async {
+                        if (v) {
+                          final ok = await _enablePattern(
+                            context, sheetRef, l,);
+                          if (!context.mounted) return;
+                          if (ok) {
+                            ScaffoldMessenger.of(context)
+                              ..hideCurrentSnackBar()
+                              ..showSnackBar(SnackBar(
+                                duration: const Duration(seconds: 4),
+                                content: Text(l.patternEnabled),
+                              ),);
+                          }
+                        } else {
+                          await sheetRef
+                              .read(patternSettingsProvider.notifier)
+                              .disable();
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context)
+                            ..hideCurrentSnackBar()
+                            ..showSnackBar(SnackBar(
+                              duration: const Duration(seconds: 4),
+                              content: Text(l.patternDisabled),
+                            ),);
+                        }
+                      },
                       activeThumbColor: GP.ink,
                       activeTrackColor: GP.lime,
                       inactiveThumbColor: gp.muted,
@@ -610,35 +602,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     WidgetRef sheetRef,
     AppLocalizations l,
   ) async {
-    final password = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: context.gp.bg2,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(GPRadius.xl2)),
-      ),
-      builder: (_) => const _BiometricEnrollSheet(),
-    );
-    if (password == null || password.isEmpty) return false;
-    if (!context.mounted) return false;
-    // Wait for the password sheet's dismiss animation to finish before firing
-    // the OS biometric prompt — on Samsung, prompting while a bottom sheet is
-    // still animating out causes an immediate silent "cancelled".
-    await Future.delayed(const Duration(milliseconds: 400));
-    if (!context.mounted) return false;
-    // OS fingerprint / face prompt.
+    // Confirm identity via OS biometric — no password sheet needed.
     final bioResult = await sheetRef
         .read(biometricVaultProvider)
         .authenticate(localizedReason: l.biometricUnlockReason);
     if (!context.mounted) return false;
     switch (bioResult) {
       case BiometricResult.cancelled:
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(
-              duration: const Duration(seconds: 4),
-              content: Text(l.biometricCancelled)));
-        return false;
+        return false; // user dismissed — no snack, just no-op
       case BiometricResult.unavailable:
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
@@ -649,11 +620,34 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       case BiometricResult.ok:
         break;
     }
+    // If the plaintext password wasn't stored yet (signed in before this
+    // version, or OTP-only session), ask once via the password sheet so we
+    // can vault it going forward.
+    String? passwordOverride;
+    final storedPw = await sheetRef
+        .read(profileProvider.notifier)
+        .readStoredPassword();
+    if (!context.mounted) return false;
+    if (storedPw == null || storedPw.isEmpty) {
+      passwordOverride = await showModalBottomSheet<String>(
+        context: context,
+        backgroundColor: context.gp.bg2,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius:
+              BorderRadius.vertical(top: Radius.circular(GPRadius.xl2)),
+        ),
+        builder: (_) => const _BiometricEnrollSheet(),
+      );
+      if (passwordOverride == null || passwordOverride.isEmpty) return false;
+      if (!context.mounted) return false;
+    }
+
     BiometricToggleResult result;
     try {
       result = await sheetRef
           .read(biometricSettingsProvider.notifier)
-          .enable(password: password);
+          .enable(passwordOverride: passwordOverride);
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context)
@@ -668,6 +662,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     switch (result) {
       case BiometricToggleResult.ok:
         return true;
+      case BiometricToggleResult.network:
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(
+              duration: const Duration(seconds: 4),
+              content: Text(l.errorNetwork)));
       case BiometricToggleResult.passwordWrong:
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
@@ -676,13 +676,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               content: Text(l.errorPasswordInvalid)));
       case BiometricToggleResult.biometricCancelled:
       case BiometricToggleResult.biometricUnavailable:
-        break; // handled above before enable() is called
-      case BiometricToggleResult.network:
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(
-              duration: const Duration(seconds: 4),
-              content: Text(l.errorNetwork)));
+        break;
     }
     return false;
   }

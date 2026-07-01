@@ -106,6 +106,10 @@ class ProfileStore {
   static const _kGender = 'profile.gender';
   static const _kBirthdate = 'profile.birthdate';
   static const _kPasswordHash = 'profile.passwordHash';
+  static const _kPassword = 'profile.password';
+
+  Future<String?> readPassword() => _storage.read(key: _kPassword);
+  Future<void> writePassword(String p) => _storage.write(key: _kPassword, value: p);
 
   Future<UserProfile> read() async {
     final firstName = await _storage.read(key: _kFirstName);
@@ -184,6 +188,7 @@ class ProfileStore {
     await _storage.delete(key: _kPhone);
     await _storage.delete(key: _kGender);
     await _storage.delete(key: _kPasswordHash);
+    await _storage.delete(key: _kPassword);
   }
 }
 
@@ -309,7 +314,12 @@ class ProfileController extends StateNotifier<UserProfile> {
     final passwordHash = hashPassword(password);
     state = state.copyWith(passwordHash: passwordHash);
     await _store.writeAll(passwordHash: passwordHash);
+    await _store.writePassword(password);
   }
+
+  /// Returns the plaintext password stored at sign-in, used by biometric
+  /// enrollment so the user doesn't have to re-type it.
+  Future<String?> readStoredPassword() => _store.readPassword();
 
   /// Replace the active session profile with a known-good record (e.g. after
   /// fetching `/me` post-login). Persists every field so a cold start
@@ -371,6 +381,7 @@ class ProfileController extends StateNotifier<UserProfile> {
       birthdate: birthdate,
       passwordHash: passwordHash,
     );
+    await _store.writePassword(password);
   }
 
   Future<void> updateIdentity({

@@ -79,16 +79,8 @@ class DisplayText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Locale-aware: EN gets the editorial italic+condensed Archivo;
-    // AR gets upright Tajawal so letters stay joined at the baseline.
-    // Previously every locale used `display` (Archivo + italic +
-    // negative letterSpacing), which fell back to the AR face glyph-by-
-    // glyph while still applying italic skew and negative tracking —
-    // breaking ligatures and producing the disconnected
-    // بلاتيني / ذهبي the user flagged. Upper-casing also doesn't
-    // change Arabic glyphs (no case distinction) so we apply
-    // toUpperCase unconditionally and let the AR path render the
-    // canonical letterforms.
+    // AR path stays upright (slnt 0) so ligatures stay intact;
+    // EN path uses the slanted display weight.
     final lang = Localizations.localeOf(context).languageCode;
     final isAr = lang == 'ar';
     final display = isAr
@@ -116,28 +108,8 @@ class SerifAccent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Same locale rationale as DisplayText: InstrumentSerif is
-    // Latin-only and its italic style/lower-case treatment is
-    // meaningless for Arabic. Render AR with upright Tajawal at a
-    // lighter weight so it still reads as the "accent" half of the
-    // headline pair without slicing Arabic glyphs.
-    final lang = Localizations.localeOf(context).languageCode;
-    final isAr = lang == 'ar';
-    if (isAr) {
-      return Text(
-        text,
-        style: TextStyle(
-          fontFamily: 'Tajawal',
-          fontFamilyFallback: const ['Cairo', 'Roboto', 'sans-serif'],
-          fontSize: size * 0.82,
-          fontWeight: FontWeight.w500,
-          height: 1.0,
-          color: color ?? context.gp.accentInk,
-        ),
-      );
-    }
     return Text(
-      text.toLowerCase(),
+      text,
       style: GPText.serifAccent(size, color: color ?? context.gp.accentInk),
     );
   }

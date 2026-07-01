@@ -83,20 +83,24 @@ class BiometricSettingsController
   /// password since the last open).
   Future<void> refresh() => _refresh();
 
-  /// Verifies the user's password against the backend, prompts biometric,
-  /// and saves the credential pair on success. We re-check the password
-  /// here (rather than trusting that the user is signed in) so an attacker
-  /// who picks up an unlocked phone can't silently arm biometric with a
-  /// password they don't know — the prompt is a real proof-of-knowledge.
-  Future<BiometricToggleResult> enable({
-    required String password,
-  }) async {
+  /// Reads the plaintext password stored at sign-in and saves the credential
+  /// pair to the vault. The caller (settings page) is responsible for having
+  /// already confirmed the user's identity via OS biometric prompt before
+  /// calling this.
+  Future<BiometricToggleResult> enable({String? passwordOverride}) async {
     state = state.copyWith(loading: true);
     try {
       final phone = _profile.state.phone ?? '';
       if (phone.isEmpty) return BiometricToggleResult.network;
+      final password = passwordOverride ?? await _profile.readStoredPassword();
+      if (password == null || password.isEmpty) {
+        return BiometricToggleResult.passwordWrong;
+      }
       try {
         await _vault.save(phone: phone, password: password);
+        if (passwordOverride != null) {
+          await _profile.markPasswordKnown(passwordOverride);
+        }
         state = state.copyWith(enabled: true);
         return BiometricToggleResult.ok;
       } catch (_) {

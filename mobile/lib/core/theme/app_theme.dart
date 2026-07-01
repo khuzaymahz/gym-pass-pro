@@ -49,15 +49,8 @@ class AppTheme {
       scaffoldBackgroundColor: c.bg,
       colorScheme: scheme,
       textTheme: textTheme,
-      fontFamily: 'Inter',
-      // Inter / Archivo / InstrumentSerif ship Latin-only — Tajawal carries
-      // the Arabic glyphs in a designed face (cleaner letterforms and
-      // better x-height than Cairo); Cairo stays in the chain as the
-      // secondary AR fallback so any glyph Tajawal lacks still renders in
-      // a real Arabic face rather than dropping to Roboto's smaller-quality
-      // AR rendering. Roboto / sans-serif are the tail fallback. Order
-      // matters: the first family that has the glyph wins.
-      fontFamilyFallback: const ['Tajawal', 'Cairo', 'Roboto', 'sans-serif'],
+      fontFamily: 'Cairo',
+      fontFamilyFallback: const ['Roboto', 'sans-serif'],
       extensions: [c],
       appBarTheme: AppBarTheme(
         backgroundColor: c.bg,
